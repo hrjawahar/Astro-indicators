@@ -1115,19 +1115,46 @@ function initCitySearch() {
   }
 }
 
+// City search calls Nominatim DIRECTLY from the browser.
+// This avoids Cloudflare Worker IPs being blocked by Nominatim's rate-limiter.
+// The Worker (/api/chart) is only called for chart computation once lat/lng are known.
 async function fetchCitySuggestions(query) {
   const dropdown = document.getElementById("placeDropdown");
   if (!dropdown) return;
   dropdown.innerHTML = `<div class="place-item place-loading">Searching...</div>`;
   dropdown.style.display = "block";
   try {
-    const res  = await fetch(`/api/chart?q=${encodeURIComponent(query)}`);
+    // Call Nominatim directly from the browser — not through the Worker
+    const url = `https://nominatim.openstreetmap.org/search`
+      + `?q=${encodeURIComponent(query)}`
+      + `&format=json&limit=8&addressdetails=1&accept-language=en`;
+
+    const res  = await fetch(url, {
+      headers: { "User-Agent": "JyotishPrecisionApp/3.0 (astrology chart calculator)" }
+    });
+
+    if (!res.ok) throw new Error(`Nominatim returned ${res.status}`);
     const data = await res.json();
+
     if (!data || !data.length) {
-      dropdown.innerHTML = `<div class="place-item place-no-result">No cities found. Try a different spelling.</div>`;
+      dropdown.innerHTML = `<div class="place-item place-no-result">No cities found. Try a different spelling or include country.</div>`;
       return;
     }
-    dropdown.innerHTML = data.map((r, i) => `
+
+    // Map Nominatim response to the same shape the rest of the app expects
+    const places = data.map(r => ({
+      lat:         parseFloat(r.lat),
+      lng:         parseFloat(r.lon),
+      displayName: r.display_name,
+      shortName:   [
+        r.address?.city || r.address?.town || r.address?.village || r.name,
+        r.address?.state,
+        r.address?.country
+      ].filter(Boolean).join(", "),
+      country: (r.address?.country_code || "").toUpperCase()
+    }));
+
+    dropdown.innerHTML = places.map((r, i) => `
       <div class="place-item" data-idx="${i}" data-lat="${r.lat}" data-lng="${r.lng}"
            data-name="${(r.displayName||"").replace(/"/g,"&quot;")}"
            data-short="${(r.shortName||"").replace(/"/g,"&quot;")}"
@@ -1141,7 +1168,11 @@ async function fetchCitySuggestions(query) {
       item.addEventListener("click", () => selectPlace(item));
     });
   } catch (e) {
-    dropdown.innerHTML = `<div class="place-item place-no-result">Search failed. Check connection.</div>`;
+    // Fallback message with actionable advice
+    dropdown.innerHTML = `<div class="place-item place-no-result">
+      Could not reach location service. Check your internet connection, or try again in a moment.
+    </div>`;
+    console.warn("City search error:", e.message);
   }
 }
 
