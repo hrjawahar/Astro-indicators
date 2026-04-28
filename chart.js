@@ -834,12 +834,31 @@ export async function onRequestPost(context) {
 }
 
 // ── Place search handler (GET /api/chart?search=query) ────────────────────────
+// Handle CORS preflight (OPTIONS) — required when frontend calls cross-origin APIs
+export async function onRequestOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin":  "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age":       "86400",
+    }
+  });
+}
+
+// GET handler — city autocomplete (kept as fallback; primary search now runs browser-side)
 export async function onRequestGet(context) {
   try {
     const query = new URL(context.request.url).searchParams.get("q");
     if (!query || query.length < 2) return Response.json([]);
     const results = await searchPlaces(query);
-    return Response.json(results);
+    return new Response(JSON.stringify(results), {
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      }
+    });
   } catch (e) {
     return Response.json([]);
   }
