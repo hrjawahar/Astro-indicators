@@ -2083,6 +2083,18 @@ function buildAllStatements(d1, d9, domains, dashas, birthDate, yogasD1, yogasD9
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+export async function onRequestOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin":  "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age":       "86400",
+    }
+  });
+}
+
 export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
@@ -2154,4 +2166,3 @@ export async function onRequestPost(context) {
     return Response.json({ error: error.message || "Unexpected error." }, { status:500 });
   }
 }
-
