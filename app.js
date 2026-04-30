@@ -126,11 +126,15 @@ async function generate() {
       body: JSON.stringify({ ...form, utcOffset: form.utcOffset ? parseFloat(form.utcOffset) : null })
     });
 
+    if (!chartRes.ok) {
+      const body = await chartRes.text().catch(()=>"");
+      if (chartRes.status === 405) throw new Error("Chart Worker not found (405). Ensure functions/api/chart.js is deployed in the correct folder in your git repository.");
+      throw new Error(`Chart API error ${chartRes.status}: ${body.slice(0,120)}`);
+    }
     const chartText = await chartRes.text();
     let chartData;
     try { chartData = JSON.parse(chartText); }
-    catch { throw new Error("Chart API returned invalid response. Check /functions/api/chart.js."); }
-    if (!chartRes.ok) throw new Error(chartData.error || "Chart calculation failed.");
+    catch { throw new Error("Chart API returned invalid JSON. Check /functions/api/chart.js for syntax errors."); }
     if (chartData.error) throw new Error(chartData.error);
 
     setStatus("Step 2 of 2 — Running precision scoring engine...", "loading");
@@ -150,8 +154,13 @@ async function generate() {
       body: JSON.stringify(analysisPayload)
     });
 
+    if (!analysisRes.ok) {
+      const body = await analysisRes.text().catch(()=>"");
+      if (analysisRes.status === 405) throw new Error("Analysis Worker not found (405). Ensure functions/api/analyze.js is deployed inside the functions/api/ folder in git.");
+      throw new Error(`Analysis API error ${analysisRes.status}: ${body.slice(0,120)}`);
+    }
     const analysisData = await analysisRes.json();
-    if (!analysisRes.ok) throw new Error(analysisData.error || "Analysis failed.");
+    if (analysisData.error) throw new Error(analysisData.error);
 
     currentData = { chart: chartData, analysis: analysisData, form };
 
@@ -906,7 +915,11 @@ function restoreInputs() {
     if (s.place) {
       if (plDisp) plDisp.value = s.place;
       const shortName = s.place.split(",").slice(0,3).join(",").trim();
-      if (plSearch) plSearch.value = shortName;
+      if (plSearch) {
+        _suppressSearch = true;
+        plSearch.value = shortName;
+        _suppressSearch = false;
+      }
       if (s.lat && s.lng) {
         if (clearBtn) clearBtn.style.display = "inline-flex";
         _selectedPlace = { displayName: s.place, lat: s.lat, lng: s.lng,
@@ -982,7 +995,7 @@ function loadHistory(id) {
     if (plDisp)   plDisp.value   = h.place;
     // Show short name in visible search box (strip long Nominatim suffix if present)
     const shortName = h.place.split(",").slice(0,3).join(",").trim();
-    if (plSearch) plSearch.value = shortName;
+    if (plSearch) { _suppressSearch = true; plSearch.value = shortName; _suppressSearch = false; }
     if (clearBtn) clearBtn.style.display = "inline-flex";
     _selectedPlace = { displayName: h.place, lat: h.lat||null, lng: h.lng||null,
       country: h.country || "", shortName,
@@ -1061,6 +1074,9 @@ document.querySelectorAll("input,select").forEach(el => {
 
 // ── City search autocomplete ──────────────────────────────────────────────────
 
+// Flag: suppresses search trigger when value is set programmatically (restore/history load)
+let _suppressSearch = false;
+
 function initCitySearch() {
   const input    = document.getElementById("inputPlaceSearch");
   const dropdown = document.getElementById("placeDropdown");
@@ -1070,6 +1086,7 @@ function initCitySearch() {
   if (!input || !dropdown) return;
 
   input.addEventListener("input", () => {
+    if (_suppressSearch) return;  // skip search during programmatic restore
     const q = input.value.trim();
     clearTimeout(_searchTimer);
     if (q.length < 2) { dropdown.innerHTML = ""; dropdown.style.display = "none"; return; }
