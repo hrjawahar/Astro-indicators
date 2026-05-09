@@ -1,17 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Jyotish Precision Analyzer  |  app.js  |  v3.3  (Phase 3 — v2 branch)
-//  Phase 3 additions over v3.2:
-//  1. Per-AD insight engine — chart-specific indications for every Antardasha
-//     using real Parashari rules: functional status, house placement, lordship,
-//     D1/D9 synthesis, MD-AD relationship, 6/8/12 adverse positioning
-//  2. Dasha screen redesigned — each AD now has an expandable indication panel
-//  3. Current period block shows full structured reading
+//  Jyotish Precision Analyzer  |  app.js  |  v3.0
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "jyotish-v3-inputs";
 const HISTORY_KEY = "jyotish-v3-history";
 
-// ── Client-side timezone lookup ───────────────────────────────────────────────
+// Client-side timezone lookup — mirrors backend TIMEZONE_BY_COUNTRY
+// Lets timezone display instantly on city selection without a server roundtrip
 const CLIENT_TZ = {
   IN:5.5,  NP:5.75, LK:5.5,  BD:6,    PK:5,    AF:4.5,  IR:3.5,  MM:6.5,
   TH:7,    VN:7,    KH:7,    LA:7,    MY:8,    SG:8,    PH:8,    ID:7,
@@ -31,21 +26,6 @@ const CLIENT_TZ = {
   DO:-4,   TT:-4,   AU:10,   NZ:12,   FJ:12,   PG:10,
 };
 
-// ── Planet name translations — 6 languages ────────────────────────────────────
-// Each language provides a 2-3 char abbreviation used inside the chart cells.
-const PLANET_NAMES = {
-  EN: { Sun:"Su", Moon:"Mo", Mars:"Ma", Mercury:"Me", Jupiter:"Ju", Venus:"Ve", Saturn:"Sa", Rahu:"Ra", Ketu:"Ke" },
-  TA: { Sun:"சூ", Moon:"சந்", Mars:"செவ்", Mercury:"பு", Jupiter:"கு", Venus:"சுக்", Saturn:"சனி", Rahu:"ரா", Ketu:"கே" },
-  TE: { Sun:"సూ", Moon:"చం", Mars:"కుజ", Mercury:"బుధ", Jupiter:"గురు", Venus:"శుక్", Saturn:"శని", Rahu:"రా", Ketu:"కే" },
-  HI: { Sun:"सू", Moon:"चं", Mars:"मं", Mercury:"बु", Jupiter:"गु", Venus:"शु", Saturn:"श", Rahu:"रा", Ketu:"के" },
-  KA: { Sun:"ಸೂ", Moon:"ಚಂ", Mars:"ಮಂ", Mercury:"ಬು", Jupiter:"ಗು", Venus:"ಶು", Saturn:"ಶ", Rahu:"ರಾ", Ketu:"ಕೇ" },
-  ML: { Sun:"സൂ", Moon:"ചന്ദ്ര", Mars:"കുജ", Mercury:"ബുധ", Jupiter:"ഗുരു", Venus:"ശുക്", Saturn:"ശനി", Rahu:"രാ", Ketu:"കേ" },
-};
-
-// Current language — persisted in localStorage
-let _currentLang = localStorage.getItem("jyotish-lang") || "EN";
-
-// ── Planet glyphs (unicode) ───────────────────────────────────────────────────
 const PLANET_GLYPHS = {
   Sun:"☉", Moon:"☽", Mars:"♂", Mercury:"☿", Jupiter:"♃",
   Venus:"♀", Saturn:"♄", Rahu:"☊", Ketu:"☋"
@@ -53,217 +33,18 @@ const PLANET_GLYPHS = {
 
 const PLANET_LIST = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
 
-// ── Sign lord table ───────────────────────────────────────────────────────────
-const SIGN_LORD = {
-  Aries:"Mars", Taurus:"Venus", Gemini:"Mercury", Cancer:"Moon",
-  Leo:"Sun", Virgo:"Mercury", Libra:"Venus", Scorpio:"Mars",
-  Sagittarius:"Jupiter", Capricorn:"Saturn", Aquarius:"Saturn", Pisces:"Jupiter"
-};
-
-// ── Natural planetary relationships (Naisargika Maitri) ──────────────────────
-const NATURAL_FRIENDS = {
-  Sun:     { friends:["Moon","Mars","Jupiter"],          enemies:["Venus","Saturn"] },
-  Moon:    { friends:["Sun","Mercury"],                  enemies:[] },
-  Mars:    { friends:["Sun","Moon","Jupiter"],            enemies:["Mercury"] },
-  Mercury: { friends:["Sun","Venus"],                    enemies:["Moon"] },
-  Jupiter: { friends:["Sun","Moon","Mars"],              enemies:["Mercury","Venus"] },
-  Venus:   { friends:["Mercury","Saturn"],               enemies:["Sun","Moon"] },
-  Saturn:  { friends:["Mercury","Venus"],                enemies:["Sun","Moon","Mars"] },
-  Rahu:    { friends:["Mercury","Venus","Saturn"],       enemies:["Sun","Moon","Mars"] },
-  Ketu:    { friends:["Sun","Moon","Mars"],              enemies:["Mercury","Venus","Saturn"] },
-};
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  PHASE 3 — PER-AD INSIGHT ENGINE
-//  All data tables and functions used by buildADReading()
-// ══════════════════════════════════════════════════════════════════════════════
-
-// Top-level SIGNS array (used by multiple functions)
-const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
-
-// Natural significations and body part rulerships per planet
-// Planet natural significations and body rulerships
-const PLANET_SIG = {
-  Sun:     { themes:["authority","career recognition","government","father","soul purpose","leadership"],         body:"heart, spine, eyes, and vital force" },
-  Moon:    { themes:["mind","emotions","mother","public dealings","travel","comfort","fluids"],                   body:"mind, chest, lungs, and blood" },
-  Mars:    { themes:["energy","ambition","property","siblings","technical skill","courage","surgery"],            body:"blood, muscles, and bone marrow" },
-  Mercury: { themes:["intellect","communication","trade","writing","education","analysis","skill"],               body:"nervous system, skin, and speech organs" },
-  Jupiter: { themes:["wisdom","wealth","children","higher knowledge","dharma","expansion","grace"],               body:"liver, fat tissue, and hips" },
-  Venus:   { themes:["relationships","beauty","luxury","arts","marriage","vehicles","comforts","creativity"],     body:"reproductive system, kidneys, and throat" },
-  Saturn:  { themes:["discipline","longevity","hard work","service","detachment","karma","delays"],               body:"bones, joints, teeth, and nerves" },
-  Rahu:    { themes:["ambition","foreign elements","technology","unconventional paths","obsession","illusion"],   body:"nervous system and skin (chronic conditions)" },
-  Ketu:    { themes:["detachment","spirituality","research","past karma","sudden events","liberation"],           body:"wounds, mysterious ailments, and hidden conditions" },
-};
-
-// House significations
-const HOUSE_SIG = {
-  1:  { pos:"self-development, health improvements, personal reinvention, and new beginnings",        neg:"health sensitivity and ego conflicts" },
-  2:  { pos:"financial accumulation, family harmony, speech opportunities, and savings growth",       neg:"family friction and financial pressure" },
-  3:  { pos:"skill development, communication gains, short travel, and sibling cooperation",          neg:"sibling discord and impulsive decisions" },
-  4:  { pos:"home stability, property matters, mother's wellbeing, and emotional peace",              neg:"domestic instability and property disputes" },
-  5:  { pos:"creative intelligence, children, education, romance, and investment returns",            neg:"children-related worry and speculation losses" },
-  6:  { pos:"defeating competition, service recognition, health recovery (if lord is benefic)",       neg:"health challenges, enemies, debts, and legal friction" },
-  7:  { pos:"partnership activation, marriage harmony, business deals, and public dealings",          neg:"relationship friction and partnership disputes" },
-  8:  { pos:"deep research, transformation, possible windfall or inheritance",                        neg:"health crisis, sudden reversals, and hidden obstacles" },
-  9:  { pos:"fortune activation, father's wellbeing, higher wisdom, and long travel",                 neg:"loss of fortune, father's health, and dharmic confusion" },
-  10: { pos:"career advancement, professional recognition, authority, and public success",             neg:"career setbacks and public scrutiny" },
-  11: { pos:"income gains, wish fulfillment, social network expansion, and elder sibling support",    neg:"unfulfilled desires and social friction" },
-  12: { pos:"spiritual growth, foreign opportunities, charitable acts, and inner retreats",            neg:"losses, hidden expenses, and isolation" },
-};
-
-// Planet theme chips for AD indication
-const PLANET_THEME_CHIP = {
-  Sun:"Authority & Career", Moon:"Mind & Emotions", Mars:"Energy & Property",
-  Mercury:"Communication", Jupiter:"Wisdom & Wealth", Venus:"Relationships",
-  Saturn:"Discipline & Karma", Rahu:"Ambition & Change", Ketu:"Detachment & Spirit",
-};
-
-// Find which houses a planet lords for a given lagna
-function getHousesLorded(planet, lagnaSign) {
-  const lagnaIdx = SIGNS.indexOf(lagnaSign);
-  const lorded = [];
-  for (let h = 1; h <= 12; h++) {
-    const s = SIGNS[(lagnaIdx + h - 1) % 12];
-    if (SIGN_LORD[s] === planet) lorded.push(h);
-  }
-  return lorded;
-}
-
-// Parashari aspects
-function getAspectedHouses(planet, houseNum) {
-  if (!houseNum) return [];
-  const aspects = new Set();
-  aspects.add(((houseNum - 1 + 6) % 12) + 1);
-  if (planet === "Mars")    { [3,7].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
-  if (planet === "Jupiter") { [4,8].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
-  if (planet === "Saturn")  { [2,9].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
-  if (planet === "Rahu" || planet === "Ketu") { [4,8].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
-  aspects.delete(houseNum);
-  return [...aspects];
-}
-
-// ── CORE PER-AD READING BUILDER — redesigned output structure ─────────────────
-function buildADReading(mdLord, adLord, lagnaSign, houses, planets) {
-  const d1HouseMap = buildPlanetHouseMap(houses);
-  const combustSet = buildCombustSet(planets);
-
-  const adFS     = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord] || "N";
-  const mdFS     = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[mdLord] || "N";
-  const adHouse  = d1HouseMap[adLord];
-  const mdHouse  = d1HouseMap[mdLord];
-  const adSign   = planets[adLord]?.sign || "";
-  const adDig    = getDignity(adLord, adSign);
-  const adD9Sign = planets[adLord]?.d9sign || "";
-  const adD9Dig  = adD9Sign ? getDignity(adLord, adD9Sign) : "";
-  const adRetro  = planets[adLord]?.retrograde || false;
-  const adCombust= combustSet.has(adLord);
-  const mdAdRel  = getRelationshipTag(mdLord, adLord);
-  const adLordedHouses = getHousesLorded(adLord, lagnaSign);
-
-  let adFromMd = null;
-  if (adHouse && mdHouse) adFromMd = ((adHouse - mdHouse + 12) % 12) + 1;
-  const isAdverse = adFromMd && [6,8,12].includes(adFromMd);
-  const isBenefic = ["B","Y"].includes(adFS);
-  const isMalefic = adFS === "M";
-
-  const beneficAspectors = PLANET_LIST.filter(p => {
-    if (p === adLord || !adHouse) return false;
-    const pH = d1HouseMap[p]; if (!pH) return false;
-    return getAspectedHouses(p, pH).includes(adHouse) && ["B","Y"].includes(FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N");
-  });
-  const maleficAspectors = PLANET_LIST.filter(p => {
-    if (p === adLord || !adHouse) return false;
-    const pH = d1HouseMap[p]; if (!pH) return false;
-    return getAspectedHouses(p, pH).includes(adHouse) && (FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N") === "M";
-  });
-
-  // 1. Period character — one-sentence personality
-  let character = "";
-  if (adFS === "Y") {
-    character = `${adLord} is a yogakaraka for your lagna — this sub-period carries genuine elevating power, ${mdAdRel==="F"?"flowing smoothly with the main season.":"though some friction with the main season remains."}`;
-  } else if (isBenefic && adDig === "ex") {
-    character = `${adLord} is exalted and benefic — a genuinely strong sub-period where its themes deliver with unusual clarity and force.`;
-  } else if (isBenefic) {
-    character = `${adLord} is supportive for your lagna${mdAdRel==="F"?", and in harmony with the "+mdLord+" main season":mdAdRel==="E"?", though in friction with the "+mdLord+" main season":""}. A constructive sub-period when its themes are engaged consciously.`;
-  } else if (isMalefic && adDig === "de") {
-    character = `${adLord} is both a functional malefic and debilitated — a demanding combination. Patience and avoidance of major new commitments is advised.`;
-  } else if (isMalefic) {
-    character = `${adLord} is a functional malefic for your lagna${mdAdRel==="E"?", and a natural enemy of "+mdLord+" — double friction":""}. This sub-period tests rather than gifts — awareness navigates it best.`;
-  } else {
-    character = `${adLord} is neutral for your lagna. Results depend on its placement and current transits. ${mdAdRel==="F"?mdLord+" and "+adLord+" are natural friends, easing the flow.":mdAdRel==="E"?mdLord+" and "+adLord+" are natural enemies — some undercurrent of friction.":""}`;
-  }
-
-  // 2. Theme chips
-  const chipType = isMalefic||adDig==="de" ? "chip-caution" : isBenefic ? "chip-positive" : "";
-  const themes = [];
-  if (PLANET_THEME_CHIP[adLord]) themes.push({ label: PLANET_THEME_CHIP[adLord], cls: chipType });
-  if (adHouse) themes.push({ label: `H${adHouse} — ${["Self","Finances","Communication","Home","Creativity","Challenges","Relationships","Transformation","Fortune","Career","Income","Spirituality"][adHouse-1]}`, cls: "" });
-  const goodLorded = adLordedHouses.filter(h => ![6,8,12].includes(h));
-  if (goodLorded.length) themes.push({ label: `Lords H${goodLorded.join("/")}`, cls: isBenefic?"chip-positive":"" });
-  if (isAdverse) themes.push({ label: `H${adFromMd} from ${mdLord} — tension`, cls: "chip-risk" });
-
-  // 3. What Opens Up
-  const opensUp = [];
-  if (adHouse && isBenefic && HOUSE_SIG[adHouse]) opensUp.push(HOUSE_SIG[adHouse].pos.split(",").slice(0,2).join(", ") + ".");
-  if (goodLorded.length) {
-    const t = goodLorded.slice(0,2).map(h=>HOUSE_SIG[h]?.pos.split(",")[0]).filter(Boolean);
-    if (t.length) opensUp.push(`As lord of H${goodLorded.slice(0,2).join("/")}: ${t.join(" and ")}.`);
-  }
-  if (adDig==="ex")  opensUp.push(`Exalted in ${adSign} — ${adLord}'s themes express at peak capacity.`);
-  if (adDig==="own") opensUp.push(`Own sign ${adSign} — ${adLord} operates comfortably and consistently.`);
-  if (adD9Dig==="ex"||adD9Dig==="own") opensUp.push(`D9 confirms: ${adLord} ${adD9Dig==="ex"?"exalted":"in own sign"} in Navamsha — promise deepens with maturity.`);
-  if (beneficAspectors.length) opensUp.push(`Protected by ${beneficAspectors.join(" & ")} aspect — a supportive shield.`);
-
-  // 4. Handle With Care
-  const handleWith = [];
-  if (PLANET_SIG[adLord]) handleWith.push(`Body: ${PLANET_SIG[adLord].body}.`);
-  if (adHouse && (isMalefic||adDig==="de") && HOUSE_SIG[adHouse]) handleWith.push(`H${adHouse} matters — ${HOUSE_SIG[adHouse].neg.split(" and ")[0]}.`);
-  if (maleficAspectors.length) handleWith.push(`${maleficAspectors.join(" & ")} aspects ${adLord}'s position — added pressure.`);
-  const badLorded = adLordedHouses.filter(h=>[6,8,12].includes(h));
-  if (badLorded.length) handleWith.push(`Lords H${badLorded.join("/")} — ${badLorded.map(h=>HOUSE_SIG[h]?.neg.split(" and ")[0]).join(", ")}.`);
-  if (adRetro) handleWith.push(`Retrograde — themes surface indirectly or through unresolved past matters.`);
-  if (adD9Dig==="de") handleWith.push(`D9 debilitated — D1 promise may not sustain through maturity.`);
-
-  // 5. Caution
-  let caution = null;
-  if (adFS==="M" && adDig==="de") caution = `${adLord} is a functional malefic AND debilitated — avoid major new decisions. Focus on consolidation.`;
-  else if (isAdverse) caution = `${adLord} is in the ${adFromMd}th from ${mdLord} — a 6/8/12 adversity that creates resistance even when individual placements are otherwise strong.`;
-  else if (adCombust) caution = `${adLord} is combust — its significations are dimmed. Avoid relying on this planet's themes for critical outcomes.`;
-  else if (isMalefic) caution = `${adLord} is a functional malefic — navigate H${adHouse} matters carefully and avoid forcing outcomes in those domains.`;
-
-  return { character, themes, opensUp: opensUp.slice(0,3), handleWith: handleWith.slice(0,3), caution, hasRisk: isMalefic||adDig==="de"||isAdverse||adCombust };
-}
-
-// Returns "F" (friend), "E" (enemy), or "N" (neutral) between houseLord and visitor
-function getRelationshipTag(houseLord, visitor) {
-  if (!houseLord || !visitor || houseLord === visitor) return null;
-  const rel = NATURAL_FRIENDS[houseLord];
-  if (!rel) return "N";
-  if (rel.friends.includes(visitor)) return "F";
-  if (rel.enemies.includes(visitor)) return "E";
-  return "N";
-}
-
-// Build a planet → house number map from the houses object
-function buildPlanetHouseMap(houses) {
-  const map = {};
-  for (const [hNum, planets] of Object.entries(houses)) {
-    for (const p of (planets || [])) {
-      map[p] = parseInt(hNum);
-    }
-  }
-  return map;
-}
-
-// ── City search state ─────────────────────────────────────────────────────────
-let _selectedPlace = null;
+// ── City search state ──────────────────────────────────────────────────────────
+let _selectedPlace = null; // { lat, lng, displayName, shortName, utcOffset }
 let _searchTimer   = null;
 
-// South Indian chart layout
+// South Indian chart layout — position of each house number
+// SI format: fixed sign assignments per cell position (0-indexed row,col)
+// Lagna is house 1, others relative
 const SI_LAYOUT = [
-  [0,2],[0,3],[1,3],[2,3],
-  [3,3],[3,2],[3,1],[3,0],
-  [2,0],[1,0],[0,0],[0,1]
+  // [row, col] for houses 1-12
+  [0,2],[0,3],[1,3],[2,3],  // 1,2,3,4
+  [3,3],[3,2],[3,1],[3,0],  // 5,6,7,8
+  [2,0],[1,0],[0,0],[0,1]   // 9,10,11,12
 ];
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
@@ -277,9 +58,9 @@ const saveBtn   = document.getElementById("saveBtn");
 const dlBtn     = document.getElementById("downloadBtn");
 const resetBtn  = document.getElementById("resetBtn");
 
-let currentData = null;
+let currentData = null; // { chart, analysis }
 
-// ── TAB ROUTING ───────────────────────────────────────────────────────────────
+// ── TAB ROUTING ────────────────────────────────────────────────────────────────
 function switchTab(tabId) {
   tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
   screens.forEach(s => s.classList.toggle("active", s.id === tabId));
@@ -293,23 +74,6 @@ tabs.forEach(tab => {
     switchTab(tab.dataset.tab);
   });
 });
-
-// ── LANGUAGE SELECTOR ─────────────────────────────────────────────────────────
-function initLangSelector() {
-  const btns = document.querySelectorAll(".lang-btn");
-  btns.forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.lang === _currentLang);
-    btn.addEventListener("click", () => {
-      _currentLang = btn.dataset.lang;
-      localStorage.setItem("jyotish-lang", _currentLang);
-      btns.forEach(b => b.classList.toggle("active", b.dataset.lang === _currentLang));
-      // Re-render charts with new language if data is loaded
-      if (currentData?.chart) renderChartScreen(currentData.chart);
-      // Re-render planet screen too
-      if (currentData?.chart) renderPlanetScreen(currentData.chart);
-    });
-  });
-}
 
 // ── FORM HELPERS ──────────────────────────────────────────────────────────────
 function getForm() {
@@ -330,24 +94,15 @@ function setStatus(msg, type="") {
   statusMsg.textContent = msg;
   statusMsg.className   = "status-msg" + (type ? ` ${type}` : "");
 }
-function showError(msg) { errorBox.textContent = msg; errorBox.classList.remove("hidden"); }
-function clearError()   { errorBox.classList.add("hidden"); }
 
-// ── PLACE VALIDATION ──────────────────────────────────────────────────────────
-function isValidPlaceRecord(s) {
-  if (!s || typeof s !== "object") return false;
-  const lat = parseFloat(s.lat);
-  const lng = parseFloat(s.lng);
-  if (!isFinite(lat) || !isFinite(lng)) return false;
-  if (lat === 0 && lng === 0) return false;
-  if (typeof s.place !== "string" || s.place.length < 2) return false;
-  const plLower = s.place.toLowerCase();
-  const errorTokens = ["access denied","access den","error","403","401","unexpected","<!doctype","<html"];
-  if (errorTokens.some(t => plLower.startsWith(t))) return false;
-  return true;
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.remove("hidden");
 }
 
-// ── MAIN GENERATE FLOW ────────────────────────────────────────────────────────
+function clearError() { errorBox.classList.add("hidden"); }
+
+// ── MAIN GENERATE FLOW ─────────────────────────────────────────────────────────
 genBtn.addEventListener("click", generate);
 
 async function generate() {
@@ -358,16 +113,13 @@ async function generate() {
     showError("Please enter date of birth, time of birth, and select a place of birth from the dropdown.");
     return;
   }
-  if (!isFinite(parseFloat(form.lat)) || !isFinite(parseFloat(form.lng))) {
-    showError("Place of birth not fully resolved. Please clear the place field and select a city from the dropdown list again.");
-    return;
-  }
 
   genBtn.disabled = true;
   genText.innerHTML = `<span class="spinner"></span>Calculating chart...`;
   setStatus("Step 1 of 2 — Computing planetary positions via Swiss Ephemeris...", "loading");
 
   try {
+    // Step 1: Chart calculation
     const chartRes = await fetch("/api/chart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -376,21 +128,19 @@ async function generate() {
 
     if (!chartRes.ok) {
       const body = await chartRes.text().catch(()=>"");
-      if (chartRes.status === 405) throw new Error("Chart Worker not found (405). Ensure functions/api/chart.js is deployed.");
+      if (chartRes.status === 405) throw new Error("Chart Worker not found (405). Ensure functions/api/chart.js is deployed in the correct folder in your git repository.");
       throw new Error(`Chart API error ${chartRes.status}: ${body.slice(0,120)}`);
     }
     const chartText = await chartRes.text();
     let chartData;
     try { chartData = JSON.parse(chartText); }
-    catch {
-      const preview = chartText.slice(0,80).replace(/\n/g," ");
-      throw new Error(`Chart API returned invalid response. Raw: "${preview}"`);
-    }
+    catch { throw new Error("Chart API returned invalid JSON. Check /functions/api/chart.js for syntax errors."); }
     if (chartData.error) throw new Error(chartData.error);
 
     setStatus("Step 2 of 2 — Running precision scoring engine...", "loading");
     genText.innerHTML = `<span class="spinner"></span>Analyzing domains...`;
 
+    // Step 2: Analysis — include dasha timeline + birthDate for activation windows
     const analysisPayload = {
       d1: { lagnaSign: chartData.d1.lagnaSign, houses: chartData.d1.houses, degrees: chartData.d1.degrees, latitudes: chartData.d1.latitudes },
       d9: { lagnaSign: chartData.d9.lagnaSign, houses: chartData.d9.houses, degrees: chartData.d9.degrees, latitudes: chartData.d9.latitudes || {} },
@@ -406,7 +156,7 @@ async function generate() {
 
     if (!analysisRes.ok) {
       const body = await analysisRes.text().catch(()=>"");
-      if (analysisRes.status === 405) throw new Error("Analysis Worker not found (405). Ensure functions/api/analyze.js is deployed.");
+      if (analysisRes.status === 405) throw new Error("Analysis Worker not found (405). Ensure functions/api/analyze.js is deployed inside the functions/api/ folder in git.");
       throw new Error(`Analysis API error ${analysisRes.status}: ${body.slice(0,120)}`);
     }
     const analysisData = await analysisRes.json();
@@ -414,16 +164,22 @@ async function generate() {
 
     currentData = { chart: chartData, analysis: analysisData, form };
 
+    // Render all screens
     renderChartScreen(chartData);
     renderDashaScreen(chartData);
     renderDomainScreen(analysisData, chartData);
     renderSummaryScreen(analysisData, chartData);
     renderPlanetScreen(chartData);
 
+    // Unlock tabs
     tabs.forEach(t => {
-      if (t.dataset.requires === "chart" || t.dataset.requires === "analysis") t.disabled = false;
+      if (t.dataset.requires === "chart" || t.dataset.requires === "analysis") {
+        t.disabled = false;
+      }
     });
+
     if (dlBtn) dlBtn.disabled = false;
+
     setStatus("Chart and analysis complete.", "done");
     switchTab("chartTab");
 
@@ -443,7 +199,8 @@ async function generate() {
 function renderChartScreen(data) {
   const { d1, d9, planets, ayanamsha } = data;
 
-  const moonNak  = planets.Moon?.nakshatra || "";
+  // Lagna bar
+  const moonNak = planets.Moon?.nakshatra || "";
   const moonPada = planets.Moon?.pada || "";
   document.getElementById("lagnaBar").innerHTML = `
     <div class="lagna-item"><div class="lagna-key">D1 Lagna</div><div class="lagna-val">${d1.lagnaSign} ${d1.lagnaDegree?.toFixed(1)}°</div></div>
@@ -456,7 +213,8 @@ function renderChartScreen(data) {
   document.getElementById("d1LagnaLabel").textContent = `Lagna: ${d1.lagnaSign}`;
   document.getElementById("d9LagnaLabel").textContent = `Lagna: ${d9.lagnaSign}`;
 
-  const combust   = buildCombustSet(planets);
+  // Build combustion set for display
+  const combust = buildCombustSet(planets);
   const warLosers = buildWarSet(planets);
 
   renderSIChart("d1ChartWrap", d1.lagnaSign, d1.houses, planets, combust, warLosers, false);
@@ -495,18 +253,18 @@ function buildWarSet(planets) {
 }
 
 // Dignity helpers
-const EXALTATION   = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
+const EXALTATION = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
 const DEBILITATION = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries",Rahu:"Sagittarius",Ketu:"Gemini" };
-const OWN_SIGNS    = { Sun:["Leo"],Moon:["Cancer"],Mars:["Aries","Scorpio"],Mercury:["Gemini","Virgo"],Jupiter:["Sagittarius","Pisces"],Venus:["Taurus","Libra"],Saturn:["Capricorn","Aquarius"],Rahu:[],Ketu:[] };
+const OWN_SIGNS = { Sun:["Leo"],Moon:["Cancer"],Mars:["Aries","Scorpio"],Mercury:["Gemini","Virgo"],Jupiter:["Sagittarius","Pisces"],Venus:["Taurus","Libra"],Saturn:["Capricorn","Aquarius"],Rahu:[],Ketu:[] };
 
 function getDignity(planet, sign) {
-  if (EXALTATION[planet] === sign)             return "ex";
-  if (DEBILITATION[planet] === sign)           return "de";
-  if ((OWN_SIGNS[planet]||[]).includes(sign))  return "own";
+  if (EXALTATION[planet] === sign) return "ex";
+  if (DEBILITATION[planet] === sign) return "de";
+  if ((OWN_SIGNS[planet]||[]).includes(sign)) return "own";
   return "";
 }
 
-// ── South Indian chart SVG — with house lord relationships & language support ──
+// South Indian chart SVG rendering
 function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warLosers, isD9) {
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
@@ -514,63 +272,61 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
   const SIZE = 400;
   const CELL = SIZE / 4;
   const PAD  = 4;
-  const names = PLANET_NAMES[_currentLang] || PLANET_NAMES.EN;
-  // SIGNS is now a top-level constant
+
+  const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
   const lagnaIdx = SIGNS.indexOf(lagnaSign);
 
+  // SI fixed positions — house number for each of the 16 cells
+  // Center 4 cells (row1-2,col1-2) are blank
   const CELL_HOUSE = {
-    "0,0":11,"0,1":12,"0,2":1,"0,3":2,
-    "1,0":10,                  "1,3":3,
-    "2,0":9,                   "2,3":4,
-    "3,0":8,"3,1":7,"3,2":6,"3,3":5
+    "0,0":11, "0,1":12, "0,2":1, "0,3":2,
+    "1,0":10,                     "1,3":3,
+    "2,0":9,                      "2,3":4,
+    "3,0":8,  "3,1":7,  "3,2":6, "3,3":5
   };
-
-  // Build planet→house map for lord placement lookup
-  const planetHouseMap = buildPlanetHouseMap(houses);
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
   svg.setAttribute("viewBox",`0 0 ${SIZE} ${SIZE}`);
   svg.setAttribute("width","100%");
 
-  // Light saffron background
+  // Background
   const bg = document.createElementNS("http://www.w3.org/2000/svg","rect");
   bg.setAttribute("width",SIZE); bg.setAttribute("height",SIZE);
-  bg.setAttribute("fill","#FFF8F0");
-  svg.appendChild(bg);
+  bg.setAttribute("fill","#07090f"); svg.appendChild(bg);
 
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
+      // Skip center cells
       if ((row===1||row===2)&&(col===1||col===2)) continue;
 
-      const key  = `${row},${col}`;
-      const hNum = CELL_HOUSE[key];
+      const key   = `${row},${col}`;
+      const hNum  = CELL_HOUSE[key];
       if (!hNum) continue;
 
+      // Sign in this house
       const signInHouse = SIGNS[(lagnaIdx + hNum - 1) % 12];
       const isLagna     = hNum === 1;
-      const houseLord   = SIGN_LORD[signInHouse];
 
       const x = col * CELL;
       const y = row * CELL;
 
-      // Cell background
       const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
       rect.setAttribute("x", x + 0.5);
       rect.setAttribute("y", y + 0.5);
       rect.setAttribute("width",  CELL - 1);
       rect.setAttribute("height", CELL - 1);
-      rect.setAttribute("fill",   isLagna ? "rgba(180,120,30,0.08)" : "#FFFFFF");
-      rect.setAttribute("stroke", isLagna ? "rgba(160,100,20,0.55)" : "rgba(100,75,40,0.18)");
+      rect.setAttribute("fill",   isLagna ? "rgba(201,168,76,0.07)" : "rgba(13,17,32,0.8)");
+      rect.setAttribute("stroke", isLagna ? "rgba(201,168,76,0.4)" : "rgba(201,168,76,0.12)");
       rect.setAttribute("stroke-width","0.5");
       svg.appendChild(rect);
 
       // Sign abbreviation
       const signAbbr = signInHouse.substring(0,3).toUpperCase();
-      const signTxt  = document.createElementNS("http://www.w3.org/2000/svg","text");
+      const signTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
       signTxt.setAttribute("x", x + PAD + 2);
       signTxt.setAttribute("y", y + 11);
       signTxt.setAttribute("font-size","8");
-      signTxt.setAttribute("fill","rgba(100,65,10,0.85)");
+      signTxt.setAttribute("fill","rgba(201,168,76,0.35)");
       signTxt.setAttribute("font-family","Cinzel,serif");
       signTxt.textContent = signAbbr;
       svg.appendChild(signTxt);
@@ -580,108 +336,78 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       hTxt.setAttribute("x", x + CELL - PAD - 4);
       hTxt.setAttribute("y", y + 11);
       hTxt.setAttribute("font-size","8");
-      hTxt.setAttribute("fill","rgba(0,0,0,0.55)");
+      hTxt.setAttribute("fill","rgba(255,255,255,0.15)");
       hTxt.setAttribute("text-anchor","end");
       hTxt.textContent = hNum;
       svg.appendChild(hTxt);
 
-      // House lord indicator — bottom of cell: "Ld: Ma H7"
-      // Shows which planet lords this house and where it sits
-      const lordHouse   = planetHouseMap[houseLord];
-      const lordAbbr    = names[houseLord] || houseLord?.substring(0,2) || "?";
-      const lordDisplay = lordHouse ? `${lordAbbr}→H${lordHouse}` : lordAbbr;
-      const lordTxt     = document.createElementNS("http://www.w3.org/2000/svg","text");
-      lordTxt.setAttribute("x", x + PAD + 2);
-      lordTxt.setAttribute("y", y + CELL - 5);
-      lordTxt.setAttribute("font-size","7");
-      lordTxt.setAttribute("fill","rgba(100,65,10,0.55)");
-      lordTxt.setAttribute("font-family","Inter,sans-serif");
-      lordTxt.textContent = lordDisplay;
-      svg.appendChild(lordTxt);
-
-      // Lagna ASC marker
+      // Lagna marker
       if (isLagna) {
         const lTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
-        lTxt.setAttribute("x", x + CELL - PAD - 4);
-        lTxt.setAttribute("y", y + CELL - 5);
-        lTxt.setAttribute("font-size","7");
-        lTxt.setAttribute("fill","rgba(140,85,15,0.65)");
-        lTxt.setAttribute("text-anchor","end");
+        lTxt.setAttribute("x", x + CELL/2);
+        lTxt.setAttribute("y", y + CELL - 6);
+        lTxt.setAttribute("font-size","8");
+        lTxt.setAttribute("fill","rgba(201,168,76,0.5)");
+        lTxt.setAttribute("text-anchor","middle");
         lTxt.textContent = "ASC";
         svg.appendChild(lTxt);
       }
 
       // Planets in this house
       const planetsHere = (houses[hNum] || []);
-      let pY = y + 23;
+      let pY = y + 22;
       planetsHere.forEach(planet => {
-        if (pY > y + CELL - 16) return; // leave room for lord tag
-
-        const sign     = isD9 ? (planets[planet]?.d9sign || signInHouse) : signInHouse;
+        if (pY > y + CELL - 8) return;
+        const sign = isD9
+          ? (planets[planet]?.d9sign || signInHouse)
+          : signInHouse;
         const dignity  = getDignity(planet, sign);
         const isRetro  = planets[planet]?.retrograde;
         const isCombust= combustSet.has(planet);
         const isWar    = warLosers.has(planet);
         const deg      = planets[planet]?.degree || 0;
 
-        // Planet name from selected language
-        const pName = names[planet] || planet.substring(0,2);
-
-        // Base color by dignity
-        let color = "#2c3248";
-        if      (dignity === "ex")  color = "#1a6e3c";
-        else if (dignity === "de")  color = "#8f1a1a";
-        else if (dignity === "own") color = "#1e4a8f";
-        if (isCombust)              color = "#a05c00";
-
-        // Build label: name + modifiers
-        let label = pName;
-        if (isRetro)   label += "ʀ";
-        if (isCombust) label += "☀";
-        if (isWar)     label += "⚔";
-        if (dignity)   label += ` ${dignity==="ex"?"Ex":dignity==="de"?"De":"Ow"}`;
-        label += ` ${Math.round(deg)}°`;
+        // Planet abbreviation
+        const abbr  = planet.substring(0,2);
+        let   color = "#d8dde8";
+        if (dignity === "ex")  color = "#4caf82";
+        else if (dignity === "de")  color = "#c95858";
+        else if (dignity === "own") color = "#5e8fd4";
+        if (isCombust) color = "#d4a04a";
 
         const pTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
         pTxt.setAttribute("x", x + PAD + 2);
         pTxt.setAttribute("y", pY);
-        pTxt.setAttribute("font-size","9.5");
+        pTxt.setAttribute("font-size","10");
         pTxt.setAttribute("fill", color);
         pTxt.setAttribute("font-family","Inter,sans-serif");
         pTxt.setAttribute("font-weight","500");
+
+        let label = abbr;
+        if (isRetro)   label += "ʀ";
+        if (isCombust) label += "☀";
+        if (isWar)     label += "⚔";
+        if (dignity)   label += ` ${dignity === "ex" ? "Ex" : dignity === "de" ? "De" : "Ow"}`;
+        label += ` ${Math.round(deg)}°`;
+
         pTxt.textContent = label;
         svg.appendChild(pTxt);
-
-        // House lord relationship tag — F / N / E
-        const relTag = getRelationshipTag(houseLord, planet);
-        if (relTag) {
-          const relColor = relTag === "F" ? "#1a6e3c" : relTag === "E" ? "#8f1a1a" : "#888";
-          const rTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
-          rTxt.setAttribute("x", x + CELL - PAD - 4);
-          rTxt.setAttribute("y", pY);
-          rTxt.setAttribute("font-size","8");
-          rTxt.setAttribute("fill", relColor);
-          rTxt.setAttribute("font-weight","700");
-          rTxt.setAttribute("text-anchor","end");
-          rTxt.setAttribute("font-family","Inter,sans-serif");
-          rTxt.textContent = relTag;
-          svg.appendChild(rTxt);
-        }
-
         pY += 13;
       });
     }
   }
 
-  // Center diamond diagonal lines
-  [[CELL,CELL,3*CELL,3*CELL],[3*CELL,CELL,CELL,3*CELL]].forEach(([x1,y1,x2,y2]) => {
-    const line = document.createElementNS("http://www.w3.org/2000/svg","line");
-    line.setAttribute("x1",x1); line.setAttribute("y1",y1);
-    line.setAttribute("x2",x2); line.setAttribute("y2",y2);
-    line.setAttribute("stroke","rgba(100,70,20,0.18)");
-    line.setAttribute("stroke-width","0.5");
-    svg.appendChild(line);
-  });
+  // Diagonal lines for center
+  const diag1 = document.createElementNS("http://www.w3.org/2000/svg","line");
+  diag1.setAttribute("x1",CELL); diag1.setAttribute("y1",CELL);
+  diag1.setAttribute("x2",3*CELL); diag1.setAttribute("y2",3*CELL);
+  diag1.setAttribute("stroke","rgba(201,168,76,0.12)"); diag1.setAttribute("stroke-width","0.5");
+  svg.appendChild(diag1);
+  const diag2 = document.createElementNS("http://www.w3.org/2000/svg","line");
+  diag2.setAttribute("x1",3*CELL); diag2.setAttribute("y1",CELL);
+  diag2.setAttribute("x2",CELL); diag2.setAttribute("y2",3*CELL);
+  diag2.setAttribute("stroke","rgba(201,168,76,0.12)"); diag2.setAttribute("stroke-width","0.5");
+  svg.appendChild(diag2);
 
   wrap.innerHTML = "";
   wrap.appendChild(svg);
@@ -708,46 +434,13 @@ const FUNCTIONAL_STATUS_MAP = {
 
 const PLANET_GLYPHS_FULL = { Sun:"☉",Moon:"☽",Mars:"♂",Mercury:"☿",Jupiter:"♃",Venus:"♀",Saturn:"♄",Rahu:"☊",Ketu:"☋" };
 
-
-// ── Renders an AD indication panel from buildADReading() result ───────────────
-function renderADIndicationHTML(adR) {
-  const chipsHTML = adR.themes.map(t =>
-    `<span class="adi-theme-chip ${t.cls}">${t.label}</span>`
-  ).join("");
-
-  const opensHTML = adR.opensUp.map(o =>
-    `<div class="adi-line line-opens">${o}</div>`
-  ).join("");
-
-  const watchHTML = adR.handleWith.map(w =>
-    `<div class="adi-line line-watch">${w}</div>`
-  ).join("");
-
-  return `
-    <div class="adi-character">${adR.character}</div>
-    ${chipsHTML ? `<div class="adi-themes">${chipsHTML}</div>` : ""}
-    <div class="adi-body">
-      ${opensHTML ? `<div class="adi-col">
-        <div class="adi-col-label label-opens">What opens up</div>
-        ${opensHTML}
-      </div>` : ""}
-      ${watchHTML ? `<div class="adi-col">
-        <div class="adi-col-label label-watch">Handle with care</div>
-        ${watchHTML}
-      </div>` : ""}
-    </div>
-    ${adR.caution ? `<div class="adi-caution">⚠ ${adR.caution}</div>` : ""}
-  `;
-}
-
 function renderDashaScreen(data) {
   const { dasha, d1 } = data;
   if (!dasha || !dasha.dashas) return;
-  const lagna  = d1.lagnaSign;
-  const houses = d1.houses;
-  const planets = data.planets;
-  const today  = new Date().toISOString().split("T")[0];
+  const lagna = d1.lagnaSign;
+  const today = new Date().toISOString().split("T")[0];
 
+  // Find current periods
   let currentMaha = null, currentAntar = null;
   for (const d of dasha.dashas) {
     if (d.startDate <= today && today < d.endDate) {
@@ -759,38 +452,27 @@ function renderDashaScreen(data) {
     }
   }
 
-  // ── Current period card — full structured reading ─────────────────────────
+  // Current dasha card
   const cdEl = document.getElementById("currentDashaDisplay");
   if (cdEl && currentMaha) {
     const mahaFS   = FUNCTIONAL_STATUS_MAP[lagna]?.[currentMaha.lord] || "N";
-    const mahaNote = mahaFS==="Y"?"This planet is a yogakaraka for your lagna — a powerful season in your life."
-                   : mahaFS==="B"?"This planet is a functional benefic — this season generally favours growth."
-                   : mahaFS==="M"?"This planet is a functional malefic — this season brings tests requiring patience."
-                   : "This planet is neutral for your lagna — mixed results, shaped by the sub-periods.";
-
-    let adIndHTML = "";
-    if (currentAntar) {
-      const adR = buildADReading(currentMaha.lord, currentAntar.lord, lagna, houses, planets);
-      adIndHTML = `
-        <div class="cd-ad-indication">
-          <div class="cd-ad-label">Current sub-period reading — ${currentAntar.lord} Antardasha</div>
-          ${renderADIndicationHTML(adR)}
-        </div>`;
-    }
-
+    const mahaNote = mahaFS==="Y"?"This planet is a yogakaraka for your lagna — a powerful period."
+                   : mahaFS==="B"?"This planet is a functional benefic for your lagna — generally favourable."
+                   : mahaFS==="M"?"This planet is a functional malefic for your lagna — this period may bring challenges."
+                   : "This planet is neutral for your lagna — mixed results possible.";
     cdEl.innerHTML = `
       <div class="current-dasha-display">
         <div class="cd-block">
-          <div class="cd-label">Maha Dasa (Major Period / Season)</div>
-          <div class="cd-lord">${PLANET_GLYPHS_FULL[currentMaha.lord]||""} ${currentMaha.lord}</div>
+          <div class="cd-label">Maha Dasa (Major Period)</div>
+          <div class="cd-lord">${PLANET_GLYPHS_FULL[currentMaha.lord] || ""} ${currentMaha.lord}</div>
           <div class="cd-dates">${currentMaha.startDate} → ${currentMaha.endDate}</div>
           <div class="cd-note">${mahaNote}</div>
         </div>
         <div class="cd-block">
-          <div class="cd-label">Antar Dasa (Sub-Period / Month within the Season)</div>
-          <div class="cd-lord">${currentAntar?(PLANET_GLYPHS_FULL[currentAntar.lord]||"")+" "+currentAntar.lord:"—"}</div>
-          <div class="cd-dates">${currentAntar?currentAntar.startDate+" → "+currentAntar.endDate:"—"}</div>
-          <div class="cd-note">${currentAntar?"The Antar Dasa planet colours the specific events unfolding now.":""}</div>
+          <div class="cd-label">Antar Dasa (Sub-Period)</div>
+          <div class="cd-lord">${currentAntar ? (PLANET_GLYPHS_FULL[currentAntar.lord]||"") + " " + currentAntar.lord : "—"}</div>
+          <div class="cd-dates">${currentAntar ? currentAntar.startDate + " → " + currentAntar.endDate : "—"}</div>
+          <div class="cd-note">${currentAntar ? "Antar Dasa narrows the focus — the sub-period lord's themes overlay the main period." : ""}</div>
         </div>
         <div class="cd-block">
           <div class="cd-label">Moon Nakshatra</div>
@@ -799,50 +481,35 @@ function renderDashaScreen(data) {
           <div class="cd-note">The Moon's nakshatra at birth determines the starting point of your Vimshottari Dasha sequence.</div>
         </div>
       </div>
-      ${adIndHTML}`;
+    `;
   }
 
-  // ── Full timeline ─────────────────────────────────────────────────────────
+  // Timeline
   const timeline = document.getElementById("dashaTimeline");
   if (!timeline) return;
   timeline.innerHTML = "";
-  const nowMs = new Date().getTime();
+
+  // Total years for progress bar
+  const totalMs = new Date(dasha.dashas[8]?.endDate||"2200").getTime() - new Date(dasha.dashas[0]?.startDate||"1900").getTime();
+  const nowMs   = new Date().getTime();
+  const startMs = new Date(dasha.dashas[0]?.startDate||"1900").getTime();
 
   dasha.dashas.forEach(d => {
     const isCurrent = d.startDate <= today && today < d.endDate;
     const dStart = new Date(d.startDate).getTime();
     const dEnd   = new Date(d.endDate).getTime();
     const dLen   = dEnd - dStart;
-    let progress = 0;
-    if (isCurrent)    progress = Math.max(0,Math.min(100,((nowMs-dStart)/dLen)*100));
-    else if (dEnd < nowMs) progress = 100;
 
-    const fs      = FUNCTIONAL_STATUS_MAP[lagna]?.[d.lord] || "N";
+    let progress = 0;
+    if (isCurrent) progress = Math.max(0,Math.min(100,((nowMs - dStart) / dLen) * 100));
+    else if (dEnd < nowMs) progress = 100;
+    else progress = 0;
+
+    const fs = FUNCTIONAL_STATUS_MAP[lagna]?.[d.lord] || "N";
     const fsLabel = fs==="Y"?"Yogakaraka ★":fs==="B"?"Benefic":fs==="M"?"Malefic":"Neutral";
 
     const row = document.createElement("div");
-    row.className = "dasha-row" + (isCurrent?" current":"");
-
-    // Build antar-dasa items with expandable AD indications
-    const antarHTML = (d.antarDasas||[]).map(a => {
-      const isCurAntar = a.startDate <= today && today < a.endDate;
-      const adR  = buildADReading(d.lord, a.lord, lagna, houses, planets);
-      const risk = adR.hasRisk;
-
-      return `
-        <div class="antar-item${isCurAntar?" current-antar":""}${risk?" antar-risk":""}">
-          <div class="antar-main">
-            <div class="antar-lord">${PLANET_GLYPHS_FULL[a.lord]||""} ${a.lord}</div>
-            <div class="antar-dates">${a.startDate} → ${a.endDate}</div>
-            <div class="antar-yrs">${a.years} yrs</div>
-            <button class="ad-toggle" aria-expanded="false">Indication ▶</button>
-          </div>
-          <div class="ad-ind-panel" style="display:none">
-            ${renderADIndicationHTML(adR)}
-          </div>
-        </div>`;
-    }).join("");
-
+    row.className = "dasha-row" + (isCurrent ? " current" : "");
     row.innerHTML = `
       <div class="dasha-header">
         <div class="dasha-planet-glyph">${PLANET_GLYPHS_FULL[d.lord]||""}</div>
@@ -855,34 +522,22 @@ function renderDashaScreen(data) {
         <div class="dasha-expand">${isCurrent?"▼":"▶"}</div>
       </div>
       <div class="dasha-bar-wrap"><div class="dasha-bar" style="width:${progress}%"></div></div>
-      <div class="antar-list">${antarHTML}</div>`;
+      <div class="antar-list">
+        ${(d.antarDasas||[]).map(a => {
+          const isCurAntar = a.startDate <= today && today < a.endDate;
+          return `<div class="antar-item${isCurAntar?" current-antar":""}">
+            <div class="antar-lord">${PLANET_GLYPHS_FULL[a.lord]||""} ${a.lord}</div>
+            <div class="antar-dates">${a.startDate} → ${a.endDate}</div>
+            <div class="antar-yrs">${a.years} yrs</div>
+          </div>`;
+        }).join("")}
+      </div>
+    `;
 
-    // Toggle main MD row open/close
-    row.querySelector(".dasha-header").addEventListener("click", () => row.classList.toggle("open"));
+    // Toggle antar
+    const header = row.querySelector(".dasha-header");
+    header.addEventListener("click", () => row.classList.toggle("open"));
     if (isCurrent) row.classList.add("open");
-
-    // Wire up individual AD indication toggles
-    row.querySelectorAll(".ad-toggle").forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.stopPropagation();
-        const panel = btn.closest(".antar-item").querySelector(".ad-ind-panel");
-        const isOpen = panel.style.display !== "none";
-        panel.style.display = isOpen ? "none" : "block";
-        btn.textContent = isOpen ? "Indication ▶" : "Indication ▼";
-        btn.setAttribute("aria-expanded", String(!isOpen));
-      });
-    });
-
-    // Auto-open current AD indication
-    if (isCurrent && currentAntar) {
-      const currentAntarItem = row.querySelector(".current-antar");
-      if (currentAntarItem) {
-        const panel = currentAntarItem.querySelector(".ad-ind-panel");
-        const btn   = currentAntarItem.querySelector(".ad-toggle");
-        if (panel) panel.style.display = "block";
-        if (btn)   { btn.textContent = "Indication ▼"; btn.setAttribute("aria-expanded","true"); }
-      }
-    }
 
     timeline.appendChild(row);
   });
@@ -895,134 +550,226 @@ function renderDashaScreen(data) {
 function verdictClass(v) {
   if (!v) return "forming";
   const k = v.toLowerCase();
-  if (k.includes("full flow"))        return "stable";
-  if (k.includes("needs tending"))    return "vulnerable";
-  if (k.includes("peak comes"))       return "early";
-  if (k.includes("deferred"))         return "delayed";
-  if (k.includes("foundation holds")) return "moderate";
-  if (k.includes("ripening"))         return "ripening";
-  if (k.includes("still forming"))    return "forming";
-  if (k.includes("stable"))           return "stable";
-  if (k.includes("vulnerable"))       return "vulnerable";
-  if (k.includes("early"))            return "early";
+  if (k.includes("full flow"))          return "stable";    // In Full Flow
+  if (k.includes("needs tending"))      return "vulnerable"; // Needs Tending
+  if (k.includes("peak comes"))         return "early";     // Peak Comes Early
+  if (k.includes("deferred"))           return "delayed";   // Deferred, Not Denied
+  if (k.includes("foundation holds"))   return "moderate";  // Foundation Holds
+  if (k.includes("ripening"))           return "ripening";  // Ripening
+  if (k.includes("still forming"))      return "forming";   // Still Forming
+  // Legacy fallbacks
+  if (k.includes("stable"))             return "stable";
+  if (k.includes("vulnerable"))         return "vulnerable";
+  if (k.includes("early"))              return "early";
   if (k.includes("delayed")||k.includes("improving")) return "delayed";
-  if (k.includes("moderate"))         return "moderate";
+  if (k.includes("moderate"))           return "moderate";
   return "forming";
+}
+
+function deriveTrend(d) {
+  if (d.d1Strength==="Strong" && d.d9Strength==="Strong") return "Stable through life";
+  if (d.d1Strength==="Strong" && d.d9Strength!=="Strong") return "Strong early, fades later";
+  if (d.d1Strength!=="Strong" && d.d9Strength==="Strong") return "Improves with age";
+  if (d.d1Strength==="Weak" && d.d9Strength==="Weak") return "Persistent challenge";
+  return "Mixed pattern";
 }
 
 function renderDomainScreen(analysis, chart) {
   const { domains, statements, chartOpening, classification, eventFlags } = analysis;
   if (!domains) return;
 
+  // ── Chart Opening Frame ────────────────────────────────────────────────────
   if (chartOpening) {
-    const block   = document.getElementById("chartOpeningBlock");
-    const badge   = document.getElementById("coPatternBadge");
-    const opening = document.getElementById("coOpeningText");
-    const axis    = document.getElementById("coAxisText");
-    const mod     = document.getElementById("coModifierText");
+    const block   = document.getElementById('chartOpeningBlock');
+    const badge   = document.getElementById('coPatternBadge');
+    const opening = document.getElementById('coOpeningText');
+    const axis    = document.getElementById('coAxisText');
+    const mod     = document.getElementById('coModifierText');
+
     const primary   = classification?.primaryPattern;
     const secondary = classification?.secondaryPattern;
     const dominant  = classification?.dominantPlanet;
+
     badge.innerHTML = [
-      primary   ? `<span class="co-badge co-badge-${primary.name.toLowerCase()}">${primary.name}</span>` : "",
-      secondary ? `<span class="co-badge co-badge-secondary">${secondary.name}</span>` : "",
-      dominant  ? `<span class="co-badge co-badge-planet">${dominant} dominant</span>` : "",
-    ].filter(Boolean).join("");
-    opening.textContent = chartOpening.opening  || "";
-    axis.textContent    = chartOpening.axisLine || "";
-    mod.textContent     = chartOpening.modifier || "";
-    block.classList.remove("hidden");
+      primary   ? `<span class="co-badge co-badge-${primary.name.toLowerCase()}">${primary.name}</span>` : '',
+      secondary ? `<span class="co-badge co-badge-secondary">${secondary.name}</span>` : '',
+      dominant  ? `<span class="co-badge co-badge-planet">${dominant} dominant</span>` : '',
+    ].filter(Boolean).join('');
+
+    opening.textContent = chartOpening.opening   || '';
+    axis.textContent    = chartOpening.axisLine  || '';
+    mod.textContent     = chartOpening.modifier  || '';
+    block.classList.remove('hidden');
   }
 
-  const vGrid = document.getElementById("verdictSummary");
+  // ── Quick Verdict Strip ────────────────────────────────────────────────────
+  const vGrid = document.getElementById('verdictSummary');
   vGrid.innerHTML = domains.map(d => `
     <div class="verdict-mini vm-${verdictClass(d.verdict)}" title="${d.verdict}">
-      <div class="vm-title">${d.title.replace(" & "," &amp; ")}</div>
+      <div class="vm-title">${d.title.replace(' & ',' &amp; ')}</div>
       <div class="vm-verdict">${d.verdict}</div>
-    </div>`).join("");
+    </div>
+  `).join('');
 
-  const container = document.getElementById("domainCards");
-  container.innerHTML = "";
+  // ── Domain Reading Cards ───────────────────────────────────────────────────
+  const container = document.getElementById('domainCards');
+  container.innerHTML = '';
 
   domains.forEach((d, i) => {
     const stmt = statements?.statements?.[i] || null;
     const vc   = verdictClass(d.verdict);
-    const card = document.createElement("div");
+
+    const card = document.createElement('div');
     card.className = `domain-card reading-card ${vc}`;
 
-    const confColor = { High:"var(--stable)", Medium:"var(--accent-gold)", Low:"var(--vuln)" };
-    const cColor    = confColor[stmt?.confidence] || "var(--text-muted)";
-    const confDots  = stmt?.confidence
-      ? `<span class="conf-dots" style="color:${cColor}">${stmt.confidence==="High"?"●●●":stmt.confidence==="Medium"?"●●○":"●○○"}</span>` : "";
+    // Confidence dot color
+    const confColor = { High: 'var(--stable)', Medium: 'var(--accent-gold)', Low: 'var(--vuln)' };
+    const cColor = confColor[stmt?.confidence] || 'var(--text-muted)';
+    const confDots = stmt?.confidence
+      ? `<span class="conf-dots" style="color:${cColor}">${stmt.confidence==='High'?'●●●':stmt.confidence==='Medium'?'●●○':'●○○'}</span>`
+      : '';
 
-    const windowHTML   = stmt?.windowSummary
-      ? `<div class="rc-section"><div class="rc-label">⏱ Activation Window</div><div class="rc-window">${stmt.windowSummary}</div></div>` : "";
+    // Activation window
+    const windowHTML = stmt?.windowSummary
+      ? `<div class="rc-section">
+           <div class="rc-label">⏱ Activation Window</div>
+           <div class="rc-window">${stmt.windowSummary}</div>
+         </div>`
+      : '';
+
+    // Cautions
     const cautionsHTML = stmt?.cautions?.length
-      ? `<div class="rc-section"><div class="rc-label">⚠ Caution${stmt.cautions.length>1?"s":""}</div>${stmt.cautions.map(c=>`<div class="rc-caution">${c}</div>`).join("")}</div>` : "";
+      ? `<div class="rc-section">
+           <div class="rc-label">⚠ Caution${stmt.cautions.length > 1 ? 's' : ''}</div>
+           ${stmt.cautions.map(c => `<div class="rc-caution">${c}</div>`).join('')}
+         </div>`
+      : '';
 
-    const yogas    = [...new Set((d.reasons||[]).filter(r=>r.startsWith("[YOGA]")).map(r=>r.replace("[YOGA] ","").split(":")[0].trim()))];
-    const yogaHTML = yogas.length ? `<div class="rc-yoga-badges">${yogas.map(y=>`<span class="yoga-badge">★ ${y}</span>`).join("")}</div>` : "";
+    // Yoga badges
+    const yogas = [...new Set(
+      (d.reasons||[]).filter(r=>r.startsWith('[YOGA]'))
+        .map(r => r.replace('[YOGA] ','').split(':')[0].trim())
+    )];
+    const yogaHTML = yogas.length
+      ? `<div class="rc-yoga-badges">${yogas.map(y=>`<span class="yoga-badge">★ ${y}</span>`).join('')}</div>`
+      : '';
 
     card.innerHTML = `
       <div class="rc-header">
         <div class="rc-title">${d.title}</div>
-        <div class="rc-verdict-wrap"><span class="rc-verdict ${vc}">${d.verdict}</span>${confDots}</div>
+        <div class="rc-verdict-wrap">
+          <span class="rc-verdict ${vc}">${d.verdict}</span>
+          ${confDots}
+        </div>
       </div>
+
       ${yogaHTML}
+
       ${stmt ? `
-        <div class="rc-section"><div class="rc-label">Pattern</div><div class="rc-pattern">${stmt.pattern||""}</div></div>
-        <div class="rc-section rc-indication-block"><div class="rc-label">Indication</div><div class="rc-indication">${stmt.indication||""}</div></div>
-        ${windowHTML}${cautionsHTML}
-        <div class="rc-confidence-line">Confidence: <strong style="color:${cColor}">${stmt.confidence}</strong><span class="rc-conf-reason"> — ${stmt.confidenceReason||""}</span></div>
+        <div class="rc-section">
+          <div class="rc-label">Pattern</div>
+          <div class="rc-pattern">${stmt.pattern || ''}</div>
+        </div>
+
+        <div class="rc-section rc-indication-block">
+          <div class="rc-label">Indication</div>
+          <div class="rc-indication">${stmt.indication || ''}</div>
+        </div>
+
+        ${windowHTML}
+        ${cautionsHTML}
+
+        <div class="rc-confidence-line">
+          Confidence: <strong style="color:${cColor}">${stmt.confidence}</strong>
+          <span class="rc-conf-reason"> — ${stmt.confidenceReason || ''}</span>
+        </div>
+
       ` : `
-        <div class="rc-section"><div class="rc-indication">${d.factorOverview||""}</div></div>
-        <div class="rc-section"><div class="rc-caution">${d.flagLogic||""}</div></div>
-      `}`;
+        <div class="rc-section">
+          <div class="rc-indication">${d.factorOverview || ''}</div>
+        </div>
+        <div class="rc-section">
+          <div class="rc-caution">${d.flagLogic || ''}</div>
+        </div>
+      `}
+    `;
+
     container.appendChild(card);
   });
 
-  if (eventFlags?.length) {
-    const block = document.getElementById("eventFlagsBlock");
-    const grid  = document.getElementById("eventFlagsGrid");
-    block.classList.remove("hidden");
+  // ── Event Flags ────────────────────────────────────────────────────────────
+  if (eventFlags && eventFlags.length) {
+    const block = document.getElementById('eventFlagsBlock');
+    const grid  = document.getElementById('eventFlagsGrid');
+    block.classList.remove('hidden');
+
     grid.innerHTML = eventFlags.map(flag => {
-      const confColor = { High:"var(--stable)", Medium:"var(--accent-gold)", Low:"var(--vuln)" };
-      const cc = confColor[flag.confidence] || "var(--text-muted)";
-      const domainLabel = flag.domain ? `<span class="ef-domain-tag">${flag.domain}</span>` : `<span class="ef-domain-tag ef-cross">Chart-level</span>`;
-      const windowLine  = flag.windowLords?.length ? `<div class="ef-window">Activates during: ${flag.windowLords.join(", ")} dasha</div>` : "";
-      return `<div class="ef-card">
-        <div class="ef-card-header">${domainLabel}<span class="ef-conf" style="color:${cc}">${flag.confidence}</span></div>
-        <div class="ef-card-title">${flag.title}</div>
-        <div class="ef-card-indication">${flag.indication}</div>
-        ${flag.caution?`<div class="ef-card-caution">⚠ ${flag.caution}</div>`:""}
-        ${windowLine}
-      </div>`;
-    }).join("");
+      const confColor = { High: 'var(--stable)', Medium: 'var(--accent-gold)', Low: 'var(--vuln)' };
+      const cc = confColor[flag.confidence] || 'var(--text-muted)';
+      const domainLabel = flag.domain
+        ? `<span class="ef-domain-tag">${flag.domain}</span>`
+        : `<span class="ef-domain-tag ef-cross">Chart-level</span>`;
+
+      const windowLine = flag.windowLords?.length
+        ? `<div class="ef-window">Activates during: ${flag.windowLords.join(', ')} dasha</div>`
+        : '';
+
+      return `
+        <div class="ef-card">
+          <div class="ef-card-header">
+            ${domainLabel}
+            <span class="ef-conf" style="color:${cc}">${flag.confidence}</span>
+          </div>
+          <div class="ef-card-title">${flag.title}</div>
+          <div class="ef-card-indication">${flag.indication}</div>
+          ${flag.caution ? `<div class="ef-card-caution">⚠ ${flag.caution}</div>` : ''}
+          ${windowLine}
+        </div>
+      `;
+    }).join('');
   }
 
+  // ── Compound Patterns ──────────────────────────────────────────────────────
   const { compoundPatterns } = analysis;
-  if (compoundPatterns?.length) {
-    const cpBlock = document.getElementById("compoundPatternsBlock");
-    const cpGrid  = document.getElementById("compoundPatternsGrid");
+  if (compoundPatterns && compoundPatterns.length) {
+    const cpBlock = document.getElementById('compoundPatternsBlock');
+    const cpGrid  = document.getElementById('compoundPatternsGrid');
     if (cpBlock && cpGrid) {
-      cpBlock.classList.remove("hidden");
+      cpBlock.classList.remove('hidden');
+
       cpGrid.innerHTML = compoundPatterns.map(p => {
-        const confColor = { High:"var(--stable)", Medium:"var(--accent-gold)", Low:"var(--vuln)" };
-        const cc       = confColor[p.confidence] || "var(--text-muted)";
-        const icon     = p.risk_note?"⚡":p.sensitivity_note?"◈":p.stability_note?"✦":"◉";
-        const tagClass = p.risk_note?"cp-tag-risk":p.sensitivity_note?"cp-tag-sensitive":p.stability_note?"cp-tag-stable":"cp-tag-neutral";
-        const tagText  = p.risk_note?"Risk signal":p.sensitivity_note?"Sensitive":p.stability_note?"Positive":"Pattern";
-        const windowLine = p.windowLords?.length ? `<div class="cp-window">Activation: ${p.windowLords.join(" → ")} dasha</div>` : "";
+        const confColor = { High: 'var(--stable)', Medium: 'var(--accent-gold)', Low: 'var(--vuln)' };
+        const cc = confColor[p.confidence] || 'var(--text-muted)';
+        const icon = p.risk_note ? '⚡' : p.sensitivity_note ? '◈' : p.stability_note ? '✦' : '◉';
+        const tagClass = p.risk_note ? 'cp-tag-risk' : p.sensitivity_note ? 'cp-tag-sensitive' : p.stability_note ? 'cp-tag-stable' : 'cp-tag-neutral';
+        const tagText  = p.risk_note ? 'Risk signal' : p.sensitivity_note ? 'Sensitive' : p.stability_note ? 'Positive' : 'Pattern';
+
+        const windowLine = p.windowLords?.length
+          ? `<div class="cp-window">Activation: ${p.windowLords.join(' → ')} dasha</div>`
+          : '';
+
         const condBar = `<div class="cp-cond-bar" title="${p.conditionsMet} of ${p.totalConditions} indicators present">
-          ${Array.from({length:p.totalConditions},(_,i)=>`<span class="cp-cond-dot ${i<p.conditionsMet?"cp-cond-on":"cp-cond-off"}"></span>`).join("")}
-          <span class="cp-cond-label">${p.conditionsMet}/${p.totalConditions} indicators</span></div>`;
-        return `<div class="cp-card ${p.risk_note?"cp-risk":p.stability_note?"cp-stable":""}">
-          <div class="cp-card-header"><span class="cp-icon">${icon}</span><span class="cp-domain-tag ${tagClass}">${tagText} · ${p.domain||"Chart-level"}</span><span class="cp-conf" style="color:${cc}">${p.confidence}</span></div>
-          <div class="cp-card-title">${p.title}</div>${condBar}
-          <div class="cp-indication">${p.indication}</div>
-          ${p.caution?`<div class="cp-caution">⚠ ${p.caution}</div>`:""}
-          ${windowLine}</div>`;
-      }).join("");
+          ${Array.from({length: p.totalConditions}, (_,i) =>
+            `<span class="cp-cond-dot ${i < p.conditionsMet ? 'cp-cond-on' : 'cp-cond-off'}"></span>`
+          ).join('')}
+          <span class="cp-cond-label">${p.conditionsMet}/${p.totalConditions} indicators</span>
+        </div>`;
+
+        return `
+          <div class="cp-card ${p.risk_note?'cp-risk':p.stability_note?'cp-stable':''}">
+            <div class="cp-card-header">
+              <span class="cp-icon">${icon}</span>
+              <span class="cp-domain-tag ${tagClass}">${tagText} · ${p.domain || 'Chart-level'}</span>
+              <span class="cp-conf" style="color:${cc}">${p.confidence}</span>
+            </div>
+            <div class="cp-card-title">${p.title}</div>
+            ${condBar}
+            <div class="cp-indication">${p.indication}</div>
+            ${p.caution ? `<div class="cp-caution">⚠ ${p.caution}</div>` : ''}
+            ${windowLine}
+          </div>
+        `;
+      }).join('');
     }
   }
 }
@@ -1035,13 +782,16 @@ function renderSummaryScreen(analysis, chart) {
   const { summary, domains } = analysis;
   const { dasha, d1 } = chart;
 
+  // Overall pattern
   document.getElementById("summaryOverall").innerHTML = `
     <div class="card-title">Overall chart pattern</div>
-    <div class="so-pattern">${summary?.overallPattern||""}</div>`;
+    <div class="so-pattern">${summary?.overallPattern || ""}</div>
+  `;
 
-  document.getElementById("summaryEarlyText").textContent = summary?.earlyLife  || "";
-  document.getElementById("summaryLaterText").textContent = summary?.laterLife  || "";
+  document.getElementById("summaryEarlyText").textContent  = summary?.earlyLife  || "";
+  document.getElementById("summaryLaterText").textContent  = summary?.laterLife  || "";
 
+  // Yogas
   const allYogas = [];
   (domains||[]).forEach(d => {
     (d.reasons||[]).filter(r=>r.startsWith("[YOGA]")).forEach(r => {
@@ -1051,10 +801,20 @@ function renderSummaryScreen(analysis, chart) {
     });
   });
   const yogaList = document.getElementById("summaryYogasList");
-  yogaList.innerHTML = allYogas.length
-    ? allYogas.map(y=>`<div class="yoga-item"><div><div class="yoga-name">★ ${y.name}</div><div class="yoga-reason">${y.reason}</div></div></div>`).join("")
-    : `<div class="card-body">No major yogas detected in this chart.</div>`;
+  if (allYogas.length) {
+    yogaList.innerHTML = allYogas.map(y => `
+      <div class="yoga-item">
+        <div>
+          <div class="yoga-name">★ ${y.name}</div>
+          <div class="yoga-reason">${y.reason}</div>
+        </div>
+      </div>
+    `).join("");
+  } else {
+    yogaList.innerHTML = `<div class="card-body">No major yogas detected in this chart.</div>`;
+  }
 
+  // Dasha reading
   const today = new Date().toISOString().split("T")[0];
   let currentMaha = null, currentAntar = null;
   if (dasha?.dashas) {
@@ -1071,11 +831,11 @@ function renderSummaryScreen(analysis, chart) {
   const dashaEl = document.getElementById("summaryDashaText");
   if (currentMaha && d1?.lagnaSign) {
     const fs = FUNCTIONAL_STATUS_MAP[d1.lagnaSign]?.[currentMaha.lord] || "N";
-    const fsDesc = fs==="Y"?"a yogakaraka — a uniquely powerful season for your lagna."
-                 : fs==="B"?"a functional benefic — this season generally supports growth."
-                 : fs==="M"?"a functional malefic — this season may bring tests that require patience."
-                 : "functionally neutral — results shaped by sub-periods and transits.";
-    const antarDesc = currentAntar ? ` Within this, the ${currentAntar.lord} Antar Dasa (ending ${currentAntar.endDate}) colours the events unfolding right now.` : "";
+    const fsDesc = fs==="Y"?"a yogakaraka — a uniquely powerful planet for your lagna, capable of elevating life circumstances significantly."
+                 : fs==="B"?"a functional benefic for your lagna — this period generally supports growth and positive outcomes."
+                 : fs==="M"?"a functional malefic for your lagna — this period may bring delays, challenges, or karmic tests that require patience and discipline."
+                 : "functionally neutral for your lagna — results will be mixed and dependent on transits and sub-periods.";
+    const antarDesc = currentAntar ? ` Within this, the ${currentAntar.lord} Antar Dasa (ending ${currentAntar.endDate}) further narrows the focus — the qualities of ${currentAntar.lord} colour the specific events unfolding right now.` : "";
     dashaEl.innerHTML = `<div class="card-body">You are currently in the <strong>${currentMaha.lord} Maha Dasa</strong>, running until ${currentMaha.endDate}. ${currentMaha.lord} is ${fsDesc}${antarDesc}</div>`;
   } else {
     dashaEl.innerHTML = `<div class="card-body">Generate a chart to see your current dasha reading.</div>`;
@@ -1083,121 +843,52 @@ function renderSummaryScreen(analysis, chart) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  PLANET SCREEN — Phase 2 redesign: D1 vs D9 side-by-side comparison
+//  PLANET SCREEN
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderPlanetScreen(data) {
-  const { planets, d1, d9 } = data;
+  const { planets, d1 } = data;
   if (!planets) return;
+  const lagna = d1.lagnaSign;
+  const combust = buildCombustSet(planets);
+  const warLosers = buildWarSet(planets);
 
-  const lagna       = d1.lagnaSign;
-  const combust     = buildCombustSet(planets);
-  const warLosers   = buildWarSet(planets);
-  const d1HouseMap  = buildPlanetHouseMap(d1.houses);
-  const d9HouseMap  = buildPlanetHouseMap(d9?.houses || {});
-  const container   = document.getElementById("planetCards");
+  const container = document.getElementById("planetCards");
   container.innerHTML = "";
+
+  const EXALTATION_MAP = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
+  const DEBILITATION_MAP = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries",Rahu:"Sagittarius",Ketu:"Gemini" };
 
   PLANET_LIST.forEach(planet => {
     const p = planets[planet];
     if (!p) return;
-
-    // D1 data
-    const d1Sign     = p.sign;
-    const d1House    = d1HouseMap[planet] || "?";
-    const d1Dignity  = getDignity(planet, d1Sign);
-    const d1Lord     = SIGN_LORD[d1Sign];
-    const d1Rel      = getRelationshipTag(d1Lord, planet);
-
-    // D9 data
-    const d9Sign     = p.d9sign || "—";
-    const d9House    = d9HouseMap[planet] || "?";
-    const d9Dignity  = d9Sign !== "—" ? getDignity(planet, d9Sign) : "";
-    const d9Lord     = SIGN_LORD[d9Sign] || "—";
-    const d9Rel      = d9Lord !== "—" ? getRelationshipTag(d9Lord, planet) : null;
-
-    // Vargottama check (same sign in D1 and D9)
-    const isVargottama = d9Sign !== "—" && d1Sign === d9Sign;
-
-    const isRetro = p.retrograde;
-    const isC     = combust.has(planet);
-    const isW     = warLosers.has(planet);
-    const fs      = FUNCTIONAL_STATUS_MAP[lagna]?.[planet] || "N";
-
-    const dignityLabel   = (dig) => dig==="ex"?"Exalted":dig==="de"?"Debilitated":dig==="own"?"Own sign":"—";
-    const dignityClass   = (dig) => dig==="ex"?"exalted":dig==="de"?"debilitated":dig==="own"?"own":"";
-    const relLabel       = (rel) => rel==="F"?"Friend":rel==="E"?"Enemy":rel==="N"?"Neutral":"—";
-    const relClass       = (rel) => rel==="F"?"rel-friend":rel==="E"?"rel-enemy":"rel-neutral";
-    const fsLabel        = fs==="Y"?"Yogakaraka ★":fs==="B"?"Benefic":fs==="M"?"Malefic":"Neutral";
-    const fsClass        = fs==="Y"?"yogakaraka":fs==="M"?"pc-malefic":"";
+    const dignity = getDignity(planet, p.sign);
+    const isC = combust.has(planet);
+    const isW = warLosers.has(planet);
+    const fs  = FUNCTIONAL_STATUS_MAP[lagna]?.[planet] || "N";
+    const fsLabel = fs==="Y"?"Yogakaraka ★":fs==="B"?"Benefic":fs==="M"?"Malefic":"Neutral";
+    const dignityLabel = dignity==="ex"?"Exalted":dignity==="de"?"Debilitated":dignity==="own"?"Own sign":"—";
+    const dignityClass = dignity==="ex"?"exalted":dignity==="de"?"debilitated":dignity==="own"?"own":"";
 
     const card = document.createElement("div");
-    card.className = "planet-card-v2";
+    card.className = "planet-card";
     card.innerHTML = `
-      <div class="pc2-header">
-        <div class="pc2-glyph">${PLANET_GLYPHS_FULL[planet]||""}</div>
-        <div class="pc2-name">${planet}</div>
-        <div class="pc2-meta">
-          <span class="pc2-tag ${fsClass}">${fsLabel}</span>
-          ${isVargottama?`<span class="pc2-tag pc2-vg" title="Same sign in D1 and D9 — planet is strengthened">Vargottama</span>`:""}
-          ${isRetro?`<span class="pc2-tag pc2-retro">Retrograde ℞</span>`:""}
-          ${isC?`<span class="pc2-tag pc2-combust">Combust ☀</span>`:""}
-          ${isW?`<span class="pc2-tag pc2-war">War ⚔</span>`:""}
-        </div>
+      <div class="pc-header">
+        <div class="pc-name">${planet}</div>
+        <div class="pc-glyph">${PLANET_GLYPHS_FULL[planet]||""}</div>
       </div>
-
-      <div class="pc2-grid">
-        <div class="pc2-col">
-          <div class="pc2-col-label">D1 — Birth Chart</div>
-          <div class="pc2-row"><span class="pc2-k">Sign</span><span class="pc2-v">${d1Sign}</span></div>
-          <div class="pc2-row"><span class="pc2-k">House</span><span class="pc2-v">H${d1House}</span></div>
-          <div class="pc2-row"><span class="pc2-k">Degree</span><span class="pc2-v">${p.degree?.toFixed(1)}°</span></div>
-          <div class="pc2-row"><span class="pc2-k">Nakshatra</span><span class="pc2-v">${p.nakshatra} P${p.pada}</span></div>
-          <div class="pc2-row"><span class="pc2-k">Dignity</span><span class="pc2-v ${dignityClass(d1Dignity)}">${dignityLabel(d1Dignity)}</span></div>
-          <div class="pc2-row"><span class="pc2-k">Lord relation</span><span class="pc2-v ${relClass(d1Rel)}">${relLabel(d1Rel)}</span></div>
-        </div>
-
-        <div class="pc2-divider"></div>
-
-        <div class="pc2-col">
-          <div class="pc2-col-label">D9 — Navamsha</div>
-          <div class="pc2-row"><span class="pc2-k">Sign</span><span class="pc2-v">${d9Sign}</span></div>
-          <div class="pc2-row"><span class="pc2-k">House</span><span class="pc2-v">${d9House !== "?" ? "H"+d9House : "—"}</span></div>
-          <div class="pc2-row"><span class="pc2-k">Dignity</span><span class="pc2-v ${dignityClass(d9Dignity)}">${dignityLabel(d9Dignity)}</span></div>
-          <div class="pc2-row"><span class="pc2-k">Lord relation</span><span class="pc2-v ${relClass(d9Rel)}">${relLabel(d9Rel)}</span></div>
-          <div class="pc2-row"><span class="pc2-k">Vargottama</span><span class="pc2-v ${isVargottama?"pc2-vg-val":""}">${isVargottama?"Yes — strengthened":"No"}</span></div>
-        </div>
-      </div>
-
-      <div class="pc2-reading">
-        ${buildPlanetReading(planet, d1Sign, d1House, d1Dignity, d9Sign, d9Dignity, isVargottama, fs)}
-      </div>
+      <div class="pc-row"><span class="pc-key">Sign (D1)</span><span class="pc-val">${p.sign}</span></div>
+      <div class="pc-row"><span class="pc-key">Degree</span><span class="pc-val">${p.degree?.toFixed(2)}° in ${p.sign}</span></div>
+      <div class="pc-row"><span class="pc-key">D9 sign</span><span class="pc-val">${p.d9sign || "—"}</span></div>
+      <div class="pc-row"><span class="pc-key">Nakshatra</span><span class="pc-val">${p.nakshatra} Pada ${p.pada}</span></div>
+      <div class="pc-row"><span class="pc-key">Dignity</span><span class="pc-val ${dignityClass}">${dignityLabel}</span></div>
+      <div class="pc-row"><span class="pc-key">For ${lagna} lagna</span><span class="pc-val${fs==="Y"?" yogakaraka":fs==="M"?" retrograde":""}">${fsLabel}</span></div>
+      <div class="pc-row"><span class="pc-key">Retrograde</span><span class="pc-val ${p.retrograde?"retrograde":""}">${p.retrograde ? "Yes ℞" : "No"}</span></div>
+      ${isC ? `<div class="pc-row"><span class="pc-key">Combustion</span><span class="pc-val combust">Combust ☀ (−1 penalty)</span></div>` : ""}
+      ${isW ? `<div class="pc-row"><span class="pc-key">Planetary war</span><span class="pc-val combust">Defeated ⚔ (−1 penalty)</span></div>` : ""}
     `;
     container.appendChild(card);
   });
-}
-
-// Generates a 1-2 line plain-English reading for each planet card
-function buildPlanetReading(planet, d1Sign, d1House, d1Dignity, d9Sign, d9Dignity, isVargottama, fs) {
-  const parts = [];
-
-  // D1 strength summary
-  if (d1Dignity === "ex")       parts.push(`${planet} is exalted in ${d1Sign} — at its peak strength in the birth chart.`);
-  else if (d1Dignity === "de")  parts.push(`${planet} is debilitated in ${d1Sign} — its natural qualities are suppressed and require conscious effort to express.`);
-  else if (d1Dignity === "own") parts.push(`${planet} is in its own sign ${d1Sign} — comfortable and expressive in house ${d1House}.`);
-  else                           parts.push(`${planet} is in ${d1Sign} in house ${d1House}.`);
-
-  // D9 modifier
-  if (isVargottama)              parts.push("Being Vargottama (same sign in D1 and D9), this placement carries exceptional potency that deepens with age.");
-  else if (d9Dignity === "ex")   parts.push("The D9 shows exaltation — this planet's promise strengthens in the second half of life.");
-  else if (d9Dignity === "de")   parts.push("The D9 shows debilitation — early D1 promise may not sustain through maturity.");
-  else if (d9Dignity === "own")  parts.push("The D9 shows own sign — the planet is stable and its themes mature consistently.");
-
-  // Functional status note
-  if (fs === "Y") parts.push("As a yogakaraka for this lagna, it holds special elevating power.");
-  else if (fs === "M") parts.push("As a functional malefic for this lagna, its dasha periods require careful navigation.");
-
-  return parts.slice(0,2).join(" ");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1212,26 +903,32 @@ function saveInputs() {
 function restoreInputs() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return;
-  let s;
-  try { s = JSON.parse(raw); }
-  catch { localStorage.removeItem(STORAGE_KEY); return; }
-
-  const set = (id, v) => { const el=document.getElementById(id); if(el&&v) el.value=v; };
-  set("inputName", s.name);
-  set("inputDOB",  s.dob);
-  set("inputTOB",  s.tob);
-
-  if (isValidPlaceRecord(s)) {
+  try {
+    const s = JSON.parse(raw);
+    const set = (id, v) => { const el=document.getElementById(id); if(el&&v) el.value=v; };
+    set("inputName", s.name);
+    set("inputDOB",  s.dob);
+    set("inputTOB",  s.tob);
     const plDisp   = document.getElementById("inputPlaceDisplay");
     const plSearch = document.getElementById("inputPlaceSearch");
     const clearBtn = document.getElementById("placeClearBtn");
-    if (plDisp)   plDisp.value = s.place;
-    const shortName = s.place.split(",").slice(0,3).join(",").trim();
-    if (plSearch) { _suppressSearch=true; plSearch.value=shortName; _suppressSearch=false; }
-    if (clearBtn) clearBtn.style.display = "inline-flex";
-    _selectedPlace = { displayName:s.place, lat:parseFloat(s.lat), lng:parseFloat(s.lng), country:s.country||"", shortName, utcOffset:s.utcOffset!=null?parseFloat(s.utcOffset):(CLIENT_TZ[s.country]??null) };
-    showPlaceConfirmed(shortName, _selectedPlace.utcOffset);
-  }
+    if (s.place) {
+      if (plDisp) plDisp.value = s.place;
+      const shortName = s.place.split(",").slice(0,3).join(",").trim();
+      if (plSearch) {
+        _suppressSearch = true;
+        plSearch.value = shortName;
+        _suppressSearch = false;
+      }
+      if (s.lat && s.lng) {
+        if (clearBtn) clearBtn.style.display = "inline-flex";
+        _selectedPlace = { displayName: s.place, lat: s.lat, lng: s.lng,
+          country: s.country || "", shortName,
+          utcOffset: s.utcOffset != null ? parseFloat(s.utcOffset) : (CLIENT_TZ[s.country] ?? null) };
+        showPlaceConfirmed(shortName, _selectedPlace.utcOffset);
+      }
+    }
+  } catch {}
 }
 
 function getHistory() {
@@ -1240,8 +937,21 @@ function getHistory() {
 
 function saveToHistory() {
   if (!currentData) return;
-  const f = currentData.form, c = currentData.chart;
-  const entry = { id:Date.now().toString(), name:f.name||"Unnamed", savedAt:new Date().toISOString(), dob:f.dob, tob:f.tob, place:f.place, country:_selectedPlace?.country||"", utcOffset:f.utcOffset, lat:f.lat, lng:f.lng, d1Lagna:c.d1?.lagnaSign||"", d9Lagna:c.d9?.lagnaSign||"" };
+  const f = currentData.form;
+  const c = currentData.chart;
+  const entry = {
+    id:       Date.now().toString(),
+    name:     f.name || "Unnamed",
+    savedAt:  new Date().toISOString(),
+    dob:      f.dob,
+    tob:      f.tob,
+    place:    f.place,
+    country:  f.country || "",
+    country:  _selectedPlace?.country || "",
+    utcOffset:f.utcOffset,
+    d1Lagna:  c.d1?.lagnaSign || "",
+    d9Lagna:  c.d9?.lagnaSign || ""
+  };
   const hist = getHistory();
   hist.unshift(entry);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(hist.slice(0,25)));
@@ -1264,7 +974,9 @@ function renderHistory() {
         <button class="btn-sm-ghost hist-load" data-id="${h.id}">Load</button>
         <button class="btn-sm-danger hist-del" data-id="${h.id}">×</button>
       </div>
-    </div>`).join("");
+    </div>
+  `).join("");
+
   box.querySelectorAll(".hist-load").forEach(btn => btn.addEventListener("click", () => loadHistory(btn.dataset.id)));
   box.querySelectorAll(".hist-del").forEach(btn => btn.addEventListener("click", () => deleteHistory(btn.dataset.id)));
 }
@@ -1276,13 +988,18 @@ function loadHistory(id) {
   set(document.getElementById("inputName"), h.name);
   set(document.getElementById("inputDOB"),  h.dob);
   set(document.getElementById("inputTOB"),  h.tob);
-  if (isValidPlaceRecord(h)) {
-    const plDisp=document.getElementById("inputPlaceDisplay"), plSearch=document.getElementById("inputPlaceSearch"), clearBtn=document.getElementById("placeClearBtn");
-    if (plDisp) plDisp.value=h.place;
-    const shortName=h.place.split(",").slice(0,3).join(",").trim();
-    if (plSearch) { _suppressSearch=true; plSearch.value=shortName; _suppressSearch=false; }
-    if (clearBtn) clearBtn.style.display="inline-flex";
-    _selectedPlace={ displayName:h.place, lat:parseFloat(h.lat), lng:parseFloat(h.lng), country:h.country||"", shortName, utcOffset:h.utcOffset!=null?parseFloat(h.utcOffset):(CLIENT_TZ[h.country]??null) };
+  const plDisp   = document.getElementById("inputPlaceDisplay");
+  const plSearch = document.getElementById("inputPlaceSearch");
+  const clearBtn = document.getElementById("placeClearBtn");
+  if (h.place) {
+    if (plDisp)   plDisp.value   = h.place;
+    // Show short name in visible search box (strip long Nominatim suffix if present)
+    const shortName = h.place.split(",").slice(0,3).join(",").trim();
+    if (plSearch) { _suppressSearch = true; plSearch.value = shortName; _suppressSearch = false; }
+    if (clearBtn) clearBtn.style.display = "inline-flex";
+    _selectedPlace = { displayName: h.place, lat: h.lat||null, lng: h.lng||null,
+      country: h.country || "", shortName,
+      utcOffset: h.utcOffset != null ? parseFloat(h.utcOffset) : (CLIENT_TZ[h.country] ?? null) };
     showPlaceConfirmed(shortName, _selectedPlace.utcOffset);
   }
   saveInputs();
@@ -1295,127 +1012,224 @@ function deleteHistory(id) {
 
 // ── Button events ─────────────────────────────────────────────────────────────
 saveBtn.addEventListener("click", () => {
-  saveInputs(); saveToHistory();
-  const txt=saveBtn.textContent; saveBtn.textContent="Saved ✓";
-  setTimeout(()=>saveBtn.textContent=txt,1400);
+  saveInputs();
+  saveToHistory();
+  const txt = saveBtn.textContent;
+  saveBtn.textContent = "Saved ✓";
+  setTimeout(() => saveBtn.textContent = txt, 1400);
 });
 
 resetBtn.addEventListener("click", () => {
-  if (confirm("Reset all inputs and clear current chart?")) { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }
+  if (confirm("Reset all inputs and clear current chart?")) {
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.reload();
+  }
 });
 
+// Download report
 dlBtn.addEventListener("click", () => {
   if (!currentData) return;
   const html = buildHTMLReport(currentData);
   const blob  = new Blob(["\uFEFF",html], { type:"application/msword" });
   const url   = URL.createObjectURL(blob);
   const a     = document.createElement("a");
-  a.href=url; a.download=`jyotish-${currentData.form?.name||"chart"}-${currentData.form?.dob||"report"}.doc`;
-  a.click(); URL.revokeObjectURL(url);
+  a.href = url;
+  a.download = `jyotish-${currentData.form?.name||"chart"}-${currentData.form?.dob||"report"}.doc`;
+  a.click();
+  URL.revokeObjectURL(url);
 });
 
 function buildHTMLReport(data) {
   const { chart, analysis, form } = data;
   const { summary, domains } = analysis;
-  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+  return `
+  <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
   <head><meta charset="utf-8"><title>Jyotish Report</title>
-  <style>body{font-family:Arial,sans-serif;color:#222;line-height:1.6}h1,h2,h3{color:#1a2a4a}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:8px;text-align:left}th{background:#f0f4fa}.yoga{color:#7a5b00;font-style:italic}.disclaimer{font-size:11px;color:#888;border-top:1px solid #ccc;margin-top:40px;padding-top:12px}</style>
+  <style>body{font-family:Arial,sans-serif;color:#222;line-height:1.6}h1,h2,h3{color:#1a2a4a}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:8px;text-align:left}th{background:#f0f4fa}.yoga{color:#7a5b00;font-style:italic}</style>
   </head><body>
   <h1>Jyotish Precision Analyzer — Birth Chart Report</h1>
   <p><strong>Native:</strong> ${form.name||"—"} &nbsp;|&nbsp; <strong>DOB:</strong> ${form.dob} &nbsp;|&nbsp; <strong>TOB:</strong> ${form.tob} &nbsp;|&nbsp; <strong>Place:</strong> ${form.place}</p>
   <p><strong>D1 Lagna:</strong> ${chart.d1?.lagnaSign} &nbsp;|&nbsp; <strong>D9 Lagna:</strong> ${chart.d9?.lagnaSign} &nbsp;|&nbsp; <strong>Ayanamsha:</strong> Lahiri ${chart.ayanamsha}°</p>
-  <h2>Summary</h2><p>${summary?.overallPattern}</p><p>${summary?.earlyLife}</p><p>${summary?.laterLife}</p>
+  <h2>Summary</h2>
+  <p>${summary?.overallPattern}</p><p>${summary?.earlyLife}</p><p>${summary?.laterLife}</p>
   <h2>Domain Analysis</h2>
   <table><tr><th>Domain</th><th>D1</th><th>D9</th><th>Verdict</th></tr>
-  ${(domains||[]).map(d=>`<tr><td>${d.title}</td><td>${d.d1Strength}</td><td>${d.d9Strength}</td><td>${d.verdict}</td></tr>`).join("")}</table>
-  ${(domains||[]).map(d=>`<h3>${d.title}</h3><p><strong>Verdict:</strong> ${d.verdict}</p><p>${d.factorOverview}</p><ul>${(d.reasons||[]).map(r=>`<li${r.startsWith("[YOGA]")?' class="yoga"':''}>${r.replace(/^\[.+?\] /,"")}</li>`).join("")}</ul>`).join("")}
-  <div class="disclaimer"><strong>Disclaimer:</strong> This report provides astrological analysis for educational and self-reflective purposes only. Not a substitute for medical, psychological, legal, or financial advice.<br>Generated by Jyotish Precision Analyzer · Swiss Ephemeris · Lahiri Ayanamsha · © 2025 All rights reserved.</div>
+  ${(domains||[]).map(d=>`<tr><td>${d.title}</td><td>${d.d1Strength}</td><td>${d.d9Strength}</td><td>${d.verdict}</td></tr>`).join("")}
+  </table>
+  ${(domains||[]).map(d=>`
+    <h3>${d.title}</h3>
+    <p><strong>Verdict:</strong> ${d.verdict}</p>
+    <p>${d.factorOverview}</p>
+    <ul>${(d.reasons||[]).map(r=>`<li${r.startsWith("[YOGA]")?' class="yoga"':''}>${r.replace(/^\[.+?\] /,"")}</li>`).join("")}</ul>
+  `).join("")}
+  <p style="font-size:11px;color:#888;margin-top:40px">Generated by Jyotish Precision Analyzer · Swiss Ephemeris · Lahiri Ayanamsha · Parashari Jyotish</p>
   </body></html>`;
 }
 
-// ── Auto-save ─────────────────────────────────────────────────────────────────
+// ── Auto-save inputs on change ────────────────────────────────────────────────
 document.querySelectorAll("input,select").forEach(el => {
   el.addEventListener("change", saveInputs);
   el.addEventListener("input",  saveInputs);
 });
 
-// ── City search ───────────────────────────────────────────────────────────────
+// ── City search autocomplete ──────────────────────────────────────────────────
+
+// Flag: suppresses search trigger when value is set programmatically (restore/history load)
 let _suppressSearch = false;
 
 function initCitySearch() {
-  const input=document.getElementById("inputPlaceSearch"), dropdown=document.getElementById("placeDropdown"), display=document.getElementById("inputPlaceDisplay"), clearBtn=document.getElementById("placeClearBtn"), utcEl=document.getElementById("detectedUTC");
-  if (!input||!dropdown) return;
+  const input    = document.getElementById("inputPlaceSearch");
+  const dropdown = document.getElementById("placeDropdown");
+  const display  = document.getElementById("inputPlaceDisplay");
+  const clearBtn = document.getElementById("placeClearBtn");
+  const utcEl    = document.getElementById("detectedUTC");
+  if (!input || !dropdown) return;
 
   input.addEventListener("input", () => {
-    if (_suppressSearch) return;
-    const q=input.value.trim(); clearTimeout(_searchTimer);
-    if (q.length<2) { dropdown.innerHTML=""; dropdown.style.display="none"; return; }
-    _searchTimer=setTimeout(()=>fetchCitySuggestions(q),320);
+    if (_suppressSearch) return;  // skip search during programmatic restore
+    const q = input.value.trim();
+    clearTimeout(_searchTimer);
+    if (q.length < 2) { dropdown.innerHTML = ""; dropdown.style.display = "none"; return; }
+    _searchTimer = setTimeout(() => fetchCitySuggestions(q), 320);
   });
 
   input.addEventListener("keydown", e => {
-    const items=dropdown.querySelectorAll(".place-item"), active=dropdown.querySelector(".place-item.active");
-    if (e.key==="ArrowDown") { e.preventDefault(); const next=active?active.nextElementSibling:items[0]; if(next){active?.classList.remove("active");next.classList.add("active");} }
-    else if (e.key==="ArrowUp") { e.preventDefault(); const prev=active?active.previousElementSibling:items[items.length-1]; if(prev){active?.classList.remove("active");prev.classList.add("active");} }
-    else if (e.key==="Enter"&&active) { e.preventDefault(); active.click(); }
-    else if (e.key==="Escape") dropdown.style.display="none";
+    const items = dropdown.querySelectorAll(".place-item");
+    const active = dropdown.querySelector(".place-item.active");
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = active ? active.nextElementSibling : items[0];
+      if (next) { active?.classList.remove("active"); next.classList.add("active"); }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = active ? active.previousElementSibling : items[items.length-1];
+      if (prev) { active?.classList.remove("active"); prev.classList.add("active"); }
+    } else if (e.key === "Enter" && active) {
+      e.preventDefault();
+      active.click();
+    } else if (e.key === "Escape") {
+      dropdown.style.display = "none";
+    }
   });
 
-  document.addEventListener("click", e => { if (!e.target.closest(".place-search-wrap")) dropdown.style.display="none"; });
+  // Close dropdown on outside click
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".place-search-wrap")) {
+      dropdown.style.display = "none";
+    }
+  });
 
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
-      _selectedPlace=null;
-      if(input) input.value=""; if(display) display.value=""; if(utcEl) utcEl.textContent="";
-      clearBtn.style.display="none"; dropdown.innerHTML=""; dropdown.style.display="none"; input.focus();
+      _selectedPlace = null;
+      if (input)   input.value = "";
+      if (display) display.value = "";
+      if (utcEl)   utcEl.textContent = "";
+      clearBtn.style.display = "none";
+      dropdown.innerHTML = ""; dropdown.style.display = "none";
+      input.focus();
     });
   }
 }
 
+// City search calls Nominatim DIRECTLY from the browser.
+// This avoids Cloudflare Worker IPs being blocked by Nominatim's rate-limiter.
+// The Worker (/api/chart) is only called for chart computation once lat/lng are known.
 async function fetchCitySuggestions(query) {
-  const dropdown=document.getElementById("placeDropdown");
+  const dropdown = document.getElementById("placeDropdown");
   if (!dropdown) return;
-  dropdown.innerHTML=`<div class="place-item place-loading">Searching...</div>`;
-  dropdown.style.display="block";
+  dropdown.innerHTML = `<div class="place-item place-loading">Searching...</div>`;
+  dropdown.style.display = "block";
   try {
-    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=8&addressdetails=1&accept-language=en`;
-    const res=await fetch(url,{headers:{"User-Agent":"JyotishPrecisionApp/3.2 (astrology chart calculator)"}});
-    if (!res.ok) throw new Error(`Nominatim ${res.status}`);
-    const data=await res.json();
-    if (!data||!data.length) { dropdown.innerHTML=`<div class="place-item place-no-result">No cities found. Try a different spelling.</div>`; return; }
-    const places=data.map(r=>({ lat:parseFloat(r.lat), lng:parseFloat(r.lon), displayName:r.display_name, shortName:[r.address?.city||r.address?.town||r.address?.village||r.name,r.address?.state,r.address?.country].filter(Boolean).join(", "), country:(r.address?.country_code||"").toUpperCase() }));
-    const validPlaces=places.filter(r=>isFinite(r.lat)&&isFinite(r.lng)&&!(r.lat===0&&r.lng===0));
-    if (!validPlaces.length) { dropdown.innerHTML=`<div class="place-item place-no-result">No valid locations found.</div>`; return; }
-    dropdown.innerHTML=validPlaces.map((r,i)=>`<div class="place-item" data-idx="${i}" data-lat="${r.lat}" data-lng="${r.lng}" data-name="${(r.displayName||"").replace(/"/g,"&quot;")}" data-short="${(r.shortName||"").replace(/"/g,"&quot;")}" data-country="${(r.country||"").toUpperCase()}"><span class="pi-name">${r.shortName||r.displayName}</span><span class="pi-country">${r.country||""}</span></div>`).join("");
-    dropdown.style.display="block";
-    dropdown.querySelectorAll(".place-item[data-lat]").forEach(item=>item.addEventListener("click",()=>selectPlace(item)));
-  } catch(e) {
-    dropdown.innerHTML=`<div class="place-item place-no-result">Could not reach location service. Try again in a moment.</div>`;
+    // Call Nominatim directly from the browser — not through the Worker
+    const url = `https://nominatim.openstreetmap.org/search`
+      + `?q=${encodeURIComponent(query)}`
+      + `&format=json&limit=8&addressdetails=1&accept-language=en`;
+
+    const res  = await fetch(url, {
+      headers: { "User-Agent": "JyotishPrecisionApp/3.0 (astrology chart calculator)" }
+    });
+
+    if (!res.ok) throw new Error(`Nominatim returned ${res.status}`);
+    const data = await res.json();
+
+    if (!data || !data.length) {
+      dropdown.innerHTML = `<div class="place-item place-no-result">No cities found. Try a different spelling or include country.</div>`;
+      return;
+    }
+
+    // Map Nominatim response to the same shape the rest of the app expects
+    const places = data.map(r => ({
+      lat:         parseFloat(r.lat),
+      lng:         parseFloat(r.lon),
+      displayName: r.display_name,
+      shortName:   [
+        r.address?.city || r.address?.town || r.address?.village || r.name,
+        r.address?.state,
+        r.address?.country
+      ].filter(Boolean).join(", "),
+      country: (r.address?.country_code || "").toUpperCase()
+    }));
+
+    dropdown.innerHTML = places.map((r, i) => `
+      <div class="place-item" data-idx="${i}" data-lat="${r.lat}" data-lng="${r.lng}"
+           data-name="${(r.displayName||"").replace(/"/g,"&quot;")}"
+           data-short="${(r.shortName||"").replace(/"/g,"&quot;")}"
+           data-country="${(r.country||"").toUpperCase()}">
+        <span class="pi-name">${r.shortName || r.displayName}</span>
+        <span class="pi-country">${r.country || ""}</span>
+      </div>
+    `).join("");
+    dropdown.style.display = "block";
+    dropdown.querySelectorAll(".place-item[data-lat]").forEach(item => {
+      item.addEventListener("click", () => selectPlace(item));
+    });
+  } catch (e) {
+    // Fallback message with actionable advice
+    dropdown.innerHTML = `<div class="place-item place-no-result">
+      Could not reach location service. Check your internet connection, or try again in a moment.
+    </div>`;
     console.warn("City search error:", e.message);
   }
 }
 
 async function selectPlace(item) {
-  const dropdown=document.getElementById("placeDropdown"), input=document.getElementById("inputPlaceSearch"), display=document.getElementById("inputPlaceDisplay"), clearBtn=document.getElementById("placeClearBtn");
-  const lat=parseFloat(item.dataset.lat), lng=parseFloat(item.dataset.lng), name=item.dataset.name, short=item.dataset.short, country=(item.dataset.country||"").toUpperCase();
-  if (!isFinite(lat)||!isFinite(lng)) { console.warn("Invalid coords"); return; }
-  const utcOffset=CLIENT_TZ[country]??null;
-  _selectedPlace={ displayName:name, shortName:short, lat, lng, country, utcOffset };
-  if(input) input.value=short; if(display) display.value=name; if(clearBtn) clearBtn.style.display="inline-flex";
-  showPlaceConfirmed(short,utcOffset);
-  dropdown.innerHTML=""; dropdown.style.display="none";
+  const dropdown = document.getElementById("placeDropdown");
+  const input    = document.getElementById("inputPlaceSearch");
+  const display  = document.getElementById("inputPlaceDisplay");
+  const clearBtn = document.getElementById("placeClearBtn");
+  const utcEl    = document.getElementById("detectedUTC");
+
+  const lat     = parseFloat(item.dataset.lat);
+  const lng     = parseFloat(item.dataset.lng);
+  const name    = item.dataset.name;
+  const short   = item.dataset.short;
+  const country = (item.dataset.country || "").toUpperCase();
+
+  // Resolve timezone client-side using the same country table as the backend
+  const utcOffset = CLIENT_TZ[country] ?? null;
+
+  _selectedPlace = { displayName: name, shortName: short, lat, lng, country, utcOffset };
+
+  if (input)   input.value = short;
+  if (display) display.value = name;
+  if (clearBtn) clearBtn.style.display = "inline-flex";
+
+  showPlaceConfirmed(short, utcOffset);
+  dropdown.innerHTML = ""; dropdown.style.display = "none";
   saveInputs();
 }
 
 function showPlaceConfirmed(name, utcOffset) {
-  const utcEl=document.getElementById("detectedUTC");
+  const utcEl = document.getElementById("detectedUTC");
   if (!utcEl) return;
-  const offsetStr=utcOffset!=null?`GMT${utcOffset>=0?"+":""}${utcOffset}`:"GMT offset unknown";
-  utcEl.innerHTML=`<span class="utc-ok">✓ ${name}</span> <span class="utc-offset">${offsetStr}</span>`;
+  const offsetStr = utcOffset != null
+    ? `GMT${utcOffset >= 0 ? "+" : ""}${utcOffset}`
+    : "GMT offset unknown — enter manually if needed";
+  utcEl.innerHTML = `<span class="utc-ok">✓ ${name}</span> <span class="utc-offset">${offsetStr}</span>`;
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 restoreInputs();
 renderHistory();
 initCitySearch();
-initLangSelector();
