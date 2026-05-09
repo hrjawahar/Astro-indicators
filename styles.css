@@ -985,3 +985,189 @@ select option { background: var(--bg-3); }
   vertical-align: middle;
   margin-right: 8px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 2 ADDITIONS
+   1. Language selector
+   2. Chart legend — F/N/E tags
+   3. Planet screen v2 — D1 vs D9 side-by-side cards
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Language selector ───────────────────────────────────────────────── */
+.lang-selector {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lang-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lang-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lang-btn {
+  background: transparent;
+  border: 1px solid var(--border-2);
+  color: var(--text-dim);
+  padding: 5px 13px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.lang-btn:hover  { color: var(--gold); border-color: var(--gold-dim); }
+.lang-btn.active { background: var(--gold-glow); color: var(--gold); border-color: var(--gold-dim); font-weight: 600; }
+
+/* ── Chart legend — F/N/E coloured codes ─────────────────────────────── */
+.legend-grid { grid-template-columns: repeat(3,1fr); }
+
+.leg-friend  { color: #1a6e3c !important; background: rgba(26,110,60,0.1) !important; border-color: rgba(26,110,60,0.3) !important; }
+.leg-neutral { color: var(--text-dim) !important; }
+.leg-enemy   { color: #8f1a1a !important; background: rgba(143,26,26,0.1) !important; border-color: rgba(143,26,26,0.3) !important; }
+
+/* ── Planet cards v2 — D1 vs D9 side by side ─────────────────────────── */
+/* Override old planet-cards-grid layout */
+#planetCards.planet-cards-grid {
+  grid-template-columns: 1fr;
+}
+
+.planet-card-v2 {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pc2-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pc2-glyph {
+  font-size: 24px;
+  color: var(--gold);
+  opacity: 0.8;
+  line-height: 1;
+  width: 32px;
+  text-align: center;
+}
+
+.pc2-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  min-width: 80px;
+}
+
+.pc2-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.pc2-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 12px;
+  border: 1px solid var(--border-2);
+  color: var(--text-dim);
+  background: transparent;
+}
+.pc2-tag.yogakaraka { color: var(--gold); background: var(--gold-glow); border-color: var(--gold-dim); }
+.pc2-tag.pc-malefic { color: var(--danger); background: var(--danger-bg); border-color: rgba(201,88,88,0.3); }
+.pc2-tag.pc2-vg     { color: var(--info); background: var(--info-bg); border-color: rgba(94,143,212,0.3); }
+.pc2-tag.pc2-retro  { color: var(--warn); background: var(--warn-bg); border-color: rgba(212,160,74,0.3); }
+.pc2-tag.pc2-combust{ color: var(--warn); background: var(--warn-bg); border-color: rgba(212,160,74,0.3); }
+.pc2-tag.pc2-war    { color: var(--danger); background: var(--danger-bg); border-color: rgba(201,88,88,0.3); }
+
+/* D1 vs D9 two-column grid */
+.pc2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0 16px;
+}
+
+.pc2-divider {
+  background: var(--border);
+  width: 1px;
+}
+
+.pc2-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pc2-col-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pc2-row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 4px;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.pc2-k { color: var(--text-dim); }
+.pc2-v { color: var(--text); font-weight: 500; }
+.pc2-v.exalted     { color: var(--success); }
+.pc2-v.debilitated { color: var(--danger); }
+.pc2-v.own         { color: var(--info); }
+.pc2-v.pc2-vg-val  { color: var(--info); font-weight: 600; }
+
+/* Relationship colours */
+.rel-friend  { color: #1a6e3c; font-weight: 600; }
+.rel-enemy   { color: #8f1a1a; font-weight: 600; }
+.rel-neutral { color: var(--text-dim); }
+
+/* Reading summary line */
+.pc2-reading {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.65;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--gold-dim);
+}
+
+/* Responsive — stack D1/D9 on mobile */
+@media (max-width: 600px) {
+  .pc2-grid { grid-template-columns: 1fr; }
+  .pc2-divider { display: none; }
+  .lang-selector { gap: 10px; }
+}
