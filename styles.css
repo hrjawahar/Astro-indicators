@@ -1171,3 +1171,129 @@ select option { background: var(--bg-3); }
   .pc2-divider { display: none; }
   .lang-selector { gap: 10px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 3 ADDITIONS — Per-AD indication panels
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Antar item — updated layout to fit indication toggle ───────────── */
+.antar-item {
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+}
+.antar-item:last-child { border-bottom: none; }
+
+.antar-main {
+  display: grid;
+  grid-template-columns: 90px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 13px;
+}
+.antar-item.current-antar .antar-main { color: var(--gold); }
+.antar-item.antar-risk .antar-lord    { color: var(--danger); }
+
+.antar-lord  { font-weight: 500; }
+.antar-dates { color: var(--text-dim); font-size: 12px; }
+.antar-yrs   { color: var(--text-faint); font-size: 12px; text-align: right; }
+
+/* ── AD toggle button ────────────────────────────────────────────────── */
+.ad-toggle {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border-2);
+  background: transparent;
+  padding: 3px 9px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.ad-toggle:hover { color: var(--gold); border-color: var(--gold-dim); }
+
+/* ── AD indication panel ─────────────────────────────────────────────── */
+.ad-ind-panel {
+  background: rgba(255,255,255,0.02);
+  border-left: 2px solid var(--gold-dim);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 6px;
+}
+
+/* ── Current period AD indication (shown in Current Period card) ─────── */
+.cd-ad-indication {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.cd-ad-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+
+/* ── Shared indication content styles ────────────────────────────────── */
+.adi-combined {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: rgba(201,168,76,0.05);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--gold-dim);
+}
+
+.adi-section {
+  margin-bottom: 12px;
+}
+
+.adi-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 7px;
+}
+
+.adi-item {
+  font-size: 12.5px;
+  line-height: 1.65;
+  margin-bottom: 5px;
+  padding-left: 4px;
+}
+
+.adi-positive {
+  color: var(--text-dim);
+}
+.adi-positive::first-letter { }
+
+.adi-watch {
+  color: var(--warn);
+  opacity: 0.9;
+}
+
+.adi-caution {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--danger);
+  padding: 9px 12px;
+  background: var(--danger-bg);
+  border: 1px solid rgba(201,88,88,0.25);
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .antar-main {
+    grid-template-columns: 80px 1fr auto;
+  }
+  .antar-yrs { display: none; }
+}
