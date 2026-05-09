@@ -353,7 +353,7 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       signTxt.setAttribute("x", x + PAD + 2);
       signTxt.setAttribute("y", y + 11);
       signTxt.setAttribute("font-size","8");
-      signTxt.setAttribute("fill","rgba(130,90,25,0.55)");
+      signTxt.setAttribute("fill","rgba(100,65,10,0.85)");
       signTxt.setAttribute("font-family","Cinzel,serif");
       signTxt.textContent = signAbbr;
       svg.appendChild(signTxt);
@@ -363,7 +363,7 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       hTxt.setAttribute("x", x + CELL - PAD - 4);
       hTxt.setAttribute("y", y + 11);
       hTxt.setAttribute("font-size","8");
-      hTxt.setAttribute("fill","rgba(0,0,0,0.22)");
+      hTxt.setAttribute("fill","rgba(0,0,0,0.55)");
       hTxt.setAttribute("text-anchor","end");
       hTxt.textContent = hNum;
       svg.appendChild(hTxt);
