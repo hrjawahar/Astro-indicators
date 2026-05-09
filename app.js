@@ -774,18 +774,7 @@ function renderDashaScreen(data) {
       adIndHTML = `
         <div class="cd-ad-indication">
           <div class="cd-ad-label">Current sub-period reading — ${currentAntar.lord} Antardasha</div>
-          <div class="adi-combined">${adR.combined}</div>
-          ${adR.positives.length ? `
-            <div class="adi-section">
-              <div class="adi-label">This period supports</div>
-              ${adR.positives.map(p=>`<div class="adi-item adi-positive">• ${p}</div>`).join("")}
-            </div>` : ""}
-          ${adR.watchFor.length ? `
-            <div class="adi-section">
-              <div class="adi-label">Watch closely</div>
-              ${adR.watchFor.map(w=>`<div class="adi-item adi-watch">• ${w}</div>`).join("")}
-            </div>` : ""}
-          ${adR.caution ? `<div class="adi-caution">⚠ ${adR.caution}</div>` : ""}
+          ${renderADIndicationHTML(adR)}
         </div>`;
     }
 
