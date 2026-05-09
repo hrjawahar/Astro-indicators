@@ -153,6 +153,19 @@
           </div>
         </div>
 
+        <!-- ── Language selector for planet names ──────────────────── -->
+        <div class="lang-selector">
+          <span class="lang-label">Planet names</span>
+          <div class="lang-btns">
+            <button class="lang-btn" data-lang="EN">EN</button>
+            <button class="lang-btn" data-lang="TA">தமிழ்</button>
+            <button class="lang-btn" data-lang="TE">తెలుగు</button>
+            <button class="lang-btn" data-lang="HI">हिंदी</button>
+            <button class="lang-btn" data-lang="KA">ಕನ್ನಡ</button>
+            <button class="lang-btn" data-lang="ML">മലയാളം</button>
+          </div>
+        </div>
+
         <div class="chart-lagna-bar" id="lagnaBar">
           <!-- Populated by JS -->
         </div>
@@ -179,10 +192,14 @@
           <div class="legend-grid">
             <div class="legend-item"><span class="leg-code">Ex</span> Exalted — planet at peak strength</div>
             <div class="legend-item"><span class="leg-code">De</span> Debilitated — planet at reduced strength</div>
-            <div class="legend-item"><span class="leg-code">Own</span> Own sign — planet in home territory</div>
-            <div class="legend-item"><span class="leg-code">R</span> Retrograde — planet appears to move backward</div>
-            <div class="legend-item"><span class="leg-code">☀</span> Combust — too close to Sun, effectiveness reduced</div>
-            <div class="legend-item"><span class="leg-code">⚔</span> War — defeated in planetary war with nearby planet</div>
+            <div class="legend-item"><span class="leg-code">Ow</span> Own sign — planet in home territory</div>
+            <div class="legend-item"><span class="leg-code">ʀ</span> Retrograde — planet moves backward</div>
+            <div class="legend-item"><span class="leg-code">☀</span> Combust — too close to Sun</div>
+            <div class="legend-item"><span class="leg-code">⚔</span> War — defeated in planetary war</div>
+            <div class="legend-item"><span class="leg-code leg-friend">F</span> Friend of house lord — supportive placement</div>
+            <div class="legend-item"><span class="leg-code leg-neutral">N</span> Neutral to house lord — mixed</div>
+            <div class="legend-item"><span class="leg-code leg-enemy">E</span> Enemy of house lord — friction</div>
+            <div class="legend-item" style="grid-column:1/-1;font-size:11px;color:var(--text-dim)">Bottom of each cell shows the house lord and its placement — e.g. Ma→H7 means Mars lords this house and sits in H7</div>
           </div>
         </div>
 
