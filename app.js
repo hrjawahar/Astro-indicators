@@ -1,10 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Jyotish Precision Analyzer  |  app.js  |  v3.2  (Phase 2 — v2 branch)
-//  Phase 2 additions over v3.1:
-//  1. 6-language planet name selector (EN / Tamil / Telugu / Hindi / Kannada / Malayalam)
-//  2. House lord relationship engine — lord indicator + F/N/E tags per planet per cell
-//  3. Chart legend updated — explains F/N/E relationship tags
-//  4. Planet screen redesigned — D1 vs D9 side-by-side comparison cards
+//  Jyotish Precision Analyzer  |  app.js  |  v3.3  (Phase 3 — v2 branch)
+//  Phase 3 additions over v3.2:
+//  1. Per-AD insight engine — chart-specific indications for every Antardasha
+//     using real Parashari rules: functional status, house placement, lordship,
+//     D1/D9 synthesis, MD-AD relationship, 6/8/12 adverse positioning
+//  2. Dasha screen redesigned — each AD now has an expandable indication panel
+//  3. Current period block shows full structured reading
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "jyotish-v3-inputs";
@@ -71,6 +72,227 @@ const NATURAL_FRIENDS = {
   Rahu:    { friends:["Mercury","Venus","Saturn"],       enemies:["Sun","Moon","Mars"] },
   Ketu:    { friends:["Sun","Moon","Mars"],              enemies:["Mercury","Venus","Saturn"] },
 };
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PHASE 3 — PER-AD INSIGHT ENGINE
+//  All data tables and functions used by buildADReading()
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Top-level SIGNS array (used by multiple functions)
+const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+
+// Natural significations and body part rulerships per planet
+const PLANET_SIG = {
+  Sun:     { themes:["authority","career recognition","government","father","soul purpose","leadership"],         body:"heart, spine, eyes, and vital force" },
+  Moon:    { themes:["mind","emotions","mother","public dealings","travel","comfort","fluids"],                   body:"mind, chest, lungs, and blood" },
+  Mars:    { themes:["energy","ambition","property","siblings","technical skill","courage","surgery"],            body:"blood, muscles, and bone marrow" },
+  Mercury: { themes:["intellect","communication","trade","writing","education","analysis","skill"],               body:"nervous system, skin, and speech organs" },
+  Jupiter: { themes:["wisdom","wealth","children","higher knowledge","dharma","expansion","grace"],               body:"liver, fat tissue, and hips" },
+  Venus:   { themes:["relationships","beauty","luxury","arts","marriage","vehicles","comforts","creativity"],     body:"reproductive system, kidneys, and throat" },
+  Saturn:  { themes:["discipline","longevity","hard work","service","detachment","karma","delays"],               body:"bones, joints, teeth, and nerves" },
+  Rahu:    { themes:["ambition","foreign elements","technology","unconventional paths","obsession","illusion"],   body:"nervous system and skin (chronic conditions)" },
+  Ketu:    { themes:["detachment","spirituality","research","past karma","sudden events","liberation"],           body:"wounds, mysterious ailments, and hidden conditions" },
+};
+
+// What each house signifies when a planet sits there or lords it
+const HOUSE_SIG = {
+  1:  { pos:"self-development, health improvements, personal reinvention, and new beginnings",        neg:"health sensitivity and ego conflicts" },
+  2:  { pos:"financial accumulation, family harmony, speech opportunities, and savings growth",       neg:"family friction and financial pressure" },
+  3:  { pos:"skill development, communication gains, short travel, and sibling cooperation",          neg:"sibling discord and impulsive decisions" },
+  4:  { pos:"home stability, property matters, mother's wellbeing, and emotional peace",              neg:"domestic instability and property disputes" },
+  5:  { pos:"creative intelligence, children, education, romance, and investment returns",            neg:"children-related worry and speculation losses" },
+  6:  { pos:"defeating competition, service recognition, health recovery (if lord is benefic)",       neg:"health challenges, enemies, debts, and legal friction" },
+  7:  { pos:"partnership activation, marriage harmony, business deals, and public dealings",          neg:"relationship friction and partnership disputes" },
+  8:  { pos:"deep research, transformation, possible windfall or inheritance",                        neg:"health crisis, sudden reversals, and hidden obstacles" },
+  9:  { pos:"fortune activation, father's wellbeing, higher wisdom, and long travel",                 neg:"loss of fortune, father's health, and dharmic confusion" },
+  10: { pos:"career advancement, professional recognition, authority, and public success",             neg:"career setbacks and public scrutiny" },
+  11: { pos:"income gains, wish fulfillment, social network expansion, and elder sibling support",    neg:"unfulfilled desires and social friction" },
+  12: { pos:"spiritual growth, foreign opportunities, charitable acts, and inner retreats",            neg:"losses, hidden expenses, and isolation" },
+};
+
+// Combined MD-AD reading themes based on functional status pairing
+function getMDAdTheme(mdLord, adLord, mdFS, adFS, mdAdRel) {
+  const mdLabel = mdFS==="Y"?"yogakaraka (elevating)":mdFS==="B"?"benefic (supportive)":mdFS==="M"?"malefic (testing)":"neutral";
+  const adLabel = adFS==="Y"?"yogakaraka (powerfully positive)":adFS==="B"?"benefic (generally favourable)":adFS==="M"?"malefic (brings challenges and discipline)":"neutral (mixed results)";
+
+  let relNote = "";
+  if (mdAdRel==="F") relNote = `${mdLord} and ${adLord} are natural friends — their energies flow harmoniously, making this sub-period relatively smooth within the main season.`;
+  else if (mdAdRel==="E") relNote = `${mdLord} and ${adLord} are natural enemies — there is an underlying friction between the two energies. Events may feel contradictory or require more effort.`;
+  else relNote = `${mdLord} and ${adLord} are neutral to each other — results depend largely on their individual placements and the current transits.`;
+
+  return `The ${mdLord} Mahadasha is ${mdLabel} for your lagna. Within it, the ${adLord} Antardasha is ${adLabel}. ${relNote}`;
+}
+
+// Find which houses a planet lords for a given lagna
+function getHousesLorded(planet, lagnaSign) {
+  const lagnaIdx = SIGNS.indexOf(lagnaSign);
+  const lorded = [];
+  for (let h = 1; h <= 12; h++) {
+    const s = SIGNS[(lagnaIdx + h - 1) % 12];
+    if (SIGN_LORD[s] === planet) lorded.push(h);
+  }
+  return lorded;
+}
+
+// Parashari aspects — returns array of house numbers aspected by a planet in houseNum
+function getAspectedHouses(planet, houseNum) {
+  if (!houseNum) return [];
+  const aspects = new Set();
+  // All planets aspect 7th from their position
+  aspects.add(((houseNum - 1 + 6) % 12) + 1);
+  // Special aspects
+  if (planet === "Mars")    { [3,7].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
+  if (planet === "Jupiter") { [4,8].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
+  if (planet === "Saturn")  { [2,9].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
+  if (planet === "Rahu" || planet === "Ketu") { [4,8].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
+  aspects.delete(houseNum); // planet doesn't aspect its own house
+  return [...aspects];
+}
+
+// ── CORE PER-AD READING BUILDER ───────────────────────────────────────────────
+function buildADReading(mdLord, adLord, lagnaSign, houses, planets) {
+  const d1HouseMap = buildPlanetHouseMap(houses);
+  const combustSet = buildCombustSet(planets);
+
+  const adFS     = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord] || "N";
+  const mdFS     = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[mdLord] || "N";
+  const adHouse  = d1HouseMap[adLord];
+  const mdHouse  = d1HouseMap[mdLord];
+  const adSign   = planets[adLord]?.sign || "";
+  const adDig    = getDignity(adLord, adSign);
+  const adD9Sign = planets[adLord]?.d9sign || "";
+  const adD9Dig  = adD9Sign ? getDignity(adLord, adD9Sign) : "";
+  const adRetro  = planets[adLord]?.retrograde || false;
+  const adCombust= combustSet.has(adLord);
+  const mdAdRel  = getRelationshipTag(mdLord, adLord); // F/N/E
+
+  // Houses lorded by AD planet for this lagna
+  const adLordedHouses = getHousesLorded(adLord, lagnaSign);
+
+  // Position of AD lord relative to MD lord (for 6/8/12 adverse check)
+  let adFromMd = null;
+  if (adHouse && mdHouse) adFromMd = ((adHouse - mdHouse + 12) % 12) + 1;
+  const isAdverse = adFromMd && [6,8,12].includes(adFromMd);
+
+  // Houses aspected by the AD lord
+  const adAspects = getAspectedHouses(adLord, adHouse);
+
+  const positives = [];
+  const watchFor  = [];
+  let   caution   = null;
+
+  // ── 1. Positives from AD lord's house placement ──────────────────────────
+  if (adHouse && HOUSE_SIG[adHouse]) {
+    const isAdLordBenefic = ["B","Y"].includes(adFS);
+    if (isAdLordBenefic || adDig === "ex" || adDig === "own") {
+      positives.push(`${adLord} sits in H${adHouse} — ${HOUSE_SIG[adHouse].pos}.`);
+    } else {
+      watchFor.push(`${adLord} sits in H${adHouse} — ${HOUSE_SIG[adHouse].neg} may surface.`);
+    }
+  }
+
+  // ── 2. Positives from AD lord's house lordship ───────────────────────────
+  if (adLordedHouses.length > 0) {
+    const houseThemes = adLordedHouses.map(h => {
+      const isGoodHouse = ![6,8,12].includes(h);
+      return isGoodHouse ? `H${h} (${HOUSE_SIG[h]?.pos.split(",")[0]})` : `H${h}`;
+    });
+    const goodLorded = adLordedHouses.filter(h => ![6,8,12].includes(h));
+    const badLorded  = adLordedHouses.filter(h => [6,8,12].includes(h));
+
+    if (goodLorded.length > 0) {
+      positives.push(`As lord of ${goodLorded.map(h=>`H${h}`).join(" and ")} for your lagna, ${adLord} activates those domains — ${goodLorded.map(h=>HOUSE_SIG[h]?.pos.split(",")[0]).join(" and ")}.`);
+    }
+    if (badLorded.length > 0) {
+      watchFor.push(`${adLord} also lords H${badLorded.join("/")} (${badLorded.map(h=>HOUSE_SIG[h]?.neg.split(" and ")[0]).join(", ")}) — these themes are also activated.`);
+    }
+  }
+
+  // ── 3. Natural signification themes of AD lord ────────────────────────────
+  if (PLANET_SIG[adLord]) {
+    const topThemes = PLANET_SIG[adLord].themes.slice(0,3).join(", ");
+    positives.push(`${adLord}'s natural themes — ${topThemes} — come into focus during this period.`);
+  }
+
+  // ── 4. Dignity modifiers ──────────────────────────────────────────────────
+  if (adDig === "ex") {
+    positives.push(`${adLord} is exalted in ${adSign} — its significations are exceptionally strong and capable of delivering notable results.`);
+  } else if (adDig === "own") {
+    positives.push(`${adLord} is in its own sign ${adSign} — comfortable and capable of expressing its themes without impediment.`);
+  }
+
+  // ── 5. D9 confirmation ────────────────────────────────────────────────────
+  if (adD9Dig === "ex" || adD9Dig === "own") {
+    positives.push(`D9 confirms strength — ${adLord} is ${adD9Dig==="ex"?"exalted":"in own sign"} in Navamsha, indicating the D1 promise matures and delivers over time.`);
+  } else if (adD9Dig === "de") {
+    watchFor.push(`D9 shows ${adLord} debilitated in Navamsha — the planet's themes may not sustain or may require significant effort to materialise fully.`);
+  }
+
+  // ── 6. Watch For — body and health ───────────────────────────────────────
+  if (PLANET_SIG[adLord]) {
+    watchFor.push(`Pay attention to the body areas governed by ${adLord}: ${PLANET_SIG[adLord].body}. These may become more prominent during this period.`);
+  }
+
+  // ── 7. Aspects — beneficial influence received ────────────────────────────
+  if (adHouse) {
+    const beneficAspectors = PLANET_LIST.filter(p => {
+      if (p === adLord) return false;
+      const pHouse = d1HouseMap[p];
+      if (!pHouse) return false;
+      const aspected = getAspectedHouses(p, pHouse);
+      const pFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N";
+      return aspected.includes(adHouse) && ["B","Y"].includes(pFS);
+    });
+    const maleficAspectors = PLANET_LIST.filter(p => {
+      if (p === adLord) return false;
+      const pHouse = d1HouseMap[p];
+      if (!pHouse) return false;
+      const aspected = getAspectedHouses(p, pHouse);
+      const pFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N";
+      return aspected.includes(adHouse) && pFS === "M";
+    });
+
+    if (beneficAspectors.length > 0) {
+      positives.push(`${beneficAspectors.join(" and ")} ${beneficAspectors.length>1?"aspect":"aspects"} ${adLord}'s position — providing protective and supportive influence during this period.`);
+    }
+    if (maleficAspectors.length > 0) {
+      watchFor.push(`${maleficAspectors.join(" and ")} ${maleficAspectors.length>1?"aspect":"aspects"} ${adLord}'s position — this adds pressure and requires conscious navigation.`);
+    }
+  }
+
+  // ── 8. Caution triggers ───────────────────────────────────────────────────
+  const cautionParts = [];
+
+  if (adFS === "M" && adDig === "de") {
+    cautionParts.push(`${adLord} is both a functional malefic for your lagna AND debilitated — this is a sensitive combination. Avoid major new commitments during this sub-period.`);
+  } else if (adFS === "M") {
+    cautionParts.push(`${adLord} is a functional malefic for your lagna — this sub-period may bring delays, tests, or friction related to its house placement (H${adHouse}).`);
+  } else if (adDig === "de") {
+    cautionParts.push(`${adLord} is debilitated in ${adSign} — its positive themes are suppressed and require deliberate effort to express.`);
+  }
+
+  if (isAdverse) {
+    cautionParts.push(`${adLord} sits in the ${adFromMd}th position from the MD lord ${mdLord} — a 6/8/12 placement that creates resistance between the two periods. Expect some friction even if individual placements are strong.`);
+  }
+
+  if (adCombust) {
+    cautionParts.push(`${adLord} is combust (too close to the Sun) — its significations are weakened and may underperform during this sub-period.`);
+  }
+
+  if (adRetro) {
+    cautionParts.push(`${adLord} is retrograde — its themes may manifest in unexpected, delayed, or introspective ways. Past matters related to ${adLord}'s significations may resurface for resolution.`);
+  }
+
+  if (cautionParts.length > 0) caution = cautionParts[0]; // show primary caution
+
+  return {
+    combined: getMDAdTheme(mdLord, adLord, mdFS, adFS, mdAdRel),
+    positives: positives.slice(0,4),
+    watchFor:  watchFor.slice(0,3),
+    caution,
+    hasRisk: adFS === "M" || adDig === "de" || isAdverse,
+  };
+}
 
 // Returns "F" (friend), "E" (enemy), or "N" (neutral) between houseLord and visitor
 function getRelationshipTag(houseLord, visitor) {
@@ -353,8 +575,7 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
   const CELL = SIZE / 4;
   const PAD  = 4;
   const names = PLANET_NAMES[_currentLang] || PLANET_NAMES.EN;
-
-  const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+  // SIGNS is now a top-level constant
   const lagnaIdx = SIGNS.indexOf(lagnaSign);
 
   const CELL_HOUSE = {
@@ -550,8 +771,10 @@ const PLANET_GLYPHS_FULL = { Sun:"☉",Moon:"☽",Mars:"♂",Mercury:"☿",Jupit
 function renderDashaScreen(data) {
   const { dasha, d1 } = data;
   if (!dasha || !dasha.dashas) return;
-  const lagna = d1.lagnaSign;
-  const today = new Date().toISOString().split("T")[0];
+  const lagna  = d1.lagnaSign;
+  const houses = d1.houses;
+  const planets = data.planets;
+  const today  = new Date().toISOString().split("T")[0];
 
   let currentMaha = null, currentAntar = null;
   for (const d of dasha.dashas) {
@@ -564,13 +787,36 @@ function renderDashaScreen(data) {
     }
   }
 
+  // ── Current period card — full structured reading ─────────────────────────
   const cdEl = document.getElementById("currentDashaDisplay");
   if (cdEl && currentMaha) {
     const mahaFS   = FUNCTIONAL_STATUS_MAP[lagna]?.[currentMaha.lord] || "N";
     const mahaNote = mahaFS==="Y"?"This planet is a yogakaraka for your lagna — a powerful season in your life."
-                   : mahaFS==="B"?"This planet is a functional benefic for your lagna — this season generally favours growth."
-                   : mahaFS==="M"?"This planet is a functional malefic for your lagna — this season may bring tests that require patience."
+                   : mahaFS==="B"?"This planet is a functional benefic — this season generally favours growth."
+                   : mahaFS==="M"?"This planet is a functional malefic — this season brings tests requiring patience."
                    : "This planet is neutral for your lagna — mixed results, shaped by the sub-periods.";
+
+    let adIndHTML = "";
+    if (currentAntar) {
+      const adR = buildADReading(currentMaha.lord, currentAntar.lord, lagna, houses, planets);
+      adIndHTML = `
+        <div class="cd-ad-indication">
+          <div class="cd-ad-label">Current sub-period reading — ${currentAntar.lord} Antardasha</div>
+          <div class="adi-combined">${adR.combined}</div>
+          ${adR.positives.length ? `
+            <div class="adi-section">
+              <div class="adi-label">This period supports</div>
+              ${adR.positives.map(p=>`<div class="adi-item adi-positive">• ${p}</div>`).join("")}
+            </div>` : ""}
+          ${adR.watchFor.length ? `
+            <div class="adi-section">
+              <div class="adi-label">Watch closely</div>
+              ${adR.watchFor.map(w=>`<div class="adi-item adi-watch">• ${w}</div>`).join("")}
+            </div>` : ""}
+          ${adR.caution ? `<div class="adi-caution">⚠ ${adR.caution}</div>` : ""}
+        </div>`;
+    }
+
     cdEl.innerHTML = `
       <div class="current-dasha-display">
         <div class="cd-block">
@@ -583,7 +829,7 @@ function renderDashaScreen(data) {
           <div class="cd-label">Antar Dasa (Sub-Period / Month within the Season)</div>
           <div class="cd-lord">${currentAntar?(PLANET_GLYPHS_FULL[currentAntar.lord]||"")+" "+currentAntar.lord:"—"}</div>
           <div class="cd-dates">${currentAntar?currentAntar.startDate+" → "+currentAntar.endDate:"—"}</div>
-          <div class="cd-note">${currentAntar?"The Antar Dasa planet colours the specific events unfolding now within the broader season.":""}</div>
+          <div class="cd-note">${currentAntar?"The Antar Dasa planet colours the specific events unfolding now.":""}</div>
         </div>
         <div class="cd-block">
           <div class="cd-label">Moon Nakshatra</div>
@@ -591,9 +837,11 @@ function renderDashaScreen(data) {
           <div class="cd-dates">Dasa starts with: ${dasha.nakshataLord}</div>
           <div class="cd-note">The Moon's nakshatra at birth determines the starting point of your Vimshottari Dasha sequence.</div>
         </div>
-      </div>`;
+      </div>
+      ${adIndHTML}`;
   }
 
+  // ── Full timeline ─────────────────────────────────────────────────────────
   const timeline = document.getElementById("dashaTimeline");
   if (!timeline) return;
   timeline.innerHTML = "";
@@ -605,7 +853,7 @@ function renderDashaScreen(data) {
     const dEnd   = new Date(d.endDate).getTime();
     const dLen   = dEnd - dStart;
     let progress = 0;
-    if (isCurrent) progress = Math.max(0,Math.min(100,((nowMs-dStart)/dLen)*100));
+    if (isCurrent)    progress = Math.max(0,Math.min(100,((nowMs-dStart)/dLen)*100));
     else if (dEnd < nowMs) progress = 100;
 
     const fs      = FUNCTIONAL_STATUS_MAP[lagna]?.[d.lord] || "N";
@@ -613,6 +861,38 @@ function renderDashaScreen(data) {
 
     const row = document.createElement("div");
     row.className = "dasha-row" + (isCurrent?" current":"");
+
+    // Build antar-dasa items with expandable AD indications
+    const antarHTML = (d.antarDasas||[]).map(a => {
+      const isCurAntar = a.startDate <= today && today < a.endDate;
+      const adR  = buildADReading(d.lord, a.lord, lagna, houses, planets);
+      const risk = adR.hasRisk;
+
+      return `
+        <div class="antar-item${isCurAntar?" current-antar":""}${risk?" antar-risk":""}">
+          <div class="antar-main">
+            <div class="antar-lord">${PLANET_GLYPHS_FULL[a.lord]||""} ${a.lord}</div>
+            <div class="antar-dates">${a.startDate} → ${a.endDate}</div>
+            <div class="antar-yrs">${a.years} yrs</div>
+            <button class="ad-toggle" aria-expanded="false">Indication ▶</button>
+          </div>
+          <div class="ad-ind-panel" style="display:none">
+            <div class="adi-combined">${adR.combined}</div>
+            ${adR.positives.length ? `
+              <div class="adi-section">
+                <div class="adi-label">This period supports</div>
+                ${adR.positives.map(p=>`<div class="adi-item adi-positive">• ${p}</div>`).join("")}
+              </div>` : ""}
+            ${adR.watchFor.length ? `
+              <div class="adi-section">
+                <div class="adi-label">Watch closely</div>
+                ${adR.watchFor.map(w=>`<div class="adi-item adi-watch">• ${w}</div>`).join("")}
+              </div>` : ""}
+            ${adR.caution ? `<div class="adi-caution">⚠ ${adR.caution}</div>` : ""}
+          </div>
+        </div>`;
+    }).join("");
+
     row.innerHTML = `
       <div class="dasha-header">
         <div class="dasha-planet-glyph">${PLANET_GLYPHS_FULL[d.lord]||""}</div>
@@ -625,19 +905,35 @@ function renderDashaScreen(data) {
         <div class="dasha-expand">${isCurrent?"▼":"▶"}</div>
       </div>
       <div class="dasha-bar-wrap"><div class="dasha-bar" style="width:${progress}%"></div></div>
-      <div class="antar-list">
-        ${(d.antarDasas||[]).map(a => {
-          const isCurAntar = a.startDate <= today && today < a.endDate;
-          return `<div class="antar-item${isCurAntar?" current-antar":""}">
-            <div class="antar-lord">${PLANET_GLYPHS_FULL[a.lord]||""} ${a.lord}</div>
-            <div class="antar-dates">${a.startDate} → ${a.endDate}</div>
-            <div class="antar-yrs">${a.years} yrs</div>
-          </div>`;
-        }).join("")}
-      </div>`;
+      <div class="antar-list">${antarHTML}</div>`;
 
+    // Toggle main MD row open/close
     row.querySelector(".dasha-header").addEventListener("click", () => row.classList.toggle("open"));
     if (isCurrent) row.classList.add("open");
+
+    // Wire up individual AD indication toggles
+    row.querySelectorAll(".ad-toggle").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const panel = btn.closest(".antar-item").querySelector(".ad-ind-panel");
+        const isOpen = panel.style.display !== "none";
+        panel.style.display = isOpen ? "none" : "block";
+        btn.textContent = isOpen ? "Indication ▶" : "Indication ▼";
+        btn.setAttribute("aria-expanded", String(!isOpen));
+      });
+    });
+
+    // Auto-open current AD indication
+    if (isCurrent && currentAntar) {
+      const currentAntarItem = row.querySelector(".current-antar");
+      if (currentAntarItem) {
+        const panel = currentAntarItem.querySelector(".ad-ind-panel");
+        const btn   = currentAntarItem.querySelector(".ad-toggle");
+        if (panel) panel.style.display = "block";
+        if (btn)   { btn.textContent = "Indication ▼"; btn.setAttribute("aria-expanded","true"); }
+      }
+    }
+
     timeline.appendChild(row);
   });
 }
