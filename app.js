@@ -114,8 +114,33 @@ const HOUSE_SIG = {
 // Planet theme chips for AD indication
 const PLANET_THEME_CHIP = {
   Sun:"Authority & Career", Moon:"Mind & Emotions", Mars:"Energy & Property",
-  Mercury:"Communication", Jupiter:"Wisdom & Wealth", Venus:"Relationships",
+  Mercury:"Communication", Jupiter:"Wisdom & Wealth", Venus:"Relationships & Comforts",
   Saturn:"Discipline & Karma", Rahu:"Ambition & Change", Ketu:"Detachment & Spirit",
+};
+
+// Full domain label per house — used in every sentence where a house number is mentioned
+const HOUSE_DOMAIN = {
+  1:"self-image, health, and identity",
+  2:"finances, family wealth, and speech",
+  3:"skills, effort, communication, and siblings",
+  4:"home, property, mother, and emotional peace",
+  5:"children, creativity, investments, and education",
+  6:"health challenges, enemies, debts, and competition",
+  7:"partnerships, marriage, business deals, and career transitions",
+  8:"transformation, sudden reversals, hidden crises, and inheritance",
+  9:"fortune, father, higher knowledge, and long travel",
+  10:"career, authority, public standing, and professional recognition",
+  11:"income gains, social network, and wishes fulfilled",
+  12:"losses, foreign matters, spiritual retreat, and hidden expenses",
+};
+
+// Short domain label — used in chips and brief references
+const HOUSE_DOMAIN_SHORT = {
+  1:"health & identity", 2:"finances & family", 3:"skills & communication",
+  4:"home & property", 5:"children & creativity", 6:"health & competition",
+  7:"partnerships & career transitions", 8:"sudden reversals & hidden crises",
+  9:"fortune & father", 10:"career & authority", 11:"income & gains",
+  12:"losses & spiritual retreat",
 };
 
 // Find which houses a planet lords for a given lagna
@@ -142,7 +167,7 @@ function getAspectedHouses(planet, houseNum) {
   return [...aspects];
 }
 
-// ── CORE PER-AD READING BUILDER — redesigned output structure ─────────────────
+// ── CORE PER-AD READING BUILDER — domain-specific language ───────────────────
 function buildADReading(mdLord, adLord, lagnaSign, houses, planets) {
   const d1HouseMap = buildPlanetHouseMap(houses);
   const combustSet = buildCombustSet(planets);
@@ -166,6 +191,9 @@ function buildADReading(mdLord, adLord, lagnaSign, houses, planets) {
   const isBenefic = ["B","Y"].includes(adFS);
   const isMalefic = adFS === "M";
 
+  const goodLorded = adLordedHouses.filter(h => ![6,8,12].includes(h));
+  const badLorded  = adLordedHouses.filter(h =>  [6,8,12].includes(h));
+
   const beneficAspectors = PLANET_LIST.filter(p => {
     if (p === adLord || !adHouse) return false;
     const pH = d1HouseMap[p]; if (!pH) return false;
@@ -177,59 +205,85 @@ function buildADReading(mdLord, adLord, lagnaSign, houses, planets) {
     return getAspectedHouses(p, pH).includes(adHouse) && (FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N") === "M";
   });
 
-  // 1. Period character — one-sentence personality
-  let character = "";
-  if (adFS === "Y") {
-    character = `${adLord} is a yogakaraka for your lagna — this sub-period carries genuine elevating power, ${mdAdRel==="F"?"flowing smoothly with the main season.":"though some friction with the main season remains."}`;
-  } else if (isBenefic && adDig === "ex") {
-    character = `${adLord} is exalted and benefic — a genuinely strong sub-period where its themes deliver with unusual clarity and force.`;
-  } else if (isBenefic) {
-    character = `${adLord} is supportive for your lagna${mdAdRel==="F"?", and in harmony with the "+mdLord+" main season":mdAdRel==="E"?", though in friction with the "+mdLord+" main season":""}. A constructive sub-period when its themes are engaged consciously.`;
-  } else if (isMalefic && adDig === "de") {
-    character = `${adLord} is both a functional malefic and debilitated — a demanding combination. Patience and avoidance of major new commitments is advised.`;
-  } else if (isMalefic) {
-    character = `${adLord} is a functional malefic for your lagna${mdAdRel==="E"?", and a natural enemy of "+mdLord+" — double friction":""}. This sub-period tests rather than gifts — awareness navigates it best.`;
-  } else {
-    character = `${adLord} is neutral for your lagna. Results depend on its placement and current transits. ${mdAdRel==="F"?mdLord+" and "+adLord+" are natural friends, easing the flow.":mdAdRel==="E"?mdLord+" and "+adLord+" are natural enemies — some undercurrent of friction.":""}`;
+  // Helper — domain phrase for a list of houses
+  function domainPhrase(hList) {
+    return hList.map(h => HOUSE_DOMAIN_SHORT[h]).join(", ");
   }
 
-  // 2. Theme chips
+  // ── 1. Period character ─────────────────────────────────────────────────
+  const adHouseDomain = adHouse ? HOUSE_DOMAIN_SHORT[adHouse] : "";
+  let character = "";
+  if (adFS === "Y") {
+    character = `${adLord} is a yogakaraka for your lagna — this sub-period carries genuine elevating power${adHouseDomain ? `, particularly around ${adHouseDomain}` : ""}. ${mdAdRel==="F"?"It flows smoothly with the main season.":"Some friction with the main season remains, but the period's positive potential is real."}`;
+  } else if (isBenefic && adDig === "ex") {
+    character = `${adLord} is exalted and benefic — a genuinely strong sub-period where its themes (${PLANET_THEME_CHIP[adLord]?.toLowerCase()}) deliver with unusual clarity${adHouseDomain ? `, especially in ${adHouseDomain}` : ""}.`;
+  } else if (isBenefic) {
+    character = `${adLord} is supportive for your lagna${mdAdRel==="F"?", in harmony with the "+mdLord+" main season":mdAdRel==="E"?", though in friction with the "+mdLord+" main season":""}. A constructive period for ${PLANET_THEME_CHIP[adLord]?.toLowerCase() || "its significations"}${adHouseDomain ? " and "+adHouseDomain : ""}.`;
+  } else if (isMalefic && adDig === "de") {
+    character = `${adLord} is both a functional malefic and debilitated — a demanding combination. ${adHouseDomain ? adHouseDomain.charAt(0).toUpperCase()+adHouseDomain.slice(1)+" are under stress." : ""} Consolidation over expansion is the posture here.`;
+  } else if (isMalefic) {
+    character = `${adLord} is a functional malefic for your lagna${mdAdRel==="E"?", and a natural enemy of "+mdLord+" — compounding the friction":""}. ${adHouseDomain ? "Its placement in H"+adHouse+" activates "+adHouseDomain+" under pressure. " : ""}This sub-period tests rather than gifts — awareness and restraint navigate it best.`;
+  } else {
+    character = `${adLord} is neutral for your lagna. ${adHouseDomain ? "Its H"+adHouse+" placement activates "+adHouseDomain+". " : ""}Results depend on current transits. ${mdAdRel==="F"?mdLord+" and "+adLord+" are natural friends, easing the flow.":mdAdRel==="E"?mdLord+" and "+adLord+" are natural enemies — an undercurrent of friction colours events.":""}`;
+  }
+
+  // ── 2. Theme chips ──────────────────────────────────────────────────────
   const chipType = isMalefic||adDig==="de" ? "chip-caution" : isBenefic ? "chip-positive" : "";
   const themes = [];
   if (PLANET_THEME_CHIP[adLord]) themes.push({ label: PLANET_THEME_CHIP[adLord], cls: chipType });
-  if (adHouse) themes.push({ label: `H${adHouse} — ${["Self","Finances","Communication","Home","Creativity","Challenges","Relationships","Transformation","Fortune","Career","Income","Spirituality"][adHouse-1]}`, cls: "" });
-  const goodLorded = adLordedHouses.filter(h => ![6,8,12].includes(h));
-  if (goodLorded.length) themes.push({ label: `Lords H${goodLorded.join("/")}`, cls: isBenefic?"chip-positive":"" });
+  if (adHouse) themes.push({ label: `H${adHouse} — ${HOUSE_DOMAIN_SHORT[adHouse]}`, cls: isMalefic?"chip-caution":"" });
+  if (goodLorded.length) themes.push({ label: `Lords: ${domainPhrase(goodLorded.slice(0,2))}`, cls: isBenefic?"chip-positive":"" });
   if (isAdverse) themes.push({ label: `H${adFromMd} from ${mdLord} — tension`, cls: "chip-risk" });
 
-  // 3. What Opens Up
+  // ── 3. What Opens Up ────────────────────────────────────────────────────
   const opensUp = [];
-  if (adHouse && isBenefic && HOUSE_SIG[adHouse]) opensUp.push(HOUSE_SIG[adHouse].pos.split(",").slice(0,2).join(", ") + ".");
-  if (goodLorded.length) {
-    const t = goodLorded.slice(0,2).map(h=>HOUSE_SIG[h]?.pos.split(",")[0]).filter(Boolean);
-    if (t.length) opensUp.push(`As lord of H${goodLorded.slice(0,2).join("/")}: ${t.join(" and ")}.`);
+  if (adHouse && isBenefic && HOUSE_SIG[adHouse]) {
+    opensUp.push(`H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}): ${HOUSE_SIG[adHouse].pos.split(",").slice(0,2).join(", ")}.`);
   }
-  if (adDig==="ex")  opensUp.push(`Exalted in ${adSign} — ${adLord}'s themes express at peak capacity.`);
-  if (adDig==="own") opensUp.push(`Own sign ${adSign} — ${adLord} operates comfortably and consistently.`);
-  if (adD9Dig==="ex"||adD9Dig==="own") opensUp.push(`D9 confirms: ${adLord} ${adD9Dig==="ex"?"exalted":"in own sign"} in Navamsha — promise deepens with maturity.`);
-  if (beneficAspectors.length) opensUp.push(`Protected by ${beneficAspectors.join(" & ")} aspect — a supportive shield.`);
+  if (goodLorded.length) {
+    goodLorded.slice(0,2).forEach(h => {
+      opensUp.push(`As lord of H${h} (${HOUSE_DOMAIN_SHORT[h]}): ${HOUSE_SIG[h]?.pos.split(",")[0]}.`);
+    });
+  }
+  if (adDig==="ex")  opensUp.push(`Exalted in ${adSign} — ${adLord}'s significations around ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} express at peak capacity.`);
+  if (adDig==="own") opensUp.push(`Own sign ${adSign} — ${adLord} is comfortable; ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} themes flow without impediment.`);
+  if (adD9Dig==="ex"||adD9Dig==="own") opensUp.push(`D9 confirms strength — Navamsha shows ${adLord} ${adD9Dig==="ex"?"exalted":"in own sign"}: the promise deepens in maturity.`);
+  if (beneficAspectors.length) opensUp.push(`${beneficAspectors.join(" & ")} casts a protective aspect — a supportive shield on this period.`);
 
-  // 4. Handle With Care
+  // ── 4. Handle With Care ─────────────────────────────────────────────────
   const handleWith = [];
-  if (PLANET_SIG[adLord]) handleWith.push(`Body: ${PLANET_SIG[adLord].body}.`);
-  if (adHouse && (isMalefic||adDig==="de") && HOUSE_SIG[adHouse]) handleWith.push(`H${adHouse} matters — ${HOUSE_SIG[adHouse].neg.split(" and ")[0]}.`);
-  if (maleficAspectors.length) handleWith.push(`${maleficAspectors.join(" & ")} aspects ${adLord}'s position — added pressure.`);
-  const badLorded = adLordedHouses.filter(h=>[6,8,12].includes(h));
-  if (badLorded.length) handleWith.push(`Lords H${badLorded.join("/")} — ${badLorded.map(h=>HOUSE_SIG[h]?.neg.split(" and ")[0]).join(", ")}.`);
-  if (adRetro) handleWith.push(`Retrograde — themes surface indirectly or through unresolved past matters.`);
-  if (adD9Dig==="de") handleWith.push(`D9 debilitated — D1 promise may not sustain through maturity.`);
+  if (PLANET_SIG[adLord]) handleWith.push(`Body areas: ${PLANET_SIG[adLord].body} — monitor these during this sub-period.`);
+  if (adHouse && HOUSE_SIG[adHouse]) {
+    // Always show the placement domain — positive or negative framing based on planet status
+    if (isMalefic || adDig==="de") {
+      handleWith.push(`H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) — ${HOUSE_SIG[adHouse].neg}: ${adLord} here under malefic status brings this domain under stress.`);
+    } else if (!isBenefic) {
+      handleWith.push(`H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) — mixed outcomes; ${HOUSE_SIG[adHouse].neg} may also surface.`);
+    }
+  }
+  if (maleficAspectors.length) handleWith.push(`${maleficAspectors.join(" & ")} aspects ${adLord} — additional pressure on ${adHouseDomain || "its domain"}.`);
+  if (badLorded.length) {
+    badLorded.forEach(h => handleWith.push(`As lord of H${h} (${HOUSE_DOMAIN_SHORT[h]}): ${HOUSE_SIG[h]?.neg}.`));
+  }
+  if (adRetro) handleWith.push(`Retrograde — ${PLANET_THEME_CHIP[adLord]?.toLowerCase() || "its themes"} surface indirectly, through delays or revisiting unresolved past matters.`);
+  if (adD9Dig==="de") handleWith.push(`D9 debilitated — the D1 promise around ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} may not sustain through maturity.`);
 
-  // 5. Caution
+  // ── 5. Caution — domain-specific ─────────────────────────────────────────
   let caution = null;
-  if (adFS==="M" && adDig==="de") caution = `${adLord} is a functional malefic AND debilitated — avoid major new decisions. Focus on consolidation.`;
-  else if (isAdverse) caution = `${adLord} is in the ${adFromMd}th from ${mdLord} — a 6/8/12 adversity that creates resistance even when individual placements are otherwise strong.`;
-  else if (adCombust) caution = `${adLord} is combust — its significations are dimmed. Avoid relying on this planet's themes for critical outcomes.`;
-  else if (isMalefic) caution = `${adLord} is a functional malefic — navigate H${adHouse} matters carefully and avoid forcing outcomes in those domains.`;
+  const lordedDomainText = adLordedHouses.length
+    ? `As lord of ${adLordedHouses.map(h=>"H"+h+" ("+HOUSE_DOMAIN_SHORT[h]+")").join(" and ")}, those life areas carry the same tension.`
+    : "";
+
+  if (adFS==="M" && adDig==="de") {
+    caution = `${adLord} is a functional malefic AND debilitated — ${adHouseDomain ? adHouseDomain+" themes are compromised. " : ""}${lordedDomainText} Avoid major decisions in these domains; focus on consolidation.`;
+  } else if (isAdverse) {
+    caution = `${adLord} occupies the ${adFromMd}th house from ${mdLord} — a 6/8/12 adversity. Even strong individual placements struggle when this friction exists. ${adHouseDomain ? "Be especially cautious around "+adHouseDomain+"." : ""}`;
+  } else if (adCombust) {
+    caution = `${adLord} is combust — its ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} themes are dimmed by solar proximity. Avoid depending on ${adHouseDomain || "this domain"} for critical outcomes during this window.`;
+  } else if (isMalefic) {
+    const riskDomains = [adHouse, ...adLordedHouses].filter(Boolean).map(h => HOUSE_DOMAIN_SHORT[h]).filter(Boolean);
+    caution = `${adLord} is a functional malefic — ${riskDomains.length ? riskDomains.slice(0,3).join(", ")+" themes" : "its domains"} require careful navigation. Avoid forcing outcomes in these areas; allow rather than push.`;
+  }
 
   return { character, themes, opensUp: opensUp.slice(0,3), handleWith: handleWith.slice(0,3), caution, hasRisk: isMalefic||adDig==="de"||isAdverse||adCombust };
 }
