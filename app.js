@@ -1,12 +1,17 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Jyotish Precision Analyzer  |  app.js  |  v3.0
+//  Jyotish Precision Analyzer  |  app.js  |  v3.1  (Phase 1 — v2 branch)
+//  Changes from v3.0:
+//  1. Place-of-birth bug fix — validates stored lat/lng before restoring,
+//     sanitises place string to reject error responses saved to localStorage
+//  2. Chart theme — light/earthy palette replacing dark background
+//  3. D9 explainer — updated to smartphone/OS metaphor
+//  4. Dasha intro — updated to season/month metaphor
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "jyotish-v3-inputs";
 const HISTORY_KEY = "jyotish-v3-history";
 
 // Client-side timezone lookup — mirrors backend TIMEZONE_BY_COUNTRY
-// Lets timezone display instantly on city selection without a server roundtrip
 const CLIENT_TZ = {
   IN:5.5,  NP:5.75, LK:5.5,  BD:6,    PK:5,    AF:4.5,  IR:3.5,  MM:6.5,
   TH:7,    VN:7,    KH:7,    LA:7,    MY:8,    SG:8,    PH:8,    ID:7,
@@ -37,14 +42,11 @@ const PLANET_LIST = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","R
 let _selectedPlace = null; // { lat, lng, displayName, shortName, utcOffset }
 let _searchTimer   = null;
 
-// South Indian chart layout — position of each house number
-// SI format: fixed sign assignments per cell position (0-indexed row,col)
-// Lagna is house 1, others relative
+// South Indian chart layout
 const SI_LAYOUT = [
-  // [row, col] for houses 1-12
-  [0,2],[0,3],[1,3],[2,3],  // 1,2,3,4
-  [3,3],[3,2],[3,1],[3,0],  // 5,6,7,8
-  [2,0],[1,0],[0,0],[0,1]   // 9,10,11,12
+  [0,2],[0,3],[1,3],[2,3],
+  [3,3],[3,2],[3,1],[3,0],
+  [2,0],[1,0],[0,0],[0,1]
 ];
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
@@ -58,7 +60,7 @@ const saveBtn   = document.getElementById("saveBtn");
 const dlBtn     = document.getElementById("downloadBtn");
 const resetBtn  = document.getElementById("resetBtn");
 
-let currentData = null; // { chart, analysis }
+let currentData = null;
 
 // ── TAB ROUTING ────────────────────────────────────────────────────────────────
 function switchTab(tabId) {
@@ -102,6 +104,24 @@ function showError(msg) {
 
 function clearError() { errorBox.classList.add("hidden"); }
 
+// ── PLACE VALIDATION HELPER ────────────────────────────────────────────────────
+// Guards against error strings being stored in localStorage as place data.
+// The "Unexpected token 'A'" bug was caused by "Access denied" responses from
+// Nominatim being saved as the place display name, then JSON.parsed on restore.
+function isValidPlaceRecord(s) {
+  if (!s || typeof s !== "object") return false;
+  const lat = parseFloat(s.lat);
+  const lng = parseFloat(s.lng);
+  if (!isFinite(lat) || !isFinite(lng)) return false;
+  if (lat === 0 && lng === 0) return false;
+  if (typeof s.place !== "string" || s.place.length < 2) return false;
+  // Reject if place string looks like an error response
+  const plLower = s.place.toLowerCase();
+  const errorTokens = ["access denied","access den","error","403","401","unexpected","<!doctype","<html"];
+  if (errorTokens.some(t => plLower.startsWith(t))) return false;
+  return true;
+}
+
 // ── MAIN GENERATE FLOW ─────────────────────────────────────────────────────────
 genBtn.addEventListener("click", generate);
 
@@ -111,6 +131,12 @@ async function generate() {
 
   if (!form.dob || !form.tob || !form.place) {
     showError("Please enter date of birth, time of birth, and select a place of birth from the dropdown.");
+    return;
+  }
+
+  // Extra guard: ensure lat/lng are real numbers before sending to API
+  if (!isFinite(parseFloat(form.lat)) || !isFinite(parseFloat(form.lng))) {
+    showError("Place of birth not fully resolved. Please clear the place field and select a city from the dropdown list again.");
     return;
   }
 
@@ -134,13 +160,17 @@ async function generate() {
     const chartText = await chartRes.text();
     let chartData;
     try { chartData = JSON.parse(chartText); }
-    catch { throw new Error("Chart API returned invalid JSON. Check /functions/api/chart.js for syntax errors."); }
+    catch (parseErr) {
+      // Surface the raw response to help diagnose the issue
+      const preview = chartText.slice(0, 80).replace(/\n/g," ");
+      throw new Error(`Chart API returned invalid response. Raw: "${preview}"`);
+    }
     if (chartData.error) throw new Error(chartData.error);
 
     setStatus("Step 2 of 2 — Running precision scoring engine...", "loading");
     genText.innerHTML = `<span class="spinner"></span>Analyzing domains...`;
 
-    // Step 2: Analysis — include dasha timeline + birthDate for activation windows
+    // Step 2: Analysis
     const analysisPayload = {
       d1: { lagnaSign: chartData.d1.lagnaSign, houses: chartData.d1.houses, degrees: chartData.d1.degrees, latitudes: chartData.d1.latitudes },
       d9: { lagnaSign: chartData.d9.lagnaSign, houses: chartData.d9.houses, degrees: chartData.d9.degrees, latitudes: chartData.d9.latitudes || {} },
@@ -164,14 +194,12 @@ async function generate() {
 
     currentData = { chart: chartData, analysis: analysisData, form };
 
-    // Render all screens
     renderChartScreen(chartData);
     renderDashaScreen(chartData);
     renderDomainScreen(analysisData, chartData);
     renderSummaryScreen(analysisData, chartData);
     renderPlanetScreen(chartData);
 
-    // Unlock tabs
     tabs.forEach(t => {
       if (t.dataset.requires === "chart" || t.dataset.requires === "analysis") {
         t.disabled = false;
@@ -199,8 +227,7 @@ async function generate() {
 function renderChartScreen(data) {
   const { d1, d9, planets, ayanamsha } = data;
 
-  // Lagna bar
-  const moonNak = planets.Moon?.nakshatra || "";
+  const moonNak  = planets.Moon?.nakshatra || "";
   const moonPada = planets.Moon?.pada || "";
   document.getElementById("lagnaBar").innerHTML = `
     <div class="lagna-item"><div class="lagna-key">D1 Lagna</div><div class="lagna-val">${d1.lagnaSign} ${d1.lagnaDegree?.toFixed(1)}°</div></div>
@@ -213,8 +240,7 @@ function renderChartScreen(data) {
   document.getElementById("d1LagnaLabel").textContent = `Lagna: ${d1.lagnaSign}`;
   document.getElementById("d9LagnaLabel").textContent = `Lagna: ${d9.lagnaSign}`;
 
-  // Build combustion set for display
-  const combust = buildCombustSet(planets);
+  const combust   = buildCombustSet(planets);
   const warLosers = buildWarSet(planets);
 
   renderSIChart("d1ChartWrap", d1.lagnaSign, d1.houses, planets, combust, warLosers, false);
@@ -253,18 +279,20 @@ function buildWarSet(planets) {
 }
 
 // Dignity helpers
-const EXALTATION = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
+const EXALTATION   = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
 const DEBILITATION = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries",Rahu:"Sagittarius",Ketu:"Gemini" };
-const OWN_SIGNS = { Sun:["Leo"],Moon:["Cancer"],Mars:["Aries","Scorpio"],Mercury:["Gemini","Virgo"],Jupiter:["Sagittarius","Pisces"],Venus:["Taurus","Libra"],Saturn:["Capricorn","Aquarius"],Rahu:[],Ketu:[] };
+const OWN_SIGNS    = { Sun:["Leo"],Moon:["Cancer"],Mars:["Aries","Scorpio"],Mercury:["Gemini","Virgo"],Jupiter:["Sagittarius","Pisces"],Venus:["Taurus","Libra"],Saturn:["Capricorn","Aquarius"],Rahu:[],Ketu:[] };
 
 function getDignity(planet, sign) {
-  if (EXALTATION[planet] === sign) return "ex";
-  if (DEBILITATION[planet] === sign) return "de";
-  if ((OWN_SIGNS[planet]||[]).includes(sign)) return "own";
+  if (EXALTATION[planet] === sign)             return "ex";
+  if (DEBILITATION[planet] === sign)           return "de";
+  if ((OWN_SIGNS[planet]||[]).includes(sign))  return "own";
   return "";
 }
 
-// South Indian chart SVG rendering
+// ── South Indian chart SVG — LIGHT EARTHY THEME ───────────────────────────────
+// Phase 1 change: replaced dark (#07090f) palette with off-white/saffron tones.
+// All color changes are isolated here — nothing else in this function changed.
 function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warLosers, isD9) {
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
@@ -276,8 +304,6 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
   const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
   const lagnaIdx = SIGNS.indexOf(lagnaSign);
 
-  // SI fixed positions — house number for each of the 16 cells
-  // Center 4 cells (row1-2,col1-2) are blank
   const CELL_HOUSE = {
     "0,0":11, "0,1":12, "0,2":1, "0,3":2,
     "1,0":10,                     "1,3":3,
@@ -289,21 +315,21 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
   svg.setAttribute("viewBox",`0 0 ${SIZE} ${SIZE}`);
   svg.setAttribute("width","100%");
 
-  // Background
+  // ── LIGHT BACKGROUND (was #07090f dark) ──────────────────────────────────
   const bg = document.createElementNS("http://www.w3.org/2000/svg","rect");
-  bg.setAttribute("width",SIZE); bg.setAttribute("height",SIZE);
-  bg.setAttribute("fill","#07090f"); svg.appendChild(bg);
+  bg.setAttribute("width", SIZE);
+  bg.setAttribute("height", SIZE);
+  bg.setAttribute("fill", "#FFF8F0");   // pale saffron
+  svg.appendChild(bg);
 
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
-      // Skip center cells
       if ((row===1||row===2)&&(col===1||col===2)) continue;
 
-      const key   = `${row},${col}`;
-      const hNum  = CELL_HOUSE[key];
+      const key  = `${row},${col}`;
+      const hNum = CELL_HOUSE[key];
       if (!hNum) continue;
 
-      // Sign in this house
       const signInHouse = SIGNS[(lagnaIdx + hNum - 1) % 12];
       const isLagna     = hNum === 1;
 
@@ -315,39 +341,40 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       rect.setAttribute("y", y + 0.5);
       rect.setAttribute("width",  CELL - 1);
       rect.setAttribute("height", CELL - 1);
-      rect.setAttribute("fill",   isLagna ? "rgba(201,168,76,0.07)" : "rgba(13,17,32,0.8)");
-      rect.setAttribute("stroke", isLagna ? "rgba(201,168,76,0.4)" : "rgba(201,168,76,0.12)");
+      // ── Lagna cell: warm amber tint; others: pure white ──────────────────
+      rect.setAttribute("fill",   isLagna ? "rgba(180,120,30,0.08)" : "#FFFFFF");
+      rect.setAttribute("stroke", isLagna ? "rgba(160,100,20,0.55)" : "rgba(100,75,40,0.18)");
       rect.setAttribute("stroke-width","0.5");
       svg.appendChild(rect);
 
-      // Sign abbreviation
+      // Sign abbreviation — muted brown-gold (was faint gold on dark)
       const signAbbr = signInHouse.substring(0,3).toUpperCase();
-      const signTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
+      const signTxt  = document.createElementNS("http://www.w3.org/2000/svg","text");
       signTxt.setAttribute("x", x + PAD + 2);
       signTxt.setAttribute("y", y + 11);
       signTxt.setAttribute("font-size","8");
-      signTxt.setAttribute("fill","rgba(201,168,76,0.35)");
+      signTxt.setAttribute("fill","rgba(130,90,25,0.55)");
       signTxt.setAttribute("font-family","Cinzel,serif");
       signTxt.textContent = signAbbr;
       svg.appendChild(signTxt);
 
-      // House number
+      // House number — soft grey (was near-invisible white on dark)
       const hTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
       hTxt.setAttribute("x", x + CELL - PAD - 4);
       hTxt.setAttribute("y", y + 11);
       hTxt.setAttribute("font-size","8");
-      hTxt.setAttribute("fill","rgba(255,255,255,0.15)");
+      hTxt.setAttribute("fill","rgba(0,0,0,0.22)");
       hTxt.setAttribute("text-anchor","end");
       hTxt.textContent = hNum;
       svg.appendChild(hTxt);
 
-      // Lagna marker
+      // Lagna ASC marker
       if (isLagna) {
         const lTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
         lTxt.setAttribute("x", x + CELL/2);
         lTxt.setAttribute("y", y + CELL - 6);
         lTxt.setAttribute("font-size","8");
-        lTxt.setAttribute("fill","rgba(201,168,76,0.5)");
+        lTxt.setAttribute("fill","rgba(140,85,15,0.65)");
         lTxt.setAttribute("text-anchor","middle");
         lTxt.textContent = "ASC";
         svg.appendChild(lTxt);
@@ -358,22 +385,23 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       let pY = y + 22;
       planetsHere.forEach(planet => {
         if (pY > y + CELL - 8) return;
-        const sign = isD9
-          ? (planets[planet]?.d9sign || signInHouse)
-          : signInHouse;
+        const sign     = isD9 ? (planets[planet]?.d9sign || signInHouse) : signInHouse;
         const dignity  = getDignity(planet, sign);
         const isRetro  = planets[planet]?.retrograde;
         const isCombust= combustSet.has(planet);
         const isWar    = warLosers.has(planet);
         const deg      = planets[planet]?.degree || 0;
 
-        // Planet abbreviation
-        const abbr  = planet.substring(0,2);
-        let   color = "#d8dde8";
-        if (dignity === "ex")  color = "#4caf82";
-        else if (dignity === "de")  color = "#c95858";
-        else if (dignity === "own") color = "#5e8fd4";
-        if (isCombust) color = "#d4a04a";
+        const abbr = planet.substring(0,2);
+
+        // ── Planet colours — dark ink on light background ─────────────────
+        // Exalted: deep forest green | Debilitated: deep crimson
+        // Own: deep indigo | Combust: burnt amber | Default: dark slate
+        let color = "#2c3248";               // default — dark slate
+        if      (dignity === "ex")  color = "#1a6e3c";   // deep green
+        else if (dignity === "de")  color = "#8f1a1a";   // deep crimson
+        else if (dignity === "own") color = "#1e4a8f";   // deep indigo
+        if (isCombust)              color = "#a05c00";   // burnt amber (overrides dignity)
 
         const pTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
         pTxt.setAttribute("x", x + PAD + 2);
@@ -387,7 +415,7 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
         if (isRetro)   label += "ʀ";
         if (isCombust) label += "☀";
         if (isWar)     label += "⚔";
-        if (dignity)   label += ` ${dignity === "ex" ? "Ex" : dignity === "de" ? "De" : "Ow"}`;
+        if (dignity)   label += ` ${dignity==="ex"?"Ex":dignity==="de"?"De":"Ow"}`;
         label += ` ${Math.round(deg)}°`;
 
         pTxt.textContent = label;
@@ -397,16 +425,19 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
     }
   }
 
-  // Diagonal lines for center
+  // Diagonal cross lines for center diamond — muted brown (was faint gold)
   const diag1 = document.createElementNS("http://www.w3.org/2000/svg","line");
-  diag1.setAttribute("x1",CELL); diag1.setAttribute("y1",CELL);
+  diag1.setAttribute("x1",CELL);  diag1.setAttribute("y1",CELL);
   diag1.setAttribute("x2",3*CELL); diag1.setAttribute("y2",3*CELL);
-  diag1.setAttribute("stroke","rgba(201,168,76,0.12)"); diag1.setAttribute("stroke-width","0.5");
+  diag1.setAttribute("stroke","rgba(100,70,20,0.18)");
+  diag1.setAttribute("stroke-width","0.5");
   svg.appendChild(diag1);
+
   const diag2 = document.createElementNS("http://www.w3.org/2000/svg","line");
   diag2.setAttribute("x1",3*CELL); diag2.setAttribute("y1",CELL);
-  diag2.setAttribute("x2",CELL); diag2.setAttribute("y2",3*CELL);
-  diag2.setAttribute("stroke","rgba(201,168,76,0.12)"); diag2.setAttribute("stroke-width","0.5");
+  diag2.setAttribute("x2",CELL);   diag2.setAttribute("y2",3*CELL);
+  diag2.setAttribute("stroke","rgba(100,70,20,0.18)");
+  diag2.setAttribute("stroke-width","0.5");
   svg.appendChild(diag2);
 
   wrap.innerHTML = "";
@@ -440,7 +471,6 @@ function renderDashaScreen(data) {
   const lagna = d1.lagnaSign;
   const today = new Date().toISOString().split("T")[0];
 
-  // Find current periods
   let currentMaha = null, currentAntar = null;
   for (const d of dasha.dashas) {
     if (d.startDate <= today && today < d.endDate) {
@@ -452,27 +482,26 @@ function renderDashaScreen(data) {
     }
   }
 
-  // Current dasha card
   const cdEl = document.getElementById("currentDashaDisplay");
   if (cdEl && currentMaha) {
     const mahaFS   = FUNCTIONAL_STATUS_MAP[lagna]?.[currentMaha.lord] || "N";
-    const mahaNote = mahaFS==="Y"?"This planet is a yogakaraka for your lagna — a powerful period."
-                   : mahaFS==="B"?"This planet is a functional benefic for your lagna — generally favourable."
-                   : mahaFS==="M"?"This planet is a functional malefic for your lagna — this period may bring challenges."
-                   : "This planet is neutral for your lagna — mixed results possible.";
+    const mahaNote = mahaFS==="Y"?"This planet is a yogakaraka for your lagna — a powerful season in your life."
+                   : mahaFS==="B"?"This planet is a functional benefic for your lagna — this season generally favours growth."
+                   : mahaFS==="M"?"This planet is a functional malefic for your lagna — this season may bring tests that require patience."
+                   : "This planet is neutral for your lagna — mixed results, shaped by the sub-periods.";
     cdEl.innerHTML = `
       <div class="current-dasha-display">
         <div class="cd-block">
-          <div class="cd-label">Maha Dasa (Major Period)</div>
+          <div class="cd-label">Maha Dasa (Major Period / Season)</div>
           <div class="cd-lord">${PLANET_GLYPHS_FULL[currentMaha.lord] || ""} ${currentMaha.lord}</div>
           <div class="cd-dates">${currentMaha.startDate} → ${currentMaha.endDate}</div>
           <div class="cd-note">${mahaNote}</div>
         </div>
         <div class="cd-block">
-          <div class="cd-label">Antar Dasa (Sub-Period)</div>
+          <div class="cd-label">Antar Dasa (Sub-Period / Month within the Season)</div>
           <div class="cd-lord">${currentAntar ? (PLANET_GLYPHS_FULL[currentAntar.lord]||"") + " " + currentAntar.lord : "—"}</div>
           <div class="cd-dates">${currentAntar ? currentAntar.startDate + " → " + currentAntar.endDate : "—"}</div>
-          <div class="cd-note">${currentAntar ? "Antar Dasa narrows the focus — the sub-period lord's themes overlay the main period." : ""}</div>
+          <div class="cd-note">${currentAntar ? "The Antar Dasa planet colours the specific events unfolding now within the broader season." : ""}</div>
         </div>
         <div class="cd-block">
           <div class="cd-label">Moon Nakshatra</div>
@@ -484,15 +513,11 @@ function renderDashaScreen(data) {
     `;
   }
 
-  // Timeline
   const timeline = document.getElementById("dashaTimeline");
   if (!timeline) return;
   timeline.innerHTML = "";
 
-  // Total years for progress bar
-  const totalMs = new Date(dasha.dashas[8]?.endDate||"2200").getTime() - new Date(dasha.dashas[0]?.startDate||"1900").getTime();
   const nowMs   = new Date().getTime();
-  const startMs = new Date(dasha.dashas[0]?.startDate||"1900").getTime();
 
   dasha.dashas.forEach(d => {
     const isCurrent = d.startDate <= today && today < d.endDate;
@@ -503,7 +528,6 @@ function renderDashaScreen(data) {
     let progress = 0;
     if (isCurrent) progress = Math.max(0,Math.min(100,((nowMs - dStart) / dLen) * 100));
     else if (dEnd < nowMs) progress = 100;
-    else progress = 0;
 
     const fs = FUNCTIONAL_STATUS_MAP[lagna]?.[d.lord] || "N";
     const fsLabel = fs==="Y"?"Yogakaraka ★":fs==="B"?"Benefic":fs==="M"?"Malefic":"Neutral";
@@ -534,7 +558,6 @@ function renderDashaScreen(data) {
       </div>
     `;
 
-    // Toggle antar
     const header = row.querySelector(".dasha-header");
     header.addEventListener("click", () => row.classList.toggle("open"));
     if (isCurrent) row.classList.add("open");
@@ -550,35 +573,25 @@ function renderDashaScreen(data) {
 function verdictClass(v) {
   if (!v) return "forming";
   const k = v.toLowerCase();
-  if (k.includes("full flow"))          return "stable";    // In Full Flow
-  if (k.includes("needs tending"))      return "vulnerable"; // Needs Tending
-  if (k.includes("peak comes"))         return "early";     // Peak Comes Early
-  if (k.includes("deferred"))           return "delayed";   // Deferred, Not Denied
-  if (k.includes("foundation holds"))   return "moderate";  // Foundation Holds
-  if (k.includes("ripening"))           return "ripening";  // Ripening
-  if (k.includes("still forming"))      return "forming";   // Still Forming
-  // Legacy fallbacks
-  if (k.includes("stable"))             return "stable";
-  if (k.includes("vulnerable"))         return "vulnerable";
-  if (k.includes("early"))              return "early";
+  if (k.includes("full flow"))        return "stable";
+  if (k.includes("needs tending"))    return "vulnerable";
+  if (k.includes("peak comes"))       return "early";
+  if (k.includes("deferred"))         return "delayed";
+  if (k.includes("foundation holds")) return "moderate";
+  if (k.includes("ripening"))         return "ripening";
+  if (k.includes("still forming"))    return "forming";
+  if (k.includes("stable"))           return "stable";
+  if (k.includes("vulnerable"))       return "vulnerable";
+  if (k.includes("early"))            return "early";
   if (k.includes("delayed")||k.includes("improving")) return "delayed";
-  if (k.includes("moderate"))           return "moderate";
+  if (k.includes("moderate"))         return "moderate";
   return "forming";
-}
-
-function deriveTrend(d) {
-  if (d.d1Strength==="Strong" && d.d9Strength==="Strong") return "Stable through life";
-  if (d.d1Strength==="Strong" && d.d9Strength!=="Strong") return "Strong early, fades later";
-  if (d.d1Strength!=="Strong" && d.d9Strength==="Strong") return "Improves with age";
-  if (d.d1Strength==="Weak" && d.d9Strength==="Weak") return "Persistent challenge";
-  return "Mixed pattern";
 }
 
 function renderDomainScreen(analysis, chart) {
   const { domains, statements, chartOpening, classification, eventFlags } = analysis;
   if (!domains) return;
 
-  // ── Chart Opening Frame ────────────────────────────────────────────────────
   if (chartOpening) {
     const block   = document.getElementById('chartOpeningBlock');
     const badge   = document.getElementById('coPatternBadge');
@@ -602,7 +615,6 @@ function renderDomainScreen(analysis, chart) {
     block.classList.remove('hidden');
   }
 
-  // ── Quick Verdict Strip ────────────────────────────────────────────────────
   const vGrid = document.getElementById('verdictSummary');
   vGrid.innerHTML = domains.map(d => `
     <div class="verdict-mini vm-${verdictClass(d.verdict)}" title="${d.verdict}">
@@ -611,7 +623,6 @@ function renderDomainScreen(analysis, chart) {
     </div>
   `).join('');
 
-  // ── Domain Reading Cards ───────────────────────────────────────────────────
   const container = document.getElementById('domainCards');
   container.innerHTML = '';
 
@@ -622,14 +633,12 @@ function renderDomainScreen(analysis, chart) {
     const card = document.createElement('div');
     card.className = `domain-card reading-card ${vc}`;
 
-    // Confidence dot color
     const confColor = { High: 'var(--stable)', Medium: 'var(--accent-gold)', Low: 'var(--vuln)' };
     const cColor = confColor[stmt?.confidence] || 'var(--text-muted)';
     const confDots = stmt?.confidence
       ? `<span class="conf-dots" style="color:${cColor}">${stmt.confidence==='High'?'●●●':stmt.confidence==='Medium'?'●●○':'●○○'}</span>`
       : '';
 
-    // Activation window
     const windowHTML = stmt?.windowSummary
       ? `<div class="rc-section">
            <div class="rc-label">⏱ Activation Window</div>
@@ -637,7 +646,6 @@ function renderDomainScreen(analysis, chart) {
          </div>`
       : '';
 
-    // Cautions
     const cautionsHTML = stmt?.cautions?.length
       ? `<div class="rc-section">
            <div class="rc-label">⚠ Caution${stmt.cautions.length > 1 ? 's' : ''}</div>
@@ -645,7 +653,6 @@ function renderDomainScreen(analysis, chart) {
          </div>`
       : '';
 
-    // Yoga badges
     const yogas = [...new Set(
       (d.reasons||[]).filter(r=>r.startsWith('[YOGA]'))
         .map(r => r.replace('[YOGA] ','').split(':')[0].trim())
@@ -697,7 +704,6 @@ function renderDomainScreen(analysis, chart) {
     container.appendChild(card);
   });
 
-  // ── Event Flags ────────────────────────────────────────────────────────────
   if (eventFlags && eventFlags.length) {
     const block = document.getElementById('eventFlagsBlock');
     const grid  = document.getElementById('eventFlagsGrid');
@@ -729,7 +735,6 @@ function renderDomainScreen(analysis, chart) {
     }).join('');
   }
 
-  // ── Compound Patterns ──────────────────────────────────────────────────────
   const { compoundPatterns } = analysis;
   if (compoundPatterns && compoundPatterns.length) {
     const cpBlock = document.getElementById('compoundPatternsBlock');
@@ -782,16 +787,14 @@ function renderSummaryScreen(analysis, chart) {
   const { summary, domains } = analysis;
   const { dasha, d1 } = chart;
 
-  // Overall pattern
   document.getElementById("summaryOverall").innerHTML = `
     <div class="card-title">Overall chart pattern</div>
     <div class="so-pattern">${summary?.overallPattern || ""}</div>
   `;
 
-  document.getElementById("summaryEarlyText").textContent  = summary?.earlyLife  || "";
-  document.getElementById("summaryLaterText").textContent  = summary?.laterLife  || "";
+  document.getElementById("summaryEarlyText").textContent = summary?.earlyLife  || "";
+  document.getElementById("summaryLaterText").textContent = summary?.laterLife  || "";
 
-  // Yogas
   const allYogas = [];
   (domains||[]).forEach(d => {
     (d.reasons||[]).filter(r=>r.startsWith("[YOGA]")).forEach(r => {
@@ -814,7 +817,6 @@ function renderSummaryScreen(analysis, chart) {
     yogaList.innerHTML = `<div class="card-body">No major yogas detected in this chart.</div>`;
   }
 
-  // Dasha reading
   const today = new Date().toISOString().split("T")[0];
   let currentMaha = null, currentAntar = null;
   if (dasha?.dashas) {
@@ -831,10 +833,10 @@ function renderSummaryScreen(analysis, chart) {
   const dashaEl = document.getElementById("summaryDashaText");
   if (currentMaha && d1?.lagnaSign) {
     const fs = FUNCTIONAL_STATUS_MAP[d1.lagnaSign]?.[currentMaha.lord] || "N";
-    const fsDesc = fs==="Y"?"a yogakaraka — a uniquely powerful planet for your lagna, capable of elevating life circumstances significantly."
-                 : fs==="B"?"a functional benefic for your lagna — this period generally supports growth and positive outcomes."
-                 : fs==="M"?"a functional malefic for your lagna — this period may bring delays, challenges, or karmic tests that require patience and discipline."
-                 : "functionally neutral for your lagna — results will be mixed and dependent on transits and sub-periods.";
+    const fsDesc = fs==="Y"?"a yogakaraka — a uniquely powerful season for your lagna, capable of elevating life circumstances significantly."
+                 : fs==="B"?"a functional benefic for your lagna — this season generally supports growth and positive outcomes."
+                 : fs==="M"?"a functional malefic for your lagna — this season may bring delays, challenges, or karmic tests that require patience."
+                 : "functionally neutral for your lagna — results will be mixed and shaped by the sub-periods and transits.";
     const antarDesc = currentAntar ? ` Within this, the ${currentAntar.lord} Antar Dasa (ending ${currentAntar.endDate}) further narrows the focus — the qualities of ${currentAntar.lord} colour the specific events unfolding right now.` : "";
     dashaEl.innerHTML = `<div class="card-body">You are currently in the <strong>${currentMaha.lord} Maha Dasa</strong>, running until ${currentMaha.endDate}. ${currentMaha.lord} is ${fsDesc}${antarDesc}</div>`;
   } else {
@@ -849,15 +851,12 @@ function renderSummaryScreen(analysis, chart) {
 function renderPlanetScreen(data) {
   const { planets, d1 } = data;
   if (!planets) return;
-  const lagna = d1.lagnaSign;
+  const lagna   = d1.lagnaSign;
   const combust = buildCombustSet(planets);
   const warLosers = buildWarSet(planets);
 
   const container = document.getElementById("planetCards");
   container.innerHTML = "";
-
-  const EXALTATION_MAP = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
-  const DEBILITATION_MAP = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries",Rahu:"Sagittarius",Ketu:"Gemini" };
 
   PLANET_LIST.forEach(planet => {
     const p = planets[planet];
@@ -903,32 +902,46 @@ function saveInputs() {
 function restoreInputs() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return;
-  try {
-    const s = JSON.parse(raw);
-    const set = (id, v) => { const el=document.getElementById(id); if(el&&v) el.value=v; };
-    set("inputName", s.name);
-    set("inputDOB",  s.dob);
-    set("inputTOB",  s.tob);
+  let s;
+  try { s = JSON.parse(raw); }
+  catch {
+    // Corrupted localStorage — clear it and start fresh
+    localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+
+  const set = (id, v) => { const el=document.getElementById(id); if(el&&v) el.value=v; };
+  set("inputName", s.name);
+  set("inputDOB",  s.dob);
+  set("inputTOB",  s.tob);
+
+  // ── PLACE BUG FIX ─────────────────────────────────────────────────────────
+  // Only restore place if lat/lng are genuine finite numbers AND the place
+  // string doesn't look like an error response that was accidentally stored.
+  if (isValidPlaceRecord(s)) {
     const plDisp   = document.getElementById("inputPlaceDisplay");
     const plSearch = document.getElementById("inputPlaceSearch");
     const clearBtn = document.getElementById("placeClearBtn");
-    if (s.place) {
-      if (plDisp) plDisp.value = s.place;
-      const shortName = s.place.split(",").slice(0,3).join(",").trim();
-      if (plSearch) {
-        _suppressSearch = true;
-        plSearch.value = shortName;
-        _suppressSearch = false;
-      }
-      if (s.lat && s.lng) {
-        if (clearBtn) clearBtn.style.display = "inline-flex";
-        _selectedPlace = { displayName: s.place, lat: s.lat, lng: s.lng,
-          country: s.country || "", shortName,
-          utcOffset: s.utcOffset != null ? parseFloat(s.utcOffset) : (CLIENT_TZ[s.country] ?? null) };
-        showPlaceConfirmed(shortName, _selectedPlace.utcOffset);
-      }
+
+    if (plDisp)   plDisp.value = s.place;
+    const shortName = s.place.split(",").slice(0,3).join(",").trim();
+    if (plSearch) {
+      _suppressSearch = true;
+      plSearch.value  = shortName;
+      _suppressSearch = false;
     }
-  } catch {}
+    if (clearBtn) clearBtn.style.display = "inline-flex";
+
+    _selectedPlace = {
+      displayName: s.place,
+      lat:         parseFloat(s.lat),
+      lng:         parseFloat(s.lng),
+      country:     s.country || "",
+      shortName,
+      utcOffset:   s.utcOffset != null ? parseFloat(s.utcOffset) : (CLIENT_TZ[s.country] ?? null)
+    };
+    showPlaceConfirmed(shortName, _selectedPlace.utcOffset);
+  }
 }
 
 function getHistory() {
@@ -946,9 +959,10 @@ function saveToHistory() {
     dob:      f.dob,
     tob:      f.tob,
     place:    f.place,
-    country:  f.country || "",
     country:  _selectedPlace?.country || "",
     utcOffset:f.utcOffset,
+    lat:      f.lat,
+    lng:      f.lng,
     d1Lagna:  c.d1?.lagnaSign || "",
     d9Lagna:  c.d9?.lagnaSign || ""
   };
@@ -988,18 +1002,25 @@ function loadHistory(id) {
   set(document.getElementById("inputName"), h.name);
   set(document.getElementById("inputDOB"),  h.dob);
   set(document.getElementById("inputTOB"),  h.tob);
+
   const plDisp   = document.getElementById("inputPlaceDisplay");
   const plSearch = document.getElementById("inputPlaceSearch");
   const clearBtn = document.getElementById("placeClearBtn");
-  if (h.place) {
-    if (plDisp)   plDisp.value   = h.place;
-    // Show short name in visible search box (strip long Nominatim suffix if present)
+
+  // ── PLACE BUG FIX — same guard as restoreInputs ───────────────────────────
+  if (isValidPlaceRecord(h)) {
+    if (plDisp)   plDisp.value = h.place;
     const shortName = h.place.split(",").slice(0,3).join(",").trim();
     if (plSearch) { _suppressSearch = true; plSearch.value = shortName; _suppressSearch = false; }
     if (clearBtn) clearBtn.style.display = "inline-flex";
-    _selectedPlace = { displayName: h.place, lat: h.lat||null, lng: h.lng||null,
-      country: h.country || "", shortName,
-      utcOffset: h.utcOffset != null ? parseFloat(h.utcOffset) : (CLIENT_TZ[h.country] ?? null) };
+    _selectedPlace = {
+      displayName: h.place,
+      lat:         parseFloat(h.lat),
+      lng:         parseFloat(h.lng),
+      country:     h.country || "",
+      shortName,
+      utcOffset:   h.utcOffset != null ? parseFloat(h.utcOffset) : (CLIENT_TZ[h.country] ?? null)
+    };
     showPlaceConfirmed(shortName, _selectedPlace.utcOffset);
   }
   saveInputs();
@@ -1026,7 +1047,6 @@ resetBtn.addEventListener("click", () => {
   }
 });
 
-// Download report
 dlBtn.addEventListener("click", () => {
   if (!currentData) return;
   const html = buildHTMLReport(currentData);
@@ -1045,7 +1065,7 @@ function buildHTMLReport(data) {
   return `
   <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
   <head><meta charset="utf-8"><title>Jyotish Report</title>
-  <style>body{font-family:Arial,sans-serif;color:#222;line-height:1.6}h1,h2,h3{color:#1a2a4a}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:8px;text-align:left}th{background:#f0f4fa}.yoga{color:#7a5b00;font-style:italic}</style>
+  <style>body{font-family:Arial,sans-serif;color:#222;line-height:1.6}h1,h2,h3{color:#1a2a4a}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:8px;text-align:left}th{background:#f0f4fa}.yoga{color:#7a5b00;font-style:italic}.disclaimer{font-size:11px;color:#888;border-top:1px solid #ccc;margin-top:40px;padding-top:12px}</style>
   </head><body>
   <h1>Jyotish Precision Analyzer — Birth Chart Report</h1>
   <p><strong>Native:</strong> ${form.name||"—"} &nbsp;|&nbsp; <strong>DOB:</strong> ${form.dob} &nbsp;|&nbsp; <strong>TOB:</strong> ${form.tob} &nbsp;|&nbsp; <strong>Place:</strong> ${form.place}</p>
@@ -1062,7 +1082,10 @@ function buildHTMLReport(data) {
     <p>${d.factorOverview}</p>
     <ul>${(d.reasons||[]).map(r=>`<li${r.startsWith("[YOGA]")?' class="yoga"':''}>${r.replace(/^\[.+?\] /,"")}</li>`).join("")}</ul>
   `).join("")}
-  <p style="font-size:11px;color:#888;margin-top:40px">Generated by Jyotish Precision Analyzer · Swiss Ephemeris · Lahiri Ayanamsha · Parashari Jyotish</p>
+  <div class="disclaimer">
+    <strong>Disclaimer:</strong> This report provides astrological analysis for educational and self-reflective purposes only. It is not a substitute for medical, psychological, legal, or financial advice. All interpretations are indicative in nature.<br>
+    Generated by Jyotish Precision Analyzer · Swiss Ephemeris · Lahiri Ayanamsha · Parashari Jyotish · © 2025 All rights reserved.
+  </div>
   </body></html>`;
 }
 
@@ -1074,7 +1097,6 @@ document.querySelectorAll("input,select").forEach(el => {
 
 // ── City search autocomplete ──────────────────────────────────────────────────
 
-// Flag: suppresses search trigger when value is set programmatically (restore/history load)
 let _suppressSearch = false;
 
 function initCitySearch() {
@@ -1086,7 +1108,7 @@ function initCitySearch() {
   if (!input || !dropdown) return;
 
   input.addEventListener("input", () => {
-    if (_suppressSearch) return;  // skip search during programmatic restore
+    if (_suppressSearch) return;
     const q = input.value.trim();
     clearTimeout(_searchTimer);
     if (q.length < 2) { dropdown.innerHTML = ""; dropdown.style.display = "none"; return; }
@@ -1094,7 +1116,7 @@ function initCitySearch() {
   });
 
   input.addEventListener("keydown", e => {
-    const items = dropdown.querySelectorAll(".place-item");
+    const items  = dropdown.querySelectorAll(".place-item");
     const active = dropdown.querySelector(".place-item.active");
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -1112,7 +1134,6 @@ function initCitySearch() {
     }
   });
 
-  // Close dropdown on outside click
   document.addEventListener("click", e => {
     if (!e.target.closest(".place-search-wrap")) {
       dropdown.style.display = "none";
@@ -1122,7 +1143,7 @@ function initCitySearch() {
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
       _selectedPlace = null;
-      if (input)   input.value = "";
+      if (input)   input.value   = "";
       if (display) display.value = "";
       if (utcEl)   utcEl.textContent = "";
       clearBtn.style.display = "none";
@@ -1132,22 +1153,18 @@ function initCitySearch() {
   }
 }
 
-// City search calls Nominatim DIRECTLY from the browser.
-// This avoids Cloudflare Worker IPs being blocked by Nominatim's rate-limiter.
-// The Worker (/api/chart) is only called for chart computation once lat/lng are known.
 async function fetchCitySuggestions(query) {
   const dropdown = document.getElementById("placeDropdown");
   if (!dropdown) return;
   dropdown.innerHTML = `<div class="place-item place-loading">Searching...</div>`;
   dropdown.style.display = "block";
   try {
-    // Call Nominatim directly from the browser — not through the Worker
     const url = `https://nominatim.openstreetmap.org/search`
       + `?q=${encodeURIComponent(query)}`
       + `&format=json&limit=8&addressdetails=1&accept-language=en`;
 
-    const res  = await fetch(url, {
-      headers: { "User-Agent": "JyotishPrecisionApp/3.0 (astrology chart calculator)" }
+    const res = await fetch(url, {
+      headers: { "User-Agent": "JyotishPrecisionApp/3.1 (astrology chart calculator)" }
     });
 
     if (!res.ok) throw new Error(`Nominatim returned ${res.status}`);
@@ -1158,7 +1175,6 @@ async function fetchCitySuggestions(query) {
       return;
     }
 
-    // Map Nominatim response to the same shape the rest of the app expects
     const places = data.map(r => ({
       lat:         parseFloat(r.lat),
       lng:         parseFloat(r.lon),
@@ -1171,7 +1187,15 @@ async function fetchCitySuggestions(query) {
       country: (r.address?.country_code || "").toUpperCase()
     }));
 
-    dropdown.innerHTML = places.map((r, i) => `
+    // Only keep results with valid coordinates
+    const validPlaces = places.filter(r => isFinite(r.lat) && isFinite(r.lng) && !(r.lat===0&&r.lng===0));
+
+    if (!validPlaces.length) {
+      dropdown.innerHTML = `<div class="place-item place-no-result">No valid locations found. Try again.</div>`;
+      return;
+    }
+
+    dropdown.innerHTML = validPlaces.map((r, i) => `
       <div class="place-item" data-idx="${i}" data-lat="${r.lat}" data-lng="${r.lng}"
            data-name="${(r.displayName||"").replace(/"/g,"&quot;")}"
            data-short="${(r.shortName||"").replace(/"/g,"&quot;")}"
@@ -1185,7 +1209,6 @@ async function fetchCitySuggestions(query) {
       item.addEventListener("click", () => selectPlace(item));
     });
   } catch (e) {
-    // Fallback message with actionable advice
     dropdown.innerHTML = `<div class="place-item place-no-result">
       Could not reach location service. Check your internet connection, or try again in a moment.
     </div>`;
@@ -1206,13 +1229,18 @@ async function selectPlace(item) {
   const short   = item.dataset.short;
   const country = (item.dataset.country || "").toUpperCase();
 
-  // Resolve timezone client-side using the same country table as the backend
+  // Validate before storing — prevents bad data entering localStorage
+  if (!isFinite(lat) || !isFinite(lng)) {
+    console.warn("selectPlace: invalid coordinates, skipping", item.dataset);
+    return;
+  }
+
   const utcOffset = CLIENT_TZ[country] ?? null;
 
   _selectedPlace = { displayName: name, shortName: short, lat, lng, country, utcOffset };
 
-  if (input)   input.value = short;
-  if (display) display.value = name;
+  if (input)    input.value   = short;
+  if (display)  display.value = name;
   if (clearBtn) clearBtn.style.display = "inline-flex";
 
   showPlaceConfirmed(short, utcOffset);
