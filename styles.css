@@ -1314,3 +1314,54 @@ select option { background: var(--bg-3); }
   .antar-yrs { display: none; }
   .antar-main { flex-wrap: wrap; }
 }
+
+
+/* ── AD Domain sections — multi-factor intelligence panels ───────────── */
+.adi-domains { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+.adi-domain-block {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.adi-domain-block.adi-sev-high   { border-color: rgba(201,88,88,0.4); }
+.adi-domain-block.adi-sev-medium { border-color: rgba(212,160,74,0.35); }
+.adi-domain-block.adi-sev-low    { border-color: rgba(94,143,212,0.3); }
+
+.adi-domain-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border);
+}
+.adi-sev-high .adi-domain-header   { background: rgba(201,88,88,0.07); }
+.adi-sev-medium .adi-domain-header { background: rgba(212,160,74,0.07); }
+.adi-sev-low .adi-domain-header    { background: rgba(94,143,212,0.07); }
+
+.adi-domain-icon  { font-size: 14px; }
+.adi-domain-title { font-size: 12px; font-weight: 700; color: var(--text); letter-spacing: 0.03em; flex: 1; }
+.adi-domain-sev   { font-size: 12px; }
+
+.adi-domain-body  { padding: 10px 13px; display: flex; flex-direction: column; gap: 7px; }
+
+.adi-stmt {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-dim);
+  padding-left: 10px;
+  position: relative;
+}
+.adi-stmt::before { content:"•"; position:absolute; left:0; color:var(--text-faint); }
+.adi-sev-high .adi-stmt::before   { color: rgba(201,88,88,0.7); }
+.adi-sev-medium .adi-stmt::before { color: rgba(212,160,74,0.7); }
+.adi-sev-low .adi-stmt::before    { color: rgba(94,143,212,0.7); }
+
+.adi-protect {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--stable);
+  padding-left: 10px;
+  opacity: 0.85;
+}
