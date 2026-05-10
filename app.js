@@ -317,8 +317,9 @@ function buildPlanetHouseMap(houses) {
 }
 
 // ── City search state ─────────────────────────────────────────────────────────
-let _selectedPlace = null;
-let _searchTimer   = null;
+let _selectedPlace  = null;
+let _searchTimer    = null;
+let _suppressSearch = false;
 
 // South Indian chart layout
 const SI_LAYOUT = [
