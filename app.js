@@ -258,6 +258,8 @@ function markdownToHTML(md) {
     }
     return `<p>${p.replace(/\x00TITLE\x00([^\x00]*)\x00END\x00/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</p>`;
   }).join('');
+}
+
 // Stream Claude API into a target element
 async function callIndicationAPI(prompt, targetEl, cacheKey, cacheMap) {
   targetEl.innerHTML = `<div class="ind-loading"><span class="spinner"></span>Generating from chart data…</div>`;
@@ -1465,5 +1467,3 @@ restoreInputs();
 renderHistory();
 initCitySearch();
 initLangSelector();
-
-}
