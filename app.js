@@ -260,39 +260,40 @@ function markdownToHTML(md) {
   }).join('');
 }
 
-// Stream Claude API into a target element
+// Stream Claude API via Cloudflare proxy into a target element
 async function callIndicationAPI(prompt, targetEl, cacheKey, cacheMap) {
   targetEl.innerHTML = `<div class="ind-loading"><span class="spinner"></span>Generating from chart data…</div>`;
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",
-        max_tokens:1000,
-        stream:true,
-        messages:[{role:"user",content:prompt}],
-      }),
+    const res = await fetch("/api/indicate", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ prompt }),
     });
-    if (!res.ok) throw new Error("API error "+res.status);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
     targetEl.innerHTML = `<div class="ind-content"></div>`;
     const contentEl = targetEl.querySelector(".ind-content");
     let full = "";
-    const reader = res.body.getReader();
+    const reader  = res.body.getReader();
     const decoder = new TextDecoder();
     while (true) {
-      const {done,value} = await reader.read();
+      const { done, value } = await reader.read();
       if (done) break;
-      const lines = decoder.decode(value,{stream:true}).split("\n");
+      const lines = decoder.decode(value, { stream: true }).split("\n");
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
         const raw = line.slice(6).trim();
-        if (raw==="[DONE]") continue;
-        try { const delta=JSON.parse(raw).delta?.text||""; if(delta){full+=delta; contentEl.innerHTML=markdownToHTML(full);} } catch{}
+        if (raw === "[DONE]") continue;
+        try {
+          const delta = JSON.parse(raw).delta?.text || "";
+          if (delta) { full += delta; contentEl.innerHTML = markdownToHTML(full); }
+        } catch {}
       }
     }
     cacheMap.set(cacheKey, full);
-  } catch(err) {
+  } catch (err) {
     targetEl.innerHTML = `<div class="ind-error">Could not generate: ${err.message}</div>`;
   }
 }
