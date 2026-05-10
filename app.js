@@ -975,6 +975,130 @@ function deleteHistory(id) {
   renderHistory();
 }
 
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const tabs      = document.querySelectorAll(".nav-tab");
+const screens   = document.querySelectorAll(".screen");
+const genBtn    = document.getElementById("generateBtn");
+const genText   = document.getElementById("generateBtnText");
+const statusMsg = document.getElementById("statusMsg");
+const errorBox  = document.getElementById("errorBox");
+const saveBtn   = document.getElementById("saveBtn");
+const dlBtn     = document.getElementById("downloadBtn");
+const resetBtn  = document.getElementById("resetBtn");
+
+let currentData  = null;
+let _selectedPlace = null;
+let _searchTimer   = null;
+let _suppressSearch = false;
+
+// ── TAB ROUTING ───────────────────────────────────────────────────────────────
+function switchTab(tabId) {
+  tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
+  screens.forEach(s => s.classList.toggle("active", s.id === tabId));
+}
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    const r = tab.dataset.requires;
+    if (r === "chart"    && !currentData?.chart)    return;
+    if (r === "analysis" && !currentData?.analysis) return;
+    switchTab(tab.dataset.tab);
+  });
+});
+
+// ── LANGUAGE SELECTOR ─────────────────────────────────────────────────────────
+function initLangSelector() {
+  const btns = document.querySelectorAll(".lang-btn");
+  btns.forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.lang === _currentLang);
+    btn.addEventListener("click", () => {
+      _currentLang = btn.dataset.lang;
+      localStorage.setItem("jyotish-lang", _currentLang);
+      btns.forEach(b => b.classList.toggle("active", b.dataset.lang === _currentLang));
+      if (currentData?.chart) { renderChartScreen(currentData.chart); renderPlanetScreen(currentData.chart); }
+    });
+  });
+}
+
+// ── FORM HELPERS ──────────────────────────────────────────────────────────────
+function getForm() {
+  const placeDisplay = document.getElementById("inputPlaceDisplay");
+  return {
+    name:      document.getElementById("inputName").value.trim(),
+    dob:       document.getElementById("inputDOB").value,
+    tob:       document.getElementById("inputTOB").value,
+    place:     _selectedPlace?.displayName || (placeDisplay ? placeDisplay.value.trim() : ""),
+    lat:       _selectedPlace?.lat     || null,
+    lng:       _selectedPlace?.lng     || null,
+    country:   _selectedPlace?.country || "",
+    utcOffset: _selectedPlace?.utcOffset ?? null,
+  };
+}
+function setStatus(msg, type="") { statusMsg.textContent=msg; statusMsg.className="status-msg"+(type?" "+type:""); }
+function showError(msg) { errorBox.textContent=msg; errorBox.classList.remove("hidden"); }
+function clearError()   { errorBox.classList.add("hidden"); }
+
+function isValidPlaceRecord(s) {
+  if (!s||typeof s!=="object") return false;
+  const lat=parseFloat(s.lat), lng=parseFloat(s.lng);
+  if (!isFinite(lat)||!isFinite(lng)||( lat===0&&lng===0)) return false;
+  if (typeof s.place!=="string"||s.place.length<2) return false;
+  const errorTokens=["access denied","access den","error","403","401","unexpected","<!doctype","<html"];
+  return !errorTokens.some(t=>s.place.toLowerCase().startsWith(t));
+}
+
+// ── GENERATE ─────────────────────────────────────────────────────────────────
+genBtn.addEventListener("click", generate);
+async function generate() {
+  const form = getForm();
+  clearError();
+  if (!form.dob||!form.tob||!form.place) { showError("Please enter date of birth, time of birth, and select a place of birth from the dropdown."); return; }
+  if (!isFinite(parseFloat(form.lat))||!isFinite(parseFloat(form.lng))) { showError("Place of birth not fully resolved. Please clear and re-select from the dropdown."); return; }
+
+  genBtn.disabled=true;
+  genText.innerHTML=`<span class="spinner"></span>Calculating chart...`;
+  setStatus("Step 1 of 2 — Computing planetary positions via Swiss Ephemeris...","loading");
+
+  try {
+    const chartRes = await fetch("/api/chart",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,utcOffset:form.utcOffset?parseFloat(form.utcOffset):null})});
+    if (!chartRes.ok) { const b=await chartRes.text().catch(()=>""); throw new Error(`Chart API error ${chartRes.status}: ${b.slice(0,120)}`); }
+    const chartText = await chartRes.text();
+    let chartData;
+    try { chartData=JSON.parse(chartText); } catch { throw new Error(`Chart API returned invalid response. Raw: "${chartText.slice(0,80).replace(/\n/g," ")}"`); }
+    if (chartData.error) throw new Error(chartData.error);
+
+    setStatus("Step 2 of 2 — Running precision scoring engine...","loading");
+    genText.innerHTML=`<span class="spinner"></span>Analyzing domains...`;
+
+    const analysisPayload={
+      d1:{lagnaSign:chartData.d1.lagnaSign,houses:chartData.d1.houses,degrees:chartData.d1.degrees,latitudes:chartData.d1.latitudes},
+      d9:{lagnaSign:chartData.d9.lagnaSign,houses:chartData.d9.houses,degrees:chartData.d9.degrees,latitudes:chartData.d9.latitudes||{}},
+      dashas:chartData.dasha?.dashas||null, birthDate:form.dob||null,
+    };
+    const analysisRes = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(analysisPayload)});
+    if (!analysisRes.ok) { const b=await analysisRes.text().catch(()=>""); throw new Error(`Analysis API error ${analysisRes.status}: ${b.slice(0,120)}`); }
+    const analysisData = await analysisRes.json();
+    if (analysisData.error) throw new Error(analysisData.error);
+
+    currentData={chart:chartData,analysis:analysisData,form};
+    renderChartScreen(chartData);
+    renderDashaScreen(chartData);
+    renderDomainScreen(analysisData,chartData);
+    renderSummaryScreen(analysisData,chartData);
+    renderPlanetScreen(chartData);
+
+    tabs.forEach(t=>{if(t.dataset.requires==="chart"||t.dataset.requires==="analysis")t.disabled=false;});
+    if (dlBtn) dlBtn.disabled=false;
+    setStatus("Chart and analysis complete.","done");
+    switchTab("chartTab");
+  } catch(err) {
+    showError(err.message||"An unexpected error occurred.");
+    setStatus("","");
+  } finally {
+    genBtn.disabled=false;
+    genText.textContent="Generate Chart & Insights";
+  }
+}
+
 // ── Button events ─────────────────────────────────────────────────────────────
 saveBtn.addEventListener("click", () => {
   saveInputs(); saveToHistory();
@@ -1022,7 +1146,6 @@ document.querySelectorAll("input,select").forEach(el => {
 });
 
 // ── City search ───────────────────────────────────────────────────────────────
-let _suppressSearch = false;
 
 function initCitySearch() {
   const input=document.getElementById("inputPlaceSearch"), dropdown=document.getElementById("placeDropdown"), display=document.getElementById("inputPlaceDisplay"), clearBtn=document.getElementById("placeClearBtn"), utcEl=document.getElementById("detectedUTC");
