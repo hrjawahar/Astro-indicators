@@ -1171,197 +1171,104 @@ select option { background: var(--bg-3); }
 
 
 /* ═══════════════════════════════════════════════════════════════════════
-   PHASE 3 — Per-AD indication panels (layout fix + content redesign)
+   PHASE 3 — Precision Dasha Engine styles
 ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Antar row — single flex row, no overlap ─────────────────────────── */
-.antar-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 4px;
-}
-
-.antar-lord  { font-weight: 500; min-width: 88px; font-size: 13px; }
-.antar-dates { color: var(--text-dim); font-size: 12px; flex: 1; }
-.antar-yrs   { color: var(--text-faint); font-size: 12px; white-space: nowrap; }
-
+/* ── Antar item — block layout ───────────────────────────────────────── */
+.antar-item { display: block; border-bottom: 1px solid var(--border); font-size: 13px; }
+.antar-item:last-child { border-bottom: none; }
 .antar-item.current-antar .antar-lord { color: var(--gold); }
 .antar-item.antar-risk .antar-lord    { color: var(--danger); }
 
-/* ── AD toggle button ────────────────────────────────────────────────── */
+.antar-main { display: flex; align-items: center; gap: 10px; padding: 9px 4px; }
+.antar-lord  { min-width: 88px; font-size: 13px; font-weight: 500; }
+.antar-dates { color: var(--text-dim); font-size: 12px; flex: 1; }
+.antar-yrs   { color: var(--text-faint); font-size: 12px; white-space: nowrap; }
+
+/* ── AD toggle ───────────────────────────────────────────────────────── */
 .ad-toggle {
-  font-size: 11px;
-  color: var(--text-dim);
-  border: 1px solid var(--border-2);
-  background: transparent;
-  padding: 3px 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.15s, border-color 0.15s;
-  flex-shrink: 0;
+  font-size: 11px; color: var(--text-dim);
+  border: 1px solid var(--border-2); background: transparent;
+  padding: 3px 10px; border-radius: 10px; cursor: pointer;
+  white-space: nowrap; transition: color .15s, border-color .15s; flex-shrink: 0;
 }
 .ad-toggle:hover { color: var(--gold); border-color: var(--gold-dim); }
 
-/* ── AD indication panel — slides below the row ──────────────────────── */
+/* ── AD indication panel ─────────────────────────────────────────────── */
 .ad-ind-panel {
-  margin: 0 4px 10px;
-  padding: 14px 16px;
+  margin: 0 4px 10px; padding: 14px 16px;
   background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border);
-  border-left: 2px solid var(--gold-dim);
+  border: 1px solid var(--border); border-left: 2px solid var(--gold-dim);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-/* ── Current period AD block (inside Current Period card) ────────────── */
-.cd-ad-indication {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-.cd-ad-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--gold);
-  margin-bottom: 10px;
-}
+/* ── Current period AD block ─────────────────────────────────────────── */
+.cd-ad-indication { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.cd-ad-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); margin-bottom: 10px; }
 
-/* ── Shared indication content ───────────────────────────────────────── */
-
-/* Character — the period's one-line personality */
-.adi-character {
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--text);
-  margin-bottom: 12px;
-  padding: 10px 14px;
-  background: rgba(201,168,76,0.05);
-  border-radius: var(--radius-sm);
+/* ── MD season overview block ────────────────────────────────────────── */
+.md-season-block {
+  padding: 14px 16px 12px; margin-bottom: 4px;
+  background: rgba(201,168,76,0.04); border-bottom: 1px solid var(--border);
   border-left: 2px solid var(--gold-dim);
 }
+.md-season-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); margin-bottom: 8px; }
+.md-season-text  { font-size: 13px; line-height: 1.75; color: var(--text-dim); }
 
-/* Theme chips — keyword pills */
-.adi-themes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
+/* ── Shared indication content ───────────────────────────────────────── */
+.adi-character {
+  font-size: 13px; line-height: 1.65; color: var(--text); margin-bottom: 12px;
+  padding: 10px 14px; background: rgba(201,168,76,0.05);
+  border-radius: var(--radius-sm); border-left: 2px solid var(--gold-dim);
 }
+.adi-themes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .adi-theme-chip {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid var(--border-2);
-  color: var(--text-dim);
-  letter-spacing: 0.02em;
+  font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border-2); color: var(--text-dim);
 }
-.adi-theme-chip.chip-positive { background: rgba(76,175,130,0.1); color: var(--stable); border-color: rgba(76,175,130,0.25); }
+.adi-theme-chip.chip-positive { background: rgba(76,175,130,0.1);  color: var(--stable); border-color: rgba(76,175,130,0.25); }
 .adi-theme-chip.chip-caution  { background: rgba(212,160,74,0.1);  color: var(--warn);   border-color: rgba(212,160,74,0.25); }
 .adi-theme-chip.chip-risk     { background: rgba(201,88,88,0.1);   color: var(--danger); border-color: rgba(201,88,88,0.25); }
 
-/* Two-column body layout */
-.adi-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.adi-col {}
-
-.adi-col-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 7px;
-}
+.adi-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.adi-col-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 7px; }
 .adi-col-label.label-opens { color: var(--stable); }
 .adi-col-label.label-watch { color: var(--warn); }
-
-.adi-line {
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: var(--text-dim);
-  margin-bottom: 5px;
-  padding-left: 10px;
-  position: relative;
-}
-.adi-line::before { content: "•"; position: absolute; left: 0; }
+.adi-line { font-size: 12.5px; line-height: 1.65; color: var(--text-dim); margin-bottom: 5px; padding-left: 10px; position: relative; }
+.adi-line::before { content:"•"; position:absolute; left:0; }
 .adi-line.line-opens::before { color: var(--stable); }
 .adi-line.line-watch::before { color: var(--warn); }
 
-/* Caution block */
-.adi-caution {
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--danger);
-  padding: 9px 13px;
-  background: var(--danger-bg);
-  border: 1px solid rgba(201,88,88,0.25);
-  border-radius: var(--radius-sm);
-  margin-top: 10px;
+/* ── Domain intensity strip ──────────────────────────────────────────── */
+.adi-domain-strip {
+  display: flex; flex-direction: column; gap: 0; margin-top: 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;
 }
+.domain-level-row {
+  display: grid; grid-template-columns: 22px 100px 90px 1fr;
+  align-items: start; gap: 8px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.01);
+}
+.domain-level-row:last-child { border-bottom: none; }
+.dl-icon  { font-size: 13px; line-height: 1.6; }
+.dl-label { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.6; }
+.dl-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+  line-height: 1.6; text-align: center;
+}
+.dl-high   { background: rgba(201,88,88,0.15);  color: var(--danger); }
+.dl-medium { background: rgba(212,160,74,0.15); color: var(--warn); }
+.dl-watch  { background: rgba(94,143,212,0.12); color: var(--info); }
+.dl-good   { background: rgba(76,175,130,0.12); color: var(--stable); }
+.dl-body   { background: rgba(148,163,184,0.1); color: var(--text-dim); }
+.dl-detail { display: flex; flex-direction: column; gap: 3px; grid-column: 1/-1; padding-left: 30px; }
+.dl-reason    { font-size: 12px; color: var(--text-dim); line-height: 1.55; }
+.dl-body-area { font-size: 11px; color: var(--text-faint); font-style: italic; }
+.dl-protect   { font-size: 11px; color: var(--stable); opacity: .85; }
 
-/* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .adi-body { grid-template-columns: 1fr; }
   .antar-yrs { display: none; }
-  .antar-main { flex-wrap: wrap; }
-}
-
-
-/* ── AD Domain sections — multi-factor intelligence panels ───────────── */
-.adi-domains { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
-
-.adi-domain-block {
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  overflow: hidden;
-}
-.adi-domain-block.adi-sev-high   { border-color: rgba(201,88,88,0.4); }
-.adi-domain-block.adi-sev-medium { border-color: rgba(212,160,74,0.35); }
-.adi-domain-block.adi-sev-low    { border-color: rgba(94,143,212,0.3); }
-
-.adi-domain-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 13px;
-  background: rgba(255,255,255,0.03);
-  border-bottom: 1px solid var(--border);
-}
-.adi-sev-high .adi-domain-header   { background: rgba(201,88,88,0.07); }
-.adi-sev-medium .adi-domain-header { background: rgba(212,160,74,0.07); }
-.adi-sev-low .adi-domain-header    { background: rgba(94,143,212,0.07); }
-
-.adi-domain-icon  { font-size: 14px; }
-.adi-domain-title { font-size: 12px; font-weight: 700; color: var(--text); letter-spacing: 0.03em; flex: 1; }
-.adi-domain-sev   { font-size: 12px; }
-
-.adi-domain-body  { padding: 10px 13px; display: flex; flex-direction: column; gap: 7px; }
-
-.adi-stmt {
-  font-size: 12.5px;
-  line-height: 1.7;
-  color: var(--text-dim);
-  padding-left: 10px;
-  position: relative;
-}
-.adi-stmt::before { content:"•"; position:absolute; left:0; color:var(--text-faint); }
-.adi-sev-high .adi-stmt::before   { color: rgba(201,88,88,0.7); }
-.adi-sev-medium .adi-stmt::before { color: rgba(212,160,74,0.7); }
-.adi-sev-low .adi-stmt::before    { color: rgba(94,143,212,0.7); }
-
-.adi-protect {
-  font-size: 12px;
-  line-height: 1.65;
-  color: var(--stable);
-  padding-left: 10px;
-  opacity: 0.85;
+  .domain-level-row { grid-template-columns: 22px 80px 80px 1fr; }
 }
