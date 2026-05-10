@@ -82,68 +82,66 @@ const NATURAL_FRIENDS = {
 const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
 
 // Natural significations and body part rulerships per planet
-// Planet natural significations and body rulerships
+// ══════════════════════════════════════════════════════════════════════════════
+//  PHASE 3 — MULTI-FACTOR DOMAIN INTELLIGENCE ENGINE
+//  Rules: a domain is flagged only when 2+ classical factors converge.
+//  Output: structured per-domain sections with factor-backed statements.
+// ══════════════════════════════════════════════════════════════════════════════
+
 const PLANET_SIG = {
-  Sun:     { themes:["authority","career recognition","government","father","soul purpose","leadership"],         body:"heart, spine, eyes, and vital force" },
-  Moon:    { themes:["mind","emotions","mother","public dealings","travel","comfort","fluids"],                   body:"mind, chest, lungs, and blood" },
-  Mars:    { themes:["energy","ambition","property","siblings","technical skill","courage","surgery"],            body:"blood, muscles, and bone marrow" },
-  Mercury: { themes:["intellect","communication","trade","writing","education","analysis","skill"],               body:"nervous system, skin, and speech organs" },
-  Jupiter: { themes:["wisdom","wealth","children","higher knowledge","dharma","expansion","grace"],               body:"liver, fat tissue, and hips" },
-  Venus:   { themes:["relationships","beauty","luxury","arts","marriage","vehicles","comforts","creativity"],     body:"reproductive system, kidneys, and throat" },
-  Saturn:  { themes:["discipline","longevity","hard work","service","detachment","karma","delays"],               body:"bones, joints, teeth, and nerves" },
-  Rahu:    { themes:["ambition","foreign elements","technology","unconventional paths","obsession","illusion"],   body:"nervous system and skin (chronic conditions)" },
-  Ketu:    { themes:["detachment","spirituality","research","past karma","sudden events","liberation"],           body:"wounds, mysterious ailments, and hidden conditions" },
+  Sun:     { themes:"authority, career, government, father, and soul purpose",    body:"heart, spine, eyes, and vitality",                karaka:["career","authority"] },
+  Moon:    { themes:"mind, emotions, mother, public dealings, and travel",         body:"chest, lungs, blood, and mind",                    karaka:["mind","emotions","mother"] },
+  Mars:    { themes:"energy, courage, property, siblings, and technical skill",    body:"blood, muscles, and bone marrow",                  karaka:["property","siblings","courage"] },
+  Mercury: { themes:"intellect, communication, trade, writing, and analysis",      body:"nervous system, skin, and speech",                  karaka:["communication","intellect","trade"] },
+  Jupiter: { themes:"wisdom, wealth, children, higher knowledge, and expansion",   body:"liver, fat tissue, and hips",                      karaka:["wealth","children","wisdom"] },
+  Venus:   { themes:"relationships, beauty, marriage, luxury, and creativity",     body:"reproductive system, kidneys, and throat",          karaka:["relationships","marriage","comforts"] },
+  Saturn:  { themes:"discipline, karma, service, longevity, and hard work",        body:"bones, joints, teeth, and nerves",                  karaka:["longevity","discipline","service"] },
+  Rahu:    { themes:"ambition, foreign matters, technology, and unconventional paths", body:"nervous system and skin (chronic conditions)",  karaka:["ambition","foreign","technology"] },
+  Ketu:    { themes:"detachment, spirituality, research, and past karma",          body:"wounds, mysterious ailments, and hidden conditions",karaka:["spirituality","detachment","research"] },
 };
 
-// House significations
-const HOUSE_SIG = {
-  1:  { pos:"self-development, health improvements, personal reinvention, and new beginnings",        neg:"health sensitivity and ego conflicts" },
-  2:  { pos:"financial accumulation, family harmony, speech opportunities, and savings growth",       neg:"family friction and financial pressure" },
-  3:  { pos:"skill development, communication gains, short travel, and sibling cooperation",          neg:"sibling discord and impulsive decisions" },
-  4:  { pos:"home stability, property matters, mother's wellbeing, and emotional peace",              neg:"domestic instability and property disputes" },
-  5:  { pos:"creative intelligence, children, education, romance, and investment returns",            neg:"children-related worry and speculation losses" },
-  6:  { pos:"defeating competition, service recognition, health recovery (if lord is benefic)",       neg:"health challenges, enemies, debts, and legal friction" },
-  7:  { pos:"partnership activation, marriage harmony, business deals, and public dealings",          neg:"relationship friction and partnership disputes" },
-  8:  { pos:"deep research, transformation, possible windfall or inheritance",                        neg:"health crisis, sudden reversals, and hidden obstacles" },
-  9:  { pos:"fortune activation, father's wellbeing, higher wisdom, and long travel",                 neg:"loss of fortune, father's health, and dharmic confusion" },
-  10: { pos:"career advancement, professional recognition, authority, and public success",             neg:"career setbacks and public scrutiny" },
-  11: { pos:"income gains, wish fulfillment, social network expansion, and elder sibling support",    neg:"unfulfilled desires and social friction" },
-  12: { pos:"spiritual growth, foreign opportunities, charitable acts, and inner retreats",            neg:"losses, hidden expenses, and isolation" },
-};
-
-// Planet theme chips for AD indication
 const PLANET_THEME_CHIP = {
   Sun:"Authority & Career", Moon:"Mind & Emotions", Mars:"Energy & Property",
-  Mercury:"Communication", Jupiter:"Wisdom & Wealth", Venus:"Relationships & Comforts",
-  Saturn:"Discipline & Karma", Rahu:"Ambition & Change", Ketu:"Detachment & Spirit",
+  Mercury:"Communication & Intellect", Jupiter:"Wisdom & Wealth",
+  Venus:"Relationships & Comforts", Saturn:"Discipline & Karma",
+  Rahu:"Ambition & Change", Ketu:"Detachment & Spirit",
 };
 
-// Full domain label per house — used in every sentence where a house number is mentioned
-const HOUSE_DOMAIN = {
-  1:"self-image, health, and identity",
-  2:"finances, family wealth, and speech",
-  3:"skills, effort, communication, and siblings",
-  4:"home, property, mother, and emotional peace",
-  5:"children, creativity, investments, and education",
-  6:"health challenges, enemies, debts, and competition",
-  7:"partnerships, marriage, business deals, and career transitions",
-  8:"transformation, sudden reversals, hidden crises, and inheritance",
-  9:"fortune, father, higher knowledge, and long travel",
-  10:"career, authority, public standing, and professional recognition",
-  11:"income gains, social network, and wishes fulfilled",
-  12:"losses, foreign matters, spiritual retreat, and hidden expenses",
-};
-
-// Short domain label — used in chips and brief references
 const HOUSE_DOMAIN_SHORT = {
-  1:"health & identity", 2:"finances & family", 3:"skills & communication",
-  4:"home & property", 5:"children & creativity", 6:"health & competition",
-  7:"partnerships & career transitions", 8:"sudden reversals & hidden crises",
-  9:"fortune & father", 10:"career & authority", 11:"income & gains",
-  12:"losses & spiritual retreat",
+  1:"health and identity", 2:"finances and family wealth", 3:"skills and communication",
+  4:"home, property, and mother", 5:"children, creativity, and investments",
+  6:"health challenges, debts, and competition", 7:"partnerships, marriage, and career transitions",
+  8:"sudden reversals, hidden crises, and transformation",
+  9:"fortune, father, and higher knowledge", 10:"career and public standing",
+  11:"income, gains, and social network", 12:"losses, isolation, and spiritual retreat",
 };
 
-// Find which houses a planet lords for a given lagna
+const HOUSE_SIG = {
+  1:  { pos:"self-development, health improvements, and new personal beginnings",  neg:"health vulnerability, ego conflicts, and physical stress" },
+  2:  { pos:"financial accumulation, family harmony, and savings growth",           neg:"financial pressure, family friction, and speech conflicts" },
+  3:  { pos:"skill development, communication gains, and sibling cooperation",      neg:"sibling discord, impulsive decisions, and communication failures" },
+  4:  { pos:"home stability, property gains, and emotional peace",                  neg:"domestic instability, property disputes, and mother's health concerns" },
+  5:  { pos:"creative intelligence, children's progress, education, and investment gains", neg:"children-related worry, speculation losses, and creative blocks" },
+  6:  { pos:"defeating competition, service recognition, and overcoming obstacles", neg:"health challenges, legal friction, debts, and enemy activity" },
+  7:  { pos:"partnership activation, marriage harmony, business deals, and career transitions", neg:"relationship friction, partnership disputes, and public opposition" },
+  8:  { pos:"deep research, transformation, and possible inheritance or windfall",  neg:"sudden health crisis, career disruption, hidden obstacles, and reversals" },
+  9:  { pos:"fortune activation, father's wellbeing, higher wisdom, and long travel", neg:"loss of fortune, father's health decline, and spiritual confusion" },
+  10: { pos:"career advancement, professional recognition, and public success",     neg:"career setbacks, job changes under pressure, and public scrutiny" },
+  11: { pos:"income gains, wish fulfillment, and social network expansion",         neg:"unfulfilled desires, financial shortfalls, and social friction" },
+  12: { pos:"spiritual growth, foreign opportunities, and charitable gains",        neg:"hidden expenses, job loss, isolation, and health-related retreat" },
+};
+
+// Planet → primary domain karaka relationships
+const KARAKA_MAP = {
+  career:        ["Sun","Saturn","Mercury","Jupiter"],
+  relationships: ["Venus","Jupiter","Moon"],
+  health:        ["Sun","Moon","Mars","Saturn"],
+  finances:      ["Jupiter","Venus","Mercury","Moon"],
+  children:      ["Jupiter","Moon"],
+  property:      ["Mars","Moon","Saturn"],
+};
+
+// Find which houses a planet lords
 function getHousesLorded(planet, lagnaSign) {
   const lagnaIdx = SIGNS.indexOf(lagnaSign);
   const lorded = [];
@@ -159,133 +157,441 @@ function getAspectedHouses(planet, houseNum) {
   if (!houseNum) return [];
   const aspects = new Set();
   aspects.add(((houseNum - 1 + 6) % 12) + 1);
-  if (planet === "Mars")    { [3,7].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
-  if (planet === "Jupiter") { [4,8].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
-  if (planet === "Saturn")  { [2,9].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
-  if (planet === "Rahu" || planet === "Ketu") { [4,8].forEach(n => aspects.add(((houseNum - 1 + n) % 12) + 1)); }
+  if (planet === "Mars")    [3,7].forEach(n => aspects.add(((houseNum-1+n)%12)+1));
+  if (planet === "Jupiter") [4,8].forEach(n => aspects.add(((houseNum-1+n)%12)+1));
+  if (planet === "Saturn")  [2,9].forEach(n => aspects.add(((houseNum-1+n)%12)+1));
+  if (planet === "Rahu" || planet === "Ketu") [4,8].forEach(n => aspects.add(((houseNum-1+n)%12)+1));
   aspects.delete(houseNum);
   return [...aspects];
 }
 
-// ── CORE PER-AD READING BUILDER — domain-specific language ───────────────────
+// Check if a house is under malefic pressure from any planet
+function getMaleficPressureOnHouse(targetHouse, lagnaSign, d1HouseMap, excludePlanet) {
+  const pressors = [];
+  for (const p of PLANET_LIST) {
+    if (p === excludePlanet) continue;
+    const pH = d1HouseMap[p]; if (!pH) continue;
+    const pFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N";
+    if (pFS !== "M") continue;
+    // Sits in the house or aspects it
+    if (pH === targetHouse || getAspectedHouses(p, pH).includes(targetHouse)) {
+      pressors.push({ planet: p, how: pH === targetHouse ? "sits in" : "aspects" });
+    }
+  }
+  return pressors;
+}
+
+// Check if a house has benefic protection
+function getBeneficProtectionOnHouse(targetHouse, lagnaSign, d1HouseMap, excludePlanet) {
+  const protectors = [];
+  for (const p of PLANET_LIST) {
+    if (p === excludePlanet) continue;
+    const pH = d1HouseMap[p]; if (!pH) return protectors; // early return
+    const pFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N";
+    if (!["B","Y"].includes(pFS)) continue;
+    if (pH === targetHouse || getAspectedHouses(p, pH).includes(targetHouse)) {
+      protectors.push({ planet: p, how: pH === targetHouse ? "sits in" : "aspects" });
+    }
+  }
+  return protectors;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  DOMAIN ANALYSERS — each returns { flagged, statements[], protection[], severity }
+// ══════════════════════════════════════════════════════════════════════════════
+
+function analyseCareer(adLord, adHouse, adDig, adD9Dig, lagnaSign, d1HouseMap, planets, adLordedHouses) {
+  const statements = [], protection = [];
+  let factors = 0;
+
+  // H10 lord condition
+  const h10Sign  = SIGNS[(SIGNS.indexOf(lagnaSign) + 9) % 12];
+  const h10Lord  = SIGN_LORD[h10Sign];
+  const h10House = d1HouseMap[h10Lord];
+  const h10InAdverse = h10House && [6,8,12].includes(h10House);
+
+  // AD lord lords H10?
+  const lordsH10 = adLordedHouses.includes(10);
+  // AD lord lords H7 (career transitions through partnerships)?
+  const lordsH7  = adLordedHouses.includes(7);
+  // AD lord sits in adverse house?
+  const adInAdverse = adHouse && [6,8,12].includes(adHouse);
+  // AD lord aspects H10?
+  const aspectsH10 = adHouse && getAspectedHouses(adLord, adHouse).includes(10);
+  // AD lord sits in H10?
+  const sitsInH10 = adHouse === 10;
+
+  const adFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord] || "N";
+  const isMalefic = adFS === "M";
+  const isBenefic = ["B","Y"].includes(adFS);
+
+  // Malefic pressure on H10
+  const h10Pressure = getMaleficPressureOnHouse(10, lagnaSign, d1HouseMap, adLord);
+  const h10Protection = getBeneficProtectionOnHouse(10, lagnaSign, d1HouseMap, adLord);
+
+  // Factor 1: AD lord lords H10 and sits in H8/H12/H6 (career house lord in adversity)
+  if (lordsH10 && adInAdverse && isMalefic) {
+    factors += 2;
+    statements.push(`${adLord} rules your career domain (H10) but sits in H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) under malefic status — the career house lord is itself in adversity. Career disruptions, forced changes, or setbacks in professional standing are a real risk.`);
+  } else if (lordsH10 && adInAdverse) {
+    factors += 1;
+    statements.push(`${adLord} rules your career domain (H10) and sits in H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) — career progress may stall or require unexpected pivots during this period.`);
+  } else if (lordsH10 && isBenefic && !adInAdverse) {
+    factors += 1;
+    statements.push(`${adLord} rules your career domain (H10) and is a benefic for your lagna${adDig==="ex"?" — exalted, giving peak career activation":" — career matters are activated constructively"}. Professional recognition and advancement are strongly supported.`);
+  }
+
+  // Factor 2: H10 lord itself in adversity
+  if (h10InAdverse && !lordsH10) {
+    factors += 1;
+    statements.push(`The H10 career lord (${h10Lord}) sits in H${h10House} (${HOUSE_DOMAIN_SHORT[h10House]}) in your birth chart — career stability is structurally sensitive during any AD period that activates these houses.`);
+  }
+
+  // Factor 3: AD lord lords H7 — career transitions through partnerships
+  if (lordsH7 && isBenefic) {
+    factors += 1;
+    statements.push(`${adLord} rules H7 (partnerships, business deals, and career transitions) — this sub-period may bring a significant career move, new professional partnership, or change in position through external connections.`);
+  } else if (lordsH7 && isMalefic) {
+    factors += 1;
+    statements.push(`${adLord} rules H7 (career transitions and partnerships) as a malefic — career changes during this period may feel forced or come under adverse circumstances rather than through chosen opportunity.`);
+  }
+
+  // Factor 4: Malefic aspects H10
+  if (h10Pressure.length > 0) {
+    factors += 1;
+    statements.push(`H10 (career) receives malefic pressure from ${h10Pressure.map(p=>p.planet+" ("+p.how+" H10)").join(" and ")} in your birth chart — a persistent challenge to career stability that activates more acutely during adverse AD periods.`);
+  }
+
+  // Factor 5: Benefic aspects H10
+  if (h10Protection.length > 0) {
+    protection.push(`H10 (career) is protected by ${h10Protection.map(p=>p.planet).join(" and ")} — even during career turbulence, a protective force works in the background to prevent complete collapse.`);
+  }
+
+  // Factor 6: AD lord exalted or own sign — career boost
+  if (sitsInH10 && isBenefic) {
+    factors += 1;
+    statements.push(`${adLord} sits directly in H10 (career house) as a benefic — a period of visible professional gains, recognition, or career milestones.`);
+  }
+
+  // D9 confirmation
+  if (adD9Dig === "de" && lordsH10) {
+    factors += 1;
+    statements.push(`D9 shows ${adLord} debilitated in Navamsha — the career disruption may deepen rather than resolve quickly, as the D9 does not support recovery.`);
+  } else if ((adD9Dig === "ex" || adD9Dig === "own") && lordsH10 && isBenefic) {
+    protection.push(`D9 confirms ${adLord}'s strength in Navamsha — career gains from this period tend to be lasting.`);
+  }
+
+  const severity = factors >= 3 ? "high" : factors >= 2 ? "medium" : factors >= 1 ? "low" : "none";
+  return { flagged: factors >= 1, statements, protection, severity };
+}
+
+function analyseHealth(adLord, adHouse, adDig, adD9Dig, lagnaSign, d1HouseMap, planets, adLordedHouses) {
+  const statements = [], protection = [];
+  let factors = 0;
+
+  const adFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord] || "N";
+  const isMalefic = adFS === "M";
+  const isBenefic = ["B","Y"].includes(adFS);
+
+  // H1 lord condition
+  const h1Lord  = SIGN_LORD[lagnaSign];
+  const h1House = d1HouseMap[h1Lord];
+  const h1InAdverse = h1House && [6,8,12].includes(h1House);
+
+  const lordsH1  = adLordedHouses.includes(1);
+  const lordsH6  = adLordedHouses.includes(6);
+  const lordsH8  = adLordedHouses.includes(8);
+  const lordsH12 = adLordedHouses.includes(12);
+  const adInAdverse = adHouse && [6,8,12].includes(adHouse);
+
+  const h1Pressure   = getMaleficPressureOnHouse(1, lagnaSign, d1HouseMap, adLord);
+  const h1Protection = getBeneficProtectionOnHouse(1, lagnaSign, d1HouseMap, adLord);
+  const moonHouse    = d1HouseMap["Moon"];
+  const moonFS       = FUNCTIONAL_STATUS_MAP[lagnaSign]?.["Moon"] || "N";
+  const moonDig      = getDignity("Moon", planets["Moon"]?.sign || "");
+
+  // Factor 1: AD lord lords H1 and is malefic or sits adversely
+  if (lordsH1 && isMalefic) {
+    factors += 2;
+    statements.push(`${adLord} rules your health and body (H1) but is a functional malefic for your lagna — the lord of your vitality is under stress. Physical health deserves close monitoring during this period.`);
+  } else if (lordsH1 && adInAdverse) {
+    factors += 1;
+    statements.push(`${adLord} rules your health (H1) and sits in H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) — the lord of your vitality is placed in adversity, which can manifest as physical depletion or health-related disruptions.`);
+  }
+
+  // Factor 2: AD lord sits in H6/H8 as malefic
+  if (isMalefic && adHouse === 6) {
+    factors += 1;
+    statements.push(`${adLord} as a functional malefic sits directly in H6 — the house of illness and health challenges is activated. Watch for infections, inflammatory conditions, and energy depletion.`);
+  } else if (isMalefic && adHouse === 8) {
+    factors += 1;
+    statements.push(`${adLord} as a functional malefic sits in H8 — the house of sudden crises. Unexpected health events, accidents, or hidden conditions surfacing are classically associated with this placement during a malefic AD.`);
+  }
+
+  // Factor 3: Lords H6 or H8 — disease or crisis houses activated
+  if (lordsH6 && isMalefic) {
+    factors += 1;
+    statements.push(`${adLord} rules H6 (illness and health challenges) — this sub-period activates the disease house, making health more vulnerable than usual.`);
+  }
+  if (lordsH8 && isMalefic) {
+    factors += 1;
+    statements.push(`${adLord} rules H8 (sudden health crises and transformation) — an additional layer of health sensitivity is active, particularly for sudden or unexpected health events.`);
+  }
+
+  // Factor 4: H1 lord in adversity
+  if (h1InAdverse && !lordsH1) {
+    factors += 1;
+    statements.push(`Your lagna lord (${h1Lord}) sits in H${h1House} (${HOUSE_DOMAIN_SHORT[h1House]}) in the birth chart — constitutional health has a structural vulnerability that any adverse AD can amplify.`);
+  }
+
+  // Factor 5: Malefic pressure on H1
+  if (h1Pressure.length > 0) {
+    factors += 1;
+    statements.push(`H1 (body and vitality) receives malefic pressure from ${h1Pressure.map(p=>p.planet).join(" and ")} — an existing structural stress on health that this sub-period may bring to the surface.`);
+  }
+
+  // Factor 6: Moon condition
+  if (moonFS === "M" || moonDig === "de") {
+    factors += 0.5; // partial factor
+    statements.push(`The Moon${moonDig==="de"?" is debilitated in your chart":""} — mental and emotional health are an additional watch area during this period, as the mind may feel strained or overwhelmed.`);
+  }
+
+  // Body area specificity — always shown
+  const bodyArea = PLANET_SIG[adLord]?.body;
+  if (bodyArea) {
+    let bodyNote = `Body areas governed by ${adLord} — ${bodyArea} — may become sensitised or symptomatic during this sub-period.`;
+    if (isMalefic && adInAdverse) bodyNote += ` With ${adLord} under malefic status in H${adHouse}, these areas carry elevated risk.`;
+    statements.push(bodyNote);
+  }
+
+  // Protections
+  if (h1Protection.length > 0) {
+    protection.push(`H1 (vitality) is protected by ${h1Protection.map(p=>p.planet+" ("+p.how+" the lagna)").join(" and ")} — a protective force that limits the severity of health challenges even when other factors are adverse.`);
+  }
+  if (adD9Dig === "ex" || adD9Dig === "own") {
+    protection.push(`D9 shows ${adLord} strong in Navamsha — health resilience is supported at a deeper level; recovery, when needed, is likely.`);
+  }
+
+  const severity = factors >= 3 ? "high" : factors >= 2 ? "medium" : factors >= 1 ? "low" : "none";
+  return { flagged: factors >= 1, statements, protection, severity };
+}
+
+function analyseRelationships(adLord, adHouse, adDig, adD9Dig, lagnaSign, d1HouseMap, planets, adLordedHouses) {
+  const statements = [], protection = [];
+  let factors = 0;
+
+  const adFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord] || "N";
+  const isMalefic = adFS === "M";
+  const isBenefic = ["B","Y"].includes(adFS);
+
+  const lordsH7  = adLordedHouses.includes(7);
+  const lordsH2  = adLordedHouses.includes(2);
+  const lordsH12 = adLordedHouses.includes(12);
+  const adInAdverse = adHouse && [6,8,12].includes(adHouse);
+
+  const h7Pressure   = getMaleficPressureOnHouse(7, lagnaSign, d1HouseMap, adLord);
+  const h7Protection = getBeneficProtectionOnHouse(7, lagnaSign, d1HouseMap, adLord);
+
+  const venusHouse = d1HouseMap["Venus"];
+  const venusFS    = FUNCTIONAL_STATUS_MAP[lagnaSign]?.["Venus"] || "N";
+  const venusDig   = getDignity("Venus", planets["Venus"]?.sign || "");
+
+  // Factor 1: AD lord lords H7 and is malefic or in adversity
+  if (lordsH7 && isMalefic && adInAdverse) {
+    factors += 2;
+    statements.push(`${adLord} rules partnerships and marriage (H7) but is a functional malefic sitting in H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) — the lord of relationships is doubly stressed. Existing partnerships face significant friction; new commitments should be entered with caution.`);
+  } else if (lordsH7 && isMalefic) {
+    factors += 1;
+    statements.push(`${adLord} rules H7 (partnerships and marriage) as a functional malefic — relationship dynamics come under strain. Friction in close partnerships, business relationships, or marriage is elevated during this period.`);
+  } else if (lordsH7 && isBenefic) {
+    factors += 1;
+    statements.push(`${adLord} rules H7 (partnerships and marriage) as a benefic — relationship matters are constructively activated. This period supports deepening existing bonds, new meaningful partnerships, and favourable business connections.`);
+  }
+
+  // Factor 2: AD lord sits in H7 — partnership house directly occupied
+  if (adHouse === 7 && isMalefic) {
+    factors += 1;
+    statements.push(`${adLord} as a functional malefic sits directly in H7 — the partnership house is under direct malefic influence. Conflicts in close relationships or legal partnership disputes may arise.`);
+  } else if (adHouse === 7 && isBenefic) {
+    factors += 1;
+    statements.push(`${adLord} as a benefic sits directly in H7 — an auspicious period for marriage, partnership agreements, and public dealings.`);
+  }
+
+  // Factor 3: Venus condition (natural karaka for relationships)
+  if (venusFS === "M" || venusDig === "de") {
+    factors += 1;
+    statements.push(`Venus, the natural karaka for relationships${venusDig==="de"?" is debilitated":""} in your chart${venusFS==="M"?" and is a functional malefic for your lagna":""} — relationship challenges are built into the natal pattern and may resurface prominently during this sub-period.`);
+  } else if (venusDig === "ex" || venusDig === "own") {
+    protection.push(`Venus, the natural karaka for relationships, is ${venusDig==="ex"?"exalted":"in own sign"} in your chart — a strong underlying support for relationship harmony even during periods of friction.`);
+  }
+
+  // Factor 4: H7 under malefic pressure
+  if (h7Pressure.length > 0 && !lordsH7) {
+    factors += 1;
+    statements.push(`H7 (partnerships) receives malefic pressure from ${h7Pressure.map(p=>p.planet+" ("+p.how+" H7)").join(" and ")} in your birth chart — relationship challenges are a recurring natal theme that this sub-period activates.`);
+  }
+
+  // Factor 5: Lorded H2 or H12 (family wealth / losses in relationship context)
+  if (lordsH2 && isMalefic) {
+    factors += 0.5;
+    statements.push(`${adLord} also rules H2 (family and household finances) as a malefic — domestic financial friction or family disputes may accompany relationship stress during this period.`);
+  }
+
+  // Protections
+  if (h7Protection.length > 0) {
+    protection.push(`H7 (partnerships) is supported by ${h7Protection.map(p=>p.planet).join(" and ")} — a moderating influence that prevents relationship challenges from escalating to full breakdown.`);
+  }
+  if (adD9Dig === "ex" || adD9Dig === "own") {
+    protection.push(`D9 shows ${adLord} strong in Navamsha — relationship patterns deepen constructively over time regardless of surface friction.`);
+  }
+
+  const severity = factors >= 3 ? "high" : factors >= 2 ? "medium" : factors >= 1 ? "low" : "none";
+  return { flagged: factors >= 1, statements, protection, severity };
+}
+
+function analyseFinances(adLord, adHouse, adDig, adD9Dig, lagnaSign, d1HouseMap, planets, adLordedHouses) {
+  const statements = [], protection = [];
+  let factors = 0;
+
+  const adFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord] || "N";
+  const isMalefic = adFS === "M";
+  const isBenefic = ["B","Y"].includes(adFS);
+
+  const lordsH2  = adLordedHouses.includes(2);
+  const lordsH11 = adLordedHouses.includes(11);
+  const lordsH9  = adLordedHouses.includes(9);
+  const lordsH12 = adLordedHouses.includes(12);
+  const adInAdverse = adHouse && [6,8,12].includes(adHouse);
+
+  const h2Pressure   = getMaleficPressureOnHouse(2, lagnaSign, d1HouseMap, adLord);
+  const h11Pressure  = getMaleficPressureOnHouse(11, lagnaSign, d1HouseMap, adLord);
+  const h2Protection = getBeneficProtectionOnHouse(2, lagnaSign, d1HouseMap, adLord);
+
+  // Factor 1: Lords H2 or H11 (wealth and income houses)
+  if ((lordsH2 || lordsH11) && isBenefic && !adInAdverse) {
+    factors += 1;
+    const hStr = [lordsH2?"H2 (finances)":"", lordsH11?"H11 (income and gains)":""].filter(Boolean).join(" and ");
+    statements.push(`${adLord} rules ${hStr} as a benefic — financial accumulation, income growth, and savings are constructively activated during this period.`);
+    if (adDig === "ex") {
+      factors += 1;
+      statements.push(`Exalted in ${planets[adLord]?.sign} — financial gains from this period can be exceptional; opportunities for significant wealth accumulation are classically indicated.`);
+    }
+  } else if ((lordsH2 || lordsH11) && isMalefic) {
+    factors += 1;
+    const hStr = [lordsH2?"H2 (finances)":"", lordsH11?"H11 (income)":""].filter(Boolean).join(" and ");
+    statements.push(`${adLord} rules ${hStr} as a functional malefic — financial pressure, irregular income, or unexpected expenses are elevated risks. Avoid speculative investments and large new financial commitments.`);
+  }
+
+  // Factor 2: Lords H12 (losses) and is malefic
+  if (lordsH12 && isMalefic) {
+    factors += 1;
+    statements.push(`${adLord} rules H12 (hidden expenses, losses, and financial retreat) as a malefic — unplanned expenditures, asset erosion, or financial drain are specifically signalled. Strengthen reserves and track spending closely.`);
+  }
+
+  // Factor 3: AD lord sits in H12 under malefic status
+  if (adHouse === 12 && isMalefic) {
+    factors += 1;
+    statements.push(`${adLord} sits in H12 (losses and hidden expenses) as a malefic — financial discipline is essential. This placement classically indicates money going out in ways that are difficult to track or control.`);
+  }
+
+  // Factor 4: Malefic pressure on H2 or H11
+  if (h2Pressure.length > 0) {
+    factors += 1;
+    statements.push(`H2 (finances and family wealth) receives malefic pressure from ${h2Pressure.map(p=>p.planet).join(" and ")} in the birth chart — financial stability has a structural challenge that this period may amplify.`);
+  }
+  if (h11Pressure.length > 0) {
+    factors += 0.5;
+    statements.push(`H11 (income and gains) is under malefic influence from ${h11Pressure.map(p=>p.planet).join(" and ")} — income growth during this period may face unexpected interference.`);
+  }
+
+  // Factor 5: Lords H9 (fortune house) as benefic
+  if (lordsH9 && isBenefic) {
+    factors += 0.5;
+    statements.push(`${adLord} also rules H9 (fortune and long-term prosperity) as a benefic — an undercurrent of good fortune supports financial outcomes even when surface conditions are mixed.`);
+  }
+
+  // Protections
+  if (h2Protection.length > 0) {
+    protection.push(`H2 (finances) is protected by ${h2Protection.map(p=>p.planet).join(" and ")} — even during financial stress, a stabilising force prevents the situation from becoming a crisis.`);
+  }
+
+  const severity = factors >= 3 ? "high" : factors >= 2 ? "medium" : factors >= 1 ? "low" : "none";
+  return { flagged: factors >= 1, statements, protection, severity };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  CORE AD READING BUILDER — calls all domain analysers
+// ══════════════════════════════════════════════════════════════════════════════
 function buildADReading(mdLord, adLord, lagnaSign, houses, planets) {
   const d1HouseMap = buildPlanetHouseMap(houses);
   const combustSet = buildCombustSet(planets);
 
-  const adFS     = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord] || "N";
-  const mdFS     = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[mdLord] || "N";
-  const adHouse  = d1HouseMap[adLord];
-  const mdHouse  = d1HouseMap[mdLord];
-  const adSign   = planets[adLord]?.sign || "";
-  const adDig    = getDignity(adLord, adSign);
-  const adD9Sign = planets[adLord]?.d9sign || "";
-  const adD9Dig  = adD9Sign ? getDignity(adLord, adD9Sign) : "";
-  const adRetro  = planets[adLord]?.retrograde || false;
-  const adCombust= combustSet.has(adLord);
-  const mdAdRel  = getRelationshipTag(mdLord, adLord);
+  const adFS      = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord] || "N";
+  const mdFS      = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[mdLord] || "N";
+  const adHouse   = d1HouseMap[adLord];
+  const mdHouse   = d1HouseMap[mdLord];
+  const adSign    = planets[adLord]?.sign || "";
+  const adDig     = getDignity(adLord, adSign);
+  const adD9Sign  = planets[adLord]?.d9sign || "";
+  const adD9Dig   = adD9Sign ? getDignity(adLord, adD9Sign) : "";
+  const adRetro   = planets[adLord]?.retrograde || false;
+  const adCombust = combustSet.has(adLord);
+  const mdAdRel   = getRelationshipTag(mdLord, adLord);
   const adLordedHouses = getHousesLorded(adLord, lagnaSign);
+  const isMalefic = adFS === "M";
+  const isBenefic = ["B","Y"].includes(adFS);
 
   let adFromMd = null;
   if (adHouse && mdHouse) adFromMd = ((adHouse - mdHouse + 12) % 12) + 1;
   const isAdverse = adFromMd && [6,8,12].includes(adFromMd);
-  const isBenefic = ["B","Y"].includes(adFS);
-  const isMalefic = adFS === "M";
 
-  const goodLorded = adLordedHouses.filter(h => ![6,8,12].includes(h));
-  const badLorded  = adLordedHouses.filter(h =>  [6,8,12].includes(h));
-
-  const beneficAspectors = PLANET_LIST.filter(p => {
-    if (p === adLord || !adHouse) return false;
-    const pH = d1HouseMap[p]; if (!pH) return false;
-    return getAspectedHouses(p, pH).includes(adHouse) && ["B","Y"].includes(FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N");
-  });
-  const maleficAspectors = PLANET_LIST.filter(p => {
-    if (p === adLord || !adHouse) return false;
-    const pH = d1HouseMap[p]; if (!pH) return false;
-    return getAspectedHouses(p, pH).includes(adHouse) && (FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p] || "N") === "M";
-  });
-
-  // Helper — domain phrase for a list of houses
-  function domainPhrase(hList) {
-    return hList.map(h => HOUSE_DOMAIN_SHORT[h]).join(", ");
-  }
-
-  // ── 1. Period character ─────────────────────────────────────────────────
+  // ── Period character ──────────────────────────────────────────────────────
   const adHouseDomain = adHouse ? HOUSE_DOMAIN_SHORT[adHouse] : "";
   let character = "";
+  const relNote = mdAdRel==="F" ? ` ${mdLord} and ${adLord} are natural friends — their energies flow without internal friction.`
+                : mdAdRel==="E" ? ` ${mdLord} and ${adLord} are natural enemies — events during this window may feel contradictory or effortful.`
+                : "";
+
   if (adFS === "Y") {
-    character = `${adLord} is a yogakaraka for your lagna — this sub-period carries genuine elevating power${adHouseDomain ? `, particularly around ${adHouseDomain}` : ""}. ${mdAdRel==="F"?"It flows smoothly with the main season.":"Some friction with the main season remains, but the period's positive potential is real."}`;
+    character = `${adLord} is a yogakaraka for your lagna — this sub-period is among the most constructive possible within this chart.${adHouseDomain?" Its H"+adHouse+" placement activates "+adHouseDomain+" with elevating force.":""}${relNote}`;
   } else if (isBenefic && adDig === "ex") {
-    character = `${adLord} is exalted and benefic — a genuinely strong sub-period where its themes (${PLANET_THEME_CHIP[adLord]?.toLowerCase()}) deliver with unusual clarity${adHouseDomain ? `, especially in ${adHouseDomain}` : ""}.`;
+    character = `${adLord} is exalted and a functional benefic — a genuinely strong sub-period.${adHouseDomain?" H"+adHouse+" ("+adHouseDomain+") is activated with exceptional force.":""}${relNote}`;
   } else if (isBenefic) {
-    character = `${adLord} is supportive for your lagna${mdAdRel==="F"?", in harmony with the "+mdLord+" main season":mdAdRel==="E"?", though in friction with the "+mdLord+" main season":""}. A constructive period for ${PLANET_THEME_CHIP[adLord]?.toLowerCase() || "its significations"}${adHouseDomain ? " and "+adHouseDomain : ""}.`;
+    character = `${adLord} is a functional benefic for your lagna.${adHouseDomain?" Its H"+adHouse+" placement channels "+adHouseDomain+" constructively.":""} Overall a supportive sub-period.${relNote}`;
   } else if (isMalefic && adDig === "de") {
-    character = `${adLord} is both a functional malefic and debilitated — a demanding combination. ${adHouseDomain ? adHouseDomain.charAt(0).toUpperCase()+adHouseDomain.slice(1)+" are under stress." : ""} Consolidation over expansion is the posture here.`;
+    character = `${adLord} is both a functional malefic and debilitated in your chart.${adHouseDomain?" Its H"+adHouse+" placement puts "+adHouseDomain+" under compounded stress.":" A demanding sub-period across multiple life areas."} Consolidation, patience, and avoidance of new major commitments is the correct posture.${relNote}`;
   } else if (isMalefic) {
-    character = `${adLord} is a functional malefic for your lagna${mdAdRel==="E"?", and a natural enemy of "+mdLord+" — compounding the friction":""}. ${adHouseDomain ? "Its placement in H"+adHouse+" activates "+adHouseDomain+" under pressure. " : ""}This sub-period tests rather than gifts — awareness and restraint navigate it best.`;
+    character = `${adLord} is a functional malefic for your lagna.${adHouseDomain?" Its H"+adHouse+" placement activates "+adHouseDomain+" under pressure. This sub-period tests and reveals — those who navigate consciously emerge stronger.":""}${relNote}`;
   } else {
-    character = `${adLord} is neutral for your lagna. ${adHouseDomain ? "Its H"+adHouse+" placement activates "+adHouseDomain+". " : ""}Results depend on current transits. ${mdAdRel==="F"?mdLord+" and "+adLord+" are natural friends, easing the flow.":mdAdRel==="E"?mdLord+" and "+adLord+" are natural enemies — an undercurrent of friction colours events.":""}`;
+    character = `${adLord} is neutral for your lagna.${adHouseDomain?" Its H"+adHouse+" placement activates "+adHouseDomain+" — results depend on the quality of current transits and individual effort.":""}${relNote}`;
   }
 
-  // ── 2. Theme chips ──────────────────────────────────────────────────────
+  // Additional context
+  if (adRetro) character += ` ${adLord} is retrograde — themes surface in subtle, delayed, or revisited ways rather than directly.`;
+  if (adCombust) character += ` ${adLord} is combust (too close to the Sun) — its significations are dimmed; avoid relying on this planet's themes for critical decisions.`;
+  if (isAdverse) character += ` ${adLord} sits in the ${adFromMd}th position from ${mdLord} — a 6/8/12 adversity that adds friction even when individual placements appear strong.`;
+
+  // ── Theme chips ───────────────────────────────────────────────────────────
   const chipType = isMalefic||adDig==="de" ? "chip-caution" : isBenefic ? "chip-positive" : "";
   const themes = [];
   if (PLANET_THEME_CHIP[adLord]) themes.push({ label: PLANET_THEME_CHIP[adLord], cls: chipType });
   if (adHouse) themes.push({ label: `H${adHouse} — ${HOUSE_DOMAIN_SHORT[adHouse]}`, cls: isMalefic?"chip-caution":"" });
-  if (goodLorded.length) themes.push({ label: `Lords: ${domainPhrase(goodLorded.slice(0,2))}`, cls: isBenefic?"chip-positive":"" });
-  if (isAdverse) themes.push({ label: `H${adFromMd} from ${mdLord} — tension`, cls: "chip-risk" });
+  const goodLorded = adLordedHouses.filter(h=>![6,8,12].includes(h));
+  if (goodLorded.length) themes.push({ label: `Lords: ${goodLorded.slice(0,2).map(h=>HOUSE_DOMAIN_SHORT[h]).join(", ")}`, cls: isBenefic?"chip-positive":"" });
+  if (isAdverse) themes.push({ label: `H${adFromMd} from ${mdLord} — tension`, cls:"chip-risk" });
+  if (adDig==="ex")  themes.push({ label:`Exalted in ${adSign}`, cls:"chip-positive" });
+  if (adDig==="de")  themes.push({ label:`Debilitated in ${adSign}`, cls:"chip-caution" });
+  if (adRetro)       themes.push({ label:"Retrograde", cls:"chip-caution" });
 
-  // ── 3. What Opens Up ────────────────────────────────────────────────────
-  const opensUp = [];
-  if (adHouse && isBenefic && HOUSE_SIG[adHouse]) {
-    opensUp.push(`H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}): ${HOUSE_SIG[adHouse].pos.split(",").slice(0,2).join(", ")}.`);
-  }
-  if (goodLorded.length) {
-    goodLorded.slice(0,2).forEach(h => {
-      opensUp.push(`As lord of H${h} (${HOUSE_DOMAIN_SHORT[h]}): ${HOUSE_SIG[h]?.pos.split(",")[0]}.`);
-    });
-  }
-  if (adDig==="ex")  opensUp.push(`Exalted in ${adSign} — ${adLord}'s significations around ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} express at peak capacity.`);
-  if (adDig==="own") opensUp.push(`Own sign ${adSign} — ${adLord} is comfortable; ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} themes flow without impediment.`);
-  if (adD9Dig==="ex"||adD9Dig==="own") opensUp.push(`D9 confirms strength — Navamsha shows ${adLord} ${adD9Dig==="ex"?"exalted":"in own sign"}: the promise deepens in maturity.`);
-  if (beneficAspectors.length) opensUp.push(`${beneficAspectors.join(" & ")} casts a protective aspect — a supportive shield on this period.`);
+  // ── Domain analysis ───────────────────────────────────────────────────────
+  const career        = analyseCareer(adLord, adHouse, adDig, adD9Dig, lagnaSign, d1HouseMap, planets, adLordedHouses);
+  const health        = analyseHealth(adLord, adHouse, adDig, adD9Dig, lagnaSign, d1HouseMap, planets, adLordedHouses);
+  const relationships = analyseRelationships(adLord, adHouse, adDig, adD9Dig, lagnaSign, d1HouseMap, planets, adLordedHouses);
+  const finances      = analyseFinances(adLord, adHouse, adDig, adD9Dig, lagnaSign, d1HouseMap, planets, adLordedHouses);
 
-  // ── 4. Handle With Care ─────────────────────────────────────────────────
-  const handleWith = [];
-  if (PLANET_SIG[adLord]) handleWith.push(`Body areas: ${PLANET_SIG[adLord].body} — monitor these during this sub-period.`);
-  if (adHouse && HOUSE_SIG[adHouse]) {
-    // Always show the placement domain — positive or negative framing based on planet status
-    if (isMalefic || adDig==="de") {
-      handleWith.push(`H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) — ${HOUSE_SIG[adHouse].neg}: ${adLord} here under malefic status brings this domain under stress.`);
-    } else if (!isBenefic) {
-      handleWith.push(`H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) — mixed outcomes; ${HOUSE_SIG[adHouse].neg} may also surface.`);
-    }
-  }
-  if (maleficAspectors.length) handleWith.push(`${maleficAspectors.join(" & ")} aspects ${adLord} — additional pressure on ${adHouseDomain || "its domain"}.`);
-  if (badLorded.length) {
-    badLorded.forEach(h => handleWith.push(`As lord of H${h} (${HOUSE_DOMAIN_SHORT[h]}): ${HOUSE_SIG[h]?.neg}.`));
-  }
-  if (adRetro) handleWith.push(`Retrograde — ${PLANET_THEME_CHIP[adLord]?.toLowerCase() || "its themes"} surface indirectly, through delays or revisiting unresolved past matters.`);
-  if (adD9Dig==="de") handleWith.push(`D9 debilitated — the D1 promise around ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} may not sustain through maturity.`);
+  const hasRisk = isMalefic || adDig==="de" || isAdverse || adCombust;
 
-  // ── 5. Caution — domain-specific ─────────────────────────────────────────
-  let caution = null;
-  const lordedDomainText = adLordedHouses.length
-    ? `As lord of ${adLordedHouses.map(h=>"H"+h+" ("+HOUSE_DOMAIN_SHORT[h]+")").join(" and ")}, those life areas carry the same tension.`
-    : "";
-
-  if (adFS==="M" && adDig==="de") {
-    caution = `${adLord} is a functional malefic AND debilitated — ${adHouseDomain ? adHouseDomain+" themes are compromised. " : ""}${lordedDomainText} Avoid major decisions in these domains; focus on consolidation.`;
-  } else if (isAdverse) {
-    caution = `${adLord} occupies the ${adFromMd}th house from ${mdLord} — a 6/8/12 adversity. Even strong individual placements struggle when this friction exists. ${adHouseDomain ? "Be especially cautious around "+adHouseDomain+"." : ""}`;
-  } else if (adCombust) {
-    caution = `${adLord} is combust — its ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} themes are dimmed by solar proximity. Avoid depending on ${adHouseDomain || "this domain"} for critical outcomes during this window.`;
-  } else if (isMalefic) {
-    const riskDomains = [adHouse, ...adLordedHouses].filter(Boolean).map(h => HOUSE_DOMAIN_SHORT[h]).filter(Boolean);
-    caution = `${adLord} is a functional malefic — ${riskDomains.length ? riskDomains.slice(0,3).join(", ")+" themes" : "its domains"} require careful navigation. Avoid forcing outcomes in these areas; allow rather than push.`;
-  }
-
-  return { character, themes, opensUp: opensUp.slice(0,3), handleWith: handleWith.slice(0,3), caution, hasRisk: isMalefic||adDig==="de"||isAdverse||adCombust };
+  return { character, themes, career, health, relationships, finances, hasRisk };
 }
 
 // Returns "F" (friend), "E" (enemy), or "N" (neutral) between houseLord and visitor
@@ -764,33 +1070,44 @@ const PLANET_GLYPHS_FULL = { Sun:"☉",Moon:"☽",Mars:"♂",Mercury:"☿",Jupit
 
 
 // ── Renders an AD indication panel from buildADReading() result ───────────────
+function severityIcon(s) {
+  return s==="high"?"🔴":s==="medium"?"🟡":s==="low"?"🟢":"";
+}
+
+function renderDomainSection(title, icon, analysis) {
+  if (!analysis.flagged) return "";
+  const stmts = analysis.statements.map(s=>`<div class="adi-stmt">${s}</div>`).join("");
+  const prot  = analysis.protection.map(p=>`<div class="adi-protect">🛡 ${p}</div>`).join("");
+  return `
+    <div class="adi-domain-block adi-sev-${analysis.severity}">
+      <div class="adi-domain-header">
+        <span class="adi-domain-icon">${icon}</span>
+        <span class="adi-domain-title">${title}</span>
+        <span class="adi-domain-sev">${severityIcon(analysis.severity)}</span>
+      </div>
+      <div class="adi-domain-body">
+        ${stmts}
+        ${prot}
+      </div>
+    </div>`;
+}
+
 function renderADIndicationHTML(adR) {
   const chipsHTML = adR.themes.map(t =>
     `<span class="adi-theme-chip ${t.cls}">${t.label}</span>`
   ).join("");
 
-  const opensHTML = adR.opensUp.map(o =>
-    `<div class="adi-line line-opens">${o}</div>`
-  ).join("");
+  const careerHTML    = renderDomainSection("Career & Professional Life","💼", adR.career);
+  const healthHTML    = renderDomainSection("Health & Body","❤️", adR.health);
+  const relHTML       = renderDomainSection("Relationships & Marriage","🤝", adR.relationships);
+  const financeHTML   = renderDomainSection("Finances & Wealth","💰", adR.finances);
 
-  const watchHTML = adR.handleWith.map(w =>
-    `<div class="adi-line line-watch">${w}</div>`
-  ).join("");
+  const anyDomain = careerHTML || healthHTML || relHTML || financeHTML;
 
   return `
     <div class="adi-character">${adR.character}</div>
     ${chipsHTML ? `<div class="adi-themes">${chipsHTML}</div>` : ""}
-    <div class="adi-body">
-      ${opensHTML ? `<div class="adi-col">
-        <div class="adi-col-label label-opens">What opens up</div>
-        ${opensHTML}
-      </div>` : ""}
-      ${watchHTML ? `<div class="adi-col">
-        <div class="adi-col-label label-watch">Handle with care</div>
-        ${watchHTML}
-      </div>` : ""}
-    </div>
-    ${adR.caution ? `<div class="adi-caution">⚠ ${adR.caution}</div>` : ""}
+    ${anyDomain ? `<div class="adi-domains">${careerHTML}${healthHTML}${relHTML}${financeHTML}</div>` : ""}
   `;
 }
 
