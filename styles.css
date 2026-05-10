@@ -1272,3 +1272,46 @@ select option { background: var(--bg-3); }
   .antar-yrs { display: none; }
   .domain-level-row { grid-template-columns: 22px 80px 80px 1fr; }
 }
+
+/* ── Claude API indication panels ────────────────────────────────────── */
+.ad-api-panel   { padding: 12px 14px; min-height: 40px; }
+.md-api-panel   { padding: 10px 0 4px; min-height: 32px; }
+
+.ind-loading {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-dim); font-style: italic;
+  padding: 4px 0;
+}
+
+.ind-error {
+  font-size: 12px; color: var(--danger); padding: 6px 0;
+}
+
+.ind-content {
+  font-size: 13px; line-height: 1.75; color: var(--text-dim);
+}
+
+.ind-content p {
+  margin: 0 0 10px;
+}
+.ind-content p:last-child { margin-bottom: 0; }
+
+.ind-content strong { color: var(--text); font-weight: 600; }
+
+.ind-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  margin: 14px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.ind-section-title:first-child { margin-top: 0; }
+
+.md-season-block .ind-content {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text-dim);
+}
