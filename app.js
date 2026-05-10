@@ -1,11 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  Jyotish Precision Analyzer  |  app.js  |  v3.3  (Phase 3 — v2 branch)
-//  Phase 3 additions over v3.2:
-//  1. Per-AD insight engine — chart-specific indications for every Antardasha
-//     using real Parashari rules: functional status, house placement, lordship,
-//     D1/D9 synthesis, MD-AD relationship, 6/8/12 adverse positioning
-//  2. Dasha screen redesigned — each AD now has an expandable indication panel
-//  3. Current period block shows full structured reading
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "jyotish-v3-inputs";
@@ -74,22 +68,10 @@ const NATURAL_FRIENDS = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  PHASE 3 — PER-AD INSIGHT ENGINE
-//  All data tables and functions used by buildADReading()
-// ══════════════════════════════════════════════════════════════════════════════
-
-// Top-level SIGNS array (used by multiple functions)
-const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
-
-// Natural significations and body part rulerships per planet
-// ══════════════════════════════════════════════════════════════════════════════
 //  PHASE 3 — PRECISION DOMAIN ENGINE
-//  Design rules:
-//  1. Only flag a domain when 2+ independent classical factors converge
-//  2. The reason for every flag is always one specific sentence — not generic
-//  3. MD season = rich multi-factor paragraph written once per Mahadasha
-//  4. AD panel = character + chips + opens/watch + compact domain intensity strip
 // ══════════════════════════════════════════════════════════════════════════════
+
+const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
 
 const PLANET_SIG = {
   Sun:     { body:"heart, spine, eyes, and vital force" },
@@ -121,21 +103,20 @@ const HOUSE_DOMAIN_SHORT = {
 };
 
 const HOUSE_SIG = {
-  1:  { pos:"personal growth, health improvements, and new beginnings", neg:"health vulnerability and ego conflicts" },
-  2:  { pos:"financial accumulation, family harmony, and savings growth", neg:"financial pressure and family friction" },
-  3:  { pos:"skill development, communication gains, and sibling cooperation", neg:"sibling discord and communication failures" },
-  4:  { pos:"home stability, property gains, and emotional peace", neg:"domestic instability and property disputes" },
-  5:  { pos:"children's progress, creative gains, education, and investments", neg:"children-related worry and speculation losses" },
-  6:  { pos:"defeating competition and overcoming obstacles", neg:"health challenges, legal friction, and debt pressure" },
+  1:  { pos:"personal growth, health improvements, and new beginnings",             neg:"health vulnerability and ego conflicts" },
+  2:  { pos:"financial accumulation, family harmony, and savings growth",            neg:"financial pressure and family friction" },
+  3:  { pos:"skill development, communication gains, and sibling cooperation",       neg:"sibling discord and communication failures" },
+  4:  { pos:"home stability, property gains, and emotional peace",                   neg:"domestic instability and property disputes" },
+  5:  { pos:"children's progress, creative gains, education, and investments",       neg:"children-related worry and speculation losses" },
+  6:  { pos:"defeating competition and overcoming obstacles",                        neg:"health challenges, legal friction, and debt pressure" },
   7:  { pos:"partnership harmony, marriage activation, business deals, and career transitions", neg:"relationship friction and partnership disputes" },
-  8:  { pos:"research, transformation, and possible inheritance", neg:"sudden health crises, career disruptions, and hidden reversals" },
-  9:  { pos:"fortune activation, father's wellbeing, and higher wisdom", neg:"loss of fortune and father's health decline" },
-  10: { pos:"career advancement, professional recognition, and public success", neg:"career setbacks, forced job changes, and public scrutiny" },
-  11: { pos:"income gains, wish fulfillment, and network expansion", neg:"financial shortfalls and unfulfilled desires" },
-  12: { pos:"spiritual growth, foreign opportunities, and charitable gains", neg:"hidden expenses, job loss, and isolation" },
+  8:  { pos:"research, transformation, and possible inheritance",                    neg:"sudden health crises, career disruptions, and hidden reversals" },
+  9:  { pos:"fortune activation, father's wellbeing, and higher wisdom",             neg:"loss of fortune and father's health decline" },
+  10: { pos:"career advancement, professional recognition, and public success",      neg:"career setbacks, forced job changes, and public scrutiny" },
+  11: { pos:"income gains, wish fulfillment, and network expansion",                 neg:"financial shortfalls and unfulfilled desires" },
+  12: { pos:"spiritual growth, foreign opportunities, and charitable gains",         neg:"hidden expenses, job loss, and isolation" },
 };
 
-// Find which houses a planet lords
 function getHousesLorded(planet, lagnaSign) {
   const lagnaIdx = SIGNS.indexOf(lagnaSign);
   const lorded = [];
@@ -145,7 +126,6 @@ function getHousesLorded(planet, lagnaSign) {
   return lorded;
 }
 
-// Parashari aspects
 function getAspectedHouses(planet, houseNum) {
   if (!houseNum) return [];
   const a = new Set();
@@ -158,382 +138,774 @@ function getAspectedHouses(planet, houseNum) {
   return [...a];
 }
 
-// Get all planets (by functional status) that sit in or aspect a target house
 function getPlanetaryInfluenceOnHouse(targetHouse, lagnaSign, d1HouseMap, excludePlanet) {
   const malefics=[], benefics=[];
   for (const p of PLANET_LIST) {
     if (p===excludePlanet) continue;
     const pH=d1HouseMap[p]; if (!pH) continue;
-    const inHouse = pH===targetHouse;
-    const aspects = getAspectedHouses(p,pH).includes(targetHouse);
-    if (!inHouse && !aspects) continue;
-    const pFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p]||"N";
-    const how = inHouse?"sits in H"+targetHouse:"aspects H"+targetHouse;
+    const inHouse=pH===targetHouse, aspects=getAspectedHouses(p,pH).includes(targetHouse);
+    if (!inHouse&&!aspects) continue;
+    const pFS=FUNCTIONAL_STATUS_MAP[lagnaSign]?.[p]||"N";
+    const how=inHouse?"sits in H"+targetHouse:"aspects H"+targetHouse;
     if (pFS==="M") malefics.push({planet:p,how});
     else if (["B","Y"].includes(pFS)) benefics.push({planet:p,how});
   }
-  return {malefics, benefics};
+  return {malefics,benefics};
 }
 
-// ── MD SEASON BUILDER — one rich paragraph per Mahadasha ─────────────────────
+// ── MD Season Builder ─────────────────────────────────────────────────────────
 function buildMDSeason(mdLord, lagnaSign, houses, planets) {
-  const d1HouseMap  = buildPlanetHouseMap(houses);
-  const mdFS        = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[mdLord]||"N";
-  const mdHouse     = d1HouseMap[mdLord];
-  const mdSign      = planets[mdLord]?.sign||"";
-  const mdDig       = getDignity(mdLord,mdSign);
-  const mdD9Sign    = planets[mdLord]?.d9sign||"";
-  const mdD9Dig     = mdD9Sign?getDignity(mdLord,mdD9Sign):"";
-  const mdRetro     = planets[mdLord]?.retrograde||false;
-  const mdLorded    = getHousesLorded(mdLord,lagnaSign);
-  const mdAspects   = mdHouse?getAspectedHouses(mdLord,mdHouse):[];
-  const infl        = mdHouse?getPlanetaryInfluenceOnHouse(mdHouse,lagnaSign,d1HouseMap,mdLord):{malefics:[],benefics:[]};
+  const d1HouseMap=buildPlanetHouseMap(houses);
+  const mdFS=FUNCTIONAL_STATUS_MAP[lagnaSign]?.[mdLord]||"N";
+  const mdHouse=d1HouseMap[mdLord];
+  const mdSign=planets[mdLord]?.sign||"";
+  const mdDig=getDignity(mdLord,mdSign);
+  const mdD9Sign=planets[mdLord]?.d9sign||"";
+  const mdD9Dig=mdD9Sign?getDignity(mdLord,mdD9Sign):"";
+  const mdRetro=planets[mdLord]?.retrograde||false;
+  const mdLorded=getHousesLorded(mdLord,lagnaSign);
+  const infl=mdHouse?getPlanetaryInfluenceOnHouse(mdHouse,lagnaSign,d1HouseMap,mdLord):{malefics:[],benefics:[]};
+  const isMalefic=mdFS==="M", isBenefic=["B","Y"].includes(mdFS), isYoga=mdFS==="Y";
+  const goodLorded=mdLorded.filter(h=>![6,8,12].includes(h));
+  const badLorded=mdLorded.filter(h=>[6,8,12].includes(h));
 
-  const isMalefic   = mdFS==="M";
-  const isBenefic   = ["B","Y"].includes(mdFS);
-  const isYoga      = mdFS==="Y";
-
-  // Season tone
   let tone="";
-  if (isYoga && mdDig==="ex") tone="an extraordinary summer";
-  else if (isYoga) tone="a powerful summer";
-  else if (isBenefic && mdDig==="ex") tone="a strong, productive season";
-  else if (isBenefic && mdDig==="own") tone="a settled, constructive season";
+  if (isYoga&&mdDig==="ex") tone="an extraordinary summer — the most constructive season possible for this chart";
+  else if (isYoga) tone="a powerful summer — a season that elevates and advances";
+  else if (isBenefic&&mdDig==="ex") tone="a strong, productive season";
+  else if (isBenefic&&mdDig==="own") tone="a settled, constructive season — steady rather than dramatic";
   else if (isBenefic) tone="a generally supportive season";
-  else if (isMalefic && mdDig==="de") tone="a demanding winter — one of the most testing seasons";
+  else if (isMalefic&&mdDig==="de") tone="a demanding winter — one of the more testing seasons this chart produces";
   else if (isMalefic) tone="a winter — a testing season that disciplines more than it gifts";
-  else tone="a mixed season — neither fully supportive nor purely testing";
+  else tone="a mixed season — results depend on which sub-period is running and the quality of transits";
 
-  // House placement colour
   let placementNote="";
   if (mdHouse) {
-    const domain = HOUSE_DOMAIN_SHORT[mdHouse];
-    if (isMalefic && [6,8,12].includes(mdHouse)) {
-      placementNote=` ${mdLord} sits in H${mdHouse} (${domain}), compounding the seasonal difficulty — the lord of this period is itself placed in adversity.`;
-    } else if (isBenefic && [1,4,7,10].includes(mdHouse)) {
-      placementNote=` ${mdLord} sits in H${mdHouse} (${domain}), a kendra house — giving structural strength to the season's positive themes.`;
-    } else if (mdHouse) {
-      placementNote=` ${mdLord}'s position in H${mdHouse} (${domain}) shapes where the season's energy concentrates.`;
-    }
+    if (isMalefic&&[6,8,12].includes(mdHouse)) placementNote=` ${mdLord} sits in H${mdHouse} (${HOUSE_DOMAIN_SHORT[mdHouse]}), compounding the seasonal difficulty — the lord of this period is itself in adversity.`;
+    else if (isBenefic&&[1,4,7,10].includes(mdHouse)) placementNote=` ${mdLord} in H${mdHouse} (${HOUSE_DOMAIN_SHORT[mdHouse]}), a kendra — giving structural strength to the season's themes.`;
+    else placementNote=` ${mdLord}'s H${mdHouse} placement (${HOUSE_DOMAIN_SHORT[mdHouse]}) shapes where the season's energy concentrates.`;
   }
 
-  // Lorded houses theme
-  const goodLorded = mdLorded.filter(h=>![6,8,12].includes(h));
-  const badLorded  = mdLorded.filter(h=>[6,8,12].includes(h));
   let lordNote="";
-  if (goodLorded.length && isBenefic) {
-    lordNote=` As lord of ${goodLorded.map(h=>"H"+h+" ("+HOUSE_DOMAIN_SHORT[h]+")").join(" and ")}, the season strongly activates these life areas.`;
-  } else if (badLorded.length && isMalefic) {
-    lordNote=` ${mdLord} also lords ${badLorded.map(h=>"H"+h+" ("+HOUSE_DOMAIN_SHORT[h]+")").join(" and ")} — these domains carry the seasonal pressure most acutely.`;
-  } else if (mdLorded.length) {
-    lordNote=` The season's themes concentrate in ${mdLorded.map(h=>"H"+h+" ("+HOUSE_DOMAIN_SHORT[h]+")").join(" and ")}.`;
-  }
+  if (goodLorded.length&&isBenefic) lordNote=` As lord of ${goodLorded.map(h=>"H"+h+" ("+HOUSE_DOMAIN_SHORT[h]+")").join(" and ")}, the season strongly activates these life areas.`;
+  else if (badLorded.length&&isMalefic) lordNote=` ${mdLord} also lords ${badLorded.map(h=>"H"+h+" ("+HOUSE_DOMAIN_SHORT[h]+")").join(" and ")} — these domains carry the seasonal pressure most acutely.`;
+  else if (mdLorded.length) lordNote=` The season's themes concentrate in ${mdLorded.slice(0,2).map(h=>"H"+h+" ("+HOUSE_DOMAIN_SHORT[h]+")").join(" and ")}.`;
 
-  // Dignity note
   let digNote="";
-  if (mdDig==="ex") digNote=` ${mdLord} is exalted in ${mdSign} — the season operates at peak intensity; its promises and its tests both arrive with unusual force.`;
-  else if (mdDig==="de") digNote=` ${mdLord} is debilitated in ${mdSign} — the season's energy is suppressed at source, making its themes difficult to express constructively.`;
+  if (mdDig==="ex") digNote=` ${mdLord} is exalted in ${mdSign} — the season's promises and tests both arrive with unusual force.`;
+  else if (mdDig==="de") digNote=` ${mdLord} is debilitated in ${mdSign} — the season's energy is suppressed at source; its themes are difficult to express constructively.`;
   else if (mdDig==="own") digNote=` ${mdLord} in own sign ${mdSign} — the season runs steadily, without extremes.`;
 
-  // D9 note
   let d9Note="";
-  if (mdD9Dig==="ex"||mdD9Dig==="own") d9Note=` D9 shows ${mdLord} ${mdD9Dig==="ex"?"exalted":"in own sign"} in Navamsha — the season deepens and delivers more fully in the second half of its span.`;
-  else if (mdD9Dig==="de") d9Note=` D9 shows ${mdLord} debilitated in Navamsha — the season's early promise tends to weaken; the second half can feel harder than the first.`;
+  if (mdD9Dig==="ex"||mdD9Dig==="own") d9Note=` D9 shows ${mdLord} ${mdD9Dig==="ex"?"exalted":"in own sign"} in Navamsha — the season deepens in the second half of its span.`;
+  else if (mdD9Dig==="de") d9Note=` D9 shows ${mdLord} debilitated in Navamsha — the second half of this season tends to feel harder than the first.`;
 
-  // Aspects and protection
   let aspectNote="";
   if (infl.benefics.length) aspectNote+=` ${infl.benefics.map(b=>b.planet).join(" and ")} ${infl.benefics.length>1?"cast protective aspects":"casts a protective aspect"} on ${mdLord}'s position — a moderating grace within the season.`;
-  if (infl.malefics.length) aspectNote+=` ${infl.malefics.map(m=>m.planet).join(" and ")} ${infl.malefics.length>1?"afflict":"afflicts"} ${mdLord}'s position — an additional layer of resistance within an already testing season.`;
+  if (infl.malefics.length) aspectNote+=` ${infl.malefics.map(m=>m.planet).join(" and ")} ${infl.malefics.length>1?"afflict":"afflicts"} ${mdLord}'s position — an additional layer of resistance.`;
 
-  // Retrograde
-  let retroNote="";
-  if (mdRetro) retroNote=` ${mdLord} is retrograde — the season's themes surface in indirect, introspective, or revisited ways. Past matters connected to ${mdLord}'s domains tend to resurface for resolution.`;
-
-  const para = `The ${mdLord} Mahadasha is ${tone}.${placementNote}${lordNote}${digNote}${d9Note}${aspectNote}${retroNote}`;
-  return para;
+  const retroNote=mdRetro?` ${mdLord} is retrograde — the season's themes surface in indirect, introspective, or revisited ways.`:"";
+  return `The ${mdLord} Mahadasha is ${tone}.${placementNote}${lordNote}${digNote}${d9Note}${aspectNote}${retroNote}`;
 }
 
-// ── DOMAIN INTENSITY SCORER — returns { level, reason } or null ──────────────
-// level: "high" | "medium" | "low" | null
-// reason: one precise sentence explaining WHY
+// ── Domain Intensity Scorers ──────────────────────────────────────────────────
 
-function scoreDomain_Career(adLord, adHouse, adDig, adD9Dig, adFS, lagnaSign, d1HouseMap, adLordedHouses) {
-  let score=0, reasons=[];
-  const isMalefic=adFS==="M", isBenefic=["B","Y"].includes(adFS);
-  const lordsH10=adLordedHouses.includes(10), lordsH7=adLordedHouses.includes(7);
+function scoreDomain_Career(adLord,adHouse,adDig,adD9Dig,adFS,lagnaSign,d1HouseMap,adLordedHouses) {
+  let score=0,reasons=[];
+  const isMalefic=adFS==="M",isBenefic=["B","Y"].includes(adFS);
+  const lordsH10=adLordedHouses.includes(10),lordsH7=adLordedHouses.includes(7);
   const adInAdverse=adHouse&&[6,8,12].includes(adHouse);
   const h10Infl=getPlanetaryInfluenceOnHouse(10,lagnaSign,d1HouseMap,adLord);
   const h10Sign=SIGNS[(SIGNS.indexOf(lagnaSign)+9)%12];
   const h10Lord=SIGN_LORD[h10Sign];
-  const h10House=d1HouseMap[h10Lord];
-  const h10LordAdverse=h10House&&[6,8,12].includes(h10House);
+  const h10LordAdverse=[6,8,12].includes(d1HouseMap[h10Lord]);
 
   if (lordsH10&&isMalefic&&adInAdverse){score+=3;reasons.push(`${adLord} lords career (H10) and sits in H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}) as a malefic — career lord in adversity`);}
   else if (lordsH10&&isMalefic){score+=2;reasons.push(`${adLord} lords career (H10) as a functional malefic — career domain under pressure`);}
   else if (lordsH10&&adInAdverse){score+=1;reasons.push(`${adLord} lords career (H10) and sits adversely in H${adHouse}`);}
-  else if (lordsH10&&isBenefic&&(adDig==="ex"||adDig==="own")){score-=2;reasons.push(`${adLord} lords and strengthens career (H10) — professional advancement strongly supported`);}
+  else if (lordsH10&&isBenefic&&adDig==="ex"){score-=2;reasons.push(`${adLord} lords career (H10) — exalted; professional advancement exceptionally supported`);}
   else if (lordsH10&&isBenefic){score-=1;reasons.push(`${adLord} lords career (H10) as a benefic — constructive career period`);}
 
-  if (lordsH7&&isBenefic){score-=1;reasons.push(`${adLord} lords H7 (career transitions) as a benefic — favourable career moves or partnerships`);}
+  if (lordsH7&&isBenefic){score-=1;reasons.push(`${adLord} lords H7 (career transitions) as a benefic — favourable career moves or new partnerships`);}
   else if (lordsH7&&isMalefic){score+=1;reasons.push(`${adLord} lords H7 (career transitions) as a malefic — career changes may feel forced`);}
 
-  if (h10Infl.malefics.length&&isMalefic){score+=1;reasons.push(`${h10Infl.malefics.map(m=>m.planet).join("/")} also afflicts H10 — compounding career stress`);}
-  if (h10LordAdverse&&!lordsH10){score+=1;reasons.push(`H10 lord (${h10Lord}) sits in H${h10House} (${HOUSE_DOMAIN_SHORT[h10House]}) — structural career vulnerability`);}
+  if (h10Infl.malefics.length){score+=1;reasons.push(`${h10Infl.malefics.map(m=>m.planet).join("/")} afflicts H10 — compounding career stress`);}
+  if (h10LordAdverse&&!lordsH10){score+=1;reasons.push(`H10 lord (${h10Lord}) sits adversely — structural career vulnerability`);}
+  if (adD9Dig==="de"&&lordsH10&&isMalefic){score+=1;reasons.push(`D9 debilitated — career stress may deepen rather than recover quickly`);}
+  if (h10Infl.benefics.length&&score>0){score-=1;}
 
-  if (adDig==="ex"&&lordsH10){score-=1;}
-  if (adD9Dig==="de"&&lordsH10&&isMalefic){score+=1;}
-  if (h10Infl.benefics.length&&score>0){score-=1;reasons.push(`Protected: ${h10Infl.benefics.map(b=>b.planet).join("/")} aspects H10`);}
-
-  const primary=reasons[0]||null;
-  if (score>=3) return {level:"high",   reason:primary, protection:h10Infl.benefics.length?h10Infl.benefics.map(b=>b.planet).join(" & ")+" aspects H10":null};
-  if (score>=2) return {level:"medium", reason:primary, protection:h10Infl.benefics.length?h10Infl.benefics.map(b=>b.planet).join(" & ")+" aspects H10":null};
-  if (score>=1) return {level:"watch",  reason:primary, protection:null};
-  if (score<=-1)return {level:"good",   reason:primary, protection:null};
+  const prot=h10Infl.benefics.length?h10Infl.benefics.map(b=>b.planet).join(" & ")+" aspects H10":null;
+  if (score>=3) return {level:"high",   reason:reasons[0], protection:prot};
+  if (score>=2) return {level:"medium", reason:reasons[0], protection:prot};
+  if (score>=1) return {level:"watch",  reason:reasons[0], protection:null};
+  if (score<=-1)return {level:"good",   reason:reasons[0], protection:null};
   return null;
 }
 
-function scoreDomain_Health(adLord, adHouse, adDig, adD9Dig, adFS, lagnaSign, d1HouseMap, adLordedHouses, planets) {
-  let score=0, reasons=[];
-  const isMalefic=adFS==="M", isBenefic=["B","Y"].includes(adFS);
+function scoreDomain_Health(adLord,adHouse,adDig,adD9Dig,adFS,lagnaSign,d1HouseMap,adLordedHouses,planets) {
+  let score=0,reasons=[];
+  const isMalefic=adFS==="M";
   const lordsH1=adLordedHouses.includes(1);
-  const lordsH6=adLordedHouses.includes(6), lordsH8=adLordedHouses.includes(8);
+  const lordsH6=adLordedHouses.includes(6),lordsH8=adLordedHouses.includes(8);
   const adInAdverse=adHouse&&[6,8,12].includes(adHouse);
   const h1Infl=getPlanetaryInfluenceOnHouse(1,lagnaSign,d1HouseMap,adLord);
   const h1Lord=SIGN_LORD[lagnaSign];
-  const h1House=d1HouseMap[h1Lord];
-  const h1LordAdverse=h1House&&[6,8,12].includes(h1House);
-  const moonSign=planets["Moon"]?.sign||"";
-  const moonDig=getDignity("Moon",moonSign);
+  const h1LordAdverse=[6,8,12].includes(d1HouseMap[h1Lord]);
+  const moonDig=getDignity("Moon",planets["Moon"]?.sign||"");
   const moonFS=FUNCTIONAL_STATUS_MAP[lagnaSign]?.["Moon"]||"N";
 
-  if (lordsH1&&isMalefic){score+=2;reasons.push(`${adLord} lords your body and health (H1) as a functional malefic — vitality under direct stress`);}
+  if (lordsH1&&isMalefic){score+=2;reasons.push(`${adLord} lords your body/health (H1) as a functional malefic — vitality under direct stress`);}
   if (lordsH1&&adInAdverse){score+=1;reasons.push(`${adLord} lords H1 and sits in H${adHouse} — lagna lord placed adversely`);}
-  if (isMalefic&&adHouse===6){score+=2;reasons.push(`${adLord} as malefic sits directly in H6 (illness house) — infections, inflammation, or energy depletion risk`);}
+  if (isMalefic&&adHouse===6){score+=2;reasons.push(`${adLord} as malefic sits in H6 (illness) — infections, inflammation, or energy depletion risk`);}
   if (isMalefic&&adHouse===8){score+=2;reasons.push(`${adLord} as malefic in H8 — sudden or unexpected health events classically indicated`);}
-  if (lordsH6&&isMalefic){score+=1;reasons.push(`${adLord} lords H6 (disease house) as a malefic — illness themes activated`);}
-  if (lordsH8&&isMalefic){score+=1;reasons.push(`${adLord} lords H8 (crisis house) as a malefic — sudden health vulnerability`);}
-  if (h1Infl.malefics.length){score+=1;reasons.push(`${h1Infl.malefics.map(m=>m.planet).join("/")} afflicts H1 (lagna) — natal structural health stress`);}
-  if (h1LordAdverse&&!lordsH1){score+=1;reasons.push(`Lagna lord (${h1Lord}) sits in H${h1House} — constitutional vulnerability`);}
+  if (lordsH6&&isMalefic){score+=1;reasons.push(`${adLord} lords H6 (disease) as a malefic — illness themes activated`);}
+  if (lordsH8&&isMalefic){score+=1;reasons.push(`${adLord} lords H8 (crisis) as a malefic — sudden health vulnerability`);}
+  if (h1Infl.malefics.length){score+=1;reasons.push(`${h1Infl.malefics.map(m=>m.planet).join("/")} afflicts H1 — natal structural health stress`);}
+  if (h1LordAdverse&&!lordsH1){score+=1;reasons.push(`Lagna lord (${h1Lord}) sits adversely — constitutional vulnerability`);}
   if ((moonDig==="de"||moonFS==="M")&&isMalefic){score+=1;reasons.push(`Moon afflicted — mental and emotional health also sensitised`);}
-  if (adD9Dig==="de"&&isMalefic){score+=1;reasons.push(`D9 debilitated — health stress may persist or deepen rather than recover quickly`);}
+  if (adD9Dig==="de"&&isMalefic){score+=1;reasons.push(`D9 debilitated — health stress may persist rather than recover quickly`);}
   if (h1Infl.benefics.length){score-=1;}
   if (adD9Dig==="ex"||adD9Dig==="own"){score-=1;}
 
-  const primary=reasons[0]||null;
   const bodyArea=PLANET_SIG[adLord]?.body||"";
   const protection=h1Infl.benefics.length?h1Infl.benefics.map(b=>b.planet).join(" & ")+" protects H1":null;
 
-  if (score>=4) return {level:"high",   reason:primary, bodyArea, protection};
-  if (score>=2) return {level:"medium", reason:primary, bodyArea, protection};
-  if (score>=1) return {level:"watch",  reason:primary, bodyArea, protection};
-  // Always return health entry for body area — even if no risk
-  return {level:"body",   reason:null, bodyArea, protection};
+  if (score>=4) return {level:"high",   reason:reasons[0], bodyArea, protection};
+  if (score>=2) return {level:"medium", reason:reasons[0], bodyArea, protection};
+  if (score>=1) return {level:"watch",  reason:reasons[0], bodyArea, protection};
+  return {level:"body", reason:null, bodyArea, protection};
 }
 
-function scoreDomain_Relationships(adLord, adHouse, adDig, adD9Dig, adFS, lagnaSign, d1HouseMap, adLordedHouses, planets) {
-  let score=0, reasons=[];
-  const isMalefic=adFS==="M", isBenefic=["B","Y"].includes(adFS);
+function scoreDomain_Relationships(adLord,adHouse,adDig,adD9Dig,adFS,lagnaSign,d1HouseMap,adLordedHouses,planets) {
+  let score=0,reasons=[];
+  const isMalefic=adFS==="M",isBenefic=["B","Y"].includes(adFS);
   const lordsH7=adLordedHouses.includes(7);
   const adInAdverse=adHouse&&[6,8,12].includes(adHouse);
   const h7Infl=getPlanetaryInfluenceOnHouse(7,lagnaSign,d1HouseMap,adLord);
-  const venusSign=planets["Venus"]?.sign||"";
-  const venusDig=getDignity("Venus",venusSign);
+  const venusDig=getDignity("Venus",planets["Venus"]?.sign||"");
   const venusFS=FUNCTIONAL_STATUS_MAP[lagnaSign]?.["Venus"]||"N";
 
   if (lordsH7&&isMalefic&&adInAdverse){score+=3;reasons.push(`${adLord} lords H7 (partnerships) as a malefic in H${adHouse} — relationship lord doubly stressed`);}
-  else if (lordsH7&&isMalefic){score+=2;reasons.push(`${adLord} lords H7 (partnerships/marriage) as a functional malefic — relationship friction elevated`);}
+  else if (lordsH7&&isMalefic){score+=2;reasons.push(`${adLord} lords H7 (partnerships/marriage) as a malefic — relationship friction elevated`);}
   else if (lordsH7&&isBenefic&&!adInAdverse){score-=2;reasons.push(`${adLord} lords H7 as a benefic — partnerships, marriage, and career transitions constructively activated`);}
   if (adHouse===7&&isMalefic){score+=2;reasons.push(`${adLord} as malefic sits directly in H7 — partnership house under direct affliction`);}
   else if (adHouse===7&&isBenefic){score-=1;reasons.push(`${adLord} as benefic in H7 — favourable for partnerships and public dealings`);}
   if (h7Infl.malefics.length){score+=1;reasons.push(`${h7Infl.malefics.map(m=>m.planet).join("/")} afflicts H7 — natal relationship challenge amplified`);}
-  if ((venusDig==="de"||venusFS==="M")&&isMalefic){score+=1;reasons.push(`Venus (relationship karaka) is ${venusDig==="de"?"debilitated":""} ${venusFS==="M"?"and malefic":""} — deep relationship sensitivity`);}
+  if ((venusDig==="de"||venusFS==="M")&&isMalefic){score+=1;reasons.push(`Venus (relationship karaka) afflicted — deep relationship sensitivity`);}
   if ((venusDig==="ex"||venusDig==="own")&&score>0){score-=1;}
   if (h7Infl.benefics.length&&score>0){score-=1;}
 
-  const primary=reasons[0]||null;
-  const protection=h7Infl.benefics.length?h7Infl.benefics.map(b=>b.planet).join(" & ")+" protects H7":null;
-  if (score>=3) return {level:"high",   reason:primary, protection};
-  if (score>=2) return {level:"medium", reason:primary, protection};
-  if (score>=1) return {level:"watch",  reason:primary, protection};
-  if (score<=-1)return {level:"good",   reason:primary, protection:null};
+  const prot=h7Infl.benefics.length?h7Infl.benefics.map(b=>b.planet).join(" & ")+" protects H7":null;
+  if (score>=3) return {level:"high",   reason:reasons[0], protection:prot};
+  if (score>=2) return {level:"medium", reason:reasons[0], protection:prot};
+  if (score>=1) return {level:"watch",  reason:reasons[0], protection:null};
+  if (score<=-1)return {level:"good",   reason:reasons[0], protection:null};
   return null;
 }
 
-function scoreDomain_Finances(adLord, adHouse, adDig, adD9Dig, adFS, lagnaSign, d1HouseMap, adLordedHouses) {
-  let score=0, reasons=[];
-  const isMalefic=adFS==="M", isBenefic=["B","Y"].includes(adFS);
-  const lordsH2=adLordedHouses.includes(2), lordsH11=adLordedHouses.includes(11);
-  const lordsH12=adLordedHouses.includes(12), lordsH9=adLordedHouses.includes(9);
+function scoreDomain_Finances(adLord,adHouse,adDig,adD9Dig,adFS,lagnaSign,d1HouseMap,adLordedHouses) {
+  let score=0,reasons=[];
+  const isMalefic=adFS==="M",isBenefic=["B","Y"].includes(adFS);
+  const lordsH2=adLordedHouses.includes(2),lordsH11=adLordedHouses.includes(11);
+  const lordsH12=adLordedHouses.includes(12),lordsH9=adLordedHouses.includes(9);
   const adInAdverse=adHouse&&[6,8,12].includes(adHouse);
   const h2Infl=getPlanetaryInfluenceOnHouse(2,lagnaSign,d1HouseMap,adLord);
   const h11Infl=getPlanetaryInfluenceOnHouse(11,lagnaSign,d1HouseMap,adLord);
 
-  if ((lordsH2||lordsH11)&&isBenefic&&(adDig==="ex"||adDig==="own")){score-=2;reasons.push(`${adLord} lords ${lordsH2?"H2 (wealth)":""}${lordsH2&&lordsH11?" and ":""}${lordsH11?"H11 (income)":""} with exalted/own strength — strong financial period`);}
-  else if ((lordsH2||lordsH11)&&isBenefic){score-=1;reasons.push(`${adLord} lords ${lordsH2?"H2 (wealth)":""}${lordsH2&&lordsH11?" and ":""}${lordsH11?"H11 (income)":""} as a benefic — financial gains supported`);}
-  else if ((lordsH2||lordsH11)&&isMalefic){score+=2;reasons.push(`${adLord} lords ${lordsH2?"H2 (finances)":""}${lordsH2&&lordsH11?" and ":""}${lordsH11?"H11 (income)":""} as a malefic — irregular income and financial pressure`);}
-
-  if (lordsH12&&isMalefic){score+=2;reasons.push(`${adLord} lords H12 (losses and hidden expenses) as a malefic — financial drain and unplanned expenditure risk`);}
-  if (adHouse===12&&isMalefic){score+=2;reasons.push(`${adLord} as malefic sits in H12 — money going out in ways difficult to track or control`);}
-  if (h2Infl.malefics.length){score+=1;reasons.push(`${h2Infl.malefics.map(m=>m.planet).join("/")} afflicts H2 (wealth house) — natal financial vulnerability activated`);}
-  if (h11Infl.malefics.length){score+=1;reasons.push(`${h11Infl.malefics.map(m=>m.planet).join("/")} afflicts H11 (income) — income irregularity risk`);}
-  if (lordsH9&&isBenefic){score-=1;reasons.push(`${adLord} lords H9 (fortune) as a benefic — an undercurrent of luck supports outcomes`);}
+  if ((lordsH2||lordsH11)&&isBenefic&&adDig==="ex"){score-=2;reasons.push(`${adLord} lords ${[lordsH2?"H2 (wealth)":"",lordsH11?"H11 (income)":""].filter(Boolean).join(" & ")} — exalted; strong financial period`);}
+  else if ((lordsH2||lordsH11)&&isBenefic){score-=1;reasons.push(`${adLord} lords ${[lordsH2?"H2 (finances)":"",lordsH11?"H11 (income)":""].filter(Boolean).join(" & ")} as a benefic — financial gains supported`);}
+  else if ((lordsH2||lordsH11)&&isMalefic){score+=2;reasons.push(`${adLord} lords ${[lordsH2?"H2 (finances)":"",lordsH11?"H11 (income)":""].filter(Boolean).join(" & ")} as a malefic — irregular income and financial pressure`);}
+  if (lordsH12&&isMalefic){score+=2;reasons.push(`${adLord} lords H12 (losses/hidden expenses) as a malefic — financial drain risk`);}
+  if (adHouse===12&&isMalefic){score+=2;reasons.push(`${adLord} as malefic in H12 — money going out in difficult-to-track ways`);}
+  if (h2Infl.malefics.length){score+=1;reasons.push(`${h2Infl.malefics.map(m=>m.planet).join("/")} afflicts H2 — natal financial vulnerability`);}
+  if (h11Infl.malefics.length){score+=1;reasons.push(`${h11Infl.malefics.map(m=>m.planet).join("/")} afflicts H11 — income irregularity risk`);}
+  if (lordsH9&&isBenefic){score-=1;reasons.push(`${adLord} lords H9 (fortune) as a benefic — undercurrent of luck supports outcomes`);}
   if (h2Infl.benefics.length&&score>0){score-=1;}
 
-  const primary=reasons[0]||null;
-  const protection=h2Infl.benefics.length?h2Infl.benefics.map(b=>b.planet).join(" & ")+" protects H2":null;
-  if (score>=3) return {level:"high",   reason:primary, protection};
-  if (score>=2) return {level:"medium", reason:primary, protection};
-  if (score>=1) return {level:"watch",  reason:primary, protection};
-  if (score<=-1)return {level:"good",   reason:primary, protection:null};
+  const prot=h2Infl.benefics.length?h2Infl.benefics.map(b=>b.planet).join(" & ")+" protects H2":null;
+  if (score>=3) return {level:"high",   reason:reasons[0], protection:prot};
+  if (score>=2) return {level:"medium", reason:reasons[0], protection:prot};
+  if (score>=1) return {level:"watch",  reason:reasons[0], protection:null};
+  if (score<=-1)return {level:"good",   reason:reasons[0], protection:null};
   return null;
 }
 
-// ── CORE AD READING BUILDER ───────────────────────────────────────────────────
+// ── Core AD Reading Builder ───────────────────────────────────────────────────
 function buildADReading(mdLord, adLord, lagnaSign, houses, planets) {
-  const d1HouseMap    = buildPlanetHouseMap(houses);
-  const combustSet    = buildCombustSet(planets);
-  const adFS          = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord]||"N";
-  const adHouse       = d1HouseMap[adLord];
-  const mdHouse       = d1HouseMap[mdLord];
-  const adSign        = planets[adLord]?.sign||"";
-  const adDig         = getDignity(adLord,adSign);
-  const adD9Sign      = planets[adLord]?.d9sign||"";
-  const adD9Dig       = adD9Sign?getDignity(adLord,adD9Sign):"";
-  const adRetro       = planets[adLord]?.retrograde||false;
-  const adCombust     = combustSet.has(adLord);
-  const mdAdRel       = getRelationshipTag(mdLord,adLord);
-  const adLordedHouses= getHousesLorded(adLord,lagnaSign);
-  const isMalefic     = adFS==="M";
-  const isBenefic     = ["B","Y"].includes(adFS);
-  const goodLorded    = adLordedHouses.filter(h=>![6,8,12].includes(h));
-  const badLorded     = adLordedHouses.filter(h=>[6,8,12].includes(h));
+  const d1HouseMap=buildPlanetHouseMap(houses);
+  const combustSet=buildCombustSet(planets);
+  const adFS=FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord]||"N";
+  const adHouse=d1HouseMap[adLord];
+  const mdHouse=d1HouseMap[mdLord];
+  const adSign=planets[adLord]?.sign||"";
+  const adDig=getDignity(adLord,adSign);
+  const adD9Sign=planets[adLord]?.d9sign||"";
+  const adD9Dig=adD9Sign?getDignity(adLord,adD9Sign):"";
+  const adRetro=planets[adLord]?.retrograde||false;
+  const adCombust=combustSet.has(adLord);
+  const mdAdRel=getRelationshipTag(mdLord,adLord);
+  const adLordedHouses=getHousesLorded(adLord,lagnaSign);
+  const isMalefic=adFS==="M",isBenefic=["B","Y"].includes(adFS);
+  const goodLorded=adLordedHouses.filter(h=>![6,8,12].includes(h));
+  const badLorded=adLordedHouses.filter(h=>[6,8,12].includes(h));
 
   let adFromMd=null;
   if (adHouse&&mdHouse) adFromMd=((adHouse-mdHouse+12)%12)+1;
   const isAdverse=adFromMd&&[6,8,12].includes(adFromMd);
 
-  // ── Character sentence — specific and precise ─────────────────────────────
-  const adHouseDomain = adHouse?HOUSE_DOMAIN_SHORT[adHouse]:"";
-  const relNote = mdAdRel==="F"?` ${mdLord} and ${adLord} are natural friends — energies align without internal friction.`
-                : mdAdRel==="E"?` ${mdLord} and ${adLord} are natural enemies — events may feel contradictory or require extra effort.`:"";
+  const adHouseDomain=adHouse?HOUSE_DOMAIN_SHORT[adHouse]:"";
+  const relNote=mdAdRel==="F"?` ${mdLord}–${adLord} are natural friends — energies align without friction.`
+               :mdAdRel==="E"?` ${mdLord}–${adLord} are natural enemies — events may feel contradictory or require extra effort.`:"";
+
+  // Character sentence
   let character="";
+  if (adFS==="Y"&&adDig==="ex") character=`${adLord} is a yogakaraka and exalted${adHouseDomain?" in H"+adHouse+" ("+adHouseDomain+")":""} — most constructive sub-period possible.${relNote}`;
+  else if (adFS==="Y") character=`${adLord} is a yogakaraka for your lagna${adHouseDomain?", sitting in H"+adHouse+" ("+adHouseDomain+")":""} — constructive sub-period that moves life forward.${relNote}`;
+  else if (isBenefic&&adDig==="ex") character=`${adLord} is exalted in ${adSign} and a benefic — its themes (${PLANET_THEME_CHIP[adLord]?.toLowerCase()}) deliver with unusual force${adHouseDomain?" through H"+adHouse+" ("+adHouseDomain+")":""}.${relNote}`;
+  else if (isBenefic) character=`${adLord} is a functional benefic${adDig==="own"?" in own sign":""}${adHouseDomain?", activating H"+adHouse+" ("+adHouseDomain+") constructively":""}.${relNote}`;
+  else if (isMalefic&&adDig==="de") character=`${adLord} is a functional malefic AND debilitated${adHouseDomain?" — H"+adHouse+" ("+adHouseDomain+") under compounded stress":""}: ${PLANET_THEME_CHIP[adLord]?.toLowerCase()||"its themes"} are suppressed.${relNote}`;
+  else if (isMalefic) character=`${adLord} is a functional malefic${adHouseDomain?" in H"+adHouse+" ("+adHouseDomain+")":""} — the period tests${adDig==="ex"?", though exalted status limits damage":""}.${relNote}`;
+  else character=`${adLord} is neutral for your lagna${adHouseDomain?", activating H"+adHouse+" ("+adHouseDomain+")":""}.${relNote}`;
+  if (isAdverse) character+=` Sits in H${adFromMd} from ${mdLord} — 6/8/12 adversity adds friction.`;
+  if (adRetro)   character+=` Retrograde: themes surface indirectly or through past matters.`;
+  if (adCombust) character+=` Combust: significations dimmed by solar proximity.`;
 
-  if (adFS==="Y"&&adDig==="ex") {
-    character=`${adLord} is a yogakaraka and exalted${adHouseDomain?" in H"+adHouse+" ("+adHouseDomain+")":""} — the most constructive sub-period possible for this lagna. Both the season and the sub-period work in the same direction.${relNote}`;
-  } else if (adFS==="Y") {
-    character=`${adLord} is a yogakaraka for your lagna${adHouseDomain?" sitting in H"+adHouse+" ("+adHouseDomain+")":""} — a constructive sub-period that moves life forward${adDig==="own"?", and in own sign, steadily so":""}.${relNote}`;
-  } else if (isBenefic&&adDig==="ex") {
-    character=`${adLord} is exalted in ${adSign} and a functional benefic — its themes of ${PLANET_THEME_CHIP[adLord]?.toLowerCase()||"its domain"} deliver with unusual force${adHouseDomain?" through H"+adHouse+" ("+adHouseDomain+")":""}.${relNote}`;
-  } else if (isBenefic) {
-    character=`${adLord} is a functional benefic${adDig==="own"?" in own sign":""}${adHouseDomain?", activating H"+adHouse+" ("+adHouseDomain+") constructively":""}.${relNote}`;
-  } else if (isMalefic&&adDig==="de") {
-    character=`${adLord} is a functional malefic AND debilitated in ${adSign}${adHouseDomain?" — H"+adHouse+" ("+adHouseDomain+") is under compounded stress":""}: ${PLANET_THEME_CHIP[adLord]?.toLowerCase()||"its themes"} are suppressed and the period tests persistently.${relNote}`;
-  } else if (isMalefic) {
-    character=`${adLord} is a functional malefic${adHouseDomain?" sitting in H"+adHouse+" ("+adHouseDomain+")":""} — the period tests${adDig==="ex"?", though exalted status limits the damage":" and reveals where attention is needed"}.${relNote}`;
-  } else {
-    character=`${adLord} is neutral for your lagna${adHouseDomain?", activating H"+adHouse+" ("+adHouseDomain+")":""} — outcomes depend on transits and effort.${relNote}`;
-  }
-  if (isAdverse) character+=` ${adLord} also sits in the ${adFromMd}th from ${mdLord} — a 6/8/12 adversity adding friction.`;
-  if (adRetro)   character+=` Retrograde: ${adLord}'s themes surface indirectly or through revisited past matters.`;
-  if (adCombust) character+=` Combust: ${adLord}'s significations are dimmed by solar proximity.`;
-
-  // ── Theme chips ───────────────────────────────────────────────────────────
+  // Theme chips
   const chipType=isMalefic||adDig==="de"?"chip-caution":isBenefic?"chip-positive":"";
   const themes=[];
   if (PLANET_THEME_CHIP[adLord]) themes.push({label:PLANET_THEME_CHIP[adLord],cls:chipType});
   if (adHouse) themes.push({label:`H${adHouse} — ${HOUSE_DOMAIN_SHORT[adHouse]}`,cls:isMalefic?"chip-caution":""});
   if (goodLorded.length) themes.push({label:`Lords: ${goodLorded.slice(0,2).map(h=>HOUSE_DOMAIN_SHORT[h]).join(", ")}`,cls:isBenefic?"chip-positive":""});
-  if (isAdverse) themes.push({label:`H${adFromMd} from ${mdLord} — tension`,cls:"chip-risk"});
-  if (adDig==="ex")  themes.push({label:`Exalted in ${adSign}`,cls:"chip-positive"});
-  if (adDig==="de")  themes.push({label:`Debilitated in ${adSign}`,cls:"chip-caution"});
-  if (adRetro)       themes.push({label:"Retrograde",cls:"chip-caution"});
+  if (isAdverse) themes.push({label:`H${adFromMd} from ${mdLord}`,cls:"chip-risk"});
+  if (adDig==="ex")  themes.push({label:`Exalted ${adSign}`,cls:"chip-positive"});
+  if (adDig==="de")  themes.push({label:`Debilitated ${adSign}`,cls:"chip-caution"});
+  if (adRetro)       themes.push({label:"Retrograde ℞",cls:"chip-caution"});
 
-  // ── Opens up / Handle with care — short, specific ────────────────────────
-  const opensUp=[], handleWith=[];
-
+  // Opens up / Handle with care
+  const opensUp=[],handleWith=[];
   if (isBenefic) {
     if (adHouse&&HOUSE_SIG[adHouse]) opensUp.push(`H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}): ${HOUSE_SIG[adHouse].pos.split(",")[0]}.`);
-    goodLorded.slice(0,2).forEach(h=>{
-      opensUp.push(`As lord of H${h} (${HOUSE_DOMAIN_SHORT[h]}): ${HOUSE_SIG[h]?.pos.split(",")[0]}.`);
-    });
-    if (adDig==="ex") opensUp.push(`Exalted in ${adSign} — ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} expressed at its highest capacity.`);
-    if (adD9Dig==="ex"||adD9Dig==="own") opensUp.push(`D9 confirms: ${adLord} is ${adD9Dig==="ex"?"exalted":"in own sign"} in Navamsha — this period's gains tend to last.`);
+    goodLorded.slice(0,2).forEach(h=>opensUp.push(`As lord of H${h} (${HOUSE_DOMAIN_SHORT[h]}): ${HOUSE_SIG[h]?.pos.split(",")[0]}.`));
+    if (adDig==="ex") opensUp.push(`Exalted in ${adSign} — ${PLANET_THEME_CHIP[adLord]?.toLowerCase()} at peak capacity.`);
+    if (adD9Dig==="ex"||adD9Dig==="own") opensUp.push(`D9 confirms: ${adLord} ${adD9Dig==="ex"?"exalted":"own sign"} in Navamsha — gains tend to last.`);
   } else {
     if (adHouse&&HOUSE_SIG[adHouse]&&isMalefic) handleWith.push(`H${adHouse} (${HOUSE_DOMAIN_SHORT[adHouse]}): ${HOUSE_SIG[adHouse].neg.split(" and ")[0]}.`);
-    badLorded.slice(0,2).forEach(h=>{
-      handleWith.push(`Lords H${h} (${HOUSE_DOMAIN_SHORT[h]}): ${HOUSE_SIG[h]?.neg.split(" and ")[0]}.`);
-    });
-    if (adDig==="de") handleWith.push(`Debilitated in ${adSign} — ${PLANET_THEME_CHIP[adLord]?.toLowerCase()||"its themes"} are suppressed; effort required to express them constructively.`);
-    if (adD9Dig==="de") handleWith.push(`D9 debilitated — the D1 stress may not resolve quickly with time.`);
+    badLorded.slice(0,2).forEach(h=>handleWith.push(`Lords H${h} (${HOUSE_DOMAIN_SHORT[h]}): ${HOUSE_SIG[h]?.neg.split(" and ")[0]}.`));
+    if (adDig==="de") handleWith.push(`Debilitated in ${adSign} — effort required to express ${PLANET_THEME_CHIP[adLord]?.toLowerCase()||"its themes"} constructively.`);
+    if (adD9Dig==="de") handleWith.push(`D9 debilitated — the stress may not resolve quickly with time.`);
   }
 
-  // ── Domain intensity scores ───────────────────────────────────────────────
+  // Domain intensity
   const career        = scoreDomain_Career(adLord,adHouse,adDig,adD9Dig,adFS,lagnaSign,d1HouseMap,adLordedHouses);
   const health        = scoreDomain_Health(adLord,adHouse,adDig,adD9Dig,adFS,lagnaSign,d1HouseMap,adLordedHouses,planets);
   const relationships = scoreDomain_Relationships(adLord,adHouse,adDig,adD9Dig,adFS,lagnaSign,d1HouseMap,adLordedHouses,planets);
   const finances      = scoreDomain_Finances(adLord,adHouse,adDig,adD9Dig,adFS,lagnaSign,d1HouseMap,adLordedHouses);
 
-  const hasRisk=isMalefic||adDig==="de"||isAdverse||adCombust;
-  return {character,themes,opensUp:opensUp.slice(0,3),handleWith:handleWith.slice(0,3),career,health,relationships,finances,hasRisk};
+  return {character,themes,opensUp:opensUp.slice(0,3),handleWith:handleWith.slice(0,3),career,health,relationships,finances,hasRisk:isMalefic||adDig==="de"||isAdverse||adCombust};
 }
 
-
-const PLANET_GLYPHS_FULL = { Sun:"☉",Moon:"☽",Mars:"♂",Mercury:"☿",Jupiter:"♃",Venus:"♀",Saturn:"♄",Rahu:"☊",Ketu:"☋" };
-
-// Domain level label + colour class
+// ── AD Indication Renderer ────────────────────────────────────────────────────
 function domainLevelHTML(d, icon, label) {
   if (!d) return "";
-  const cfg = {
-    high:   {cls:"dl-high",   tag:"HIGH RISK"},
-    medium: {cls:"dl-medium", tag:"CAUTION"},
-    watch:  {cls:"dl-watch",  tag:"WATCH"},
-    good:   {cls:"dl-good",   tag:"FAVOURABLE"},
-    body:   {cls:"dl-body",   tag:"MONITOR"},
-  };
-  const c = cfg[d.level]||{cls:"dl-watch",tag:"WATCH"};
-  const reasonHTML = d.reason ? `<span class="dl-reason">${d.reason}</span>` : "";
-  const bodyHTML   = d.bodyArea ? `<span class="dl-body-area">Body: ${d.bodyArea}</span>` : "";
-  const protHTML   = d.protection ? `<span class="dl-protect">🛡 ${d.protection}</span>` : "";
-  return `
-    <div class="domain-level-row">
-      <span class="dl-icon">${icon}</span>
-      <span class="dl-label">${label}</span>
-      <span class="dl-tag ${c.cls}">${c.tag}</span>
-      <div class="dl-detail">${reasonHTML}${bodyHTML}${protHTML}</div>
-    </div>`;
+  const cfg={high:{cls:"dl-high",tag:"HIGH RISK"},medium:{cls:"dl-medium",tag:"CAUTION"},watch:{cls:"dl-watch",tag:"WATCH"},good:{cls:"dl-good",tag:"FAVOURABLE"},body:{cls:"dl-body",tag:"MONITOR"}};
+  const c=cfg[d.level]||{cls:"dl-watch",tag:"WATCH"};
+  const reasonHTML=d.reason?`<span class="dl-reason">${d.reason}</span>`:"";
+  const bodyHTML=d.bodyArea?`<span class="dl-body-area">Body: ${d.bodyArea}</span>`:"";
+  const protHTML=d.protection?`<span class="dl-protect">🛡 ${d.protection}</span>`:"";
+  return `<div class="domain-level-row"><span class="dl-icon">${icon}</span><span class="dl-label">${label}</span><span class="dl-tag ${c.cls}">${c.tag}</span><div class="dl-detail">${reasonHTML}${bodyHTML}${protHTML}</div></div>`;
 }
 
 function renderADIndicationHTML(adR) {
-  const chipsHTML = adR.themes.map(t =>
-    `<span class="adi-theme-chip ${t.cls}">${t.label}</span>`
-  ).join("");
-
-  const opensHTML = (adR.opensUp||[]).map(o =>
-    `<div class="adi-line line-opens">${o}</div>`
-  ).join("");
-
-  const watchHTML = (adR.handleWith||[]).map(w =>
-    `<div class="adi-line line-watch">${w}</div>`
-  ).join("");
-
-  const domainStrip = [
-    domainLevelHTML(adR.career,        "💼", "Career"),
-    domainLevelHTML(adR.health,        "❤️",  "Health"),
-    domainLevelHTML(adR.relationships, "🤝", "Relationships"),
-    domainLevelHTML(adR.finances,      "💰", "Finances"),
+  const chipsHTML=adR.themes.map(t=>`<span class="adi-theme-chip ${t.cls}">${t.label}</span>`).join("");
+  const opensHTML=(adR.opensUp||[]).map(o=>`<div class="adi-line line-opens">${o}</div>`).join("");
+  const watchHTML=(adR.handleWith||[]).map(w=>`<div class="adi-line line-watch">${w}</div>`).join("");
+  const domainStrip=[
+    domainLevelHTML(adR.career,"💼","Career"),
+    domainLevelHTML(adR.health,"❤️","Health"),
+    domainLevelHTML(adR.relationships,"🤝","Relationships"),
+    domainLevelHTML(adR.finances,"💰","Finances"),
   ].filter(Boolean).join("");
-
   return `
     <div class="adi-character">${adR.character}</div>
-    ${chipsHTML ? `<div class="adi-themes">${chipsHTML}</div>` : ""}
-    ${opensHTML||watchHTML ? `
-      <div class="adi-body">
-        ${opensHTML ? `<div class="adi-col"><div class="adi-col-label label-opens">What opens up</div>${opensHTML}</div>` : ""}
-        ${watchHTML ? `<div class="adi-col"><div class="adi-col-label label-watch">Handle with care</div>${watchHTML}</div>` : ""}
-      </div>` : ""}
-    ${domainStrip ? `<div class="adi-domain-strip">${domainStrip}</div>` : ""}
-  `;
+    ${chipsHTML?`<div class="adi-themes">${chipsHTML}</div>`:""}
+    ${opensHTML||watchHTML?`<div class="adi-body">${opensHTML?`<div class="adi-col"><div class="adi-col-label label-opens">What opens up</div>${opensHTML}</div>`:""}${watchHTML?`<div class="adi-col"><div class="adi-col-label label-watch">Handle with care</div>${watchHTML}</div>`:""}</div>`:""}
+    ${domainStrip?`<div class="adi-domain-strip">${domainStrip}</div>`:""}`;
 }
+
+// Returns "F" (friend), "E" (enemy), or "N" (neutral) between houseLord and visitor
+function getRelationshipTag(houseLord, visitor) {
+  if (!houseLord || !visitor || houseLord === visitor) return null;
+  const rel = NATURAL_FRIENDS[houseLord];
+  if (!rel) return "N";
+  if (rel.friends.includes(visitor)) return "F";
+  if (rel.enemies.includes(visitor)) return "E";
+  return "N";
+}
+
+// Build a planet → house number map from the houses object
+function buildPlanetHouseMap(houses) {
+  const map = {};
+  for (const [hNum, planets] of Object.entries(houses)) {
+    for (const p of (planets || [])) {
+      map[p] = parseInt(hNum);
+    }
+  }
+  return map;
+}
+
+// ── City search state ─────────────────────────────────────────────────────────
+let _selectedPlace = null;
+let _searchTimer   = null;
+
+// South Indian chart layout
+const SI_LAYOUT = [
+  [0,2],[0,3],[1,3],[2,3],
+  [3,3],[3,2],[3,1],[3,0],
+  [2,0],[1,0],[0,0],[0,1]
+];
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const tabs      = document.querySelectorAll(".nav-tab");
+const screens   = document.querySelectorAll(".screen");
+const genBtn    = document.getElementById("generateBtn");
+const genText   = document.getElementById("generateBtnText");
+const statusMsg = document.getElementById("statusMsg");
+const errorBox  = document.getElementById("errorBox");
+const saveBtn   = document.getElementById("saveBtn");
+const dlBtn     = document.getElementById("downloadBtn");
+const resetBtn  = document.getElementById("resetBtn");
+
+let currentData = null;
+
+// ── TAB ROUTING ───────────────────────────────────────────────────────────────
+function switchTab(tabId) {
+  tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
+  screens.forEach(s => s.classList.toggle("active", s.id === tabId));
+}
+
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    const requires = tab.dataset.requires;
+    if (requires === "chart" && !currentData?.chart) return;
+    if (requires === "analysis" && !currentData?.analysis) return;
+    switchTab(tab.dataset.tab);
+  });
+});
+
+// ── LANGUAGE SELECTOR ─────────────────────────────────────────────────────────
+function initLangSelector() {
+  const btns = document.querySelectorAll(".lang-btn");
+  btns.forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.lang === _currentLang);
+    btn.addEventListener("click", () => {
+      _currentLang = btn.dataset.lang;
+      localStorage.setItem("jyotish-lang", _currentLang);
+      btns.forEach(b => b.classList.toggle("active", b.dataset.lang === _currentLang));
+      // Re-render charts with new language if data is loaded
+      if (currentData?.chart) renderChartScreen(currentData.chart);
+      // Re-render planet screen too
+      if (currentData?.chart) renderPlanetScreen(currentData.chart);
+    });
+  });
+}
+
+// ── FORM HELPERS ──────────────────────────────────────────────────────────────
+function getForm() {
+  const placeDisplay = document.getElementById("inputPlaceDisplay");
+  return {
+    name:      document.getElementById("inputName").value.trim(),
+    dob:       document.getElementById("inputDOB").value,
+    tob:       document.getElementById("inputTOB").value,
+    place:     _selectedPlace?.displayName || (placeDisplay ? placeDisplay.value.trim() : ""),
+    lat:       _selectedPlace?.lat     || null,
+    lng:       _selectedPlace?.lng     || null,
+    country:   _selectedPlace?.country || "",
+    utcOffset: _selectedPlace?.utcOffset ?? null,
+  };
+}
+
+function setStatus(msg, type="") {
+  statusMsg.textContent = msg;
+  statusMsg.className   = "status-msg" + (type ? ` ${type}` : "");
+}
+function showError(msg) { errorBox.textContent = msg; errorBox.classList.remove("hidden"); }
+function clearError()   { errorBox.classList.add("hidden"); }
+
+// ── PLACE VALIDATION ──────────────────────────────────────────────────────────
+function isValidPlaceRecord(s) {
+  if (!s || typeof s !== "object") return false;
+  const lat = parseFloat(s.lat);
+  const lng = parseFloat(s.lng);
+  if (!isFinite(lat) || !isFinite(lng)) return false;
+  if (lat === 0 && lng === 0) return false;
+  if (typeof s.place !== "string" || s.place.length < 2) return false;
+  const plLower = s.place.toLowerCase();
+  const errorTokens = ["access denied","access den","error","403","401","unexpected","<!doctype","<html"];
+  if (errorTokens.some(t => plLower.startsWith(t))) return false;
+  return true;
+}
+
+// ── MAIN GENERATE FLOW ────────────────────────────────────────────────────────
+genBtn.addEventListener("click", generate);
+
+async function generate() {
+  const form = getForm();
+  clearError();
+
+  if (!form.dob || !form.tob || !form.place) {
+    showError("Please enter date of birth, time of birth, and select a place of birth from the dropdown.");
+    return;
+  }
+  if (!isFinite(parseFloat(form.lat)) || !isFinite(parseFloat(form.lng))) {
+    showError("Place of birth not fully resolved. Please clear the place field and select a city from the dropdown list again.");
+    return;
+  }
+
+  genBtn.disabled = true;
+  genText.innerHTML = `<span class="spinner"></span>Calculating chart...`;
+  setStatus("Step 1 of 2 — Computing planetary positions via Swiss Ephemeris...", "loading");
+
+  try {
+    const chartRes = await fetch("/api/chart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, utcOffset: form.utcOffset ? parseFloat(form.utcOffset) : null })
+    });
+
+    if (!chartRes.ok) {
+      const body = await chartRes.text().catch(()=>"");
+      if (chartRes.status === 405) throw new Error("Chart Worker not found (405). Ensure functions/api/chart.js is deployed.");
+      throw new Error(`Chart API error ${chartRes.status}: ${body.slice(0,120)}`);
+    }
+    const chartText = await chartRes.text();
+    let chartData;
+    try { chartData = JSON.parse(chartText); }
+    catch {
+      const preview = chartText.slice(0,80).replace(/\n/g," ");
+      throw new Error(`Chart API returned invalid response. Raw: "${preview}"`);
+    }
+    if (chartData.error) throw new Error(chartData.error);
+
+    setStatus("Step 2 of 2 — Running precision scoring engine...", "loading");
+    genText.innerHTML = `<span class="spinner"></span>Analyzing domains...`;
+
+    const analysisPayload = {
+      d1: { lagnaSign: chartData.d1.lagnaSign, houses: chartData.d1.houses, degrees: chartData.d1.degrees, latitudes: chartData.d1.latitudes },
+      d9: { lagnaSign: chartData.d9.lagnaSign, houses: chartData.d9.houses, degrees: chartData.d9.degrees, latitudes: chartData.d9.latitudes || {} },
+      dashas:    chartData.dasha?.dashas    || null,
+      birthDate: form.dob                  || null,
+    };
+
+    const analysisRes = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(analysisPayload)
+    });
+
+    if (!analysisRes.ok) {
+      const body = await analysisRes.text().catch(()=>"");
+      if (analysisRes.status === 405) throw new Error("Analysis Worker not found (405). Ensure functions/api/analyze.js is deployed.");
+      throw new Error(`Analysis API error ${analysisRes.status}: ${body.slice(0,120)}`);
+    }
+    const analysisData = await analysisRes.json();
+    if (analysisData.error) throw new Error(analysisData.error);
+
+    currentData = { chart: chartData, analysis: analysisData, form };
+
+    renderChartScreen(chartData);
+    renderDashaScreen(chartData);
+    renderDomainScreen(analysisData, chartData);
+    renderSummaryScreen(analysisData, chartData);
+    renderPlanetScreen(chartData);
+
+    tabs.forEach(t => {
+      if (t.dataset.requires === "chart" || t.dataset.requires === "analysis") t.disabled = false;
+    });
+    if (dlBtn) dlBtn.disabled = false;
+    setStatus("Chart and analysis complete.", "done");
+    switchTab("chartTab");
+
+  } catch (err) {
+    showError(err.message || "An unexpected error occurred.");
+    setStatus("", "");
+  } finally {
+    genBtn.disabled = false;
+    genText.textContent = "Generate Chart & Insights";
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  CHART SCREEN
+// ══════════════════════════════════════════════════════════════════════════════
+
+function renderChartScreen(data) {
+  const { d1, d9, planets, ayanamsha } = data;
+
+  const moonNak  = planets.Moon?.nakshatra || "";
+  const moonPada = planets.Moon?.pada || "";
+  document.getElementById("lagnaBar").innerHTML = `
+    <div class="lagna-item"><div class="lagna-key">D1 Lagna</div><div class="lagna-val">${d1.lagnaSign} ${d1.lagnaDegree?.toFixed(1)}°</div></div>
+    <div class="lagna-item"><div class="lagna-key">D9 Lagna</div><div class="lagna-val">${d9.lagnaSign}</div></div>
+    <div class="lagna-item"><div class="lagna-key">Moon Nakshatra</div><div class="lagna-val">${moonNak} Pada ${moonPada}</div></div>
+    <div class="lagna-item"><div class="lagna-key">Ayanamsha</div><div class="lagna-val">Lahiri ${ayanamsha?.toFixed(4)}°</div></div>
+    <div class="lagna-item"><div class="lagna-key">Native</div><div class="lagna-val">${data.input?.name || "—"}</div></div>
+  `;
+
+  document.getElementById("d1LagnaLabel").textContent = `Lagna: ${d1.lagnaSign}`;
+  document.getElementById("d9LagnaLabel").textContent = `Lagna: ${d9.lagnaSign}`;
+
+  const combust   = buildCombustSet(planets);
+  const warLosers = buildWarSet(planets);
+
+  renderSIChart("d1ChartWrap", d1.lagnaSign, d1.houses, planets, combust, warLosers, false);
+  renderSIChart("d9ChartWrap", d9.lagnaSign, d9.houses, planets, combust, warLosers, true);
+}
+
+function buildCombustSet(planets) {
+  const orbs = { Moon:7, Mars:17, Mercury:14, Jupiter:11, Venus:10, Saturn:15 };
+  const combust = new Set();
+  if (!planets.Sun) return combust;
+  const sunLon = planets.Sun.longitude;
+  for (const [p, orb] of Object.entries(orbs)) {
+    if (!planets[p]) continue;
+    let diff = Math.abs(planets[p].longitude - sunLon);
+    if (diff > 180) diff = 360 - diff;
+    if (diff <= orb) combust.add(p);
+  }
+  return combust;
+}
+
+function buildWarSet(planets) {
+  const warPlanets = ["Mars","Mercury","Jupiter","Venus","Saturn"];
+  const losers = new Set();
+  for (let i = 0; i < warPlanets.length; i++) {
+    for (let j = i+1; j < warPlanets.length; j++) {
+      const p1 = warPlanets[i], p2 = warPlanets[j];
+      if (!planets[p1] || !planets[p2]) continue;
+      let diff = Math.abs(planets[p1].longitude - planets[p2].longitude);
+      if (diff > 180) diff = 360 - diff;
+      if (diff <= 1.0) {
+        losers.add((planets[p1].latitude||0) < (planets[p2].latitude||0) ? p1 : p2);
+      }
+    }
+  }
+  return losers;
+}
+
+// Dignity helpers
+const EXALTATION   = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
+const DEBILITATION = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries",Rahu:"Sagittarius",Ketu:"Gemini" };
+const OWN_SIGNS    = { Sun:["Leo"],Moon:["Cancer"],Mars:["Aries","Scorpio"],Mercury:["Gemini","Virgo"],Jupiter:["Sagittarius","Pisces"],Venus:["Taurus","Libra"],Saturn:["Capricorn","Aquarius"],Rahu:[],Ketu:[] };
+
+function getDignity(planet, sign) {
+  if (EXALTATION[planet] === sign)             return "ex";
+  if (DEBILITATION[planet] === sign)           return "de";
+  if ((OWN_SIGNS[planet]||[]).includes(sign))  return "own";
+  return "";
+}
+
+// ── South Indian chart SVG — with house lord relationships & language support ──
+function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warLosers, isD9) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+
+  const SIZE = 400;
+  const CELL = SIZE / 4;
+  const PAD  = 4;
+  const names = PLANET_NAMES[_currentLang] || PLANET_NAMES.EN;
+
+  const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+  const lagnaIdx = SIGNS.indexOf(lagnaSign);
+
+  const CELL_HOUSE = {
+    "0,0":11,"0,1":12,"0,2":1,"0,3":2,
+    "1,0":10,                  "1,3":3,
+    "2,0":9,                   "2,3":4,
+    "3,0":8,"3,1":7,"3,2":6,"3,3":5
+  };
+
+  // Build planet→house map for lord placement lookup
+  const planetHouseMap = buildPlanetHouseMap(houses);
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox",`0 0 ${SIZE} ${SIZE}`);
+  svg.setAttribute("width","100%");
+
+  // Light saffron background
+  const bg = document.createElementNS("http://www.w3.org/2000/svg","rect");
+  bg.setAttribute("width",SIZE); bg.setAttribute("height",SIZE);
+  bg.setAttribute("fill","#FFF8F0");
+  svg.appendChild(bg);
+
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      if ((row===1||row===2)&&(col===1||col===2)) continue;
+
+      const key  = `${row},${col}`;
+      const hNum = CELL_HOUSE[key];
+      if (!hNum) continue;
+
+      const signInHouse = SIGNS[(lagnaIdx + hNum - 1) % 12];
+      const isLagna     = hNum === 1;
+      const houseLord   = SIGN_LORD[signInHouse];
+
+      const x = col * CELL;
+      const y = row * CELL;
+
+      // Cell background
+      const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+      rect.setAttribute("x", x + 0.5);
+      rect.setAttribute("y", y + 0.5);
+      rect.setAttribute("width",  CELL - 1);
+      rect.setAttribute("height", CELL - 1);
+      rect.setAttribute("fill",   isLagna ? "rgba(180,120,30,0.08)" : "#FFFFFF");
+      rect.setAttribute("stroke", isLagna ? "rgba(160,100,20,0.55)" : "rgba(100,75,40,0.18)");
+      rect.setAttribute("stroke-width","0.5");
+      svg.appendChild(rect);
+
+      // Sign abbreviation
+      const signAbbr = signInHouse.substring(0,3).toUpperCase();
+      const signTxt  = document.createElementNS("http://www.w3.org/2000/svg","text");
+      signTxt.setAttribute("x", x + PAD + 2);
+      signTxt.setAttribute("y", y + 11);
+      signTxt.setAttribute("font-size","8");
+      signTxt.setAttribute("fill","rgba(100,65,10,0.85)");
+      signTxt.setAttribute("font-family","Cinzel,serif");
+      signTxt.textContent = signAbbr;
+      svg.appendChild(signTxt);
+
+      // House number
+      const hTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
+      hTxt.setAttribute("x", x + CELL - PAD - 4);
+      hTxt.setAttribute("y", y + 11);
+      hTxt.setAttribute("font-size","8");
+      hTxt.setAttribute("fill","rgba(0,0,0,0.55)");
+      hTxt.setAttribute("text-anchor","end");
+      hTxt.textContent = hNum;
+      svg.appendChild(hTxt);
+
+      // House lord indicator — bottom of cell: "Ld: Ma H7"
+      // Shows which planet lords this house and where it sits
+      const lordHouse   = planetHouseMap[houseLord];
+      const lordAbbr    = names[houseLord] || houseLord?.substring(0,2) || "?";
+      const lordDisplay = lordHouse ? `${lordAbbr}→H${lordHouse}` : lordAbbr;
+      const lordTxt     = document.createElementNS("http://www.w3.org/2000/svg","text");
+      lordTxt.setAttribute("x", x + PAD + 2);
+      lordTxt.setAttribute("y", y + CELL - 5);
+      lordTxt.setAttribute("font-size","7");
+      lordTxt.setAttribute("fill","rgba(100,65,10,0.55)");
+      lordTxt.setAttribute("font-family","Inter,sans-serif");
+      lordTxt.textContent = lordDisplay;
+      svg.appendChild(lordTxt);
+
+      // Lagna ASC marker
+      if (isLagna) {
+        const lTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
+        lTxt.setAttribute("x", x + CELL - PAD - 4);
+        lTxt.setAttribute("y", y + CELL - 5);
+        lTxt.setAttribute("font-size","7");
+        lTxt.setAttribute("fill","rgba(140,85,15,0.65)");
+        lTxt.setAttribute("text-anchor","end");
+        lTxt.textContent = "ASC";
+        svg.appendChild(lTxt);
+      }
+
+      // Planets in this house
+      const planetsHere = (houses[hNum] || []);
+      let pY = y + 23;
+      planetsHere.forEach(planet => {
+        if (pY > y + CELL - 16) return; // leave room for lord tag
+
+        const sign     = isD9 ? (planets[planet]?.d9sign || signInHouse) : signInHouse;
+        const dignity  = getDignity(planet, sign);
+        const isRetro  = planets[planet]?.retrograde;
+        const isCombust= combustSet.has(planet);
+        const isWar    = warLosers.has(planet);
+        const deg      = planets[planet]?.degree || 0;
+
+        // Planet name from selected language
+        const pName = names[planet] || planet.substring(0,2);
+
+        // Base color by dignity
+        let color = "#2c3248";
+        if      (dignity === "ex")  color = "#1a6e3c";
+        else if (dignity === "de")  color = "#8f1a1a";
+        else if (dignity === "own") color = "#1e4a8f";
+        if (isCombust)              color = "#a05c00";
+
+        // Build label: name + modifiers
+        let label = pName;
+        if (isRetro)   label += "ʀ";
+        if (isCombust) label += "☀";
+        if (isWar)     label += "⚔";
+        if (dignity)   label += ` ${dignity==="ex"?"Ex":dignity==="de"?"De":"Ow"}`;
+        label += ` ${Math.round(deg)}°`;
+
+        const pTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
+        pTxt.setAttribute("x", x + PAD + 2);
+        pTxt.setAttribute("y", pY);
+        pTxt.setAttribute("font-size","9.5");
+        pTxt.setAttribute("fill", color);
+        pTxt.setAttribute("font-family","Inter,sans-serif");
+        pTxt.setAttribute("font-weight","500");
+        pTxt.textContent = label;
+        svg.appendChild(pTxt);
+
+        // House lord relationship tag — F / N / E
+        const relTag = getRelationshipTag(houseLord, planet);
+        if (relTag) {
+          const relColor = relTag === "F" ? "#1a6e3c" : relTag === "E" ? "#8f1a1a" : "#888";
+          const rTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
+          rTxt.setAttribute("x", x + CELL - PAD - 4);
+          rTxt.setAttribute("y", pY);
+          rTxt.setAttribute("font-size","8");
+          rTxt.setAttribute("fill", relColor);
+          rTxt.setAttribute("font-weight","700");
+          rTxt.setAttribute("text-anchor","end");
+          rTxt.setAttribute("font-family","Inter,sans-serif");
+          rTxt.textContent = relTag;
+          svg.appendChild(rTxt);
+        }
+
+        pY += 13;
+      });
+    }
+  }
+
+  // Center diamond diagonal lines
+  [[CELL,CELL,3*CELL,3*CELL],[3*CELL,CELL,CELL,3*CELL]].forEach(([x1,y1,x2,y2]) => {
+    const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+    line.setAttribute("x1",x1); line.setAttribute("y1",y1);
+    line.setAttribute("x2",x2); line.setAttribute("y2",y2);
+    line.setAttribute("stroke","rgba(100,70,20,0.18)");
+    line.setAttribute("stroke-width","0.5");
+    svg.appendChild(line);
+  });
+
+  wrap.innerHTML = "";
+  wrap.appendChild(svg);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  DASHA SCREEN
+// ══════════════════════════════════════════════════════════════════════════════
+
+const FUNCTIONAL_STATUS_MAP = {
+  Aries:      {Sun:"N",Moon:"B",Mars:"Y",Mercury:"N",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+  Taurus:     {Sun:"M",Moon:"N",Mars:"M",Mercury:"N",Jupiter:"N",Venus:"B",Saturn:"Y",Rahu:"N",Ketu:"N"},
+  Gemini:     {Sun:"M",Moon:"M",Mars:"M",Mercury:"Y",Jupiter:"B",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+  Cancer:     {Sun:"B",Moon:"N",Mars:"Y",Mercury:"M",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+  Leo:        {Sun:"N",Moon:"M",Mars:"Y",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"M",Rahu:"N",Ketu:"N"},
+  Virgo:      {Sun:"M",Moon:"M",Mars:"M",Mercury:"N",Jupiter:"B",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+  Libra:      {Sun:"M",Moon:"M",Mars:"M",Mercury:"B",Jupiter:"N",Venus:"N",Saturn:"Y",Rahu:"N",Ketu:"N"},
+  Scorpio:    {Sun:"M",Moon:"B",Mars:"Y",Mercury:"N",Jupiter:"M",Venus:"M",Saturn:"M",Rahu:"N",Ketu:"N"},
+  Sagittarius:{Sun:"N",Moon:"M",Mars:"M",Mercury:"M",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+  Capricorn:  {Sun:"M",Moon:"M",Mars:"Y",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+  Aquarius:   {Sun:"M",Moon:"M",Mars:"N",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+  Pisces:     {Sun:"M",Moon:"N",Mars:"M",Mercury:"N",Jupiter:"B",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+};
+
+const PLANET_GLYPHS_FULL = { Sun:"☉",Moon:"☽",Mars:"♂",Mercury:"☿",Jupiter:"♃",Venus:"♀",Saturn:"♄",Rahu:"☊",Ketu:"☋" };
 
 function renderDashaScreen(data) {
   const { dasha, d1 } = data;
@@ -554,50 +926,42 @@ function renderDashaScreen(data) {
     }
   }
 
-  // ── Current period card — full structured reading ─────────────────────────
   const cdEl = document.getElementById("currentDashaDisplay");
   if (cdEl && currentMaha) {
     const mahaFS   = FUNCTIONAL_STATUS_MAP[lagna]?.[currentMaha.lord] || "N";
-    const mahaNote = mahaFS==="Y"?"This planet is a yogakaraka for your lagna — a powerful season in your life."
-                   : mahaFS==="B"?"This planet is a functional benefic — this season generally favours growth."
-                   : mahaFS==="M"?"This planet is a functional malefic — this season brings tests requiring patience."
-                   : "This planet is neutral for your lagna — mixed results, shaped by the sub-periods.";
-
+    const mahaNote = mahaFS==="Y"?"Yogakaraka — a powerfully constructive season."
+                   : mahaFS==="B"?"Functional benefic — this season generally favours growth."
+                   : mahaFS==="M"?"Functional malefic — this season brings tests requiring patience."
+                   : "Neutral — mixed results shaped by the sub-periods.";
     let adIndHTML = "";
     if (currentAntar) {
       const adR = buildADReading(currentMaha.lord, currentAntar.lord, lagna, houses, planets);
-      adIndHTML = `
-        <div class="cd-ad-indication">
-          <div class="cd-ad-label">Current sub-period reading — ${currentAntar.lord} Antardasha</div>
-          ${renderADIndicationHTML(adR)}
-        </div>`;
+      adIndHTML = `<div class="cd-ad-indication"><div class="cd-ad-label">Current sub-period — ${currentAntar.lord} Antardasha</div>${renderADIndicationHTML(adR)}</div>`;
     }
-
     cdEl.innerHTML = `
       <div class="current-dasha-display">
         <div class="cd-block">
-          <div class="cd-label">Maha Dasa (Major Period / Season)</div>
+          <div class="cd-label">Maha Dasa (Major Period)</div>
           <div class="cd-lord">${PLANET_GLYPHS_FULL[currentMaha.lord]||""} ${currentMaha.lord}</div>
           <div class="cd-dates">${currentMaha.startDate} → ${currentMaha.endDate}</div>
           <div class="cd-note">${mahaNote}</div>
         </div>
         <div class="cd-block">
-          <div class="cd-label">Antar Dasa (Sub-Period / Month within the Season)</div>
+          <div class="cd-label">Antar Dasa (Sub-Period)</div>
           <div class="cd-lord">${currentAntar?(PLANET_GLYPHS_FULL[currentAntar.lord]||"")+" "+currentAntar.lord:"—"}</div>
           <div class="cd-dates">${currentAntar?currentAntar.startDate+" → "+currentAntar.endDate:"—"}</div>
-          <div class="cd-note">${currentAntar?"The Antar Dasa planet colours the specific events unfolding now.":""}</div>
+          <div class="cd-note">${currentAntar?"The Antar Dasa colours the specific events unfolding now.":""}</div>
         </div>
         <div class="cd-block">
           <div class="cd-label">Moon Nakshatra</div>
           <div class="cd-lord">${dasha.nakshatra}</div>
           <div class="cd-dates">Dasa starts with: ${dasha.nakshataLord}</div>
-          <div class="cd-note">The Moon's nakshatra at birth determines the starting point of your Vimshottari Dasha sequence.</div>
+          <div class="cd-note">The Moon's nakshatra at birth determines your Vimshottari Dasha starting point.</div>
         </div>
       </div>
       ${adIndHTML}`;
   }
 
-  // ── Full timeline ─────────────────────────────────────────────────────────
   const timeline = document.getElementById("dashaTimeline");
   if (!timeline) return;
   timeline.innerHTML = "";
@@ -605,39 +969,32 @@ function renderDashaScreen(data) {
 
   dasha.dashas.forEach(d => {
     const isCurrent = d.startDate <= today && today < d.endDate;
-    const dStart = new Date(d.startDate).getTime();
-    const dEnd   = new Date(d.endDate).getTime();
-    const dLen   = dEnd - dStart;
-    let progress = 0;
-    if (isCurrent)    progress = Math.max(0,Math.min(100,((nowMs-dStart)/dLen)*100));
-    else if (dEnd < nowMs) progress = 100;
+    const dStart=new Date(d.startDate).getTime(), dEnd=new Date(d.endDate).getTime();
+    let progress=0;
+    if (isCurrent) progress=Math.max(0,Math.min(100,((nowMs-dStart)/(dEnd-dStart))*100));
+    else if (dEnd<nowMs) progress=100;
 
-    const fs      = FUNCTIONAL_STATUS_MAP[lagna]?.[d.lord] || "N";
-    const fsLabel = fs==="Y"?"Yogakaraka ★":fs==="B"?"Benefic":fs==="M"?"Malefic":"Neutral";
+    const fs=FUNCTIONAL_STATUS_MAP[lagna]?.[d.lord]||"N";
+    const fsLabel=fs==="Y"?"Yogakaraka ★":fs==="B"?"Benefic":fs==="M"?"Malefic":"Neutral";
+    const seasonText=buildMDSeason(d.lord, lagna, houses, planets);
 
-    const row = document.createElement("div");
-    row.className = "dasha-row" + (isCurrent?" current":"");
-
-    // Build antar-dasa items with expandable AD indications
-    const antarHTML = (d.antarDasas||[]).map(a => {
-      const isCurAntar = a.startDate <= today && today < a.endDate;
-      const adR  = buildADReading(d.lord, a.lord, lagna, houses, planets);
-      const risk = adR.hasRisk;
-
+    const antarHTML=(d.antarDasas||[]).map(a => {
+      const isCurAntar=a.startDate<=today&&today<a.endDate;
+      const adR=buildADReading(d.lord, a.lord, lagna, houses, planets);
       return `
-        <div class="antar-item${isCurAntar?" current-antar":""}${risk?" antar-risk":""}">
+        <div class="antar-item${isCurAntar?" current-antar":""}${adR.hasRisk?" antar-risk":""}">
           <div class="antar-main">
             <div class="antar-lord">${PLANET_GLYPHS_FULL[a.lord]||""} ${a.lord}</div>
             <div class="antar-dates">${a.startDate} → ${a.endDate}</div>
             <div class="antar-yrs">${a.years} yrs</div>
             <button class="ad-toggle" aria-expanded="false">Indication ▶</button>
           </div>
-          <div class="ad-ind-panel" style="display:none">
-            ${renderADIndicationHTML(adR)}
-          </div>
+          <div class="ad-ind-panel" style="display:none">${renderADIndicationHTML(adR)}</div>
         </div>`;
     }).join("");
 
+    const row = document.createElement("div");
+    row.className = "dasha-row" + (isCurrent?" current":"");
     row.innerHTML = `
       <div class="dasha-header">
         <div class="dasha-planet-glyph">${PLANET_GLYPHS_FULL[d.lord]||""}</div>
@@ -653,41 +1010,38 @@ function renderDashaScreen(data) {
       <div class="antar-list">
         <div class="md-season-block">
           <div class="md-season-label">Season Overview</div>
-          <div class="md-season-text">${buildMDSeason(d.lord, lagna, houses, planets)}</div>
+          <div class="md-season-text">${seasonText}</div>
         </div>
         ${antarHTML}
       </div>`;
 
-    // Toggle main MD row open/close
-    row.querySelector(".dasha-header").addEventListener("click", () => row.classList.toggle("open"));
+    row.querySelector(".dasha-header").addEventListener("click",()=>row.classList.toggle("open"));
     if (isCurrent) row.classList.add("open");
 
-    // Wire up individual AD indication toggles
-    row.querySelectorAll(".ad-toggle").forEach(btn => {
-      btn.addEventListener("click", e => {
+    row.querySelectorAll(".ad-toggle").forEach(btn=>{
+      btn.addEventListener("click",e=>{
         e.stopPropagation();
-        const panel = btn.closest(".antar-item").querySelector(".ad-ind-panel");
-        const isOpen = panel.style.display !== "none";
-        panel.style.display = isOpen ? "none" : "block";
-        btn.textContent = isOpen ? "Indication ▶" : "Indication ▼";
-        btn.setAttribute("aria-expanded", String(!isOpen));
+        const panel=btn.closest(".antar-item").querySelector(".ad-ind-panel");
+        const isOpen=panel.style.display!=="none";
+        panel.style.display=isOpen?"none":"block";
+        btn.textContent=isOpen?"Indication ▶":"Indication ▼";
+        btn.setAttribute("aria-expanded",String(!isOpen));
       });
     });
 
-    // Auto-open current AD indication
-    if (isCurrent && currentAntar) {
-      const currentAntarItem = row.querySelector(".current-antar");
-      if (currentAntarItem) {
-        const panel = currentAntarItem.querySelector(".ad-ind-panel");
-        const btn   = currentAntarItem.querySelector(".ad-toggle");
-        if (panel) panel.style.display = "block";
-        if (btn)   { btn.textContent = "Indication ▼"; btn.setAttribute("aria-expanded","true"); }
+    if (isCurrent&&currentAntar) {
+      const curItem=row.querySelector(".current-antar");
+      if (curItem) {
+        const panel=curItem.querySelector(".ad-ind-panel");
+        const btn=curItem.querySelector(".ad-toggle");
+        if (panel) panel.style.display="block";
+        if (btn) { btn.textContent="Indication ▼"; btn.setAttribute("aria-expanded","true"); }
       }
     }
-
     timeline.appendChild(row);
   });
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  DOMAIN SCREEN
