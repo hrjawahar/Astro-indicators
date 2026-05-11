@@ -143,7 +143,7 @@ function buildChartContext(lagnaSign, houses, planets) {
       combustSet.has(p)?"Combust":"",
       warLosers.has(p)?"WarLoser":"",
     ].filter(Boolean).join("|");
-    return `${p}: H${h} ${pl.sign} ${pl.degree?.toFixed(1)||"?"}° D9:${pl.d9sign||"?"} Lords:H[${lorded.join(",")}] Aspects:H[${[...new Set(aspects)].filter(x=>x!==h).join(",")}] ${fsLabel} ${flags||"clean"}`;
+    return `${p}: H${h} ${pl.sign} ${pl.degree?.toFixed(1)||"?"}° D9:${pl.d9sign||"?"} LordsH[${lorded.join(",")}](${lorded.map(n=>{const s=SIGNS_P3[(lagnaIdx+n-1)%12];return "H"+n+"="+s;}).join(",")}) AspectsH[${[...new Set(aspects)].filter(x=>x!==h).join(",")}] ${fsLabel} ${flags||"clean"}`;
   }).filter(Boolean);
 
   const houseLordLines = [];
@@ -187,82 +187,188 @@ function buildQuickChips(adLord, lagnaSign, houses, planets) {
 // MD season prompt
 function buildMDPrompt(mdLord, lagnaSign, chartCtx) {
   const fs = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[mdLord]||"N";
-  const fsLabel = fs==="Y"?"yogakaraka (most constructive possible)":fs==="B"?"functional benefic (supportive)":fs==="M"?"functional malefic (testing, disciplining)":"neutral (mixed)";
-  return `You are an expert Parashari Jyotishi. Write a Mahadasha season overview for this chart.
+  const fsLabel = fs==="Y"?"yogakaraka (most constructive season possible for this lagna)":fs==="B"?"functional benefic (supportive season)":fs==="M"?"functional malefic (testing, disciplining season)":"neutral (mixed season)";
+  return `You are an expert Parashari Jyotishi interpreting a birth chart for the person it belongs to. Write a Mahadasha season overview they will read about their own life.
 
-CHART DATA:
+CHART DATA (read carefully — each planet line shows: house, sign, degree, D9 sign, exact houses lorded with sign names, houses aspected, functional status, dignity/flags):
 ${chartCtx}
 
 MAHADASHA LORD: ${mdLord} — ${fsLabel} for ${lagnaSign} lagna
 
-Write 4–6 sentences in second person. Cover:
-1. The overall character of this season (summer/winter/mixed) with specific reason from the placement
-2. Which life domains activate and how — name likely events, not generic phrases (e.g. "career disruption through forced job change" not "career challenges")  
-3. How ${mdLord}'s house, dignity, lordship, and aspects shape the season
-4. D9 confirmation or contradiction
-5. Any dominant aspect pattern — protection or amplification
+Write one flowing paragraph of 5–7 sentences in second person ("Your ${mdLord} Mahadasha is..."). The person is reading this about their own life. Cover:
+1. Season character (summer/winter/mixed) with the specific reason — name the placement that determines it
+2. The dominant life themes this season activates — name likely real-world events, not just house numbers (e.g. "a career change is likely through a forced departure" not "H10 is activated")
+3. ${mdLord}'s house placement, dignity, lordship of specific houses, and aspect pattern — what do these mean for this person's life concretely
+4. Whether D9 confirms or weakens the D1 promise — and what that means for the second half of the season
+5. Any major protection (benefic aspect on ${mdLord} or its house) or amplification (malefic conjunction/aspect) that modifies the season
 
-Be specific. Ground every statement in the actual chart data above. No bullet points. One paragraph. No preamble.`;
+Critical: Use the HOUSE_LORDS line to correctly identify which houses each planet lords. Do not guess — read it from the data. No bullet points. No preamble.`;
 }
 
-// AD indication prompt
 function buildADPrompt(mdLord, adLord, lagnaSign, chartCtx) {
   const mdFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[mdLord]||"N";
   const adFS = FUNCTIONAL_STATUS_MAP[lagnaSign]?.[adLord]||"N";
   const fsDesc = fs => fs==="Y"?"yogakaraka":fs==="B"?"functional benefic":fs==="M"?"functional malefic":"neutral";
-  return `You are an expert Parashari Jyotishi. Write a precise Antardasha indication for this chart.
+  return `You are an expert Parashari Jyotishi interpreting a birth chart for the person it belongs to. Write an Antardasha indication they will read about their own life.
 
-CHART DATA:
+CHART DATA (each planet line: house, sign, degree, D9 sign, exact houses lorded WITH sign names, houses aspected, functional status, dignity/flags):
 ${chartCtx}
 
 Mahadasha: ${mdLord} (${fsDesc(mdFS)} for ${lagnaSign} lagna)
 Antardasha: ${adLord} (${fsDesc(adFS)} for ${lagnaSign} lagna)
 
-Write using these exact section headers. Ground every statement in the specific chart placements — no generic phrases:
+CRITICAL RULES:
+- Read lordship ONLY from the LordsH[...] data in the chart — never infer or assume
+- Name real-world events, not house activations ("forced job change" not "H10 activated")
+- Write directly to the person ("your career", "you may face", "this period brings you")
+- Only include a domain section if ${adLord} has a MEANINGFUL classical connection to it (2+ factors)
+- If a domain has no meaningful activation, skip it entirely — do not write "No significant activation"
 
-**PERIOD CHARACTER**
-One sentence: essential nature of this sub-period. Include the MD-AD friendship/enmity, both functional statuses, and the specific domain activated by ${adLord}'s house placement.
+Write using ONLY the sections that are actually activated by this chart. Choose from:
 
-**CAREER & PROFESSION**
-If ${adLord} has meaningful connection to H10, H7, career karakas, or H6/H8 disruption — state the specific event tendency (promotion, forced job change, new opportunity, public recognition, conflict with authority, career loss). If no significant factor, write: No significant career activation.
+**PERIOD CHARACTER** — always include. One sentence: the essential nature of this sub-period for this person — MD-AD relationship (friends/enemies/neutral), both functional statuses, and what ${adLord}'s house placement means for their life right now.
 
-**HEALTH & BODY**
-Always include. Name ${adLord}'s specific body areas (${PLANET_BODY[adLord]||"its ruled areas"}). If malefic in H6/H8 or lords H1/H6/H8 — state the specific health risk. If benefic aspects protect H1 — name the protection.
+**CAREER & PROFESSION** — include only if ${adLord} lords H10, H7, aspects H10, or sits in H6/H8 creating disruption. Name the specific career event tendency.
 
-**RELATIONSHIPS & PARTNERSHIPS**
-If ${adLord} connects meaningfully to H7, Venus condition, or H2/H12 — state the specific relationship event tendency. If no factor: No significant relationship activation.
+**HEALTH & BODY** — always include. Name ${adLord}'s body areas (${PLANET_BODY[adLord]||"its ruled areas"}). If malefic in H6/H8 or lords H1/H6/H8 — state the specific health risk. State any protection.
 
-**FINANCES & WEALTH**
-If ${adLord} connects meaningfully to H2, H11, H9, or H12 — state the specific financial tendency. If no factor: No significant financial activation.
+**RELATIONSHIPS & MARRIAGE** — include only if ${adLord} lords H7, sits in H7, Venus is involved, or H2/H12 create a meaningful relationship pattern. Name the specific event tendency (marriage window, separation pressure, partnership conflict, etc.).
 
-**TIMING NOTE**
-One sentence: when within this sub-period conditions peak (beginning/middle/end) based on strength and D9.
+**FINANCES & WEALTH** — include only if ${adLord} lords H2, H11, H9 (gains) or H12 (losses). State the specific financial tendency.
 
-Plain language. No preamble or postamble.`;
+**PROPERTY & HOME** — include only if ${adLord} lords H4, sits in H4, or Moon/Mars create a meaningful H4 pattern. State whether property purchase, relocation, or home disruption is indicated.
+
+**SPIRITUALITY & INNER GROWTH** — include only if ${adLord} lords H12, H9, sits in H12, Ketu is involved, or the combination creates a withdrawal/retreat/pilgrimage pattern.
+
+**FOREIGN TRAVEL & RELOCATION** — include only if H12, H9, H3 are activated by ${adLord}'s lordship, placement, or aspect in a meaningful way.
+
+**LITIGATION & LEGAL MATTERS** — include only if H6 is directly activated through lordship or placement by ${adLord}, or Saturn/Rahu create a 6th house pattern.
+
+**TIMING NOTE** — always include. One sentence: when conditions peak within this sub-period (beginning/middle/end) based on planetary strength and D9 condition.
+
+Plain language. Write directly to the person. No preamble or postamble. No generic phrases.`;
 }
 
-// Markdown to HTML
+// Markdown to HTML — section headers + paragraphs, no duplication
 function markdownToHTML(md) {
-  // Replace **bold** that is a section header (own line) with a title div
-  let out = md.replace(/\*\*([^\*]+)\*\*/g, (m, t) => {
-    return '\x00TITLE\x00' + t + '\x00END\x00';
-  });
-  // Split on double newlines
-  return out.split(/\n\n+/).map(p => {
-    p = p.trim();
-    if (!p) return '';
-    if (p.startsWith('\x00TITLE\x00')) {
-      const t = p.replace(/\x00TITLE\x00/, '').replace(/\x00END\x00.*/, '');
-      const rest = p.replace(/\x00TITLE\x00[^\x00]*\x00END\x00/, '').replace(/^\n/, '');
-      return `<div class="ind-section-title">${t}</div>` + (rest ? `<p>${rest.replace(/\n/g,'<br>')}</p>` : '');
+  // Normalize line endings
+  const text = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Split into lines and process
+  const lines = text.split('\n');
+  const out = [];
+  let paraLines = [];
+
+  const flushPara = () => {
+    const t = paraLines.join(' ').trim();
+    if (t) out.push(`<p>${t}</p>`);
+    paraLines = [];
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    // Detect **SECTION HEADER** — bold text alone on a line
+    if (/^\*\*[^*]+\*\*$/.test(line)) {
+      flushPara();
+      const title = line.replace(/\*\*/g, '');
+      out.push(`<div class="ind-section-title">${title}</div>`);
+    } else if (line === '') {
+      flushPara();
+    } else {
+      // Inline bold → <strong>
+      paraLines.push(line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'));
     }
-    return `<p>${p.replace(/\x00TITLE\x00([^\x00]*)\x00END\x00/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</p>`;
-  }).join('');
+  }
+  flushPara();
+  return out.join('');
+}
+
+// Translation language labels
+const IND_LANG_LABELS = {
+  EN:"English", TA:"தமிழ்", TE:"తెలుగు", HI:"हिंदी", KA:"ಕನ್ನಡ", ML:"മലയാളം"
+};
+
+// Translate indication via API
+async function translateIndication(text, targetLang, targetEl) {
+  targetEl.innerHTML = `<div class="ind-loading"><span class="spinner"></span>Translating…</div>`;
+  try {
+    const res = await fetch("/api/indicate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: `Translate the following Vedic astrology reading into ${IND_LANG_LABELS[targetLang]}. Preserve all section headers exactly (translate them too). Keep all planet names, house numbers (H1, H10 etc), and technical terms (Mahadasha, Antardasha, Yogakaraka, Lagna, D9, Navamsha) in their original form — do not translate these. Translate only the descriptive sentences.\n\n${text}`,
+      }),
+    });
+    if (!res.ok) throw new Error("HTTP "+res.status);
+    const contentEl = document.createElement("div");
+    contentEl.className = "ind-content";
+    targetEl.innerHTML = "";
+    targetEl.appendChild(contentEl);
+    let full = "";
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const {done,value} = await reader.read();
+      if (done) break;
+      const lines = decoder.decode(value,{stream:true}).split("\n");
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (raw==="[DONE]") continue;
+        try { const d=JSON.parse(raw).delta?.text||""; if(d){full+=d;contentEl.innerHTML=markdownToHTML(full);} } catch{}
+      }
+    }
+  } catch(err) {
+    targetEl.innerHTML = `<div class="ind-error">Translation failed: ${err.message}</div>`;
+  }
+}
+
+// Build the toolbar HTML (language selector + download)
+function buildIndicationToolbar(panelId) {
+  const langBtns = Object.entries(IND_LANG_LABELS).map(([code,label]) =>
+    `<button class="ind-lang-btn${code==="EN"?" active":""}" data-lang="${code}" data-panel="${panelId}">${label}</button>`
+  ).join("");
+  return `<div class="ind-toolbar" id="toolbar-${panelId}">
+    <div class="ind-lang-row">${langBtns}</div>
+    <button class="ind-dl-btn" data-panel="${panelId}" title="Download indication as text file">⬇ Download</button>
+  </div>`;
+}
+
+// Wire toolbar events
+function wireToolbar(panelId, originalText, originalHTML) {
+  const toolbar = document.getElementById(`toolbar-${panelId}`);
+  if (!toolbar) return;
+  const contentArea = document.getElementById(`content-${panelId}`);
+
+  // Language buttons
+  toolbar.querySelectorAll(".ind-lang-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      toolbar.querySelectorAll(".ind-lang-btn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      const lang = btn.dataset.lang;
+      if (lang === "EN") {
+        if (contentArea) contentArea.innerHTML = originalHTML;
+      } else {
+        if (contentArea) translateIndication(originalText, lang, contentArea);
+      }
+    });
+  });
+
+  // Download button
+  toolbar.querySelector(".ind-dl-btn")?.addEventListener("click", () => {
+    const blob = new Blob([originalText], {type:"text/plain;charset=utf-8"});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url;
+    a.download = `dasha-indication-${panelId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 }
 
 // Stream Claude API via Cloudflare proxy into a target element
 async function callIndicationAPI(prompt, targetEl, cacheKey, cacheMap) {
   targetEl.innerHTML = `<div class="ind-loading"><span class="spinner"></span>Generating from chart data…</div>`;
+  const panelId = cacheKey.replace(/[^a-zA-Z0-9]/g,"_");
   try {
     const res = await fetch("/api/indicate", {
       method:  "POST",
@@ -273,8 +379,13 @@ async function callIndicationAPI(prompt, targetEl, cacheKey, cacheMap) {
       const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    targetEl.innerHTML = `<div class="ind-content"></div>`;
-    const contentEl = targetEl.querySelector(".ind-content");
+
+    // Set up toolbar + content area
+    targetEl.innerHTML = `
+      ${buildIndicationToolbar(panelId)}
+      <div class="ind-content" id="content-${panelId}"></div>`;
+    const contentEl = document.getElementById(`content-${panelId}`);
+
     let full = "";
     const reader  = res.body.getReader();
     const decoder = new TextDecoder();
@@ -292,7 +403,11 @@ async function callIndicationAPI(prompt, targetEl, cacheKey, cacheMap) {
         } catch {}
       }
     }
+
     cacheMap.set(cacheKey, full);
+    // Wire toolbar after content is ready
+    wireToolbar(panelId, full, contentEl.innerHTML);
+
   } catch (err) {
     targetEl.innerHTML = `<div class="ind-error">Could not generate: ${err.message}</div>`;
   }
