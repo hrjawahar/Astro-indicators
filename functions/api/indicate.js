@@ -41,7 +41,7 @@ export async function onRequestPost(context) {
     },
     body: JSON.stringify({
       model:      "claude-sonnet-4-5",
-      max_tokens: body.max_tokens || 2000,
+      max_tokens: body.max_tokens || 4096,
       stream:     true,
       messages:   [{ role: "user", content: prompt }],
     }),
