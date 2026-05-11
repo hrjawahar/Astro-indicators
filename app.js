@@ -298,7 +298,7 @@ async function translateIndication(text, targetLang, contentEl, panelId) {
     const res = await fetch("/api/indicate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({prompt, max_tokens:4016}),
+      body: JSON.stringify({
         max_tokens: 4096,
         prompt: `Translate the following Vedic astrology reading into ${IND_LANG_LABELS[targetLang]}.
 
