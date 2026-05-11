@@ -1315,3 +1315,54 @@ select option { background: var(--bg-3); }
   line-height: 1.75;
   color: var(--text-dim);
 }
+
+/* ── Indication toolbar — language selector + download ───────────────── */
+.ind-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.ind-lang-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ind-lang-btn {
+  font-size: 11px;
+  font-family: var(--font-body);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border-2);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ind-lang-btn:hover { color: var(--gold); border-color: var(--gold-dim); }
+.ind-lang-btn.active {
+  background: var(--gold-glow);
+  color: var(--gold);
+  border-color: var(--gold-dim);
+  font-weight: 600;
+}
+
+.ind-dl-btn {
+  font-size: 11px;
+  font-family: var(--font-body);
+  padding: 3px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-2);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.ind-dl-btn:hover { color: var(--stable); border-color: var(--stable); }
