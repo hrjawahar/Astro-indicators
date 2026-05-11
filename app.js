@@ -283,26 +283,36 @@ function markdownToHTML(md) {
 }
 
 // Translation language labels
+// Translation language labels
 const IND_LANG_LABELS = {
   EN:"English", TA:"தமிழ்", TE:"తెలుగు", HI:"हिंदी", KA:"ಕನ್ನಡ", ML:"മലയാളം"
 };
 
+// Per-panel state: tracks currently displayed text for correct download
+const _panelState = new Map();
+
 // Translate indication via API
-async function translateIndication(text, targetLang, targetEl) {
-  targetEl.innerHTML = `<div class="ind-loading"><span class="spinner"></span>Translating…</div>`;
+async function translateIndication(text, targetLang, contentEl, panelId) {
+  contentEl.innerHTML = `<div class="ind-loading"><span class="spinner"></span>Translating to ${IND_LANG_LABELS[targetLang]}…</div>`;
   try {
     const res = await fetch("/api/indicate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        prompt: `Translate the following Vedic astrology reading into ${IND_LANG_LABELS[targetLang]}. Preserve all section headers exactly (translate them too). Keep all planet names, house numbers (H1, H10 etc), and technical terms (Mahadasha, Antardasha, Yogakaraka, Lagna, D9, Navamsha) in their original form — do not translate these. Translate only the descriptive sentences.\n\n${text}`,
+        max_tokens: 2500,
+        prompt: `Translate the following Vedic astrology reading into ${IND_LANG_LABELS[targetLang]}.
+
+Rules:
+- Translate section headers too
+- Keep UNTRANSLATED: planet names (Saturn, Jupiter, Venus, Mars, Mercury, Sun, Moon, Rahu, Ketu), house numbers (H1–H12), technical terms (Mahadasha, Antardasha, Yogakaraka, Lagna, D9, Navamsha, Vimshottari), sign names (Aries, Taurus etc), dignity terms (Exalted, Debilitated)
+- Translate ALL descriptive sentences completely — do not stop mid-sentence
+- Complete the full translation without truncating
+
+TEXT TO TRANSLATE:
+${text}`,
       }),
     });
     if (!res.ok) throw new Error("HTTP "+res.status);
-    const contentEl = document.createElement("div");
-    contentEl.className = "ind-content";
-    targetEl.innerHTML = "";
-    targetEl.appendChild(contentEl);
     let full = "";
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -317,99 +327,121 @@ async function translateIndication(text, targetLang, targetEl) {
         try { const d=JSON.parse(raw).delta?.text||""; if(d){full+=d;contentEl.innerHTML=markdownToHTML(full);} } catch{}
       }
     }
+    _panelState.set(panelId, { currentText: full, currentLang: targetLang });
   } catch(err) {
-    targetEl.innerHTML = `<div class="ind-error">Translation failed: ${err.message}</div>`;
+    contentEl.innerHTML = `<div class="ind-error">Translation failed: ${err.message}</div>`;
   }
 }
 
-// Build the toolbar HTML (language selector + download)
+// Download as Word
+function downloadAsWord(text, filename) {
+  const body = markdownToHTML(text)
+    .replace(/<div class="ind-section-title">/g,'<h2>')
+    .replace(/<\/div>/g,'</h2>');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:12pt;line-height:1.65;color:#111;max-width:680px;margin:40px auto}h2{font-size:12pt;color:#5a3e00;border-bottom:1px solid #ccc;padding-bottom:3px;margin-top:18px}p{margin:0 0 9px}</style></head><body>${body}</body></html>`;
+  const blob=new Blob(["\uFEFF",html],{type:"application/msword"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=filename+".doc"; a.click(); URL.revokeObjectURL(url);
+}
+
+// Download as PDF via print dialog
+function downloadAsPDF(text, filename) {
+  const body = markdownToHTML(text);
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${filename}</title><style>body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.65;color:#111;max-width:680px;margin:32px auto;padding:0 20px}.ind-section-title{font-weight:700;color:#5a3e00;text-transform:uppercase;font-size:10.5pt;letter-spacing:.05em;border-bottom:1px solid #ddd;padding-bottom:3px;margin:18px 0 7px}p{margin:0 0 9px}@media print{body{margin:0;padding:20px}}</style></head><body><h1 style="font-size:13pt;color:#5a3e00;border-bottom:2px solid #c9a84c;padding-bottom:6px;margin-bottom:20px">${filename}</h1>${body}<script>window.onload=()=>{window.print();}<\/script></body></html>`;
+  const win=window.open("","_blank");
+  if (win){win.document.write(html);win.document.close();}
+}
+
+// Format picker popup
+function showDownloadPicker(panelId) {
+  document.querySelectorAll(".dl-format-picker").forEach(el=>el.remove());
+  const toolbar=document.getElementById(`toolbar-${panelId}`);
+  if (!toolbar) return;
+  const state=_panelState.get(panelId);
+  if (!state) return;
+  const filename=`dasha-indication-${panelId}`;
+  const picker=document.createElement("div");
+  picker.className="dl-format-picker";
+  picker.innerHTML=`<div class="dl-picker-title">Download as</div>
+    <button class="dl-fmt-btn" data-fmt="word">📄 Word (.doc)</button>
+    <button class="dl-fmt-btn" data-fmt="pdf">📑 PDF (print)</button>
+    <button class="dl-fmt-btn" data-fmt="txt">📝 Text (.txt)</button>`;
+  picker.querySelector("[data-fmt=word]").addEventListener("click",()=>{downloadAsWord(state.currentText,filename);picker.remove();});
+  picker.querySelector("[data-fmt=pdf]").addEventListener("click",()=>{downloadAsPDF(state.currentText,filename);picker.remove();});
+  picker.querySelector("[data-fmt=txt]").addEventListener("click",()=>{
+    const blob=new Blob([state.currentText],{type:"text/plain;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=filename+".txt";a.click();URL.revokeObjectURL(url);picker.remove();
+  });
+  toolbar.style.position="relative";
+  toolbar.appendChild(picker);
+  setTimeout(()=>document.addEventListener("click",function h(e){if(!picker.contains(e.target)){picker.remove();document.removeEventListener("click",h);}},),50);
+}
+
+// Build toolbar HTML
 function buildIndicationToolbar(panelId) {
-  const langBtns = Object.entries(IND_LANG_LABELS).map(([code,label]) =>
+  const langBtns=Object.entries(IND_LANG_LABELS).map(([code,label])=>
     `<button class="ind-lang-btn${code==="EN"?" active":""}" data-lang="${code}" data-panel="${panelId}">${label}</button>`
   ).join("");
   return `<div class="ind-toolbar" id="toolbar-${panelId}">
     <div class="ind-lang-row">${langBtns}</div>
-    <button class="ind-dl-btn" data-panel="${panelId}" title="Download indication as text file">⬇ Download</button>
+    <button class="ind-dl-btn" data-panel="${panelId}">⬇ Download</button>
   </div>`;
 }
 
 // Wire toolbar events
-function wireToolbar(panelId, originalText, originalHTML) {
-  const toolbar = document.getElementById(`toolbar-${panelId}`);
+function wireToolbar(panelId, originalText) {
+  const toolbar=document.getElementById(`toolbar-${panelId}`);
   if (!toolbar) return;
-  const contentArea = document.getElementById(`content-${panelId}`);
-
-  // Language buttons
-  toolbar.querySelectorAll(".ind-lang-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
+  _panelState.set(panelId,{currentText:originalText,currentLang:"EN"});
+  toolbar.querySelectorAll(".ind-lang-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
       toolbar.querySelectorAll(".ind-lang-btn").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
-      const lang = btn.dataset.lang;
-      if (lang === "EN") {
-        if (contentArea) contentArea.innerHTML = originalHTML;
+      const lang=btn.dataset.lang;
+      const contentEl=document.getElementById(`content-${panelId}`);
+      if (!contentEl) return;
+      if (lang==="EN") {
+        contentEl.innerHTML=markdownToHTML(originalText);
+        _panelState.set(panelId,{currentText:originalText,currentLang:"EN"});
       } else {
-        if (contentArea) translateIndication(originalText, lang, contentArea);
+        translateIndication(originalText,lang,contentEl,panelId);
       }
     });
   });
-
-  // Download button
-  toolbar.querySelector(".ind-dl-btn")?.addEventListener("click", () => {
-    const blob = new Blob([originalText], {type:"text/plain;charset=utf-8"});
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url;
-    a.download = `dasha-indication-${panelId}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  toolbar.querySelector(".ind-dl-btn")?.addEventListener("click",e=>{
+    e.stopPropagation(); showDownloadPicker(panelId);
   });
 }
 
-// Stream Claude API via Cloudflare proxy into a target element
+// Stream Claude API via Cloudflare proxy
 async function callIndicationAPI(prompt, targetEl, cacheKey, cacheMap) {
-  targetEl.innerHTML = `<div class="ind-loading"><span class="spinner"></span>Generating from chart data…</div>`;
-  const panelId = cacheKey.replace(/[^a-zA-Z0-9]/g,"_");
+  targetEl.innerHTML=`<div class="ind-loading"><span class="spinner"></span>Generating from chart data…</div>`;
+  const panelId=cacheKey.replace(/[^a-zA-Z0-9]/g,"_");
   try {
-    const res = await fetch("/api/indicate", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ prompt }),
+    const res=await fetch("/api/indicate",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({prompt,max_tokens:2000}),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-
-    // Set up toolbar + content area
-    targetEl.innerHTML = `
-      ${buildIndicationToolbar(panelId)}
-      <div class="ind-content" id="content-${panelId}"></div>`;
-    const contentEl = document.getElementById(`content-${panelId}`);
-
-    let full = "";
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
+    if (!res.ok){const err=await res.json().catch(()=>({error:`HTTP ${res.status}`}));throw new Error(err.error||`HTTP ${res.status}`);}
+    targetEl.innerHTML=`${buildIndicationToolbar(panelId)}<div class="ind-content" id="content-${panelId}"></div>`;
+    const contentEl=document.getElementById(`content-${panelId}`);
+    let full="";
+    const reader=res.body.getReader(), decoder=new TextDecoder();
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const lines = decoder.decode(value, { stream: true }).split("\n");
+      const {done,value}=await reader.read(); if(done) break;
+      const lines=decoder.decode(value,{stream:true}).split("\n");
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
-        const raw = line.slice(6).trim();
-        if (raw === "[DONE]") continue;
-        try {
-          const delta = JSON.parse(raw).delta?.text || "";
-          if (delta) { full += delta; contentEl.innerHTML = markdownToHTML(full); }
-        } catch {}
+        const raw=line.slice(6).trim(); if(raw==="[DONE]") continue;
+        try{const delta=JSON.parse(raw).delta?.text||"";if(delta){full+=delta;contentEl.innerHTML=markdownToHTML(full);}}catch{}
       }
     }
-
-    cacheMap.set(cacheKey, full);
-    // Wire toolbar after content is ready
-    wireToolbar(panelId, full, contentEl.innerHTML);
-
-  } catch (err) {
-    targetEl.innerHTML = `<div class="ind-error">Could not generate: ${err.message}</div>`;
+    cacheMap.set(cacheKey,full);
+    wireToolbar(panelId,full);
+  } catch(err) {
+    targetEl.innerHTML=`<div class="ind-error">Could not generate: ${err.message}</div>`;
   }
 }
 
