@@ -299,7 +299,7 @@ async function translateIndication(text, targetLang, contentEl, panelId) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        max_tokens: 4096,
+        max_tokens: 2500,
         prompt: `Translate the following Vedic astrology reading into ${IND_LANG_LABELS[targetLang]}.
 
 Rules:
@@ -1609,6 +1609,550 @@ function showPlaceConfirmed(name, utcOffset) {
   const offsetStr=utcOffset!=null?`GMT${utcOffset>=0?"+":""}${utcOffset}`:"GMT offset unknown";
   utcEl.innerHTML=`<span class="utc-ok">✓ ${name}</span> <span class="utc-offset">${offsetStr}</span>`;
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PHASE 4a — HEALTH REPORT ENGINE (Layers 1, 2, 3)
+//  Dr. K.S. Charak medical astrology framework — Parashari rules
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Layer 3: House → body zone mapping ───────────────────────────────────────
+const HEALTH_HOUSE_ZONES = {
+  1:  { zone:"Head & General Vitality",          organs:"skull, brain, eyes, face, and overall constitutional strength" },
+  2:  { zone:"Right Eye, Face & Throat",         organs:"right eye, nose, teeth, tongue, throat, and speech organs" },
+  3:  { zone:"Shoulders, Arms & Upper Chest",    organs:"shoulders, arms, right ear, upper chest, and windpipe" },
+  4:  { zone:"Chest & Lungs",                    organs:"chest, lungs, breast tissue, and heart (outer)" },
+  5:  { zone:"Upper Abdomen & Spine",            organs:"stomach, upper digestive tract, spine (upper), and heart (inner)" },
+  6:  { zone:"Waist, Kidneys & Intestines",      organs:"kidneys, small intestine, large intestine, and lower back" },
+  7:  { zone:"Pelvic Region & Reproductive",     organs:"reproductive organs, uterus/ovaries or prostate, and bladder" },
+  8:  { zone:"Excretory Organs & Colon",         organs:"colon, rectum, anus, and external reproductive organs" },
+  9:  { zone:"Hips & Thighs",                   organs:"hips, thighs, and sciatic nerve" },
+  10: { zone:"Knees & Skeletal Joints",          organs:"knees, kneecap, and major skeletal joints" },
+  11: { zone:"Lower Legs & Circulatory System",  organs:"calves, ankles, left ear, and circulatory system" },
+  12: { zone:"Feet, Left Eye & Lymphatic",       organs:"feet, left eye, and lymphatic system" },
+};
+
+// Kalapurusha (natural zodiac) house → body part for triple-convergence check
+const KALAPURUSHA_ZONE = {
+  Aries:"head", Taurus:"face and throat", Gemini:"shoulders and arms",
+  Cancer:"chest and lungs", Leo:"heart and spine", Virgo:"abdomen and intestines",
+  Libra:"kidneys and lower back", Scorpio:"reproductive organs",
+  Sagittarius:"hips and thighs", Capricorn:"knees and joints",
+  Aquarius:"lower legs and circulatory", Pisces:"feet and lymphatic",
+};
+
+// Layer 3: Planet natural body rulerships
+const HEALTH_PLANET_BODY = {
+  Sun:     { areas:"heart, spine, right eye, and vital force",      diseases:["cardiac","eye conditions","fever","vitality disorders"] },
+  Moon:    { areas:"mind, left eye, chest, lungs, and blood",       diseases:["mental health","respiratory","blood disorders","water retention"] },
+  Mars:    { areas:"blood, muscles, and bone marrow",               diseases:["inflammatory","accidents","surgical","blood disorders"] },
+  Mercury: { areas:"nervous system, skin, and speech organs",       diseases:["neurological","skin conditions","respiratory","speech disorders"] },
+  Jupiter: { areas:"liver, fat tissue, and arterial system",        diseases:["liver","diabetes","obesity","endocrine disorders"] },
+  Venus:   { areas:"reproductive system, kidneys, and throat",      diseases:["reproductive","kidney","hormonal","throat conditions"] },
+  Saturn:  { areas:"bones, joints, teeth, and nerves",              diseases:["chronic conditions","bone disorders","joint pain","nerve damage"] },
+  Rahu:    { areas:"nervous system and skin",                       diseases:["chronic mysterious ailments","neurological","skin (chronic)"] },
+  Ketu:    { areas:"wounds and hidden conditions",                  diseases:["mysterious ailments","surgical conditions","hidden diseases"] },
+};
+
+// Layer 2: Maraka house lords (H2 + H7) — classical death/serious illness inflictors
+// Layer 2: Trika lords (H6/H8/H12) — disease, crisis, hospitalisation
+// These are computed dynamically from lagna using SIGN_LORD and SIGNS_P3
+
+function getHealthClassification(lagnaSign, houses, planets) {
+  const lagnaIdx  = SIGNS_P3.indexOf(lagnaSign);
+  const signLord  = SIGN_LORD; // reuse existing lookup
+
+  // House to sign mapping for this lagna
+  function houseSign(h) { return SIGNS_P3[(lagnaIdx + h - 1) % 12]; }
+  function houseLord(h) { return signLord[houseSign(h)]; }
+  function planetHouse(p) {
+    for (let h=1; h<=12; h++) { if ((houses[h]||[]).includes(p)) return h; }
+    return null;
+  }
+
+  // Layer 2 — Maraka planets (H2 + H7 lords)
+  const marakaH2    = houseLord(2);
+  const marakaH7    = houseLord(7);
+  const marakas     = [...new Set([marakaH2, marakaH7].filter(Boolean))];
+
+  // Trika lords (H6/H8/H12)
+  const trikaH6     = houseLord(6);
+  const trikaH8     = houseLord(8);
+  const trikaH12    = houseLord(12);
+  const trikas      = [...new Set([trikaH6, trikaH8, trikaH12].filter(Boolean))];
+
+  // Functional status for each planet
+  const FUNC = FUNCTIONAL_STATUS_MAP[lagnaSign] || {};
+
+  // Layer 1 — Constitutional vitality
+  // Factor A: Lagna lord placement
+  const lagnaLord     = houseLord(1);
+  const lagnaLordH    = planetHouse(lagnaLord);
+  const lagnaLordSign = lagnaLordH ? houseSign(lagnaLordH) : null;
+  const lagnaLordDig  = lagnaLordSign ? getDignity(lagnaLord, lagnaLordSign) : "";
+  const lagnaLordDust = lagnaLordH && [6,8,12].includes(lagnaLordH);
+
+  // Factor B: Moon condition
+  const moonH    = planetHouse("Moon");
+  const moonSign = moonH ? houseSign(moonH) : null;
+  const moonDig  = moonSign ? getDignity("Moon", moonSign) : "";
+  const moonFS   = FUNC["Moon"] || "N";
+  const moonDust = moonH && [6,8,12].includes(moonH);
+
+  // Factor C: Benefics in kendras (H1/4/7/10) — protective
+  const kendras = [1,4,7,10];
+  let beneficKendraCount = 0, maleficKendraCount = 0;
+  PLANET_LIST.forEach(p => {
+    const h  = planetHouse(p);
+    if (!h || !kendras.includes(h)) return;
+    const fs = FUNC[p] || "N";
+    if (["B","Y"].includes(fs)) beneficKendraCount++;
+    else if (fs === "M") maleficKendraCount++;
+  });
+
+  // Factor D: Malefics in upachayas (H3/6/10/11) — acceptable for malefics
+  const upachayas = [3,6,10,11];
+  let maleficUpachayaCount = 0;
+  PLANET_LIST.forEach(p => {
+    const h  = planetHouse(p);
+    if (!h || !upachayas.includes(h)) return;
+    const fs = FUNC[p] || "N";
+    if (fs === "M") maleficUpachayaCount++;
+  });
+
+  // Score constitution
+  let constitutionScore = 0;
+  // Lagna lord
+  if (lagnaLordDig === "ex")        constitutionScore += 3;
+  else if (lagnaLordDig === "own")  constitutionScore += 2;
+  else if (lagnaLordDig === "de")   constitutionScore -= 2;
+  if (lagnaLordDust)                constitutionScore -= 2;
+  else                              constitutionScore += 1;
+  // Moon
+  if (moonDig === "ex")             constitutionScore += 3;
+  else if (moonDig === "own")       constitutionScore += 1;
+  else if (moonDig === "de")        constitutionScore -= 2;
+  if (moonFS === "M")               constitutionScore -= 1;
+  if (moonDust)                     constitutionScore -= 1;
+  // Kendras
+  constitutionScore += beneficKendraCount * 1;
+  constitutionScore -= Math.max(0, maleficKendraCount - maleficUpachayaCount) * 1;
+
+  let constitution, constitutionExplain;
+  if (constitutionScore >= 4) {
+    constitution = "Robust";
+    constitutionExplain = `Your lagna lord ${lagnaLord} is ${lagnaLordDig==="ex"?"exalted":lagnaLordDig==="own"?"in own sign":"well-placed"} and the Moon${moonDig==="ex"?" is exalted":moonDig==="own"?" is in own sign":""} — your constitutional vitality is strong. The body has good reserves and recovery capacity.`;
+  } else if (constitutionScore >= 0) {
+    constitution = "Moderate";
+    constitutionExplain = `Your constitution is functional but not exceptional. ${lagnaLordDust?`The lagna lord ${lagnaLord} sits in H${lagnaLordH} (a dusthana), reducing constitutional strength.`:`The lagna lord ${lagnaLord} is moderately placed.`} ${moonDust?`The Moon in H${moonH} adds sensitivity to the mind-body connection.`:""} The body manages well under normal conditions but may need support during adverse dasha periods.`;
+  } else {
+    constitution = "Vulnerable";
+    constitutionExplain = `The lagna lord ${lagnaLord}${lagnaLordDust?` is placed in H${lagnaLordH} (a dusthana house)`:"is under stress"} and the Moon${moonDig==="de"?" is debilitated":"is under pressure"} — your constitution requires deliberate and consistent maintenance. ${maleficKendraCount>1?`${maleficKendraCount} malefics occupy kendras, creating additional pressure on the physical body.`:""} This is not a weak chart overall, but health requires priority attention.`;
+  }
+
+  // Layer 3 — Body zone vulnerability
+  const vulnerableZones = [];
+  PLANET_LIST.forEach(p => {
+    const h  = planetHouse(p);
+    if (!h) return;
+    const fs   = FUNC[p] || "N";
+    const dig  = getDignity(p, houseSign(h));
+    const combSet = buildCombustSet(planets);
+    const isMalefic = fs === "M";
+    const isAfflicted = isMalefic || dig === "de" || combSet.has(p);
+
+    // Check if malefic sits in a house or lords an afflicted house
+    if (isMalefic && HEALTH_HOUSE_ZONES[h]) {
+      vulnerableZones.push({
+        house: h,
+        zone: HEALTH_HOUSE_ZONES[h].zone,
+        organs: HEALTH_HOUSE_ZONES[h].organs,
+        planet: p,
+        reason: `${p} (functional malefic) sits in H${h}`,
+        planetBody: HEALTH_PLANET_BODY[p]?.areas || "",
+        diseases: HEALTH_PLANET_BODY[p]?.diseases || [],
+        severity: (dig === "de" || combSet.has(p)) ? "high" : "medium",
+      });
+    }
+
+    // Check if lord of a house is afflicted — flag that house's zone
+    for (let vh=1; vh<=12; vh++) {
+      if (houseLord(vh) === p && isAfflicted && vh !== h) {
+        const reasonParts = [];
+        if (isMalefic)       reasonParts.push("functional malefic");
+        if (dig === "de")    reasonParts.push("debilitated");
+        if (combSet.has(p))  reasonParts.push("combust");
+        vulnerableZones.push({
+          house: vh,
+          zone: HEALTH_HOUSE_ZONES[vh]?.zone || `H${vh}`,
+          organs: HEALTH_HOUSE_ZONES[vh]?.organs || "",
+          planet: p,
+          reason: `${p} lords H${vh} but is ${reasonParts.join(" and ")} in H${h}`,
+          planetBody: HEALTH_PLANET_BODY[p]?.areas || "",
+          diseases: HEALTH_PLANET_BODY[p]?.diseases || [],
+          severity: (isMalefic && dig === "de") ? "high" : "medium",
+        });
+      }
+    }
+  });
+
+  // Deduplicate by house — keep highest severity per house
+  const zoneMap = new Map();
+  vulnerableZones.forEach(z => {
+    const existing = zoneMap.get(z.house);
+    if (!existing || z.severity === "high") zoneMap.set(z.house, z);
+  });
+  const finalZones = [...zoneMap.values()].sort((a,b) => {
+    if (a.severity==="high" && b.severity!=="high") return -1;
+    if (b.severity==="high" && a.severity!=="high") return 1;
+    return a.house - b.house;
+  });
+
+  return {
+    constitution,
+    constitutionScore,
+    constitutionExplain,
+    lagnaLord, lagnaLordH, lagnaLordDig, lagnaLordDust,
+    moonH, moonDig, moonFS, moonDust,
+    beneficKendraCount, maleficKendraCount,
+    marakas, marakaH2, marakaH7,
+    trikas, trikaH6, trikaH8, trikaH12,
+    vulnerableZones: finalZones,
+    houseSign, houseLord, planetHouse,
+    lagnaIdx,
+  };
+}
+
+// ── Special disease indicators (Layers 4b preview) ───────────────────────────
+// Used for the indicator strip at the bottom of the report
+function computeHealthIndicators(lagnaSign, houses, planets, d9Houses) {
+  const FUNC = FUNCTIONAL_STATUS_MAP[lagnaSign] || {};
+  const lagnaIdx = SIGNS_P3.indexOf(lagnaSign);
+  function hSign(h) { return SIGNS_P3[(lagnaIdx + h - 1) % 12]; }
+  function hLord(h) { return SIGN_LORD[hSign(h)]; }
+  function pH(p, ch) {
+    const src = ch || houses;
+    for (let i=1; i<=12; i++) { if ((src[i]||[]).includes(p)) return i; }
+    return null;
+  }
+  const comb = buildCombustSet(planets);
+
+  // Diabetes indicators: Jupiter afflicted + Venus H6/H8 + H6/H8 lord in H2 or H11
+  const jupH   = pH("Jupiter");
+  const jupDig = jupH ? getDignity("Jupiter", hSign(jupH)) : "";
+  const venH   = pH("Venus");
+  const jupAfflicted = jupDig==="de" || comb.has("Jupiter") || FUNC["Jupiter"]==="M";
+  const venDust = venH && [6,8,12].includes(venH);
+  const h6lH   = pH(hLord(6));
+  const diabetesFactors = [
+    jupAfflicted && "Jupiter (natural karaka for fat/sugar metabolism) is afflicted",
+    venDust && `Venus sits in H${venH} — kidney-pancreas connection under stress`,
+    h6lH && [2,11].includes(h6lH) && `H6 lord in H${h6lH} — disease-wealth axis activated`,
+  ].filter(Boolean);
+
+  // Heart indicators: Sun afflicted + H4 lord in dusthana + Leo sign afflicted
+  const sunH   = pH("Sun");
+  const sunDig = sunH ? getDignity("Sun", hSign(sunH)) : "";
+  const sunAfflicted = sunDig==="de" || comb.has("Sun") || (sunH && [6,8,12].includes(sunH));
+  const h4lH   = pH(hLord(4));
+  const h4lDust = h4lH && [6,8,12].includes(h4lH);
+  const leoPlanets = Object.values(houses).flat().filter(p => hSign(pH(p)||0)==="Leo");
+  const heartFactors = [
+    sunAfflicted && `Sun (natural karaka for heart) ${sunDig==="de"?"is debilitated":comb.has("Sun")?"is combust":`sits in H${sunH}`}`,
+    h4lDust && `H4 (heart house) lord in H${h4lH} — cardiac house under stress`,
+    leoPlanets.filter(p=>FUNC[p]==="M").length>0 && "Malefics in or aspecting the Leo-ruled zone",
+  ].filter(Boolean);
+
+  // Cancer indicators: 64th Navamsha sensitivity (H4 from Moon in D9) + H8/H12 triple activation
+  const moonH     = pH("Moon");
+  const moonD9H   = pH("Moon", d9Houses);
+  // H4 from Moon in D9 = the 64th Navamsha indicator
+  const d9MoonFrom4 = moonD9H ? ((moonD9H - 1 + 3) % 12) + 1 : null; // 4th from Moon's D9 house
+  const d9Zone4Lord = d9MoonFrom4 ? hLord(d9MoonFrom4) : null;
+  const h8lord  = hLord(8);
+  const h12lord = hLord(12);
+  const h8lH    = pH(h8lord);
+  const h12lH   = pH(h12lord);
+  const cancerFactors = [
+    d9MoonFrom4 && `64th Navamsha (H${d9MoonFrom4} from Moon in D9) — classical cancer sensitivity marker`,
+    h8lH && [6,8,12].includes(h8lH) && `H8 lord in dusthana H${h8lH} — chronic/hidden disease axis`,
+    h12lH && [6,8].includes(h12lH) && `H12 lord in H${h12lH} — hospitalisation axis activated`,
+    FUNC["Rahu"]==="M" && pH("Rahu") && [4,5].includes(pH("Rahu")) && "Rahu in H4/H5 — classical lymphatic/blood cancer indicator",
+  ].filter(Boolean);
+
+  // Surgery indicators: Mars H8 + H6 lord in H8 + Saturn-Mars combination
+  const marsH   = pH("Mars");
+  const marsDig = marsH ? getDignity("Mars", hSign(marsH)) : "";
+  const satH    = pH("Saturn");
+  const h6lH2   = pH(hLord(6));
+  const surgeryFactors = [
+    marsH && [6,8,12].includes(marsH) && `Mars in H${marsH} — surgical house activation`,
+    h6lH2 && h6lH2===8 && "H6 lord in H8 — disease lord in surgery house",
+    marsH && satH && Math.abs((marsH-satH+12)%12) <= 1 && "Mars-Saturn conjunction — surgical intervention indicator",
+    marsDig==="de" && "Mars debilitated — injury and surgical risk elevated",
+  ].filter(Boolean);
+
+  // Neurological/cognitive sensitivity: Mercury-Moon affliction + Rahu H3/H4/H5
+  const mercH   = pH("Mercury");
+  const mercDig = mercH ? getDignity("Mercury", hSign(mercH)) : "";
+  const rahuH   = pH("Rahu");
+  const mercAfflicted = mercDig==="de" || comb.has("Mercury") || (mercH && [6,8,12].includes(mercH));
+  const moonAfflicted = moonH && ([6,8,12].includes(moonH) || FUNC["Moon"]==="M");
+  const neuroFactors = [
+    mercAfflicted && `Mercury (nervous system karaka) ${mercDig==="de"?"debilitated":comb.has("Mercury")?"combust":"in dusthana"}`,
+    moonAfflicted && `Moon ${moonH&&[6,8,12].includes(moonH)?`in H${moonH} (dusthana)`:"afflicted"} — mental-nervous sensitivity`,
+    rahuH && [3,4,5].includes(rahuH) && `Rahu in H${rahuH} — neurological and cognitive sensitivity indicator`,
+  ].filter(Boolean);
+
+  // Over-indulgence: Venus/Moon/Rahu in pleasure houses + H2 afflicted
+  const h2Planets = houses[2] || [];
+  const rahuVenConj = rahuH && rahuH===venH;
+  const rahuMoonConj = rahuH && rahuH===moonH;
+  const indulgeFactors = [
+    rahuH && [1,2,5,7].includes(rahuH) && `Rahu in H${rahuH} — amplifies sensory and pleasure-seeking impulses`,
+    rahuVenConj && "Rahu-Venus conjunction — excess in relationship and sensory pleasures",
+    rahuMoonConj && "Rahu-Moon conjunction — emotional excess and addictive emotional patterns",
+    h2Planets.includes("Saturn") && "Saturn in H2 — over-indulgence as compensatory behaviour for early deprivation",
+    jupDig==="de" && "Jupiter debilitated — weakened wisdom and restraint faculty",
+  ].filter(Boolean);
+
+  // Overall protection: benefics in kendras + Jupiter strong + lagna lord strong
+  const protFactors = [];
+  const jupBenefic = !jupAfflicted && jupH && [1,4,5,7,9,10].includes(jupH);
+  if (jupBenefic) protFactors.push(`Jupiter in H${jupH} — natural protective grace on the chart`);
+  if (!lagnaIdx && FUNC[hLord(1)]==="B") protFactors.push("Lagna lord is a functional benefic — constitutional support");
+  const jupD9H = pH("Jupiter", d9Houses);
+  const jupD9Dig = jupD9H ? getDignity("Jupiter", hSign(jupD9H)) : "";
+  if (jupD9Dig==="ex"||jupD9Dig==="own") protFactors.push("Jupiter strong in D9 — protection deepens with age");
+  if (beneficKendraCount(lagnaSign, houses) >= 2) protFactors.push(`${beneficKendraCount(lagnaSign, houses)} benefics in kendras — structural protection on the health axis`);
+
+  function beneficKendraCount(lagna, h) {
+    let c=0;
+    const F = FUNCTIONAL_STATUS_MAP[lagna]||{};
+    PLANET_LIST.forEach(p=>{ const ph2=pH(p); if(ph2&&[1,4,7,10].includes(ph2)&&["B","Y"].includes(F[p]))c++; });
+    return c;
+  }
+
+  // Score each indicator: High / Moderate / Low / None
+  function scoreLevel(factors) {
+    if (factors.length >= 2) return { level:"High",     factors };
+    if (factors.length === 1) return { level:"Moderate", factors };
+    return { level:"Low — no significant indicators", factors:[] };
+  }
+
+  return {
+    diabetes:     scoreLevel(diabetesFactors),
+    heart:        scoreLevel(heartFactors),
+    cancer:       scoreLevel(cancerFactors),
+    surgery:      scoreLevel(surgeryFactors),
+    neurological: scoreLevel(neuroFactors),
+    overindulgence: scoreLevel(indulgeFactors),
+    protection:   protFactors.length>=2 ? { level:"Strong",   factors:protFactors }
+                : protFactors.length>=1 ? { level:"Moderate", factors:protFactors }
+                : { level:"Limited — chart carries more stress than protection", factors:[] },
+  };
+}
+
+// ── Health report HTML builder ────────────────────────────────────────────────
+function buildHealthReportHTML(chartData, analysisData) {
+  const { planets, d1, d9, dasha } = chartData;
+  const name = chartData.input?.name || currentData?.form?.name || "—";
+  const dob  = chartData.input?.dob  || currentData?.form?.dob  || "—";
+  const tob  = chartData.input?.tob  || currentData?.form?.tob  || "—";
+  const place= chartData.input?.place|| currentData?.form?.place|| "—";
+
+  const health  = getHealthClassification(d1.lagnaSign, d1.houses, planets);
+  const indicators = computeHealthIndicators(d1.lagnaSign, d1.houses, planets, d9.houses);
+
+  const sev = (s) => s==="high"
+    ? `<span style="color:#a02020;font-weight:700">▲ High</span>`
+    : `<span style="color:#a06000">◆ Moderate</span>`;
+
+  const indicatorRow = (label, data) => {
+    const colour = data.level==="High"?"#8f1a1a":data.level==="Moderate"?"#7a5500":data.level.startsWith("Low")?"#2a6e3c":"#2a6e3c";
+    return `<tr>
+      <td style="font-weight:600;padding:6px 10px;border:1px solid #ddd">${label}</td>
+      <td style="color:${colour};font-weight:700;padding:6px 10px;border:1px solid #ddd">${data.level}</td>
+    </tr>`;
+  };
+
+  const zoneRows = health.vulnerableZones.map(z => `
+    <tr>
+      <td style="padding:6px 10px;border:1px solid #ddd">${sev(z.severity)} H${z.house} — ${z.zone}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd;font-size:11pt">${z.organs}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd;font-size:11pt;color:#555">${z.reason}</td>
+    </tr>`).join("");
+
+  const marakaText = health.marakas.map(p=>`<strong>${p}</strong> (${p===health.marakaH2?"H2 lord":"H7 lord"})`).join(", ");
+  const trikaText  = [
+    `<strong>${health.trikaH6}</strong> (H6 — disease)`,
+    `<strong>${health.trikaH8}</strong> (H8 — crisis)`,
+    `<strong>${health.trikaH12}</strong> (H12 — hospitalisation)`,
+  ].join(", ");
+
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Health Vitality Report — ${name}</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.65; color: #111; max-width: 720px; margin: 32px auto; padding: 0 24px; }
+  h1   { font-size: 16pt; color: #5a1a00; border-bottom: 2px solid #c9a84c; padding-bottom: 8px; margin-bottom: 6px; }
+  h2   { font-size: 13pt; color: #5a1a00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-top: 28px; }
+  h3   { font-size: 11.5pt; color: #3a3a3a; margin-top: 16px; }
+  .meta { font-size: 10pt; color: #555; margin-bottom: 20px; }
+  .native { font-size: 10pt; color: #888; text-align: right; }
+  .disclaimer { font-size: 9.5pt; color: #555; background: #fdf8f0; border: 1px solid #e0c870; border-radius: 4px; padding: 12px 16px; margin-bottom: 24px; line-height: 1.6; }
+  .constitution-block { background: #f9f5ee; border-left: 4px solid #c9a84c; padding: 14px 18px; margin: 16px 0; border-radius: 0 4px 4px 0; }
+  .robust     { color: #1a6e3c; font-weight: 700; font-size: 14pt; }
+  .moderate   { color: #7a5500; font-weight: 700; font-size: 14pt; }
+  .vulnerable { color: #8f1a1a; font-weight: 700; font-size: 14pt; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10.5pt; }
+  th    { background: #f0e8d8; color: #5a3a00; padding: 8px 10px; border: 1px solid #ddd; text-align: left; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.04em; }
+  td    { vertical-align: top; }
+  .section-label { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 4px; }
+  .indicator-section { margin-top: 28px; page-break-before: auto; }
+  .indicator-table td:first-child { width: 200px; }
+  .footer { font-size: 8.5pt; color: #aaa; border-top: 1px solid #ddd; margin-top: 32px; padding-top: 8px; text-align: center; }
+</style>
+</head><body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<div class="native">Health & Vitality Report</div>
+<h1>Health & Vitality Indicators</h1>
+<div class="meta">
+  <strong>Native:</strong> ${name} &nbsp;|&nbsp;
+  <strong>DOB:</strong> ${dob} &nbsp;|&nbsp;
+  <strong>TOB:</strong> ${tob} &nbsp;|&nbsp;
+  <strong>Place:</strong> ${place}<br>
+  <strong>Lagna:</strong> ${d1.lagnaSign} &nbsp;|&nbsp;
+  <strong>D9 Lagna:</strong> ${d9.lagnaSign} &nbsp;|&nbsp;
+  <strong>Ayanamsha:</strong> Lahiri
+</div>
+
+<!-- ── Disclaimer ─────────────────────────────────────────────────────── -->
+<div class="disclaimer">
+  <strong>DISCLAIMER:</strong> This report provides astrological health indications for self-awareness and educational purposes only.
+  It is <strong>NOT</strong> a substitute for professional medical consultation, diagnosis, or treatment.
+  All indications are based on classical Vedic astrological interpretation and <em>may or may not manifest</em> as described.
+  Consult a qualified medical professional for any health concern. This analysis should be used only as a complementary perspective alongside conventional healthcare.
+</div>
+
+<!-- ── Layer 1: Constitutional Vitality ──────────────────────────────── -->
+<h2>Constitutional Vitality</h2>
+<div class="constitution-block">
+  <span class="${health.constitution.toLowerCase()}">${health.constitution}</span>
+  <p style="margin:10px 0 0">${health.constitutionExplain}</p>
+</div>
+
+<table>
+  <tr><th colspan="2">Constitutional Factors</th></tr>
+  <tr><td>Lagna Lord</td><td><strong>${health.lagnaLord}</strong> — in H${health.lagnaLordH}${health.lagnaLordDig==="ex"?" (Exalted)":health.lagnaLordDig==="de"?" (Debilitated)":health.lagnaLordDig==="own"?" (Own Sign)":""} ${health.lagnaLordDust?"⚠ Dusthana placement":""}</td></tr>
+  <tr><td>Moon Condition</td><td>${health.moonDig==="ex"?"Exalted":health.moonDig==="de"?"Debilitated — mental-physical sensitivity elevated":health.moonDig==="own"?"Own sign":"Neutral"} in H${health.moonH}${health.moonDust?" (Dusthana — emotional-physical sensitivity)":""}</td></tr>
+  <tr><td>Benefics in Kendras</td><td>${health.beneficKendraCount} ${health.beneficKendraCount>=2?"— good structural protection":health.beneficKendraCount===1?"— partial protection":"— limited kendra support"}</td></tr>
+  <tr><td>Malefics in Kendras</td><td>${health.maleficKendraCount} ${health.maleficKendraCount>=2?"— multiple kendra stress points":health.maleficKendraCount===1?"— one kendra under pressure":"— kendras relatively clear"}</td></tr>
+</table>
+
+<!-- ── Layer 2: Functional Classification ────────────────────────────── -->
+<h2>Functional Planet Classification</h2>
+<p style="font-size:10.5pt;color:#444;margin-bottom:10px">The following classification is specific to <strong>${d1.lagnaSign} lagna</strong>. The same planet may be benefic for one lagna and malefic for another.</p>
+
+<table>
+  <tr><th>Category</th><th>Planets</th><th>Significance</th></tr>
+  <tr>
+    <td><strong>Maraka</strong> (H2 + H7 lords)</td>
+    <td>${marakaText}</td>
+    <td>These planets, when running as Mahadasha or Antardasha lord, require health monitoring — classical "maraka" (illness inflicting) periods.</td>
+  </tr>
+  <tr>
+    <td><strong>Trika Lords</strong> (H6/H8/H12)</td>
+    <td>${trikaText}</td>
+    <td>H6 lord activates disease themes; H8 lord activates hidden/chronic/surgical themes; H12 lord activates hospitalisation and prolonged care themes.</td>
+  </tr>
+  <tr>
+    <td><strong>Functional Malefics</strong></td>
+    <td>${Object.entries(FUNCTIONAL_STATUS_MAP[d1.lagnaSign]||{}).filter(([p,s])=>s==="M").map(([p])=>`<strong>${p}</strong>`).join(", ")||"None"}</td>
+    <td>Planets that are structurally adverse for this lagna — their dasha periods require health awareness.</td>
+  </tr>
+  <tr>
+    <td><strong>Yogakaraka</strong></td>
+    <td>${Object.entries(FUNCTIONAL_STATUS_MAP[d1.lagnaSign]||{}).filter(([p,s])=>s==="Y").map(([p])=>`<strong>${p}</strong>`).join(", ")||"None"}</td>
+    <td>The most elevated planet for this lagna — provides constitutional support when well-placed.</td>
+  </tr>
+</table>
+
+<!-- ── Layer 3: Body Zone Vulnerability ──────────────────────────────── -->
+<h2>Body Zone Vulnerability Map</h2>
+<p style="font-size:10.5pt;color:#444;margin-bottom:10px">Zones flagged when a functional malefic occupies the house OR when the house lord is debilitated, combust, or placed adversely. Severity indicates convergence of multiple factors.</p>
+
+${health.vulnerableZones.length > 0 ? `
+<table>
+  <tr><th>Zone & Severity</th><th>Specific Areas</th><th>Classical Basis</th></tr>
+  ${zoneRows}
+</table>
+<p style="font-size:10pt;color:#555;margin-top:8px">Additionally, monitor areas governed by ${health.marakas.join(" and ")} throughout life — Maraka planet dashas are the primary windows for health events to manifest.</p>
+` : `<p style="background:#f0f8f0;padding:12px;border-left:3px solid #2a6e3c">No high-severity body zone vulnerabilities detected. The health axis carries relatively balanced planetary distribution for this lagna.</p>`}
+
+<!-- ── Indicator Summary ──────────────────────────────────────────────── -->
+<div class="indicator-section">
+<h2>Specific Health Indicators</h2>
+<p style="font-size:10pt;color:#555;margin-bottom:12px">Indications only — no explanatory detail. Severity reflects the number of independent classical factors present. <strong>Consult a physician for any health concern.</strong></p>
+
+<table class="indicator-table">
+  <tr><th>Indicator</th><th>Signal Level</th></tr>
+  ${indicatorRow("Diabetes", indicators.diabetes)}
+  ${indicatorRow("Heart Ailments", indicators.heart)}
+  ${indicatorRow("Cancer", indicators.cancer)}
+  ${indicatorRow("Surgical Intervention", indicators.surgery)}
+  ${indicatorRow("Neurological & Cognitive Sensitivity", indicators.neurological)}
+  ${indicatorRow("Over-indulgence", indicators.overindulgence)}
+  ${indicatorRow("Overall Protection Support", indicators.protection)}
+</table>
+</div>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────── -->
+<div class="footer">
+  ${name} &nbsp;|&nbsp; Health & Vitality Report &nbsp;|&nbsp;
+  Jyotish Precision Analyzer &nbsp;|&nbsp; Swiss Ephemeris &nbsp;|&nbsp; Lahiri Ayanamsha &nbsp;|&nbsp;
+  Not a substitute for medical advice &nbsp;|&nbsp; © 2025 All rights reserved
+</div>
+
+</body></html>`;
+}
+
+// ── Health report trigger ─────────────────────────────────────────────────────
+function downloadHealthReport(format) {
+  if (!currentData) return;
+  const html     = buildHealthReportHTML(currentData.chart, currentData.analysis);
+  const name     = currentData.form?.name || "health";
+  const filename = `health-report-${name}`;
+
+  if (format === "word") {
+    const blob = new Blob(["\uFEFF", html], { type:"application/msword" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href=url; a.download=filename+".doc"; a.click(); URL.revokeObjectURL(url);
+  } else if (format === "pdf") {
+    const win = window.open("","_blank");
+    if (win) { win.document.write(html); win.document.close(); }
+  }
+}
+
+function showHealthFormatPicker() {
+  const btn = document.getElementById("healthReportBtn");
+  if (!btn) return;
+  document.querySelectorAll(".dl-format-picker").forEach(el=>el.remove());
+  const picker = document.createElement("div");
+  picker.className = "dl-format-picker";
+  picker.style.cssText = "position:absolute;right:0;bottom:calc(100% + 6px);z-index:400";
+  picker.innerHTML = `<div class="dl-picker-title">Download Health Report</div>
+    <button class="dl-fmt-btn" id="hlthWord">📄 Word (.doc)</button>
+    <button class="dl-fmt-btn" id="hlthPDF">📑 PDF (print)</button>`;
+  picker.querySelector("#hlthWord").addEventListener("click",()=>{downloadHealthReport("word");picker.remove();});
+  picker.querySelector("#hlthPDF").addEventListener("click",()=>{downloadHealthReport("pdf");picker.remove();});
+  btn.parentElement.style.position="relative";
+  btn.parentElement.appendChild(picker);
+  setTimeout(()=>document.addEventListener("click",function h(e){
+    if(!picker.contains(e.target)){picker.remove();document.removeEventListener("click",h);}
+  }),50);
+}
+
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 restoreInputs();
