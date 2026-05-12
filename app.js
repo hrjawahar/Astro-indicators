@@ -2239,6 +2239,248 @@ function computeSpecialIndicators(chartData) {
 }
 
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  PHASE 4c — LAYER 7: DISEASE TIMING ENGINE
+//  Scans full Vimshottari MD/AD sequence and flags:
+//  - High-risk windows: 2+ adverse lords running simultaneously
+//  - Recovery windows: benefic/yogakaraka running during adverse MD
+//  Classical rules: Maraka + Trika combination = highest risk signal
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildHealthTimeline(chartData) {
+  const { dasha, d1, planets } = chartData;
+  if (!dasha?.dashas) return null;
+
+  const lagnaSign = d1.lagnaSign;
+  const FUNC      = FUNCTIONAL_STATUS_MAP[lagnaSign] || {};
+  const lagnaIdx  = SIGNS_P3.indexOf(lagnaSign);
+
+  function hSign(h)    { return SIGNS_P3[(lagnaIdx + h - 1) % 12]; }
+  function hLord(h)    { return SIGN_LORD[hSign(h)]; }
+  function planetH(p)  {
+    for (let h=1; h<=12; h++) { if ((d1.houses[h]||[]).includes(p)) return h; }
+    return null;
+  }
+  function getDig(p)   {
+    const h = planetH(p); if (!h) return "";
+    return getDignity(p, hSign(h));
+  }
+
+  // Classify each planet's health role for this lagna
+  const marakas  = new Set([hLord(2), hLord(7)].filter(Boolean));
+  const trikas   = new Set([hLord(6), hLord(8), hLord(12)].filter(Boolean));
+  const yogakarakas = new Set(Object.entries(FUNC).filter(([,v])=>v==="Y").map(([p])=>p));
+  const benefics    = new Set(Object.entries(FUNC).filter(([,v])=>v==="B").map(([p])=>p));
+  const malefics    = new Set(Object.entries(FUNC).filter(([,v])=>v==="M").map(([p])=>p));
+
+  // Score a single planet's health adversity (0 = neutral, 1 = low, 2 = medium, 3 = high)
+  function adversityScore(planet) {
+    let score = 0;
+    if (marakas.has(planet))  score += 2;
+    if (trikas.has(planet))   score += 2;
+    if (malefics.has(planet)) score += 1;
+    if (yogakarakas.has(planet)) score -= 2;
+    if (benefics.has(planet))    score -= 1;
+    // Debilitated planet in adverse role amplifies
+    if (getDig(planet) === "de" && (marakas.has(planet) || trikas.has(planet))) score += 1;
+    // Retrograde malefic amplifies
+    if (planets[planet]?.retrograde && malefics.has(planet)) score += 1;
+    return Math.max(0, score);
+  }
+
+  // Protection score for a planet
+  function protectionScore(planet) {
+    let score = 0;
+    if (yogakarakas.has(planet)) score += 3;
+    if (benefics.has(planet))    score += 2;
+    if (getDig(planet) === "ex") score += 1;
+    if (getDig(planet) === "own") score += 1;
+    return score;
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const birthDate = chartData.input?.dob || currentData?.form?.dob || "";
+  const birthYear = birthDate ? parseInt(birthDate.split("-")[0]) : 1970;
+
+  const windows = [];
+
+  dasha.dashas.forEach(md => {
+    const mdScore    = adversityScore(md.lord);
+    const mdProtect  = protectionScore(md.lord);
+    const mdFromYear = parseInt(md.startDate.split("-")[0]);
+    const mdToYear   = parseInt(md.endDate.split("-")[0]);
+    const mdAge      = mdFromYear - birthYear;
+
+    // Only include lifecourse windows (age 10–85)
+    if (mdAge > 85 || mdToYear - birthYear < 10) return;
+
+    (md.antarDasas || []).forEach(ad => {
+      const adScore   = adversityScore(ad.lord);
+      const adProtect = protectionScore(ad.lord);
+      const combined  = mdScore + adScore;
+      const protect   = mdProtect + adProtect;
+      const adFromYear= parseInt(ad.startDate.split("-")[0]);
+      const adAge     = adFromYear - birthYear;
+
+      if (adAge > 85 || adAge < 10) return;
+
+      const isCurrent = ad.startDate <= today && today <= ad.endDate;
+
+      // ── HIGH RISK: 2+ adverse factors converge ──────────────────────────
+      if (combined >= 4) {
+        const reasons = [];
+        if (marakas.has(md.lord))  reasons.push(`${md.lord} MD is a Maraka (H${md.lord===hLord(2)?"2":"7"} lord)`);
+        if (trikas.has(md.lord))   reasons.push(`${md.lord} MD is a Trika lord`);
+        if (malefics.has(md.lord)) reasons.push(`${md.lord} MD is a functional malefic`);
+        if (marakas.has(ad.lord))  reasons.push(`${ad.lord} AD is a Maraka`);
+        if (trikas.has(ad.lord))   reasons.push(`${ad.lord} AD is a Trika lord`);
+        if (malefics.has(ad.lord)) reasons.push(`${ad.lord} AD is a functional malefic`);
+        if (getDig(md.lord)==="de") reasons.push(`${md.lord} is debilitated — adversity amplified`);
+        if (getDig(ad.lord)==="de") reasons.push(`${ad.lord} is debilitated — adversity amplified`);
+        if (planets[ad.lord]?.retrograde && malefics.has(ad.lord)) reasons.push(`${ad.lord} is retrograde — chronic/persistent health pressure`);
+
+        // Classify the health domain at risk
+        let domain = "General health sensitivity";
+        const allPlanets = [md.lord, ad.lord];
+        if (allPlanets.some(p=>HEALTH_PLANET_BODY[p]?.diseases.includes("cardiac")||p==="Sun")) domain = "Cardiovascular & vitality";
+        else if (allPlanets.some(p=>p==="Moon"||HEALTH_PLANET_BODY[p]?.diseases.includes("mental health"))) domain = "Mental health & nervous system";
+        else if (allPlanets.some(p=>p==="Jupiter"||HEALTH_PLANET_BODY[p]?.diseases.includes("diabetes"))) domain = "Metabolic & liver";
+        else if (allPlanets.some(p=>p==="Saturn"||HEALTH_PLANET_BODY[p]?.diseases.includes("chronic conditions"))) domain = "Chronic & skeletal";
+        else if (allPlanets.some(p=>p==="Mars"||HEALTH_PLANET_BODY[p]?.diseases.includes("surgical"))) domain = "Surgical & inflammatory";
+        else if (allPlanets.some(p=>p==="Venus"||HEALTH_PLANET_BODY[p]?.diseases.includes("reproductive"))) domain = "Reproductive & hormonal";
+
+        windows.push({
+          type:       "risk",
+          severity:   combined >= 6 ? "critical" : combined >= 5 ? "high" : "medium",
+          md:         md.lord,
+          ad:         ad.lord,
+          startDate:  ad.startDate,
+          endDate:    ad.endDate,
+          ageFrom:    adAge,
+          ageTo:      adAge + parseFloat(ad.years),
+          domain,
+          reasons:    reasons.slice(0, 3),
+          isCurrent,
+          score:      combined,
+        });
+      }
+      // ── RECOVERY / PROTECTION: benefic in adverse MD ──────────────────
+      else if (mdScore >= 2 && adProtect >= 3) {
+        const reasons = [];
+        if (yogakarakas.has(ad.lord)) reasons.push(`${ad.lord} AD is yogakaraka — peak protective force within a testing season`);
+        if (benefics.has(ad.lord))    reasons.push(`${ad.lord} AD is a functional benefic — provides relief within the main season`);
+        if (getDig(ad.lord)==="ex")   reasons.push(`${ad.lord} is exalted — its protective capacity is at maximum`);
+
+        windows.push({
+          type:      "recovery",
+          md:        md.lord,
+          ad:        ad.lord,
+          startDate: ad.startDate,
+          endDate:   ad.endDate,
+          ageFrom:   adAge,
+          ageTo:     adAge + parseFloat(ad.years),
+          reasons,
+          isCurrent,
+          score:     protect,
+        });
+      }
+    });
+  });
+
+  // Sort by start date; put current window first
+  windows.sort((a,b) => {
+    if (a.isCurrent && !b.isCurrent) return -1;
+    if (!a.isCurrent && b.isCurrent) return 1;
+    return a.startDate.localeCompare(b.startDate);
+  });
+
+  // Separate risk and recovery
+  const riskWindows     = windows.filter(w=>w.type==="risk");
+  const recoveryWindows = windows.filter(w=>w.type==="recovery");
+
+  // Build a 5-year near-term view
+  const now      = new Date().toISOString().split("T")[0];
+  const fiveYrs  = new Date(new Date().setFullYear(new Date().getFullYear()+5)).toISOString().split("T")[0];
+  const nearTerm = windows.filter(w => w.endDate >= now && w.startDate <= fiveYrs);
+
+  return { riskWindows, recoveryWindows, nearTerm, marakas:[...marakas], trikas:[...trikas] };
+}
+
+// HTML for timeline section
+function buildTimelineHTML(timeline, name) {
+  if (!timeline) return "";
+
+  const pageHeader = `<div style="font-size:9pt;color:#888;text-align:right;border-bottom:1px solid #eee;padding-bottom:4px;margin-bottom:16px">${name} &nbsp;|&nbsp; Health &amp; Vitality Report &nbsp;|&nbsp; Jyotish Precision Analyzer</div>`;
+
+  const sevColor = s => s==="critical"?"#7a0000":s==="high"?"#8f1a1a":"#7a5500";
+  const sevLabel = s => s==="critical"?"CRITICAL":s==="high"?"HIGH":"MODERATE";
+
+  const riskRows = timeline.riskWindows.slice(0, 12).map(w => `
+    <tr style="${w.isCurrent?"background:#fff8f0":""}">
+      <td style="padding:7px 10px;border:1px solid #ddd;font-weight:${w.isCurrent?"700":"400"};color:${sevColor(w.severity)}">${sevLabel(w.severity)}${w.isCurrent?" ◀ NOW":""}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd">${w.md} MD / ${w.ad} AD</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;font-size:10pt">${w.startDate} &rarr; ${w.endDate}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;font-size:10pt">Age ${Math.round(w.ageFrom)}&ndash;${Math.round(w.ageTo)}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;font-size:10pt">${w.domain}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;font-size:9.5pt;color:#555">${w.reasons[0]||""}</td>
+    </tr>`).join("");
+
+  const recoveryRows = timeline.recoveryWindows.slice(0, 6).map(w => `
+    <tr>
+      <td style="padding:7px 10px;border:1px solid #ddd;color:#1a6e3c;font-weight:600">RECOVERY</td>
+      <td style="padding:7px 10px;border:1px solid #ddd">${w.md} MD / ${w.ad} AD</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;font-size:10pt">${w.startDate} &rarr; ${w.endDate}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;font-size:10pt">Age ${Math.round(w.ageFrom)}&ndash;${Math.round(w.ageTo)}</td>
+      <td colspan="2" style="padding:7px 10px;border:1px solid #ddd;font-size:9.5pt;color:#2a6e3c">${w.reasons[0]||""}</td>
+    </tr>`).join("");
+
+  const nearTermRows = timeline.nearTerm.length
+    ? timeline.nearTerm.map(w => `
+      <tr style="${w.isCurrent?"background:#fff8f0":""}">
+        <td style="padding:7px 10px;border:1px solid #ddd;font-weight:700;color:${w.type==="risk"?sevColor(w.severity):"#1a6e3c"}">${w.type==="risk"?sevLabel(w.severity):"RECOVERY"}${w.isCurrent?" &#9664; NOW":""}</td>
+        <td style="padding:7px 10px;border:1px solid #ddd">${w.md} / ${w.ad}</td>
+        <td style="padding:7px 10px;border:1px solid #ddd;font-size:10pt">${w.startDate} &rarr; ${w.endDate}</td>
+        <td style="padding:7px 10px;border:1px solid #ddd;font-size:9.5pt;color:#555" colspan="3">${w.type==="risk"?(w.domain+": "+w.reasons[0]):w.reasons[0]||""}</td>
+      </tr>`).join("")
+    : `<tr><td colspan="6" style="padding:10px;border:1px solid #ddd;color:#2a6e3c">No high-risk or recovery windows in the next 5 years based on the current dasha configuration.</td></tr>`;
+
+  return `
+<div style="page-break-before:always"></div>
+${pageHeader}
+<h2 style="font-size:12.5pt;color:#5a1a00;border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:0">Layer 7 &mdash; Health Sensitivity Timeline</h2>
+<p style="font-size:10pt;color:#555;margin-bottom:14px">
+  Periods flagged when 2+ adverse classical factors converge simultaneously. Risk intensity reflects the number and type of adverse lords running.
+  <strong>Maraka lords:</strong> ${timeline.marakas.join(", ")||"none"} &nbsp;&middot;&nbsp;
+  <strong>Trika lords:</strong> ${timeline.trikas.join(", ")||"none"}.
+  Recovery windows are sub-periods where a yogakaraka or strong benefic runs within an adverse main season.
+</p>
+
+<h3 style="font-size:11pt;color:#3a3a3a;margin:14px 0 6px">5-Year Near-Term View</h3>
+<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:10.5pt">
+  <tr style="background:#f0e8d8"><th style="padding:7px 10px;border:1px solid #ddd;text-align:left">Level</th><th style="padding:7px 10px;border:1px solid #ddd;text-align:left">Period</th><th style="padding:7px 10px;border:1px solid #ddd;text-align:left">Dates</th><th colspan="3" style="padding:7px 10px;border:1px solid #ddd;text-align:left">Health Area</th></tr>
+  ${nearTermRows}
+</table>
+
+<h3 style="font-size:11pt;color:#3a3a3a;margin:18px 0 6px">Lifetime Risk Windows</h3>
+<p style="font-size:9.5pt;color:#666;margin-bottom:8px">Showing up to 12 highest-risk periods across the lifespan. Risk windows indicate sensitivity and probability — not certainty. Conscious health management, timely check-ups, and avoiding known risk factors during these periods significantly alters outcomes.</p>
+${riskRows ? `<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:10.5pt">
+  <tr style="background:#f0e8d8"><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Level</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Period</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Dates</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Age</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Domain</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Primary Factor</th></tr>
+  ${riskRows}
+</table>` : `<p style="background:#f0f8f0;padding:12px;border-left:3px solid #2a6e3c">No high-risk windows detected in this chart's dasha sequence.</p>`}
+
+<h3 style="font-size:11pt;color:#1a6e3c;margin:18px 0 6px">Recovery &amp; Protection Windows</h3>
+<p style="font-size:9.5pt;color:#666;margin-bottom:8px">Sub-periods within adverse main seasons where a yogakaraka or strong benefic provides relief. These are the windows for elective procedures, health improvements, and recovery from prior adverse periods.</p>
+${recoveryRows ? `<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:10.5pt">
+  <tr style="background:#f0f0e8"><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Type</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Period</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Dates</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left">Age</th><th colspan="2" style="padding:6px 10px;border:1px solid #ddd;text-align:left">Protection Factor</th></tr>
+  ${recoveryRows}
+</table>` : `<p style="font-size:10pt;color:#555">No strong recovery windows identified in this chart's dasha configuration.</p>`}
+
+<p style="font-size:9.5pt;color:#777;margin-top:16px;border-top:1px solid #eee;padding-top:10px">
+  <strong>How to use this timeline:</strong> During HIGH or CRITICAL windows — schedule annual health check-ups, avoid elective surgeries unless necessary, maintain consistent routines (sleep, diet, exercise), and proactively address any known vulnerabilities for the flagged domain. During RECOVERY windows — this is the most favourable time for elective procedures, rehabilitation, or health improvements. <strong>This timeline does not predict illness — it indicates periods of elevated sensitivity where conscious attention changes the outcome.</strong>
+</p>`;
+}
+
+
 function buildHealthReportHTML(chartData, analysisData) {
   const { planets, d1, d9 } = chartData;
   const name  = chartData.input?.name  || currentData?.form?.name  || "—";
@@ -2249,6 +2491,7 @@ function buildHealthReportHTML(chartData, analysisData) {
   const health     = getHealthClassification(d1.lagnaSign, d1.houses, planets);
   const indicators = computeHealthIndicators(d1.lagnaSign, d1.houses, planets, d9.houses);
   const special    = computeSpecialIndicators(chartData);
+  const timeline   = buildHealthTimeline(chartData);
 
   const pageHeader = `<div style="font-size:9pt;color:#888;text-align:right;border-bottom:1px solid #eee;padding-bottom:4px;margin-bottom:16px">${name} &nbsp;|&nbsp; Health &amp; Vitality Report &nbsp;|&nbsp; Jyotish Precision Analyzer</div>`;
 
@@ -2333,6 +2576,8 @@ ${health.vulnerableZones.length ? `<table><tr><th>Zone &amp; Severity</th><th>Sp
 
 <h2>Layer 6 &mdash; Retrograde Planet Modifiers</h2>
 <table><tr><th>Planet</th><th>Weight</th><th>Health Implication</th></tr>${retroRows}</table>
+
+${buildTimelineHTML(timeline, name)}
 
 <div class="pb"></div>${pageHeader}
 <h2>Specific Health Indicators</h2>
