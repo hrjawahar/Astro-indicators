@@ -1405,3 +1405,32 @@ select option { background: var(--bg-3); }
   transition: background 0.12s;
 }
 .dl-fmt-btn:hover { background: rgba(201,168,76,0.1); color: var(--gold); }
+
+/* ── Phase 4a — Health Report card ───────────────────────────────────── */
+.health-report-card {
+  border-color: rgba(201,88,88,0.3);
+  background: linear-gradient(135deg, rgba(201,88,88,0.04), rgba(10,15,25,0));
+}
+.health-report-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.health-dl-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+}
+.health-report-note {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 8px 12px;
+  background: rgba(201,88,88,0.06);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid rgba(201,88,88,0.3);
+}
+@media (max-width:600px) {
+  .health-report-header { flex-direction: column; }
+  .health-dl-btn { width: 100%; text-align: center; }
+}
