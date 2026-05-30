@@ -1,0 +1,178 @@
+/* ===========================================================================
+   AstroIndicators · styles-v4.css
+   New components added in the v4 rebuild. Loads AFTER styles.css and reuses
+   its CSS variables (--bg, --gold, --text, etc). Theme: navy + gold.
+   =========================================================================== */
+
+/* Language fonts — applied automatically based on <html lang="..."> */
+html[lang="ta"] body { font-family: 'Noto Sans Tamil', 'Inter', sans-serif; }
+html[lang="te"] body { font-family: 'Noto Sans Telugu', 'Inter', sans-serif; }
+html[lang="hi"] body { font-family: 'Noto Sans Devanagari', 'Inter', sans-serif; }
+html[lang="kn"] body { font-family: 'Noto Sans Kannada', 'Inter', sans-serif; }
+html[lang="ml"] body { font-family: 'Noto Sans Malayalam', 'Inter', sans-serif; }
+
+/* ── Brand glyph SVG sizing ───────────────────────────────────────────────── */
+.brand-glyph svg { display:block; filter: drop-shadow(0 0 8px rgba(201,168,76,0.35)); }
+
+/* ── LANGUAGE SELECTOR (topbar) ───────────────────────────────────────────── */
+.lang-select-wrap { position: relative; }
+
+.lang-toggle-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--bg-3); color: var(--text);
+  border: 1px solid var(--border-2); border-radius: var(--radius-sm);
+  padding: 7px 12px; font-size: 13px; cursor: pointer;
+  font-family: var(--font-body); transition: border-color .15s, background .15s;
+}
+.lang-toggle-btn:hover { border-color: var(--gold-dim); background: var(--bg-card-2); }
+.lang-globe { font-size: 14px; }
+.lang-caret { font-size: 10px; color: var(--text-dim); }
+
+.lang-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 200;
+  background: var(--bg-card); border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  min-width: 190px; overflow: hidden; padding: 4px;
+}
+.lang-option {
+  display: block; width: 100%; text-align: left;
+  background: transparent; color: var(--text); border: none;
+  padding: 9px 12px; font-size: 13px; cursor: pointer;
+  border-radius: 6px; font-family: var(--font-body);
+}
+.lang-option:hover { background: var(--gold-glow); color: var(--gold); }
+.lang-option.active { background: var(--gold-glow); color: var(--gold); font-weight: 500; }
+
+/* ── FEATURE / PRICING CARDS (landing) ────────────────────────────────────── */
+.feature-cards-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px; margin: 0 0 24px;
+}
+.feature-card {
+  background: var(--bg-card); border: 1px solid var(--border-2);
+  border-radius: var(--radius); padding: 20px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  cursor: pointer; transition: transform .15s, border-color .15s, box-shadow .15s;
+  position: relative;
+}
+.feature-card:hover { transform: translateY(-3px); border-color: var(--gold-dim); box-shadow: 0 8px 28px rgba(0,0,0,0.4); }
+.fc-featured { border-color: var(--gold); }
+.fc-featured::before {
+  content: "★ Premium"; position: absolute; top: -10px; right: 14px;
+  background: var(--gold); color: var(--bg); font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px; letter-spacing: .03em;
+}
+.fc-icon { font-size: 26px; color: var(--gold); line-height: 1; }
+.fc-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.35; flex: 1; }
+.fc-price { display: flex; align-items: baseline; gap: 8px; }
+.fc-price-old { font-size: 13px; color: var(--text-dim); text-decoration: line-through; }
+.fc-price-now { font-size: 15px; font-weight: 600; color: var(--success); }
+.fc-price-paid { color: var(--gold); }
+.fc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.fc-btn {
+  flex: 1; min-width: 90px; padding: 9px 10px; font-size: 13px;
+  border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-body);
+  border: 1px solid var(--border-2); transition: all .15s; font-weight: 500;
+}
+.fc-btn-sample { background: transparent; color: var(--text-dim); }
+.fc-btn-sample:hover { color: var(--text); border-color: var(--text-dim); }
+.fc-btn-go, .fc-btn-pay { background: var(--gold-glow); color: var(--gold); border-color: var(--gold-dim); }
+.fc-btn-go:hover, .fc-btn-pay:hover { background: var(--gold); color: var(--bg); }
+
+/* ── REFERENCES ───────────────────────────────────────────────────────────── */
+.ref-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.ref-card {
+  display: flex; align-items: center; gap: 16px; text-decoration: none;
+  background: var(--bg-card); border: 1px solid var(--border-2);
+  border-radius: var(--radius); padding: 18px 20px;
+  transition: transform .15s, border-color .15s; color: var(--text);
+}
+.ref-card:hover { transform: translateY(-2px); border-color: var(--gold-dim); }
+.ref-card-icon {
+  font-size: 30px; color: var(--gold); width: 52px; height: 52px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-glow); border-radius: 12px; flex-shrink: 0;
+}
+.ref-card-body { flex: 1; }
+.ref-card-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.ref-card-sub { font-size: 13px; color: var(--text-dim); line-height: 1.45; }
+.ref-card-open {
+  font-size: 13px; color: var(--gold); font-weight: 500; white-space: nowrap;
+  border: 1px solid var(--gold-dim); padding: 7px 14px; border-radius: var(--radius-sm);
+}
+
+/* ── CONSULTATION ─────────────────────────────────────────────────────────── */
+.consultant-profile { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.consultant-photo {
+  width: 96px; height: 96px; border-radius: 50%; overflow: hidden;
+  border: 2px solid var(--gold-dim); flex-shrink: 0; background: var(--bg-3);
+}
+.consultant-photo img { width: 100%; height: 100%; object-fit: cover; }
+.consultant-photo.no-photo { display: flex; align-items: center; justify-content: center; }
+.consultant-photo.no-photo::after {
+  content: attr(data-initials); font-size: 36px; color: var(--gold);
+}
+.consultant-info { flex: 1; min-width: 200px; }
+.consultant-name { font-size: 19px; font-weight: 600; color: var(--text); font-family: var(--font-display); }
+.consultant-title { font-size: 14px; color: var(--gold); margin: 4px 0 10px; }
+.consultant-bio { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+
+.consult-types { display: flex; gap: 10px; flex-wrap: wrap; }
+.consult-type {
+  flex: 1; min-width: 140px; background: var(--bg-3); border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm); padding: 14px; cursor: pointer; text-align: center;
+  transition: all .15s;
+}
+.consult-type:hover { border-color: var(--gold-dim); }
+.consult-type.active { border-color: var(--gold); background: var(--gold-glow); }
+.consult-type-dur { font-size: 15px; font-weight: 600; color: var(--text); }
+.consult-type-price { font-size: 14px; color: var(--gold); margin-top: 4px; }
+
+.consult-confirmed {
+  margin-top: 16px; padding: 16px; border-radius: var(--radius-sm);
+  background: var(--success-bg); border: 1px solid var(--success);
+  color: var(--success); font-size: 14px; line-height: 1.5;
+}
+
+textarea {
+  width: 100%; background: var(--bg-3); border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm); color: var(--text); padding: 10px 12px;
+  font-family: var(--font-body); font-size: 14px; resize: vertical;
+}
+textarea:focus { outline: none; border-color: var(--gold-dim); }
+
+/* ── SAMPLE REPORT MODAL ──────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(5,7,12,0.82); display: flex; align-items: center;
+  justify-content: center; padding: 20px;
+}
+.modal-box {
+  background: var(--bg-card); border: 1px solid var(--border-2);
+  border-radius: var(--radius); max-width: 640px; width: 100%;
+  max-height: 85vh; display: flex; flex-direction: column; box-shadow: var(--shadow);
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 16px; font-weight: 600; color: var(--gold); font-family: var(--font-display); }
+.modal-close {
+  background: transparent; border: none; color: var(--text-dim);
+  font-size: 26px; cursor: pointer; line-height: 1; padding: 0 4px;
+}
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px; overflow-y: auto; }
+.sample-locked-banner {
+  margin-top: 16px; padding: 14px; border-radius: var(--radius-sm);
+  background: var(--warn-bg); border: 1px dashed var(--warn);
+  color: var(--warn); font-size: 13px; text-align: center;
+}
+
+/* ── MOBILE responsiveness for new components (full pass comes in Phase 5) ─── */
+@media (max-width: 600px) {
+  .feature-cards-grid { grid-template-columns: 1fr; }
+  .ref-card { flex-wrap: wrap; }
+  .ref-card-open { width: 100%; text-align: center; }
+  .lang-toggle-btn span:not(.lang-globe):not(.lang-caret) { display: none; }
+}
