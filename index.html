@@ -113,6 +113,7 @@
         <div class="feature-cards-grid">
 
           <div class="feature-card" data-goto="chartTab" data-requires="chart">
+            <span class="fc-badge fc-badge-free" data-i18n="badge_free">Free</span>
             <div class="fc-icon" aria-hidden="true">◈</div>
             <div class="fc-title" data-i18n="tile_charts_title">Horoscope Chart (D1 &amp; D9)</div>
             <div class="fc-price">
@@ -126,6 +127,7 @@
           </div>
 
           <div class="feature-card fc-featured" data-goto="dashaTab" data-requires="chart">
+            <span class="fc-badge fc-badge-premium" data-i18n="badge_premium">Premium</span>
             <div class="fc-icon" aria-hidden="true">◉</div>
             <div class="fc-title" data-i18n="tile_dasha_title">Dasa Bhukti Periods — MD &amp; AD Indicators</div>
             <div class="fc-price">
@@ -138,15 +140,39 @@
           </div>
 
           <div class="feature-card" data-goto="domainTab" data-requires="analysis">
+            <span class="fc-badge fc-badge-premium" data-i18n="badge_premium">Premium</span>
             <div class="fc-icon" aria-hidden="true">◈</div>
             <div class="fc-title" data-i18n="tile_domains_title">Life Domains Indicators</div>
             <div class="fc-price">
-              <span class="fc-price-old" data-i18n="tile_domains_old">₹299</span>
-              <span class="fc-price-now" data-i18n="tile_domains_price">Free for now</span>
+              <span class="fc-price-now fc-price-paid" data-i18n="tile_domains_price">₹299</span>
             </div>
             <div class="fc-actions">
               <button class="fc-btn fc-btn-sample" data-sample="domains" data-i18n="btn_view_sample">View Sample Report</button>
-              <button class="fc-btn fc-btn-go" data-goto="domainTab" data-i18n="btn_get_it">Get It</button>
+              <button class="fc-btn fc-btn-pay" data-pay="domains" data-amount="299" data-i18n="btn_get_it">Get It</button>
+            </div>
+          </div>
+
+          <div class="feature-card" data-goto="summaryTab" data-requires="analysis">
+            <span class="fc-badge fc-badge-free" data-i18n="badge_view_only">View only · no download</span>
+            <div class="fc-icon" aria-hidden="true">◎</div>
+            <div class="fc-title" data-i18n="tile_summary_title">Summary Report</div>
+            <div class="fc-price">
+              <span class="fc-price-now" data-i18n="tile_summary_price">Free · view only</span>
+            </div>
+            <div class="fc-actions">
+              <button class="fc-btn fc-btn-go" data-goto="summaryTab" data-i18n="btn_get_it">Get It</button>
+            </div>
+          </div>
+
+          <div class="feature-card" data-goto="planetsTab" data-requires="chart">
+            <span class="fc-badge fc-badge-free" data-i18n="badge_view_only">View only · no download</span>
+            <div class="fc-icon" aria-hidden="true">⊕</div>
+            <div class="fc-title" data-i18n="tile_planets_title">Planet Details</div>
+            <div class="fc-price">
+              <span class="fc-price-now" data-i18n="tile_planets_price">Free · view only</span>
+            </div>
+            <div class="fc-actions">
+              <button class="fc-btn fc-btn-go" data-goto="planetsTab" data-i18n="btn_get_it">Get It</button>
             </div>
           </div>
 
@@ -396,38 +422,62 @@
     <section id="referencesTab" class="screen">
       <div class="screen-inner">
 
-        <div class="card intro-card">
-          <h2 class="intro-title" data-i18n="ref_title">Reference Library</h2>
-          <p class="intro-body" data-i18n="ref_intro">In-depth guides written for both beginners and practitioners. Tap any guide to read.</p>
+        <!-- Library view (list of guides) -->
+        <div id="refLibrary">
+          <div class="card intro-card">
+            <h2 class="intro-title" data-i18n="ref_title">Reference Library</h2>
+            <p class="intro-body" data-i18n="ref_intro">In-depth guides written for both beginners and practitioners. Tap any guide to read.</p>
+          </div>
+
+          <div class="ref-grid">
+            <button class="ref-card" data-openref="houses">
+              <div class="ref-card-icon" aria-hidden="true">⌂</div>
+              <div class="ref-card-body">
+                <div class="ref-card-title" data-i18n="ref_houses">The 12 Houses</div>
+                <div class="ref-card-sub" data-i18n="ref_houses_sub">What each house governs, body parts, karaka planets, and remedies</div>
+              </div>
+              <span class="ref-card-open" data-i18n="ref_open">Open Guide</span>
+            </button>
+
+            <button class="ref-card" data-openref="planets">
+              <div class="ref-card-icon" aria-hidden="true">⊕</div>
+              <div class="ref-card-body">
+                <div class="ref-card-title" data-i18n="ref_planets">The 9 Planets</div>
+                <div class="ref-card-sub" data-i18n="ref_planets_sub">Characteristics, significations, relationships, and periods</div>
+              </div>
+              <span class="ref-card-open" data-i18n="ref_open">Open Guide</span>
+            </button>
+
+            <button class="ref-card" data-openref="saturn">
+              <div class="ref-card-icon" aria-hidden="true">♄</div>
+              <div class="ref-card-body">
+                <div class="ref-card-title" data-i18n="ref_saturn">All About Saturn</div>
+                <div class="ref-card-sub" data-i18n="ref_saturn_sub">The planet of karma, discipline, and liberation</div>
+              </div>
+              <span class="ref-card-open" data-i18n="ref_open">Open Guide</span>
+            </button>
+          </div>
         </div>
 
-        <div class="ref-grid">
-          <a class="ref-card" href="references/12-houses.pdf" target="_blank" rel="noopener">
-            <div class="ref-card-icon" aria-hidden="true">⌂</div>
-            <div class="ref-card-body">
-              <div class="ref-card-title" data-i18n="ref_houses">The 12 Houses</div>
-              <div class="ref-card-sub" data-i18n="ref_houses_sub">What each house governs, body parts, karaka planets, and remedies</div>
+        <!-- Reader view (a single guide, shown when one is opened) -->
+        <div id="refReader" class="ref-reader" style="display:none">
+          <div class="ref-reader-bar">
+            <button id="refBackBtn" class="ref-back-btn">← <span data-i18n="ref_back">Back to library</span></button>
+            <div class="ref-translate-wrap">
+              <button id="refTranslateBtn" class="ref-translate-btn">
+                <span aria-hidden="true">🌐</span> <span data-i18n="btn_translate">Translate</span> ▾
+              </button>
+              <div id="refTranslateMenu" class="ref-translate-menu" style="display:none">
+                <button class="ref-tr-opt" data-trlang="ta">தமிழ் · Tamil</button>
+                <button class="ref-tr-opt" data-trlang="te">తెలుగు · Telugu</button>
+                <button class="ref-tr-opt" data-trlang="hi">हिंदी · Hindi</button>
+                <button class="ref-tr-opt" data-trlang="kn">ಕನ್ನಡ · Kannada</button>
+                <button class="ref-tr-opt" data-trlang="ml">മലയാളം · Malayalam</button>
+              </div>
             </div>
-            <span class="ref-card-open" data-i18n="ref_open">Open Guide</span>
-          </a>
-
-          <a class="ref-card" href="references/9-planets.pdf" target="_blank" rel="noopener">
-            <div class="ref-card-icon" aria-hidden="true">⊕</div>
-            <div class="ref-card-body">
-              <div class="ref-card-title" data-i18n="ref_planets">The 9 Planets</div>
-              <div class="ref-card-sub" data-i18n="ref_planets_sub">Characteristics, significations, relationships, and periods</div>
-            </div>
-            <span class="ref-card-open" data-i18n="ref_open">Open Guide</span>
-          </a>
-
-          <a class="ref-card" href="references/all-about-saturn.pdf" target="_blank" rel="noopener">
-            <div class="ref-card-icon" aria-hidden="true">♄</div>
-            <div class="ref-card-body">
-              <div class="ref-card-title" data-i18n="ref_saturn">All About Saturn</div>
-              <div class="ref-card-sub" data-i18n="ref_saturn_sub">The planet of karma, discipline, and liberation</div>
-            </div>
-            <span class="ref-card-open" data-i18n="ref_open">Open Guide</span>
-          </a>
+          </div>
+          <article id="refArticle" class="ref-article"></article>
+          <div class="ref-translate-note" data-i18n="ref_translate_note">Opens this guide in Google Translate in your chosen language.</div>
         </div>
 
       </div>
@@ -538,6 +588,9 @@
 
   <!-- Translation dictionary (Step 1) -->
   <script src="i18n.js"></script>
+
+  <!-- Reference library content -->
+  <script src="references-data.js"></script>
 
   <!-- New v4 UI behaviour: language toggle, cards, samples, consultation -->
   <script src="ui-v4.js" defer></script>
