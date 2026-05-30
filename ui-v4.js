@@ -11,18 +11,18 @@
 
 // ====== OWNER CONFIG — EDIT THESE ============================================
 const CONSULT_CONFIG = {
-  name:        "[ Senthil Paramporul ]",
-  title:       "[ Personal Confidant ]",
-  bio:         "[ Arudhram Consultation ]",
+  name:        "[ Your name here ]",
+  title:       "[ Your credentials / title ]",
+  bio:         "[ Your short bio — 3 to 4 lines. ]",
   photo:       "consultant.jpg",          // put your photo file in the app folder
   // Consultation types: label is shown to the user; amount is in rupees.
   types: [
-    { id: "30min", minutes: 30, amount: 499 },
+    { id: "30min", minutes: 30, amount: 500 },
     { id: "60min", minutes: 60, amount: 999 },
   ],
   // Where booking notifications go (used later when payment is wired in Phase 4):
-  notifyMobile: "+919677089908",
-  notifyEmail:  "vidhurtss@gmail.com",
+  notifyMobile: "+91XXXXXXXXXX",
+  notifyEmail:  "you@example.com",
 };
 // =============================================================================
 
@@ -236,6 +236,64 @@ const CONSULT_CONFIG = {
           if (status) status.textContent = "";
         }, 700);
       });
+    }
+
+    // ── 7. REFERENCES READER (in-app pages + Google Translate button) ────────
+    const refLibrary  = document.getElementById("refLibrary");
+    const refReader   = document.getElementById("refReader");
+    const refArticle  = document.getElementById("refArticle");
+    const refBackBtn  = document.getElementById("refBackBtn");
+    const refTrBtn    = document.getElementById("refTranslateBtn");
+    const refTrMenu   = document.getElementById("refTranslateMenu");
+
+    function openReference(key) {
+      const data = (window.REFERENCES || {})[key];
+      if (!data || !refArticle) return;
+      let html = '<h1 class="ref-h1">' + esc(data.title) + "</h1>";
+      if (data.subtitle) html += '<p class="ref-subtitle">' + esc(data.subtitle) + "</p>";
+      if (data.intro) html += '<p class="ref-intro-para">' + esc(data.intro) + "</p>";
+      (data.sections || []).forEach(function (sec) {
+        html += '<h2 class="ref-h2">' + esc(sec.h) + "</h2>";
+        (sec.p || []).forEach(function (para) {
+          html += '<p class="ref-para">' + esc(para) + "</p>";
+        });
+      });
+      refArticle.innerHTML = html;
+      if (refLibrary) refLibrary.style.display = "none";
+      if (refReader)  refReader.style.display = "block";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function closeReference() {
+      if (refReader)  refReader.style.display = "none";
+      if (refLibrary) refLibrary.style.display = "block";
+    }
+
+    document.querySelectorAll("[data-openref]").forEach(function (btn) {
+      btn.addEventListener("click", function () { openReference(btn.getAttribute("data-openref")); });
+    });
+    if (refBackBtn) refBackBtn.addEventListener("click", closeReference);
+
+    // Translate button → opens the live page in Google Translate, chosen language.
+    if (refTrBtn && refTrMenu) {
+      refTrBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        refTrMenu.style.display = refTrMenu.style.display === "none" ? "block" : "none";
+      });
+      refTrMenu.querySelectorAll(".ref-tr-opt").forEach(function (opt) {
+        opt.addEventListener("click", function () {
+          const lang = opt.getAttribute("data-trlang");
+          const pageUrl = encodeURIComponent(window.location.href);
+          const gt = "https://translate.google.com/translate?sl=en&tl=" + lang + "&u=" + pageUrl;
+          window.open(gt, "_blank", "noopener");
+          refTrMenu.style.display = "none";
+        });
+      });
+      document.addEventListener("click", function () { refTrMenu.style.display = "none"; });
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
     // ── small helpers ────────────────────────────────────────────────────────
