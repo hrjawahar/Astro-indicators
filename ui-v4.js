@@ -129,45 +129,40 @@ const CONSULT_CONFIG = {
     const modalBody  = document.getElementById("sampleModalBody");
     const modalClose = document.getElementById("sampleModalClose");
 
-    const SAMPLE_CONTENT = {
-      charts: {
-        title: "Sample · Horoscope Chart (D1 & D9)",
-        body:
-          "<p>This is a preview of the kind of report you receive. A real report is generated from your exact birth details.</p>" +
-          "<p><strong>Lagna (Ascendant):</strong> Leo · ruled by the Sun</p>" +
-          "<p><strong>Moon sign:</strong> Taurus · exalted, a strong emotional foundation</p>" +
-          "<p><strong>D9 confirmation:</strong> The Sun and Jupiter strengthen in the Navamsha, indicating that early promise matures into lasting authority.</p>",
-      },
-      dasha: {
-        title: "Sample · Dasa Bhukti Periods",
-        body:
-          "<p>This is a preview. Your real report maps every Mahadasha and Antardasha across your 120-year timeline.</p>" +
-          "<p><strong>Current period:</strong> Jupiter Mahadasha / Saturn Antardasha</p>" +
-          "<p><strong>Theme:</strong> Wisdom meeting discipline — a productive window for building something that lasts. Career milestones favoured through patient, structured effort.</p>" +
-          "<p><strong>Next sub-period:</strong> Jupiter / Mercury — communication, learning, and analytical work come to the foreground.</p>",
-      },
-      domains: {
-        title: "Sample · Life Domains Indicators",
-        body:
-          "<p>This is a preview. Your real report scores each life area from your specific chart.</p>" +
-          "<p><strong>Career:</strong> Strong — 10th lord well placed with benefic support.</p>" +
-          "<p><strong>Relationships:</strong> Developing — Venus supported but under examination during the current transit.</p>" +
-          "<p><strong>Health:</strong> Stable — no major affliction to the ascendant lord.</p>",
-      },
-    };
+    // Sample content comes from samples-data.js (rich, realistic, translatable).
+    // Picks the active language, falls back to English.
+    function getSample(key) {
+      const all = window.SAMPLES || {};
+      const set = all[key];
+      if (!set) return null;
+      const lang = (typeof window._currentLang !== "undefined" && window._currentLang) ? window._currentLang : "EN";
+      return set[lang] || set.EN || null;
+    }
+
+    function renderSample(key) {
+      const data = getSample(key);
+      if (!data || !modal) return;
+      modalTitle.textContent = data.title;
+      let html = "";
+      if (data.example) html += '<div class="sample-example">' + esc(data.example) + "</div>";
+      (data.blocks || []).forEach(function (b) {
+        html += '<div class="sample-block"><div class="sample-block-h">' + esc(b[0]) +
+                '</div><div class="sample-block-p">' + esc(b[1]) + "</div></div>";
+      });
+      if (data.locked) {
+        html += '<div class="sample-locked">' +
+                  '<div class="sample-locked-label">' + esc(data.locked.label) + "</div>" +
+                  '<div class="sample-locked-teaser">' + esc(data.locked.teaser) + "</div>" +
+                "</div>";
+      }
+      modalBody.innerHTML = html;
+      modal.style.display = "flex";
+    }
 
     document.querySelectorAll("[data-sample]").forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        const key = btn.getAttribute("data-sample");
-        const data = SAMPLE_CONTENT[key];
-        if (!data || !modal) return;
-        modalTitle.textContent = data.title;
-        modalBody.innerHTML = data.body +
-          '<div class="sample-locked-banner">' +
-          (window.t ? window.t("locked_label") : "Locked — purchase to view your full report") +
-          "</div>";
-        modal.style.display = "flex";
+        renderSample(btn.getAttribute("data-sample"));
       });
     });
 
