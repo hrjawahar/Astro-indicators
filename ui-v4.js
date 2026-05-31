@@ -333,26 +333,29 @@ const CONSULT_CONFIG = {
         if (typeof window.generateReportPDF !== "function") return;
 
         if (item === "dasha") {
-          // Structured two-tier Dasa report (current+next, or +previous).
-          // Tier is decided by what the user unlocked; default current_next.
-          const tier = (window.AI_dasaTier === "full") ? "full" : "current_next";
+          // Single report: Previous + Current + Next MD. Needs the Dasa timeline
+          // rendered first, so open that tab, then build.
           if (typeof window.buildDasaReport !== "function") return;
+          const navBtn = document.querySelector('.nav-tab[data-tab="dashaTab"]');
+          if (navBtn) navBtn.click();  // ensure timeline is rendered
           const orig = btn.textContent;
           btn.disabled = true;
-          window.buildDasaReport(tier, function (done, total) {
-            btn.textContent = "Preparing report… " + done + "/" + total;
-          }).then(function (sections) {
-            btn.textContent = orig; btn.disabled = false;
-            window.generateReportPDF({
-              userName: userName(),
-              reportTitle: "Dasa Bhukti Period Indications",
-              sections: sections,
-              paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
+          setTimeout(function () {
+            window.buildDasaReport("full", function (done, total) {
+              btn.textContent = "Preparing report… " + done + "/" + total;
+            }).then(function (sections) {
+              btn.textContent = orig; btn.disabled = false;
+              window.generateReportPDF({
+                userName: userName(),
+                reportTitle: "Dasa Bhukti Period Indications",
+                sections: sections,
+                paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
+              });
+            }).catch(function (e) {
+              btn.textContent = orig; btn.disabled = false;
+              flashStatus(typeof e === "string" ? e : "Could not build the report. Please try again.");
             });
-          }).catch(function () {
-            btn.textContent = orig; btn.disabled = false;
-            flashStatus("Could not build the report. Please try again.");
-          });
+          }, 300);
         } else {
           // Life Domains — clean structured sections from rendered cards.
           window.generateReportPDF({
