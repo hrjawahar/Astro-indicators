@@ -625,7 +625,7 @@ async function generate() {
     if (analysisData.error) throw new Error(analysisData.error);
 
     currentData = { chart: chartData, analysis: analysisData, form };
-
+    window.currentData = currentData;
     renderChartScreen(chartData);
     renderDashaScreen(chartData);
     renderDomainScreen(analysisData, chartData);
