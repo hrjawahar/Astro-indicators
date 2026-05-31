@@ -249,3 +249,8 @@ textarea:focus { outline: none; border-color: var(--gold-dim); }
   .lang-toggle-btn span:not(.lang-globe):not(.lang-caret) { display: none; }
   .ref-article { padding: 20px 18px; }
 }
+
+/* ── No-refund note ───────────────────────────────────────────────────────── */
+.no-refund-note {
+  font-size: 12px; color: var(--text-dim); margin-top: 10px; font-style: italic;
+}
