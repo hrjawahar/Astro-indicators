@@ -103,24 +103,37 @@ const CONSULT_CONFIG = {
     // A card (or its "Get It" button) navigates to the relevant tab.
     function goToTab(tabId) {
       const navBtn = document.querySelector('.nav-tab[data-tab="' + tabId + '"]');
-      if (!navBtn) return;
+      const screen = document.getElementById(tabId);
+      if (!navBtn || !screen) return;
 
-      // Tabs that always work (no data needed): references, consultation, birth.
       const alwaysOpen = ["referencesTab", "consultTab", "inputTab"];
+      const isReady = (alwaysOpen.indexOf(tabId) !== -1) || !navBtn.disabled;
 
-      // If the engine has enabled this tab (data ready) OR it's an always-open tab,
-      // switch to it using the engine's own function.
-      if (alwaysOpen.indexOf(tabId) !== -1 || !navBtn.disabled) {
-        if (typeof window.switchTab === "function") window.switchTab(tabId);
-        else navBtn.click();
+      if (!isReady) {
+        // chart/analysis not generated yet — nudge to birth form
+        forceSwitch("inputTab");
+        flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
 
-      // Otherwise the chart/analysis isn't ready — nudge the user to generate first.
-      if (typeof window.switchTab === "function") window.switchTab("inputTab");
-      flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
+      forceSwitch(tabId);
       window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // Robust tab switch: try the engine's function, and ALSO directly toggle the
+    // active classes as a guaranteed fallback (works even if switchTab is hidden).
+    function forceSwitch(tabId) {
+      if (typeof window.switchTab === "function") {
+        try { window.switchTab(tabId); } catch (e) {}
+      }
+      // Fallback / guarantee — toggle the classes ourselves the same way the engine does.
+      document.querySelectorAll(".nav-tab").forEach(function (t) {
+        t.classList.toggle("active", t.getAttribute("data-tab") === tabId);
+      });
+      document.querySelectorAll(".screen").forEach(function (s) {
+        s.classList.toggle("active", s.id === tabId);
+      });
     }
 
     document.querySelectorAll("[data-goto]").forEach(function (el) {
