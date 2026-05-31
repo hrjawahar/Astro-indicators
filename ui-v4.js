@@ -105,25 +105,21 @@ const CONSULT_CONFIG = {
       const navBtn = document.querySelector('.nav-tab[data-tab="' + tabId + '"]');
       if (!navBtn) return;
 
-      // If the engine has disabled this tab, the chart/analysis isn't ready yet.
-      // Nudge the user to generate first, instead of silently doing nothing.
-      if (navBtn.disabled) {
-        const birth = document.querySelector('.nav-tab[data-tab="inputTab"]');
-        if (birth && !birth.disabled) {
-          if (typeof window.switchTab === "function") window.switchTab("inputTab");
-          else birth.click();
-        }
-        flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
+      // Tabs that always work (no data needed): references, consultation, birth.
+      const alwaysOpen = ["referencesTab", "consultTab", "inputTab"];
+
+      // If the engine has enabled this tab (data ready) OR it's an always-open tab,
+      // switch to it using the engine's own function.
+      if (alwaysOpen.indexOf(tabId) !== -1 || !navBtn.disabled) {
+        if (typeof window.switchTab === "function") window.switchTab(tabId);
+        else navBtn.click();
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
 
-      // Tab is enabled — switch to it using the engine's own function.
-      if (typeof window.switchTab === "function") {
-        window.switchTab(tabId);
-      } else {
-        navBtn.click();
-      }
+      // Otherwise the chart/analysis isn't ready — nudge the user to generate first.
+      if (typeof window.switchTab === "function") window.switchTab("inputTab");
+      flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -261,15 +257,31 @@ const CONSULT_CONFIG = {
       const all = window.REFERENCES || {};
       const entry = all[key];
       if (!entry) return null;
-      // Each guide may have per-language versions under entry.langs[LANG];
-      // fall back to the English master fields on entry itself.
+      if (lang === "EN") return entry;
       if (entry.langs && entry.langs[lang]) return entry.langs[lang];
-      return entry; // English master
+      return null; // translation not available yet
     }
 
     function renderRef(key, lang) {
+      const entry = (window.REFERENCES || {})[key];
+      if (!entry || !refArticle) return;
       const data = getRefData(key, lang);
-      if (!data || !refArticle) return;
+      if (!data) {
+        // Translation not ready for this language — show English + a notice.
+        const en = entry;
+        let html = '<div class="ref-coming-soon">🌐 ' +
+          (lang === "TA" ? "தமிழ் மொழிபெயர்ப்பு விரைவில்" : "Translation coming soon — showing English") +
+          "</div>";
+        html += '<h1 class="ref-h1">' + esc(en.title) + "</h1>";
+        if (en.subtitle) html += '<p class="ref-subtitle">' + esc(en.subtitle) + "</p>";
+        if (en.intro) html += '<p class="ref-intro-para">' + esc(en.intro) + "</p>";
+        (en.sections || []).forEach(function (sec) {
+          html += '<h2 class="ref-h2">' + esc(sec.h) + "</h2>";
+          (sec.p || []).forEach(function (para) { html += '<p class="ref-para">' + esc(para) + "</p>"; });
+        });
+        refArticle.innerHTML = html;
+        return;
+      }
       let html = '<h1 class="ref-h1">' + esc(data.title) + "</h1>";
       if (data.subtitle) html += '<p class="ref-subtitle">' + esc(data.subtitle) + "</p>";
       if (data.intro) html += '<p class="ref-intro-para">' + esc(data.intro) + "</p>";
