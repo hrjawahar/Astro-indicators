@@ -150,7 +150,9 @@ const I18N = {
     dasha_tier_2_name: "Previous + Current + Next",
     dasha_tier_2_desc: "Adds the Mahadasha you just completed, for full context.",
     dasha_pdf_btn:     "Download my Dasa report (PDF)",
+    domains_pdf_btn:   "Download my Life Domains report (PDF)",
     locked_generate_first: "Generate your chart first, then unlock this report.",
+    no_refund_note: "All payments are final. No refunds once the consultation is booked or the report is generated.",
   },
 
   // ─────────────────────────────── TAMIL ───────────────────────────────
@@ -276,7 +278,9 @@ const I18N = {
     dasha_tier_2_name: "முந்தைய + தற்போதைய + அடுத்த",
     dasha_tier_2_desc: "நீங்கள் முடித்த மகாதசையையும் சேர்க்கிறது.",
     dasha_pdf_btn:     "என் தசா அறிக்கையைப் பதிவிறக்கு (PDF)",
+    domains_pdf_btn:   "என் வாழ்க்கைத் துறை அறிக்கையைப் பதிவிறக்கு (PDF)",
     locked_generate_first: "முதலில் உங்கள் ஜாதகத்தை உருவாக்கவும்.",
+    no_refund_note: "அனைத்து கட்டணங்களும் இறுதியானவை. முன்பதிவு செய்த அல்லது அறிக்கை உருவாக்கிய பிறகு பணம் திரும்பாது.",
   },
 
   // ─────────────────────────────── TELUGU ───────────────────────────────
@@ -402,7 +406,9 @@ const I18N = {
     dasha_tier_2_name: "మునుపటి + ప్రస్తుత + తదుపరి",
     dasha_tier_2_desc: "మీరు పూర్తి చేసిన మహాదశను కూడా చేరుస్తుంది.",
     dasha_pdf_btn:     "నా దశా నివేదికను డౌన్‌లోడ్ చేయండి (PDF)",
+    domains_pdf_btn:   "నా జీవిత రంగ నివేదికను డౌన్‌లోడ్ చేయండి (PDF)",
     locked_generate_first: "ముందుగా మీ జాతకాన్ని రూపొందించండి.",
+    no_refund_note: "అన్ని చెల్లింపులు అంతిమం. బుక్ చేసిన లేదా నివేదిక రూపొందించిన తర్వాత రీఫండ్ ఉండదు.",
   },
 
   // ─────────────────────────────── HINDI ───────────────────────────────
@@ -528,7 +534,9 @@ const I18N = {
     dasha_tier_2_name: "पिछली + वर्तमान + अगली",
     dasha_tier_2_desc: "अभी पूरी हुई महादशा भी जोड़ता है।",
     dasha_pdf_btn:     "मेरी दशा रिपोर्ट डाउनलोड करें (PDF)",
+    domains_pdf_btn:   "मेरी जीवन क्षेत्र रिपोर्ट डाउनलोड करें (PDF)",
     locked_generate_first: "पहले अपनी कुंडली बनाएं।",
+    no_refund_note: "सभी भुगतान अंतिम हैं। बुकिंग या रिपोर्ट बनने के बाद कोई रिफंड नहीं।",
   },
 
   // ─────────────────────────────── KANNADA ───────────────────────────────
@@ -654,7 +662,9 @@ const I18N = {
     dasha_tier_2_name: "ಹಿಂದಿನ + ಪ್ರಸ್ತುತ + ಮುಂದಿನ",
     dasha_tier_2_desc: "ನೀವು ಪೂರ್ಣಗೊಳಿಸಿದ ಮಹಾದಶಾವನ್ನೂ ಸೇರಿಸುತ್ತದೆ.",
     dasha_pdf_btn:     "ನನ್ನ ದಶಾ ವರದಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ (PDF)",
+    domains_pdf_btn:   "ನನ್ನ ಜೀವನ ಕ್ಷೇತ್ರ ವರದಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ (PDF)",
     locked_generate_first: "ಮೊದಲು ನಿಮ್ಮ ಜಾತಕ ರಚಿಸಿ.",
+    no_refund_note: "ಎಲ್ಲಾ ಪಾವತಿಗಳು ಅಂತಿಮ. ಬುಕ್ ಮಾಡಿದ ಅಥವಾ ವರದಿ ರಚಿಸಿದ ನಂತರ ಮರುಪಾವತಿ ಇಲ್ಲ.",
   },
 
   // ─────────────────────────────── MALAYALAM ───────────────────────────────
@@ -780,7 +790,9 @@ const I18N = {
     dasha_tier_2_name: "മുമ്പത്തെ + നിലവിലെ + അടുത്ത",
     dasha_tier_2_desc: "നിങ്ങൾ പൂർത്തിയാക്കിയ മഹാദശയും ചേർക്കുന്നു.",
     dasha_pdf_btn:     "എന്റെ ദശാ റിപ്പോർട്ട് ഡൗൺലോഡ് ചെയ്യുക (PDF)",
+    domains_pdf_btn:   "എന്റെ ജീവിത മേഖലാ റിപ്പോർട്ട് ഡൗൺലോഡ് ചെയ്യുക (PDF)",
     locked_generate_first: "ആദ്യം നിങ്ങളുടെ ജാതകം സൃഷ്ടിക്കുക.",
+    no_refund_note: "എല്ലാ പേയ്‌മെന്റുകളും അന്തിമമാണ്. ബുക്ക് ചെയ്ത ശേഷം റീഫണ്ട് ഇല്ല.",
   },
 };
 
