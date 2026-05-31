@@ -122,6 +122,14 @@ const CONSULT_CONFIG = {
     // Map paid features to their tab id.
     const PAY_TAB = { dasha: "dashaTab", domains: "domainTab", summary: "summaryTab" };
 
+    // Price lookup from central config.
+    function priceFor(item) {
+      const p = (window.APP_CONFIG && window.APP_CONFIG.prices) || {};
+      if (item === "dasha")   return p.dasha   || 399;
+      if (item === "domains") return p.lifeDomains || 299;
+      return 0;
+    }
+
     // Card-level click (the whole tile) — but ignore clicks that land on a button.
     document.querySelectorAll(".feature-card[data-goto]").forEach(function (card) {
       card.addEventListener("click", function (e) {
@@ -138,11 +146,37 @@ const CONSULT_CONFIG = {
       });
     });
 
-    // "Get It" buttons on paid features (route to their tab; payment wired Phase 4).
+    // "Get It" buttons on PAID features → Razorpay checkout, then open on success.
     document.querySelectorAll("button[data-pay]").forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        goToTab(PAY_TAB[btn.getAttribute("data-pay")] || "inputTab");
+        const item = btn.getAttribute("data-pay");
+        const tab  = PAY_TAB[item] || "inputTab";
+
+        // Already unlocked this session → just open it.
+        if (window.AI_unlocked && window.AI_unlocked[item]) { goToTab(tab); return; }
+
+        // Require a generated chart first.
+        const navBtn = document.querySelector('.nav-tab[data-tab="' + tab + '"]');
+        if (navBtn && navBtn.disabled) {
+          goToTab(tab);  // goToTab will nudge to Birth Data
+          return;
+        }
+
+        // Start payment.
+        if (typeof window.startPayment !== "function") { goToTab(tab); return; }
+        flashStatus(window.t ? window.t("pay_processing") : "Opening payment...");
+        window.startPayment({
+          item: item,
+          amount: priceFor(item),
+          label: btn.closest(".feature-card").querySelector(".fc-title").textContent,
+        }).then(function () {
+          flashStatus(window.t ? window.t("pay_success") : "Payment successful!");
+          if (window.AI_revealDownload) window.AI_revealDownload(item);
+          goToTab(tab);
+        }).catch(function (err) {
+          if (err !== "dismissed") flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
+        });
       });
     });
 
@@ -221,28 +255,106 @@ const CONSULT_CONFIG = {
       });
     }
 
-    // Booking button (payment + notification wired live in Phase 4)
+    // Booking button — Razorpay payment, then owner notification + confirmation.
     const consultBtn = document.getElementById("consultPayBtn");
     if (consultBtn) {
       consultBtn.addEventListener("click", function () {
         const name  = (document.getElementById("consultName")  || {}).value || "";
         const phone = (document.getElementById("consultPhone") || {}).value || "";
+        const dob   = (document.getElementById("consultDOB")   || {}).value || "";
+        const date  = (document.getElementById("consultDate")  || {}).value || "";
+        const query = (document.getElementById("consultQuery") || {}).value || "";
         const status = document.getElementById("consultStatus");
+
         if (!name.trim() || !phone.trim()) {
           if (status) { status.textContent = "Please enter your name and mobile number."; status.style.color = "var(--danger)"; }
           return;
         }
-        // For now (pre-Razorpay): show the confirmation message.
-        // In Phase 4 this becomes: create order → Razorpay checkout → on success,
-        // POST booking to /api/book-consultation → SMS + email fire to the owner.
-        if (status) { status.textContent = window.t ? window.t("pay_processing") : "Processing..."; status.style.color = "var(--text-dim)"; }
-        setTimeout(function () {
-          const confirmed = document.getElementById("consultConfirmed");
-          if (confirmed) confirmed.classList.remove("hidden");
-          if (status) status.textContent = "";
-        }, 700);
+        if (!selectedType) {
+          if (status) { status.textContent = "Please select a consultation type."; status.style.color = "var(--danger)"; }
+          return;
+        }
+
+        const booking = {
+          type: "consultation",
+          name: name, phone: phone, dob: dob, date: date, query: query,
+          duration: selectedType.minutes + " min",
+          amount: selectedType.amount,
+        };
+
+        if (typeof window.startPayment !== "function") {
+          // Payment system not loaded — show confirmation as a fallback.
+          showConsultConfirmed(status);
+          return;
+        }
+
+        if (status) { status.textContent = window.t ? window.t("pay_processing") : "Opening payment..."; status.style.color = "var(--text-dim)"; }
+        window.startPayment({
+          item: "consult_" + selectedType.id,
+          amount: selectedType.amount,
+          label: "Consultation (" + selectedType.minutes + " min)",
+          booking: booking,
+        }).then(function () {
+          showConsultConfirmed(status);
+        }).catch(function (err) {
+          if (status) {
+            status.textContent = (err === "dismissed") ? "" : (window.t ? window.t("pay_failed") : "Payment not completed.");
+            status.style.color = "var(--danger)";
+          }
+        });
       });
     }
+
+    function showConsultConfirmed(status) {
+      const confirmed = document.getElementById("consultConfirmed");
+      if (confirmed) confirmed.classList.remove("hidden");
+      if (status) status.textContent = "";
+    }
+
+    // ── 6b. PDF DOWNLOAD BUTTONS (paid Dasa + Life Domains) ──────────────────
+    // After payment unlocks a report, its download card is revealed and this
+    // builds a branded PDF from the on-screen content (user name only).
+    function userName() {
+      const el = document.getElementById("inputName");
+      return (el && el.value.trim()) ? el.value.trim() : "Seeker";
+    }
+    function collectSections(containerId) {
+      // Pull headings + text from the rendered report cards into PDF sections.
+      const root = document.getElementById(containerId);
+      const out = [];
+      if (!root) return out;
+      root.querySelectorAll(".domain-card, .card, .timeline-row, .cp-card").forEach(function (c) {
+        const h = c.querySelector("h3, h4, .domain-title, .cp-title, .timeline-label");
+        const txt = c.textContent.replace(/\s+/g, " ").trim();
+        if (txt) out.push({ heading: h ? h.textContent.trim() : "", body: txt.slice(0, 600) });
+      });
+      return out;
+    }
+    function revealDownload(item) {
+      const card = document.getElementById(item === "dasha" ? "dashaDownloadCard" : "domainDownloadCard");
+      if (card) card.style.display = "";
+    }
+    // Reveal download cards if already unlocked this session.
+    if (window.AI_unlocked) {
+      if (window.AI_unlocked.dasha) revealDownload("dasha");
+      if (window.AI_unlocked.domains) revealDownload("domains");
+    }
+    document.querySelectorAll("[data-download]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const item = btn.getAttribute("data-download");
+        if (typeof window.generateReportPDF !== "function") return;
+        const title = item === "dasha" ? "Dasa Bhukti Period Indications" : "Life Domains Indications";
+        const srcId = item === "dasha" ? "dashaTimeline" : "domainCards";
+        window.generateReportPDF({
+          userName: userName(),
+          reportTitle: title,
+          sections: collectSections(srcId),
+          paymentId: (window.AI_lastPayment && window.AI_lastPayment[item]) || null,
+        });
+      });
+    });
+    // Expose so payments can reveal the button on success.
+    window.AI_revealDownload = revealDownload;
 
     // ── 7. REFERENCES READER (in-app pages, in-place translation) ────────────
     const refLibrary  = document.getElementById("refLibrary");
