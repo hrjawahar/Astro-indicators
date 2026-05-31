@@ -11,9 +11,8 @@ const APP_CONFIG = {
   // The number here is exactly what the customer pays. The 18% GST is calculated
   // OUT of this amount automatically for the invoice. Change any number freely.
   prices: {
-    dasha:        399,   // Dasa Bhukti Periods report
+    dasha:        499,   // Dasa report (Previous + Current + Next MD) — single tier
     lifeDomains:  299,   // Life Domains Indicators report
-    dashaPlus:    499,   // Dasa report WITH previous period (two-tier upsell)
     consult30:    500,   // 30-minute consultation
     consult60:    999,   // 60-minute consultation
   },
@@ -30,7 +29,7 @@ const APP_CONFIG = {
   // Only the PUBLIC Key ID goes here. The SECRET never goes in code — it lives in
   // Cloudflare environment variables. Swap test → live key when you go live.
   razorpay: {
-    keyId: "rzp_test_Svzx3IEZryBEex",   // public key (test for now)
+    keyId: "rzp_test_REPLACE_WITH_YOUR_TEST_KEY_ID",   // public key (test for now)
     businessName: "AstroIndicators",                   // shown at checkout
     themeColor: "#0B0E1A",                             // checkout accent (navy)
   },
