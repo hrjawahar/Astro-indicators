@@ -103,17 +103,28 @@ const CONSULT_CONFIG = {
     // A card (or its "Get It" button) navigates to the relevant tab.
     function goToTab(tabId) {
       const navBtn = document.querySelector('.nav-tab[data-tab="' + tabId + '"]');
-      if (navBtn) {
-        navBtn.click();                       // reuse the engine's own tab routing
-        // if routing was blocked (needs chart first), nudge user to birth tab
-        const screen = document.getElementById(tabId);
-        if (screen && !screen.classList.contains("active")) {
-          const birth = document.querySelector('.nav-tab[data-tab="inputTab"]');
-          if (birth) birth.click();
-          flashStatus(window.t ? window.t("btn_generate") : "Generate your chart first");
+      if (!navBtn) return;
+
+      // If the engine has disabled this tab, the chart/analysis isn't ready yet.
+      // Nudge the user to generate first, instead of silently doing nothing.
+      if (navBtn.disabled) {
+        const birth = document.querySelector('.nav-tab[data-tab="inputTab"]');
+        if (birth && !birth.disabled) {
+          if (typeof window.switchTab === "function") window.switchTab("inputTab");
+          else birth.click();
         }
+        flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
         window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
       }
+
+      // Tab is enabled — switch to it using the engine's own function.
+      if (typeof window.switchTab === "function") {
+        window.switchTab(tabId);
+      } else {
+        navBtn.click();
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     document.querySelectorAll("[data-goto]").forEach(function (el) {
@@ -233,27 +244,46 @@ const CONSULT_CONFIG = {
       });
     }
 
-    // ── 7. REFERENCES READER (in-app pages + Google Translate button) ────────
+    // ── 7. REFERENCES READER (in-app pages, in-place translation) ────────────
     const refLibrary  = document.getElementById("refLibrary");
     const refReader   = document.getElementById("refReader");
     const refArticle  = document.getElementById("refArticle");
     const refBackBtn  = document.getElementById("refBackBtn");
     const refTrBtn    = document.getElementById("refTranslateBtn");
     const refTrMenu   = document.getElementById("refTranslateMenu");
+    let   currentRefKey = null;
+    let   currentRefLang = "EN";
 
-    function openReference(key) {
-      const data = (window.REFERENCES || {})[key];
+    // Map the translate-menu codes (lowercase google-style) to our lang codes.
+    const TR_CODE_MAP = { en:"EN", ta:"TA", te:"TE", hi:"HI", kn:"KA", ml:"ML" };
+
+    function getRefData(key, lang) {
+      const all = window.REFERENCES || {};
+      const entry = all[key];
+      if (!entry) return null;
+      // Each guide may have per-language versions under entry.langs[LANG];
+      // fall back to the English master fields on entry itself.
+      if (entry.langs && entry.langs[lang]) return entry.langs[lang];
+      return entry; // English master
+    }
+
+    function renderRef(key, lang) {
+      const data = getRefData(key, lang);
       if (!data || !refArticle) return;
       let html = '<h1 class="ref-h1">' + esc(data.title) + "</h1>";
       if (data.subtitle) html += '<p class="ref-subtitle">' + esc(data.subtitle) + "</p>";
       if (data.intro) html += '<p class="ref-intro-para">' + esc(data.intro) + "</p>";
       (data.sections || []).forEach(function (sec) {
         html += '<h2 class="ref-h2">' + esc(sec.h) + "</h2>";
-        (sec.p || []).forEach(function (para) {
-          html += '<p class="ref-para">' + esc(para) + "</p>";
-        });
+        (sec.p || []).forEach(function (para) { html += '<p class="ref-para">' + esc(para) + "</p>"; });
       });
       refArticle.innerHTML = html;
+    }
+
+    function openReference(key) {
+      currentRefKey = key;
+      currentRefLang = (typeof window._currentLang !== "undefined" && window._currentLang) ? window._currentLang : "EN";
+      renderRef(key, currentRefLang);
       if (refLibrary) refLibrary.style.display = "none";
       if (refReader)  refReader.style.display = "block";
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -262,6 +292,7 @@ const CONSULT_CONFIG = {
     function closeReference() {
       if (refReader)  refReader.style.display = "none";
       if (refLibrary) refLibrary.style.display = "block";
+      currentRefKey = null;
     }
 
     document.querySelectorAll("[data-openref]").forEach(function (btn) {
@@ -269,18 +300,18 @@ const CONSULT_CONFIG = {
     });
     if (refBackBtn) refBackBtn.addEventListener("click", closeReference);
 
-    // Translate button → opens the live page in Google Translate, chosen language.
+    // Translate button → switches the guide language IN PLACE (stays on the guide).
     if (refTrBtn && refTrMenu) {
       refTrBtn.addEventListener("click", function (e) {
         e.stopPropagation();
         refTrMenu.style.display = refTrMenu.style.display === "none" ? "block" : "none";
       });
       refTrMenu.querySelectorAll(".ref-tr-opt").forEach(function (opt) {
-        opt.addEventListener("click", function () {
-          const lang = opt.getAttribute("data-trlang");
-          const pageUrl = encodeURIComponent(window.location.href);
-          const gt = "https://translate.google.com/translate?sl=en&tl=" + lang + "&u=" + pageUrl;
-          window.open(gt, "_blank", "noopener");
+        opt.addEventListener("click", function (e) {
+          e.stopPropagation();
+          const code = TR_CODE_MAP[opt.getAttribute("data-trlang")] || "EN";
+          currentRefLang = code;
+          if (currentRefKey) renderRef(currentRefKey, code);
           refTrMenu.style.display = "none";
         });
       });
