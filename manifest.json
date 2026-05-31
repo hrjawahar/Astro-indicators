@@ -1,0 +1,33 @@
+{
+  "name": "AstroIndicators — Horoscope & Dasa Period Indicators",
+  "short_name": "AstroIndicators",
+  "description": "Precision Vedic horoscope and Dasa period indicators in 6 Indian languages. Swiss Ephemeris accuracy.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0E1A",
+  "theme_color": "#0B0E1A",
+  "lang": "en",
+  "categories": ["lifestyle", "education"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
