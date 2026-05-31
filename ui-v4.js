@@ -138,6 +138,9 @@ const CONSULT_CONFIG = {
 
     document.querySelectorAll("[data-goto]").forEach(function (el) {
       el.addEventListener("click", function (e) {
+        // If the click landed on a button inside the card, let that button's own
+        // handler deal with it — don't double-fire from the card.
+        if (e.target.closest("button") && e.target.closest("button") !== el) return;
         e.stopPropagation();
         goToTab(el.getAttribute("data-goto"));
       });
@@ -190,14 +193,15 @@ const CONSULT_CONFIG = {
     if (modal) modal.addEventListener("click", function (e) { if (e.target === modal) modal.style.display = "none"; });
 
     // ── 5. PAYMENT BUTTONS (stub — live Razorpay wired in Phase 4) ───────────
+    // Until payments go live, paid features are open: the Get It button takes the
+    // user straight to the section. Maps each paid feature to its tab.
+    const PAY_TAB = { dasha: "dashaTab", domains: "domainTab", summary: "summaryTab" };
     document.querySelectorAll("[data-pay]").forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        // For now, payments are not live. Show the "coming soon / free" message
-        // and route the user to the relevant section so the app stays usable.
-        flashStatus(window.t ? window.t("pay_coming_soon") : "Payments launching soon.");
-        const tab = btn.getAttribute("data-pay") === "dasha" ? "dashaTab" : "inputTab";
-        setTimeout(function () { goToTab(tab); }, 900);
+        const key = btn.getAttribute("data-pay");
+        const tab = PAY_TAB[key] || "inputTab";
+        goToTab(tab);
       });
     });
 
