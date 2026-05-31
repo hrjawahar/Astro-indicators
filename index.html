@@ -347,6 +347,10 @@
           <div id="dashaTimeline" class="dasha-timeline"></div>
         </div>
 
+        <div class="card report-download-card" id="dashaDownloadCard" style="display:none">
+          <button class="btn-primary report-download-btn" data-download="dasha" data-i18n="dasha_pdf_btn">Download my Dasa report (PDF)</button>
+        </div>
+
       </div>
     </section>
 
@@ -376,6 +380,10 @@
             <span class="cp-header-sub">Multi-factor compound patterns — probability signals, not predictions.</span>
           </div>
           <div id="compoundPatternsGrid" class="cp-grid"></div>
+        </div>
+
+        <div class="card report-download-card" id="domainDownloadCard" style="display:none">
+          <button class="btn-primary report-download-btn" data-download="domains" data-i18n="domains_pdf_btn">Download my Life Domains report (PDF)</button>
         </div>
       </div>
     </section>
@@ -549,6 +557,7 @@
             <button id="consultPayBtn" class="btn-primary" data-i18n="consult_pay">Pay &amp; Book Consultation</button>
             <div id="consultStatus" class="status-msg"></div>
           </div>
+          <div class="no-refund-note" data-i18n="no_refund_note">All payments are final. No refunds once the consultation is booked or the report is generated.</div>
 
           <div id="consultConfirmed" class="consult-confirmed hidden" data-i18n="consult_confirmed">
             Your consultation is booked. You will receive a call within 24 hours on the mobile number provided.
@@ -584,6 +593,16 @@
 
   <!-- Razorpay checkout library (loads only when needed; safe to include) -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+  <!-- Central config (prices, GST, keys) -->
+  <script src="config.js"></script>
+
+  <!-- Payment flow -->
+  <script src="payments.js"></script>
+
+  <!-- PDF report generator (jsPDF) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="report-pdf.js"></script>
 
   <!-- Translation dictionary (Step 1) -->
   <script src="i18n.js"></script>
