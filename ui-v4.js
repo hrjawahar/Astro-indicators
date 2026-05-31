@@ -102,22 +102,18 @@ const CONSULT_CONFIG = {
     // ── 3. CLICKABLE FEATURE CARDS ───────────────────────────────────────────
     // A card (or its "Get It" button) navigates to the relevant tab.
     function goToTab(tabId) {
-      const navBtn = document.querySelector('.nav-tab[data-tab="' + tabId + '"]');
       const screen = document.getElementById(tabId);
-      if (!navBtn || !screen) return;
-
+      if (!screen) return;
       const alwaysOpen = ["referencesTab", "consultTab", "inputTab"];
-      const isReady = (alwaysOpen.indexOf(tabId) !== -1) || !navBtn.disabled;
+      const navBtn = document.querySelector('.nav-tab[data-tab="' + tabId + '"]');
+      const enabled = navBtn && !navBtn.disabled;
 
-      if (!isReady) {
-        // chart/analysis not generated yet — nudge to birth form
+      if (alwaysOpen.indexOf(tabId) !== -1 || enabled) {
+        forceSwitch(tabId);
+      } else {
         forceSwitch("inputTab");
         flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        return;
       }
-
-      forceSwitch(tabId);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -193,15 +189,34 @@ const CONSULT_CONFIG = {
     if (modal) modal.addEventListener("click", function (e) { if (e.target === modal) modal.style.display = "none"; });
 
     // ── 5. PAYMENT BUTTONS (stub — live Razorpay wired in Phase 4) ───────────
-    // Until payments go live, paid features are open: the Get It button takes the
-    // user straight to the section. Maps each paid feature to its tab.
+    // Until payments go live, paid features are open. The Get It button opens the
+    // section if its content has been generated, otherwise nudges to Birth Data.
     const PAY_TAB = { dasha: "dashaTab", domains: "domainTab", summary: "summaryTab" };
+    // Each paid tab's "content container" — if it has children, analysis is ready.
+    const READY_CHECK = { dashaTab: "dashaTimeline", domainTab: "domainCards", summaryTab: "summaryOverall" };
+
+    function openPaidTab(tab) {
+      const containerId = READY_CHECK[tab];
+      const container = containerId ? document.getElementById(containerId) : null;
+      const hasContent = container && (container.children.length > 0 || container.textContent.trim().length > 0);
+      const navBtn = document.querySelector('.nav-tab[data-tab="' + tab + '"]');
+      const enabled = navBtn && !navBtn.disabled;
+
+      if (hasContent || enabled) {
+        forceSwitch(tab);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        forceSwitch("inputTab");
+        flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+
     document.querySelectorAll("[data-pay]").forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
         const key = btn.getAttribute("data-pay");
-        const tab = PAY_TAB[key] || "inputTab";
-        goToTab(tab);
+        openPaidTab(PAY_TAB[key] || "inputTab");
       });
     });
 
