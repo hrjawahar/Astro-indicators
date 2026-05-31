@@ -30,7 +30,7 @@ const APP_CONFIG = {
   // Only the PUBLIC Key ID goes here. The SECRET never goes in code — it lives in
   // Cloudflare environment variables. Swap test → live key when you go live.
   razorpay: {
-    keyId: "rzp_test_SugszGcpJ1IASn",   // public key (test for now)
+    keyId: "rzp_test_Svzx3IEZryBEex",   // public key (test for now)
     businessName: "AstroIndicators",                   // shown at checkout
     themeColor: "#0B0E1A",                             // checkout accent (navy)
   },
