@@ -318,18 +318,6 @@ const CONSULT_CONFIG = {
       const el = document.getElementById("inputName");
       return (el && el.value.trim()) ? el.value.trim() : "Seeker";
     }
-    function collectSections(containerId) {
-      // Pull headings + text from the rendered report cards into PDF sections.
-      const root = document.getElementById(containerId);
-      const out = [];
-      if (!root) return out;
-      root.querySelectorAll(".domain-card, .card, .timeline-row, .cp-card").forEach(function (c) {
-        const h = c.querySelector("h3, h4, .domain-title, .cp-title, .timeline-label");
-        const txt = c.textContent.replace(/\s+/g, " ").trim();
-        if (txt) out.push({ heading: h ? h.textContent.trim() : "", body: txt.slice(0, 600) });
-      });
-      return out;
-    }
     function revealDownload(item) {
       const card = document.getElementById(item === "dasha" ? "dashaDownloadCard" : "domainDownloadCard");
       if (card) card.style.display = "";
@@ -343,16 +331,58 @@ const CONSULT_CONFIG = {
       btn.addEventListener("click", function () {
         const item = btn.getAttribute("data-download");
         if (typeof window.generateReportPDF !== "function") return;
-        const title = item === "dasha" ? "Dasa Bhukti Period Indications" : "Life Domains Indications";
-        const srcId = item === "dasha" ? "dashaTimeline" : "domainCards";
-        window.generateReportPDF({
-          userName: userName(),
-          reportTitle: title,
-          sections: collectSections(srcId),
-          paymentId: (window.AI_lastPayment && window.AI_lastPayment[item]) || null,
-        });
+
+        if (item === "dasha") {
+          // Structured two-tier Dasa report (current+next, or +previous).
+          // Tier is decided by what the user unlocked; default current_next.
+          const tier = (window.AI_dasaTier === "full") ? "full" : "current_next";
+          if (typeof window.buildDasaReport !== "function") return;
+          const orig = btn.textContent;
+          btn.disabled = true;
+          window.buildDasaReport(tier, function (done, total) {
+            btn.textContent = "Preparing report… " + done + "/" + total;
+          }).then(function (sections) {
+            btn.textContent = orig; btn.disabled = false;
+            window.generateReportPDF({
+              userName: userName(),
+              reportTitle: "Dasa Bhukti Period Indications",
+              sections: sections,
+              paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
+            });
+          }).catch(function () {
+            btn.textContent = orig; btn.disabled = false;
+            flashStatus("Could not build the report. Please try again.");
+          });
+        } else {
+          // Life Domains — clean structured sections from rendered cards.
+          window.generateReportPDF({
+            userName: userName(),
+            reportTitle: "Life Domains Indications",
+            sections: collectDomainSections(),
+            paymentId: (window.AI_lastPayment && window.AI_lastPayment.domains) || null,
+          });
+        }
       });
     });
+
+    // Build clean Life Domains sections from the rendered domain cards.
+    function collectDomainSections() {
+      const out = [];
+      const root = document.getElementById("domainCards");
+      if (!root) return out;
+      root.querySelectorAll(".domain-card").forEach(function (c) {
+        const title = c.querySelector(".domain-title, h3, h4");
+        const verdict = c.querySelector(".domain-verdict, .verdict");
+        const body = c.querySelector(".domain-body, .domain-indication, p");
+        let heading = title ? title.textContent : "";
+        if (verdict) heading += " — " + verdict.textContent;
+        out.push({
+          heading: heading,
+          body: body ? body.textContent : c.textContent,
+        });
+      });
+      return out;
+    }
     // Expose so payments can reveal the button on success.
     window.AI_revealDownload = revealDownload;
 
