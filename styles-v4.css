@@ -254,3 +254,6 @@ textarea:focus { outline: none; border-color: var(--gold-dim); }
 .no-refund-note {
   font-size: 12px; color: var(--text-dim); margin-top: 10px; font-style: italic;
 }
+
+/* No-refund note on paid cards */
+.fc-norefund { font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 6px; font-style: italic; }
