@@ -99,46 +99,50 @@ const CONSULT_CONFIG = {
     }
     syncPlanetNameButtons(savedLang);
 
-    // ── 3. CLICKABLE FEATURE CARDS ───────────────────────────────────────────
-    // A card (or its "Get It" button) navigates to the relevant tab.
+    // ── 3. CLICKABLE FEATURE CARDS & GET IT BUTTONS ──────────────────────────
+    // The top nav tabs already work perfectly (they call the engine's switchTab
+    // after checking the data is ready). So every card and Get It button simply
+    // triggers the matching nav tab's own click — guaranteed identical behaviour.
     function goToTab(tabId) {
-      const screen = document.getElementById(tabId);
-      if (!screen) return;
-      const alwaysOpen = ["referencesTab", "consultTab", "inputTab"];
       const navBtn = document.querySelector('.nav-tab[data-tab="' + tabId + '"]');
-      const enabled = navBtn && !navBtn.disabled;
-
-      if (alwaysOpen.indexOf(tabId) !== -1 || enabled) {
-        forceSwitch(tabId);
-      } else {
-        forceSwitch("inputTab");
-        flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
-      }
+      if (!navBtn) return;
+      navBtn.click();  // delegate to the proven-working nav tab
+      // If nothing happened (data not ready yet), the engine ignored it — nudge.
+      setTimeout(function () {
+        const screen = document.getElementById(tabId);
+        if (screen && !screen.classList.contains("active")) {
+          const birth = document.querySelector('.nav-tab[data-tab="inputTab"]');
+          if (birth) birth.click();
+          flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
+        }
+      }, 50);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Robust tab switch: try the engine's function, and ALSO directly toggle the
-    // active classes as a guaranteed fallback (works even if switchTab is hidden).
-    function forceSwitch(tabId) {
-      if (typeof window.switchTab === "function") {
-        try { window.switchTab(tabId); } catch (e) {}
-      }
-      // Fallback / guarantee — toggle the classes ourselves the same way the engine does.
-      document.querySelectorAll(".nav-tab").forEach(function (t) {
-        t.classList.toggle("active", t.getAttribute("data-tab") === tabId);
-      });
-      document.querySelectorAll(".screen").forEach(function (s) {
-        s.classList.toggle("active", s.id === tabId);
-      });
-    }
+    // Map paid features to their tab id.
+    const PAY_TAB = { dasha: "dashaTab", domains: "domainTab", summary: "summaryTab" };
 
-    document.querySelectorAll("[data-goto]").forEach(function (el) {
-      el.addEventListener("click", function (e) {
-        // If the click landed on a button inside the card, let that button's own
-        // handler deal with it — don't double-fire from the card.
-        if (e.target.closest("button") && e.target.closest("button") !== el) return;
+    // Card-level click (the whole tile) — but ignore clicks that land on a button.
+    document.querySelectorAll(".feature-card[data-goto]").forEach(function (card) {
+      card.addEventListener("click", function (e) {
+        if (e.target.closest("button")) return;  // button handles its own click
+        goToTab(card.getAttribute("data-goto"));
+      });
+    });
+
+    // "Get It" buttons that navigate directly (free features).
+    document.querySelectorAll('button[data-goto]').forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        goToTab(el.getAttribute("data-goto"));
+        goToTab(btn.getAttribute("data-goto"));
+      });
+    });
+
+    // "Get It" buttons on paid features (route to their tab; payment wired Phase 4).
+    document.querySelectorAll("button[data-pay]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        goToTab(PAY_TAB[btn.getAttribute("data-pay")] || "inputTab");
       });
     });
 
@@ -187,38 +191,6 @@ const CONSULT_CONFIG = {
 
     if (modalClose) modalClose.addEventListener("click", function () { modal.style.display = "none"; });
     if (modal) modal.addEventListener("click", function (e) { if (e.target === modal) modal.style.display = "none"; });
-
-    // ── 5. PAYMENT BUTTONS (stub — live Razorpay wired in Phase 4) ───────────
-    // Until payments go live, paid features are open. The Get It button opens the
-    // section if its content has been generated, otherwise nudges to Birth Data.
-    const PAY_TAB = { dasha: "dashaTab", domains: "domainTab", summary: "summaryTab" };
-    // Each paid tab's "content container" — if it has children, analysis is ready.
-    const READY_CHECK = { dashaTab: "dashaTimeline", domainTab: "domainCards", summaryTab: "summaryOverall" };
-
-    function openPaidTab(tab) {
-      const containerId = READY_CHECK[tab];
-      const container = containerId ? document.getElementById(containerId) : null;
-      const hasContent = container && (container.children.length > 0 || container.textContent.trim().length > 0);
-      const navBtn = document.querySelector('.nav-tab[data-tab="' + tab + '"]');
-      const enabled = navBtn && !navBtn.disabled;
-
-      if (hasContent || enabled) {
-        forceSwitch(tab);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } else {
-        forceSwitch("inputTab");
-        flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first, then unlock this report.");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    }
-
-    document.querySelectorAll("[data-pay]").forEach(function (btn) {
-      btn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        const key = btn.getAttribute("data-pay");
-        openPaidTab(PAY_TAB[key] || "inputTab");
-      });
-    });
 
     // ── 6. CONSULTATION TAB ──────────────────────────────────────────────────
     // Fill consultant profile from config
