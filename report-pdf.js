@@ -121,11 +121,41 @@
         var hL2 = doc.splitTextToSize(heading.trim(), CW);
         doc.text(hL2, M, y); y += hL2.length * 14 + 4;
       } else if (sec.isTimeline) {
-        // Plain timeline list line
-        doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+        // Timeline list; the current MD line (marked with CURRENT) shown in gold bold.
+        doc.setFontSize(10);
+        var tl = heading.split("\n");
+        tl.forEach(function (ln) {
+          needPage(50);
+          if (ln.indexOf("CURRENT") !== -1) {
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+          } else {
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+          }
+          doc.text(ln, M, y); y += 14;
+        });
+        y += 6;
+        return;
+      } else if (sec.isNote) {
+        // Highlighted note box (e.g. the Rs.100 other-MD offer).
+        needPage(110);
+        var noteBody = clean(sec.body);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        var nhL = doc.splitTextToSize(clean(sec.heading), CW - 24);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+        var nbL = doc.splitTextToSize(noteBody, CW - 24);
+        var nBoxH = 16 + nhL.length * 14 + nbL.length * 12 + 8;
+        doc.setFillColor(245, 240, 228);
+        doc.setDrawColor(C.gold[0], C.gold[1], C.gold[2]); doc.setLineWidth(0.6);
+        doc.roundedRect(M, y, CW, nBoxH, 4, 4, "FD");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+        doc.text(nhL, M + 12, y + 16);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
         doc.setTextColor(C.text[0], C.text[1], C.text[2]);
-        var tl = doc.splitTextToSize(heading, CW);
-        tl.forEach(function (ln) { needPage(50); doc.text(ln, M, y); y += 13; });
+        doc.text(nbL, M + 12, y + 16 + nhL.length * 14 + 4);
+        y += nBoxH + 12;
         return;
       } else if (sec.isDomain) {
         // Domain block: gold title, then labelled lines.
