@@ -1,176 +1,230 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  FILE: dasa-report.js
-//  AstroIndicators — Dasa report builder.
-//
-//  Structure:
-//    1. Full 120-year timeline (all 9 MD periods with dates) — the map
-//    2. Previous MD — overview only
-//    3. Current MD  — overview + ALL its Antardashas (the detailed core)
-//    4. Following MD — overview only
-//
-//  Reads the rendered Dasa timeline DOM (no dependency on internal vars) and uses
-//  the engine's global prompt builders + /api/indicate for AI text.
+//  FILE: report-pdf.js
+//  AstroIndicators — professional PDF generator.
+//  Bold headings, markdown-aware body (**bold**, ## subheads), each AD as its own
+//  spaced block, boxed legal disclaimer, page numbers. Strips garbled symbols.
 // ─────────────────────────────────────────────────────────────────────────────
 
 (function () {
   "use strict";
 
-  function readTimeline() {
-    var rows = document.querySelectorAll("#dashaTimeline .dasha-row");
-    if (!rows || !rows.length) return null;
-    var mds = [], currentIdx = -1;
-    rows.forEach(function (row) {
-      var lordEl = row.querySelector(".dasha-lord");
-      var datesEl = row.querySelector(".dasha-dates");
-      if (!lordEl) return;
-      var lord = lordEl.textContent.replace(/[^A-Za-z]/g, "").trim();
-      var dtxt = datesEl ? datesEl.textContent.trim() : "";
-      var dmatch = dtxt.match(/\d{4}-\d{2}-\d{2}/g) || [];
-      var ads = [];
-      row.querySelectorAll(".antar-item").forEach(function (ai) {
-        var al = ai.querySelector(".antar-lord");
-        var ad = ai.querySelector(".antar-dates");
-        if (al) {
-          var adt = ad ? (ad.textContent.match(/\d{4}-\d{2}-\d{2}/g) || []) : [];
-          ads.push({
-            lord: al.textContent.replace(/[^A-Za-z]/g, "").trim(),
-            start: adt[0] || "", end: adt[1] || "",
-          });
+  // Strip emoji / icon-font / private-use / stray encoding artefacts.
+  function clean(s) {
+    if (!s) return "";
+    return String(s)
+      .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
+      .replace(/[\u{2600}-\u{27BF}]/gu, "")
+      .replace(/[\u{E000}-\u{F8FF}]/gu, "")
+      .replace(/[\u{FE00}-\u{FE0F}]/gu, "")
+      .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "")
+      .replace(/[\u2190-\u21FF\u2300-\u23FF\u25A0-\u25FF\u2B00-\u2BFF]/g, "")
+      .replace(/[\u2605\u2606\u25B6\u25BC\u25C0\u25C6\u25C9\u25C8\u2295\u2302\u2640\u2642\u263F\u263D\u2609\u2644\u2643\u2295]/g, "")
+      .replace(/\uFFFD/g, "")
+      .replace(/%[\u00C0-\u00FF\u0080-\u00BFA-Za-z]{1,3}/g, "")  // %Ï %Ë etc
+      .replace(/[ \t]+/g, " ")
+      .trim();
+  }
+
+  // Remove doubled dates like "1993-03-212011-03-21" -> keep readable range.
+  function fixDates(s) {
+    // collapse two ISO dates stuck together: 1993-03-212011-03-21
+    return s.replace(/(\d{4}-\d{2}-\d{2})(\d{4}-\d{2}-\d{2})/g, "$1");
+  }
+
+  var C = {
+    navy: [11, 14, 26], gold: [201, 168, 76], goldDk: [154, 126, 51],
+    text: [38, 42, 54], dim: [120, 128, 145], sub: [90, 70, 20],
+    boxbg: [248, 246, 240],
+  };
+
+  window.generateReportPDF = function (opts) {
+    if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF({ unit: "pt", format: "a4" });
+    var W = doc.internal.pageSize.getWidth();
+    var H = doc.internal.pageSize.getHeight();
+    var M = 50, CW = W - 2 * M, y = 0;
+
+    function needPage(space) { if (y > H - space) { doc.addPage(); y = M + 10; } }
+
+    // Header band
+    doc.setFillColor(C.navy[0], C.navy[1], C.navy[2]); doc.rect(0, 0, W, 76, "F");
+    doc.setTextColor(C.gold[0], C.gold[1], C.gold[2]);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(20);
+    doc.text("AstroIndicators", M, 40);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+    doc.setTextColor(180, 188, 200);
+    doc.text("Horoscope & Dasa Period Indicators  .  Swiss Ephemeris  .  Lahiri Ayanamsha", M, 58);
+    y = 76 + 36;
+
+    doc.setTextColor(C.navy[0], C.navy[1], C.navy[2]);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+    doc.text(clean(opts.reportTitle) || "Your Report", M, y); y += 20;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+    doc.text("Prepared for: " + (clean(opts.userName) || "Seeker"), M, y); y += 8;
+    doc.setDrawColor(C.gold[0], C.gold[1], C.gold[2]); doc.setLineWidth(1);
+    doc.line(M, y, W - M, y); y += 26;
+
+    // Render one body string with markdown awareness (**bold**, ## subhead).
+    function renderBody(body) {
+      body = fixDates(clean(body));
+      if (!body) return;
+      // Split into segments on ## subheadings (convert "## TITLE" to bold line).
+      // First, normalise: turn "## X" and "**X**" markers into tokens.
+      // Split on subheading markers while keeping them.
+      var parts = body.split(/(?:^|\s)##\s*/); // crude: ## starts a subhead
+      // If no ## present, parts has 1 element (the whole body).
+      parts.forEach(function (part, idx) {
+        if (!part.trim()) return;
+        // For parts after the first, the leading words up to a capitalised run act as subhead.
+        // Simpler: detect a leading ALLCAPS phrase as a subheading.
+        var subMatch = part.match(/^([A-Z][A-Z &/]{3,40})\b/);
+        if (idx > 0 && subMatch) {
+          needPage(60);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+          doc.setTextColor(C.sub[0], C.sub[1], C.sub[2]);
+          var sh = subMatch[1].trim();
+          doc.text(sh, M, y); y += 14;
+          part = part.slice(subMatch[1].length);
         }
+        // Render remaining text, honouring **bold** inline by stripping markers
+        // (jsPDF can't easily mix weights mid-line, so we bold whole sentences
+        // that are fully wrapped, else strip the ** markers cleanly).
+        var clean2 = part.replace(/\*\*/g, "").replace(/^\s*[:.\-]\s*/, "").trim();
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
+        doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+        var lines = doc.splitTextToSize(clean2, CW);
+        lines.forEach(function (ln) { needPage(60); doc.text(ln, M, y); y += 15; });
+        y += 8;
       });
-      if (row.classList.contains("current")) currentIdx = mds.length;
-      mds.push({ lord: lord, start: dmatch[0] || "", end: dmatch[1] || "", ads: ads });
-    });
-    if (currentIdx === -1) return null;
-    return {
-      all: mds,
-      previous: currentIdx > 0 ? mds[currentIdx - 1] : null,
-      current: mds[currentIdx],
-      next: currentIdx < mds.length - 1 ? mds[currentIdx + 1] : null,
-    };
-  }
-
-  function getCtx() {
-    var lagna = "", ctx = "";
-    var cd = window.currentData;
-    if (cd && cd.chart && cd.chart.d1) {
-      lagna = cd.chart.d1.lagnaSign || "";
-      try {
-        if (typeof window.buildChartContext === "function")
-          ctx = window.buildChartContext(cd.chart.d1.lagnaSign, cd.chart.d1.houses, cd.chart.planets);
-      } catch (e) {}
     }
-    if (!lagna) {
-      var el = document.getElementById("d1LagnaLabel") || document.getElementById("lagnaBar");
-      if (el) { var m = el.textContent.match(/(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)/); if (m) lagna = m[1]; }
-    }
-    return { lagna: lagna, ctx: ctx };
-  }
 
-  function fetchIndication(prompt) {
-    return fetch("/api/indicate", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: prompt })
-    }).then(function (r) { return r.ok ? r.text() : ""; }).then(extractText).catch(function () { return ""; });
-  }
-  function extractText(raw) {
-    if (!raw) return "";
-    if (raw.indexOf("data:") === -1) return raw.trim();
-    var out = "";
-    raw.split("\n").forEach(function (line) {
-      line = line.trim();
-      if (line.indexOf("data:") === 0) {
-        var p = line.slice(5).trim();
-        if (p && p !== "[DONE]") { try { var o = JSON.parse(p); if (o.delta && o.delta.text) out += o.delta.text; else if (o.text) out += o.text; else if (o.content) out += o.content; } catch (e) {} }
-      }
-    });
-    return out.trim();
-  }
+    (opts.sections || []).forEach(function (sec) {
+      var heading = fixDates(clean(sec.heading));
+      needPage(110);
 
-  function mdOverview(md, label, lagna, ctx) {
-    var prompt = (typeof window.buildMDPrompt === "function")
-      ? window.buildMDPrompt(md.lord, lagna, ctx)
-      : "Write a 5-7 sentence overview of the " + md.lord + " Mahadasha for a " + lagna + " ascendant, second person.";
-    return fetchIndication(prompt).then(function (ov) {
-      return { heading: label + ": " + md.lord + " Mahadasha (" + md.start + " to " + md.end + ")",
-               body: ov || "(overview unavailable)", isMDHeading: true };
-    });
-  }
-
-  window.buildDasaReport = function (_tier, onProgress) {
-    var tl = readTimeline();
-    if (!tl) return Promise.reject("Open the Dasa Periods tab once, then try again.");
-    var c = getCtx();
-    if (!c.lagna) return Promise.reject("Could not read your ascendant — open the Charts tab once, then retry.");
-
-    // progress: 1 (prev) + 1 (current overview) + N (current ADs) + 1 (next)
-    var total = 1 + 1 + (tl.current.ads ? tl.current.ads.length : 0) + 1;
-    var done = 0;
-    function tick() { done++; if (onProgress) onProgress(done, total); }
-
-    // 1. Full 120-year timeline as a single readable block, current MD marked.
-    var sections0 = [];
-    var tlText = tl.all.map(function (m, i) {
-      var isCur = (m === tl.current);
-      return (i + 1) + ". " + m.lord + " Mahadasha — " + m.start + " to " + m.end + (isCur ? "   ◄ CURRENT" : "");
-    }).join("\n");
-    sections0.push({ heading: "Your Complete 120-Year Dasha Timeline", body: "", isMDHeading: true });
-    sections0.push({ heading: tlText, isTimeline: true, currentLord: tl.current.lord });
-
-    var sections = [];
-    var prevSec = null, curOverviewSec = null, nextSec = null;
-    var adSecs = [];
-
-    // Build a list of deferred jobs (thunks) so we can run them in batches.
-    var thunks = [];
-
-    if (tl.previous) {
-      thunks.push(function () { return mdOverview(tl.previous, "Previous period", c.lagna, c.ctx).then(function (s) { prevSec = s; tick(); }); });
-    } else { tick(); }
-
-    thunks.push(function () { return mdOverview(tl.current, "Current period", c.lagna, c.ctx).then(function (s) { curOverviewSec = s; tick(); }); });
-
-    (tl.current.ads || []).forEach(function (ad, idx) {
-      thunks.push(function () {
-        var adPrompt = (typeof window.buildADPrompt === "function")
-          ? window.buildADPrompt(tl.current.lord, ad.lord, c.lagna, c.ctx)
-          : "Write a short indication for " + tl.current.lord + " Mahadasha / " + ad.lord + " Antardasha for a " + c.lagna + " ascendant, second person.";
-        return fetchIndication(adPrompt).then(function (t) {
-          adSecs[idx] = { heading: ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ")",
-                          body: t || "(indication unavailable)", isAD: true };
-          tick();
+      if (sec.isMDHeading) {
+        y += 8;
+        doc.setFillColor(245, 240, 228);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(12.5);
+        var hL = doc.splitTextToSize(heading, CW - 16);
+        var bandH = 14 + hL.length * 15;
+        doc.rect(M, y - 12, CW, bandH, "F");
+        doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+        doc.text(hL, M + 8, y + 2);
+        y += bandH + 6;
+      } else if (sec.isAD) {
+        needPage(70);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        doc.setTextColor(C.navy[0], C.navy[1], C.navy[2]);
+        var hL2 = doc.splitTextToSize(heading.trim(), CW);
+        doc.text(hL2, M, y); y += hL2.length * 14 + 4;
+      } else if (sec.isTimeline) {
+        // Timeline list; the current MD line (marked with CURRENT) shown in gold bold.
+        doc.setFontSize(10);
+        var tl = heading.split("\n");
+        tl.forEach(function (ln) {
+          needPage(50);
+          if (ln.indexOf("CURRENT") !== -1) {
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+          } else {
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+          }
+          doc.text(ln, M, y); y += 14;
         });
-      });
+        y += 6;
+        return;
+      } else if (sec.isNote) {
+        // Highlighted note box (e.g. the Rs.100 other-MD offer).
+        needPage(110);
+        var noteBody = clean(sec.body);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        var nhL = doc.splitTextToSize(clean(sec.heading), CW - 24);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+        var nbL = doc.splitTextToSize(noteBody, CW - 24);
+        var nBoxH = 16 + nhL.length * 14 + nbL.length * 12 + 8;
+        doc.setFillColor(245, 240, 228);
+        doc.setDrawColor(C.gold[0], C.gold[1], C.gold[2]); doc.setLineWidth(0.6);
+        doc.roundedRect(M, y, CW, nBoxH, 4, 4, "FD");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+        doc.text(nhL, M + 12, y + 16);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+        doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+        doc.text(nbL, M + 12, y + 16 + nhL.length * 14 + 4);
+        y += nBoxH + 12;
+        return;
+      } else if (sec.isDomain) {
+        // Domain block: gold title, then labelled lines.
+        needPage(90);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(12.5);
+        doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+        doc.text(heading, M, y); y += 16;
+        var dbody = fixDates(clean(sec.body));
+        dbody.split("\n").forEach(function (lineRaw) {
+          var lr = lineRaw.trim(); if (!lr) return;
+          var labelMatch = lr.match(/^(Strength|Key pattern|Indication|Best period|Confidence)\s*:\s*(.*)$/i);
+          if (labelMatch) {
+            needPage(50);
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+            doc.setTextColor(C.sub[0], C.sub[1], C.sub[2]);
+            doc.text(labelMatch[1] + ":", M, y);
+            var lblW = doc.getTextWidth(labelMatch[1] + ": ");
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+            var vlines = doc.splitTextToSize(labelMatch[2], CW - lblW - 4);
+            doc.text(vlines[0] || "", M + lblW + 4, y); y += 14;
+            for (var k = 1; k < vlines.length; k++) { needPage(40); doc.text(vlines[k], M, y); y += 13; }
+          } else {
+            doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+            doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+            var ol = doc.splitTextToSize(lr, CW);
+            ol.forEach(function (x) { needPage(40); doc.text(x, M, y); y += 13; });
+          }
+        });
+        y += 12;
+        return;
+      } else {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+        doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+        var hL3 = doc.splitTextToSize(heading, CW);
+        doc.text(hL3, M, y); y += hL3.length * 15 + 4;
+      }
+      renderBody(sec.body);
+      y += 6;
     });
 
-    if (tl.next) {
-      thunks.push(function () { return mdOverview(tl.next, "Next period", c.lagna, c.ctx).then(function (s) { nextSec = s; tick(); }); });
-    } else { tick(); }
+    // Boxed legal disclaimer
+    needPage(150); y += 8;
+    var disc =
+      "Disclaimer: This report is provided for educational and self-reflective purposes only and constitutes " +
+      "indicative astrological insight, not professional advice or a guarantee of outcomes. It is not a substitute " +
+      "for medical, psychological, legal, or financial counsel. The user assumes full responsibility for any decision " +
+      "made in reliance on this report, and AstroIndicators disclaims all liability to the fullest extent permitted by " +
+      "law. All payments are final and non-refundable once the report is generated.";
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+    var dL = doc.splitTextToSize(disc, CW - 24);
+    var boxH = 18 + dL.length * 11;
+    doc.setFillColor(C.boxbg[0], C.boxbg[1], C.boxbg[2]);
+    doc.setDrawColor(C.dim[0], C.dim[1], C.dim[2]); doc.setLineWidth(0.5);
+    doc.roundedRect(M, y, CW, boxH, 4, 4, "FD");
+    doc.setTextColor(C.dim[0], C.dim[1], C.dim[2]);
+    doc.text(dL, M + 12, y + 14); y += boxH;
 
-    // Run in batches of 5 concurrent calls — fast (~1 min) but rate-limit-safe.
-    function runBatched(list, size) {
-      var i = 0;
-      function nextBatch() {
-        if (i >= list.length) return Promise.resolve();
-        var batch = list.slice(i, i + size).map(function (fn) { return fn(); });
-        i += size;
-        return Promise.all(batch).then(nextBatch);
-      }
-      return nextBatch();
+    var pages = doc.internal.getNumberOfPages();
+    for (var i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+      doc.setTextColor(C.dim[0], C.dim[1], C.dim[2]);
+      doc.text("(c) 2026 AstroIndicators  .  astroindicators.com", M, H - 26);
+      doc.text("Page " + i + " of " + pages, W - M, H - 26, { align: "right" });
     }
 
-    return runBatched(thunks, 5).then(function () {
-      if (prevSec) sections.push(prevSec);
-      if (curOverviewSec) sections.push(curOverviewSec);
-      adSecs.forEach(function (s) { if (s) sections.push(s); });
-      if (nextSec) sections.push(nextSec);
-      sections.push({
-        heading: "Want this depth for your other Dasha periods?",
-        body: "If you would like a similarly detailed report for any other Mahadasha and its sub-periods (Antardashas) — like the current period detailed above — please submit a request under the Contact Us tab. You will receive it at an additional cost of Rs.100 per Mahadasha and its Antardasha sub-periods.",
-        isNote: true,
-      });
-      return sections0.concat(sections);
-    });
+    var safe = (clean(opts.userName) || "report").replace(/[^a-z0-9]/gi, "_");
+    doc.save("AstroIndicators_" + safe + ".pdf");
   };
 
 })();
