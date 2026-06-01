@@ -374,20 +374,76 @@ const CONSULT_CONFIG = {
       const root = document.getElementById("domainCards");
       if (!root) return out;
       root.querySelectorAll(".domain-card").forEach(function (c) {
-        const title = c.querySelector(".domain-title, h3, h4");
-        const verdict = c.querySelector(".domain-verdict, .verdict");
-        const body = c.querySelector(".domain-body, .domain-indication, p");
-        let heading = title ? title.textContent : "";
-        if (verdict) heading += " — " + verdict.textContent;
-        out.push({
-          heading: heading,
-          body: body ? body.textContent : c.textContent,
-        });
+        const title = c.querySelector(".rc-title");
+        const verdict = c.querySelector(".rc-verdict");
+        const pattern = c.querySelector(".rc-pattern");
+        const indication = c.querySelector(".rc-indication");
+        const confLine = c.querySelector(".rc-confidence-line");
+        const windowEl = c.querySelector(".rc-window, .rc-activation");
+        const t = function (el) { return el ? el.textContent.trim() : ""; };
+
+        // Each domain becomes a heading + a structured body.
+        let body = "";
+        if (verdict) body += "Strength: " + t(verdict) + "\n";
+        if (pattern) body += "Key pattern: " + t(pattern) + "\n";
+        if (indication) body += "Indication: " + t(indication) + "\n";
+        if (windowEl) body += "Best period: " + t(windowEl) + "\n";
+        if (confLine) body += t(confLine);
+
+        out.push({ heading: t(title) || "Domain", body: body, isDomain: true });
       });
       return out;
     }
     // Expose so payments can reveal the button on success.
     window.AI_revealDownload = revealDownload;
+
+    // ── 7. CONTACT US TAB ─────────────────────────────────────────────────────
+    const contactType = document.getElementById("contactType");
+    const contactMDWrap = document.getElementById("contactMDWrap");
+    if (contactType && contactMDWrap) {
+      contactType.addEventListener("change", function () {
+        contactMDWrap.style.display = (contactType.value === "Extra MD report") ? "" : "none";
+      });
+    }
+    const contactBtn = document.getElementById("contactSubmitBtn");
+    if (contactBtn) {
+      contactBtn.addEventListener("click", function () {
+        const status = document.getElementById("contactStatus");
+        const name = (document.getElementById("contactName") || {}).value || "";
+        const email = (document.getElementById("contactEmail") || {}).value || "";
+        const phone = (document.getElementById("contactPhone") || {}).value || "";
+        const message = (document.getElementById("contactMessage") || {}).value || "";
+        const type = contactType ? contactType.value : "Others";
+        const mdWanted = (document.getElementById("contactMD") || {}).value || "";
+
+        if (!name.trim() || (!email.trim() && !phone.trim())) {
+          if (status) { status.textContent = "Please enter your name and email or phone."; status.style.color = "var(--danger)"; }
+          return;
+        }
+        if (status) { status.textContent = "Sending..."; status.style.color = "var(--text-dim)"; }
+        contactBtn.disabled = true;
+
+        fetch("/api/contact", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: type, name: name, email: email, phone: phone, message: message, mdWanted: mdWanted }),
+        }).then(function (r) { return r.json(); }).then(function (res) {
+          contactBtn.disabled = false;
+          if (res && res.ok) {
+            const confirmed = document.getElementById("contactConfirmed");
+            if (confirmed) confirmed.classList.remove("hidden");
+            if (status) status.textContent = "";
+            ["contactName", "contactEmail", "contactPhone", "contactMessage", "contactMD"].forEach(function (id) {
+              const el = document.getElementById(id); if (el) el.value = "";
+            });
+          } else {
+            if (status) { status.textContent = (res && res.error) || "Could not send. Please try again."; status.style.color = "var(--danger)"; }
+          }
+        }).catch(function () {
+          contactBtn.disabled = false;
+          if (status) { status.textContent = "Could not send. Please try again."; status.style.color = "var(--danger)"; }
+        });
+      });
+    }
 
     // ── 7. REFERENCES READER (in-app pages, in-place translation) ────────────
     const refLibrary  = document.getElementById("refLibrary");
