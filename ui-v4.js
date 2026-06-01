@@ -153,24 +153,45 @@ const CONSULT_CONFIG = {
         const item = btn.getAttribute("data-pay");
         const tab  = PAY_TAB[item] || "inputTab";
 
-        // Already unlocked this session → just open it.
-        if (window.AI_unlocked && window.AI_unlocked[item]) { goToTab(tab); return; }
+        // Already PAID this session → open it.
+        if (window.AI_unlocked && window.AI_unlocked[item] === true) { goToTab(tab); return; }
 
-        // Require a generated chart first.
+        // Require a generated chart first (need the data to build the report).
         const navBtn = document.querySelector('.nav-tab[data-tab="' + tab + '"]');
         if (navBtn && navBtn.disabled) {
-          goToTab(tab);  // goToTab will nudge to Birth Data
+          flashStatus(window.t ? window.t("locked_generate_first") : "Generate your chart first.");
+          goToTab("inputTab");
           return;
         }
 
-        // Start payment.
-        if (typeof window.startPayment !== "function") { goToTab(tab); return; }
+        // Payment must be available. If not, BLOCK (never hand over paid content).
+        if (typeof window.startPayment !== "function") {
+          flashStatus(window.t ? window.t("pay_unavailable") : "Payment is temporarily unavailable. Please try again shortly.");
+          return;
+        }
+
+        // Title for the checkout label — safe lookup (works in every language).
+        let label = item;
+        try {
+          const card = btn.closest(".feature-card");
+          const titleEl = card && card.querySelector(".fc-title");
+          if (titleEl) label = titleEl.textContent;
+        } catch (e) {}
+
         flashStatus(window.t ? window.t("pay_processing") : "Opening payment...");
         window.startPayment({
           item: item,
           amount: priceFor(item),
-          label: btn.closest(".feature-card").querySelector(".fc-title").textContent,
-        }).then(function () {
+          label: label,
+        }).then(function (res) {
+          if (!res || !res.paymentId) {   // must have a verified payment id
+            flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
+            return;
+          }
+          window.AI_unlocked = window.AI_unlocked || {};
+          window.AI_unlocked[item] = true;
+          window.AI_lastPayment = window.AI_lastPayment || {};
+          window.AI_lastPayment[item] = res.paymentId;
           flashStatus(window.t ? window.t("pay_success") : "Payment successful!");
           if (window.AI_revealDownload) window.AI_revealDownload(item);
           goToTab(tab);
@@ -331,6 +352,11 @@ const CONSULT_CONFIG = {
       btn.addEventListener("click", function () {
         const item = btn.getAttribute("data-download");
         if (typeof window.generateReportPDF !== "function") return;
+        // Safety gate: never generate a paid PDF without a verified payment.
+        if (!(window.AI_unlocked && window.AI_unlocked[item] === true)) {
+          flashStatus(window.t ? window.t("pay_required") : "Please complete payment to download this report.");
+          return;
+        }
 
         if (item === "dasha") {
           // Single report: Previous + Current + Next MD. Needs the Dasa timeline
@@ -368,6 +394,32 @@ const CONSULT_CONFIG = {
       });
     });
 
+    // ── Filter out the "Emotional Fidelity" domain everywhere (sensitivity) ──
+    const HIDDEN_DOMAINS = ["emotional fidelity"];
+    function isHiddenDomain(title) {
+      const t = (title || "").trim().toLowerCase();
+      return HIDDEN_DOMAINS.some(function (h) { return t.indexOf(h) !== -1; });
+    }
+    function pruneHiddenDomains() {
+      const root = document.getElementById("domainCards");
+      if (root) {
+        root.querySelectorAll(".domain-card").forEach(function (c) {
+          const titleEl = c.querySelector(".rc-title");
+          if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
+        });
+      }
+      document.querySelectorAll("#verdictSummary .verdict-mini").forEach(function (vm) {
+        const t = vm.getAttribute("title") || vm.textContent;
+        if (isHiddenDomain(t)) vm.style.display = "none";
+      });
+    }
+    const domObserverTarget = document.getElementById("domainCards");
+    if (domObserverTarget && "MutationObserver" in window) {
+      const mo = new MutationObserver(function () { pruneHiddenDomains(); });
+      mo.observe(domObserverTarget, { childList: true });
+    }
+    pruneHiddenDomains();
+
     // Build clean Life Domains sections from the rendered domain cards.
     function collectDomainSections() {
       const out = [];
@@ -375,6 +427,7 @@ const CONSULT_CONFIG = {
       if (!root) return out;
       root.querySelectorAll(".domain-card").forEach(function (c) {
         const title = c.querySelector(".rc-title");
+        if (title && isHiddenDomain(title.textContent)) return;  // skip hidden domains
         const verdict = c.querySelector(".rc-verdict");
         const pattern = c.querySelector(".rc-pattern");
         const indication = c.querySelector(".rc-indication");
