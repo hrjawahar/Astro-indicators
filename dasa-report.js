@@ -1,71 +1,68 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  FILE: dasa-report.js
-//  AstroIndicators — builds the Dasa report (Previous + Current + Next MD).
+//  AstroIndicators — Dasa report builder.
 //
-//  Reads the rendered Dasa timeline DOM directly (guaranteed present after the
-//  user has generated a chart) so it does NOT depend on internal variables.
-//  Uses the engine's own global prompt builders + /api/indicate for AI text.
+//  Structure:
+//    1. Full 120-year timeline (all 9 MD periods with dates) — the map
+//    2. Previous MD — overview only
+//    3. Current MD  — overview + ALL its Antardashas (the detailed core)
+//    4. Following MD — overview only
+//
+//  Reads the rendered Dasa timeline DOM (no dependency on internal vars) and uses
+//  the engine's global prompt builders + /api/indicate for AI text.
 // ─────────────────────────────────────────────────────────────────────────────
 
 (function () {
   "use strict";
 
-  // Parse the rendered timeline into an array of MD objects with their ADs.
   function readTimeline() {
-    const rows = document.querySelectorAll("#dashaTimeline .dasha-row");
+    var rows = document.querySelectorAll("#dashaTimeline .dasha-row");
     if (!rows || !rows.length) return null;
-    const mds = [];
-    let currentIdx = -1;
-    rows.forEach(function (row, i) {
-      const lordEl = row.querySelector(".dasha-lord");
-      const datesEl = row.querySelector(".dasha-dates");
+    var mds = [], currentIdx = -1;
+    rows.forEach(function (row) {
+      var lordEl = row.querySelector(".dasha-lord");
+      var datesEl = row.querySelector(".dasha-dates");
       if (!lordEl) return;
-      const lord = lordEl.textContent.trim();
-      const dates = datesEl ? datesEl.textContent.trim().split(/\s+/) : [];
-      const ads = [];
+      var lord = lordEl.textContent.replace(/[^A-Za-z]/g, "").trim();
+      var dtxt = datesEl ? datesEl.textContent.trim() : "";
+      var dmatch = dtxt.match(/\d{4}-\d{2}-\d{2}/g) || [];
+      var ads = [];
       row.querySelectorAll(".antar-item").forEach(function (ai) {
-        const al = ai.querySelector(".antar-lord");
-        const ad = ai.querySelector(".antar-dates");
-        if (al) ads.push({
-          lord: al.textContent.replace(/[^A-Za-z]/g, "").trim(),
-          dates: ad ? ad.textContent.trim() : "",
-        });
+        var al = ai.querySelector(".antar-lord");
+        var ad = ai.querySelector(".antar-dates");
+        if (al) {
+          var adt = ad ? (ad.textContent.match(/\d{4}-\d{2}-\d{2}/g) || []) : [];
+          ads.push({
+            lord: al.textContent.replace(/[^A-Za-z]/g, "").trim(),
+            start: adt[0] || "", end: adt[1] || "",
+          });
+        }
       });
       if (row.classList.contains("current")) currentIdx = mds.length;
-      mds.push({
-        lord: lord.replace(/[^A-Za-z]/g, "").trim(),
-        start: dates[0] || "", end: dates[1] || dates[dates.length - 1] || "",
-        ads: ads,
-      });
+      mds.push({ lord: lord, start: dmatch[0] || "", end: dmatch[1] || "", ads: ads });
     });
     if (currentIdx === -1) return null;
     return {
+      all: mds,
       previous: currentIdx > 0 ? mds[currentIdx - 1] : null,
-      current:  mds[currentIdx],
-      next:     currentIdx < mds.length - 1 ? mds[currentIdx + 1] : null,
+      current: mds[currentIdx],
+      next: currentIdx < mds.length - 1 ? mds[currentIdx + 1] : null,
     };
   }
 
-  // Get the lagna + chart context for the AI prompts.
   function getCtx() {
-    // window.currentData if available; else try to read lagna from the chart screen.
-    let lagna = "", ctx = "";
-    const cd = window.currentData;
+    var lagna = "", ctx = "";
+    var cd = window.currentData;
     if (cd && cd.chart && cd.chart.d1) {
       lagna = cd.chart.d1.lagnaSign || "";
       try {
-        if (typeof window.buildChartContext === "function") {
+        if (typeof window.buildChartContext === "function")
           ctx = window.buildChartContext(cd.chart.d1.lagnaSign, cd.chart.d1.houses, cd.chart.planets);
-        }
       } catch (e) {}
     }
     if (!lagna) {
-      // fallback: read lagna label shown on the chart screen
-      const el = document.getElementById("d1LagnaLabel") || document.getElementById("lagnaBar");
-      if (el) {
-        const m = el.textContent.match(/(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)/);
-        if (m) lagna = m[1];
-      }
+      var el = document.getElementById("d1LagnaLabel") || document.getElementById("lagnaBar");
+      if (el) { var m = el.textContent.match(/(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)/); if (m) lagna = m[1]; }
     }
     return { lagna: lagna, ctx: ctx };
   }
@@ -73,86 +70,93 @@
   function fetchIndication(prompt) {
     return fetch("/api/indicate", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: prompt }),
-    }).then(function (r) { return r.ok ? r.text() : ""; })
-      .then(extractText).catch(function () { return ""; });
+      body: JSON.stringify({ prompt: prompt })
+    }).then(function (r) { return r.ok ? r.text() : ""; }).then(extractText).catch(function () { return ""; });
   }
-
   function extractText(raw) {
     if (!raw) return "";
     if (raw.indexOf("data:") === -1) return raw.trim();
-    let out = "";
+    var out = "";
     raw.split("\n").forEach(function (line) {
       line = line.trim();
       if (line.indexOf("data:") === 0) {
-        const p = line.slice(5).trim();
-        if (p && p !== "[DONE]") {
-          try {
-            const o = JSON.parse(p);
-            if (o.delta && o.delta.text) out += o.delta.text;
-            else if (o.text) out += o.text;
-            else if (o.content) out += o.content;
-          } catch (e) {}
-        }
+        var p = line.slice(5).trim();
+        if (p && p !== "[DONE]") { try { var o = JSON.parse(p); if (o.delta && o.delta.text) out += o.delta.text; else if (o.text) out += o.text; else if (o.content) out += o.content; } catch (e) {} }
       }
     });
     return out.trim();
   }
 
-  function mdSections(md, label, lagna, ctx, tick) {
-    if (!md) return Promise.resolve([]);
-    const out = [];
-    const mdPrompt = (typeof window.buildMDPrompt === "function")
+  function mdOverview(md, label, lagna, ctx) {
+    var prompt = (typeof window.buildMDPrompt === "function")
       ? window.buildMDPrompt(md.lord, lagna, ctx)
-      : "Write a 5-7 sentence overview of the " + md.lord + " Mahadasha for a " + lagna + " ascendant, in second person.";
-    tick();
-    return fetchIndication(mdPrompt).then(function (ov) {
-      out.push({ heading: label + ": " + md.lord + " Mahadasha (" + md.start + " to " + md.end + ")",
-                 body: ov || "(overview unavailable)", isMDHeading: true });
-      let chain = Promise.resolve();
-      (md.ads || []).forEach(function (ad) {
-        chain = chain.then(function () {
-          const adPrompt = (typeof window.buildADPrompt === "function")
-            ? window.buildADPrompt(md.lord, ad.lord, lagna, ctx)
-            : "Write a short indication for " + md.lord + " Mahadasha / " + ad.lord + " Antardasha for a " + lagna + " ascendant, second person.";
-          tick();
-          return fetchIndication(adPrompt).then(function (t) {
-            out.push({ heading: ad.lord + " Antardasha (" + ad.dates + ")",
-                       body: t || "(indication unavailable)", isAD: true });
-          });
-        });
-      });
-      return chain.then(function () { return out; });
+      : "Write a 5-7 sentence overview of the " + md.lord + " Mahadasha for a " + lagna + " ascendant, second person.";
+    return fetchIndication(prompt).then(function (ov) {
+      return { heading: label + ": " + md.lord + " Mahadasha (" + md.start + " to " + md.end + ")",
+               body: ov || "(overview unavailable)", isMDHeading: true };
     });
   }
 
-  // Public: build the full Previous + Current + Next report.
   window.buildDasaReport = function (_tier, onProgress) {
-    const tl = readTimeline();
+    var tl = readTimeline();
     if (!tl) return Promise.reject("Open the Dasa Periods tab once, then try again.");
-    const c = getCtx();
+    var c = getCtx();
     if (!c.lagna) return Promise.reject("Could not read your ascendant — open the Charts tab once, then retry.");
 
-    const include = [];
-    if (tl.previous) include.push(["Previous period", tl.previous]);
-    include.push(["Current period", tl.current]);
-    if (tl.next) include.push(["Next period", tl.next]);
+    // progress: 1 (prev) + 1 (current overview) + N (current ADs) + 1 (next)
+    var total = 1 + 1 + (tl.current.ads ? tl.current.ads.length : 0) + 1;
+    var done = 0;
+    function tick() { done++; if (onProgress) onProgress(done, total); }
 
-    let total = 0;
-    include.forEach(function (x) { total += 1 + (x[1].ads ? x[1].ads.length : 0); });
-    let done = 0;
-    const tick = function () { done++; if (onProgress) onProgress(done, total); };
+    var sections = [];
 
-    let chain = Promise.resolve();
-    const all = [];
-    include.forEach(function (x) {
+    // 1. Full 120-year timeline as a single readable block.
+    var tlText = tl.all.map(function (m, i) {
+      return (i + 1) + ". " + m.lord + " Mahadasha — " + m.start + " to " + m.end;
+    }).join("\n");
+    sections.push({ heading: "Your Complete 120-Year Dasha Timeline", body: "", isMDHeading: true });
+    sections.push({ heading: tlText, isTimeline: true });
+
+    var chain = Promise.resolve();
+
+    // 2. Previous MD — overview only
+    if (tl.previous) {
       chain = chain.then(function () {
-        return mdSections(x[1], x[0], c.lagna, c.ctx, tick).then(function (s) {
-          s.forEach(function (sec) { all.push(sec); });
+        tick();
+        return mdOverview(tl.previous, "Previous period", c.lagna, c.ctx).then(function (s) { sections.push(s); });
+      });
+    } else { tick(); }
+
+    // 3. Current MD — overview + all ADs
+    chain = chain.then(function () {
+      tick();
+      return mdOverview(tl.current, "Current period", c.lagna, c.ctx).then(function (s) {
+        sections.push(s);
+        var adChain = Promise.resolve();
+        (tl.current.ads || []).forEach(function (ad) {
+          adChain = adChain.then(function () {
+            var adPrompt = (typeof window.buildADPrompt === "function")
+              ? window.buildADPrompt(tl.current.lord, ad.lord, c.lagna, c.ctx)
+              : "Write a short indication for " + tl.current.lord + " Mahadasha / " + ad.lord + " Antardasha for a " + c.lagna + " ascendant, second person.";
+            tick();
+            return fetchIndication(adPrompt).then(function (t) {
+              sections.push({ heading: ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ")",
+                              body: t || "(indication unavailable)", isAD: true });
+            });
+          });
         });
+        return adChain;
       });
     });
-    return chain.then(function () { return all; });
+
+    // 4. Following MD — overview only
+    chain = chain.then(function () {
+      tick();
+      if (!tl.next) return;
+      return mdOverview(tl.next, "Next period", c.lagna, c.ctx).then(function (s) { sections.push(s); });
+    });
+
+    return chain.then(function () { return sections; });
   };
 
 })();
