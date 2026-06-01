@@ -93,6 +93,9 @@
     <button class="nav-tab" data-tab="consultTab">
       <span class="tab-icon" aria-hidden="true">☏</span> <span data-i18n="nav_consult">Personal Consultation</span>
     </button>
+    <button class="nav-tab" data-tab="contactTab">
+      <span class="tab-icon" aria-hidden="true">✉</span> <span data-i18n="nav_contact">Contact Us</span>
+    </button>
   </nav>
 
   <!-- ── MAIN ──────────────────────────────────────────────────────────── -->
@@ -566,6 +569,64 @@
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- ── SCREEN: CONTACT US ───────────────────────────────────────── -->
+    <section id="contactTab" class="screen">
+      <div class="screen-inner">
+        <div class="card intro-card">
+          <h2 class="intro-title" data-i18n="contact_title">Contact Us</h2>
+          <p class="intro-body" data-i18n="contact_intro">Have feedback, a suggestion, or need a report for another Dasa period? Send us a message and we'll get back to you.</p>
+        </div>
+
+        <div class="card">
+          <div class="form-group">
+            <label data-i18n="contact_type">What is this about?</label>
+            <select id="contactType">
+              <option value="Feedback" data-i18n="contact_type_feedback">Feedback</option>
+              <option value="Suggestions" data-i18n="contact_type_suggestion">Suggestions</option>
+              <option value="Extra MD report" data-i18n="contact_type_mdreport">Need report for other MD periods (₹100 / MD period)</option>
+              <option value="Others" data-i18n="contact_type_other">Others</option>
+            </select>
+          </div>
+
+          <div id="contactMDWrap" class="form-group" style="display:none">
+            <label data-i18n="contact_which_md">Which MD period(s) do you want?</label>
+            <input id="contactMD" type="text" data-i18n-ph="contact_which_md_ph" placeholder="e.g. Sun Mahadasha, Moon Mahadasha"/>
+            <span class="form-hint" data-i18n="contact_md_note">₹100 per MD period. We'll contact you with payment and delivery details.</span>
+          </div>
+
+          <div class="grid-2col">
+            <div class="form-group">
+              <label data-i18n="contact_name">Your name</label>
+              <input id="contactName" type="text"/>
+            </div>
+            <div class="form-group">
+              <label data-i18n="contact_email">Your email</label>
+              <input id="contactEmail" type="email"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label data-i18n="contact_phone">Your mobile number</label>
+            <input id="contactPhone" type="tel" data-i18n-ph="consult_your_phone_ph" placeholder="Include country code, e.g. +91..."/>
+          </div>
+
+          <div class="form-group">
+            <label data-i18n="contact_message">Your message</label>
+            <textarea id="contactMessage" rows="4" data-i18n-ph="contact_message_ph" placeholder="Type your feedback, suggestion, or request here..."></textarea>
+          </div>
+
+          <div class="generate-row">
+            <button id="contactSubmitBtn" class="btn-primary" data-i18n="contact_submit">Submit</button>
+            <div id="contactStatus" class="status-msg"></div>
+          </div>
+
+          <div id="contactConfirmed" class="consult-confirmed hidden" data-i18n="contact_confirmed">
+            Thank you — your message has been sent. We'll get back to you soon.
+          </div>
+        </div>
       </div>
     </section>
 
