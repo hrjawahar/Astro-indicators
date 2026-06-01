@@ -108,55 +108,69 @@
     var done = 0;
     function tick() { done++; if (onProgress) onProgress(done, total); }
 
-    var sections = [];
-
-    // 1. Full 120-year timeline as a single readable block.
+    // 1. Full 120-year timeline as a single readable block, current MD marked.
+    var sections0 = [];
     var tlText = tl.all.map(function (m, i) {
-      return (i + 1) + ". " + m.lord + " Mahadasha — " + m.start + " to " + m.end;
+      var isCur = (m === tl.current);
+      return (i + 1) + ". " + m.lord + " Mahadasha — " + m.start + " to " + m.end + (isCur ? "   ◄ CURRENT" : "");
     }).join("\n");
-    sections.push({ heading: "Your Complete 120-Year Dasha Timeline", body: "", isMDHeading: true });
-    sections.push({ heading: tlText, isTimeline: true });
+    sections0.push({ heading: "Your Complete 120-Year Dasha Timeline", body: "", isMDHeading: true });
+    sections0.push({ heading: tlText, isTimeline: true, currentLord: tl.current.lord });
 
-    var chain = Promise.resolve();
+    var sections = [];
+    var prevSec = null, curOverviewSec = null, nextSec = null;
+    var adSecs = [];
 
-    // 2. Previous MD — overview only
+    // Build a list of deferred jobs (thunks) so we can run them in batches.
+    var thunks = [];
+
     if (tl.previous) {
-      chain = chain.then(function () {
-        tick();
-        return mdOverview(tl.previous, "Previous period", c.lagna, c.ctx).then(function (s) { sections.push(s); });
-      });
+      thunks.push(function () { return mdOverview(tl.previous, "Previous period", c.lagna, c.ctx).then(function (s) { prevSec = s; tick(); }); });
     } else { tick(); }
 
-    // 3. Current MD — overview + all ADs
-    chain = chain.then(function () {
-      tick();
-      return mdOverview(tl.current, "Current period", c.lagna, c.ctx).then(function (s) {
-        sections.push(s);
-        var adChain = Promise.resolve();
-        (tl.current.ads || []).forEach(function (ad) {
-          adChain = adChain.then(function () {
-            var adPrompt = (typeof window.buildADPrompt === "function")
-              ? window.buildADPrompt(tl.current.lord, ad.lord, c.lagna, c.ctx)
-              : "Write a short indication for " + tl.current.lord + " Mahadasha / " + ad.lord + " Antardasha for a " + c.lagna + " ascendant, second person.";
-            tick();
-            return fetchIndication(adPrompt).then(function (t) {
-              sections.push({ heading: ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ")",
-                              body: t || "(indication unavailable)", isAD: true });
-            });
-          });
+    thunks.push(function () { return mdOverview(tl.current, "Current period", c.lagna, c.ctx).then(function (s) { curOverviewSec = s; tick(); }); });
+
+    (tl.current.ads || []).forEach(function (ad, idx) {
+      thunks.push(function () {
+        var adPrompt = (typeof window.buildADPrompt === "function")
+          ? window.buildADPrompt(tl.current.lord, ad.lord, c.lagna, c.ctx)
+          : "Write a short indication for " + tl.current.lord + " Mahadasha / " + ad.lord + " Antardasha for a " + c.lagna + " ascendant, second person.";
+        return fetchIndication(adPrompt).then(function (t) {
+          adSecs[idx] = { heading: ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ")",
+                          body: t || "(indication unavailable)", isAD: true };
+          tick();
         });
-        return adChain;
       });
     });
 
-    // 4. Following MD — overview only
-    chain = chain.then(function () {
-      tick();
-      if (!tl.next) return;
-      return mdOverview(tl.next, "Next period", c.lagna, c.ctx).then(function (s) { sections.push(s); });
-    });
+    if (tl.next) {
+      thunks.push(function () { return mdOverview(tl.next, "Next period", c.lagna, c.ctx).then(function (s) { nextSec = s; tick(); }); });
+    } else { tick(); }
 
-    return chain.then(function () { return sections; });
+    // Run in batches of 5 concurrent calls — fast (~1 min) but rate-limit-safe.
+    function runBatched(list, size) {
+      var i = 0;
+      function nextBatch() {
+        if (i >= list.length) return Promise.resolve();
+        var batch = list.slice(i, i + size).map(function (fn) { return fn(); });
+        i += size;
+        return Promise.all(batch).then(nextBatch);
+      }
+      return nextBatch();
+    }
+
+    return runBatched(thunks, 5).then(function () {
+      if (prevSec) sections.push(prevSec);
+      if (curOverviewSec) sections.push(curOverviewSec);
+      adSecs.forEach(function (s) { if (s) sections.push(s); });
+      if (nextSec) sections.push(nextSec);
+      sections.push({
+        heading: "Want this depth for your other Dasha periods?",
+        body: "If you would like a similarly detailed report for any other Mahadasha and its sub-periods (Antardashas) — like the current period detailed above — please submit a request under the Contact Us tab. You will receive it at an additional cost of Rs.100 per Mahadasha and its Antardasha sub-periods.",
+        isNote: true,
+      });
+      return sections0.concat(sections);
+    });
   };
 
 })();
