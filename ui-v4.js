@@ -357,20 +357,23 @@ const CONSULT_CONFIG = {
           flashStatus(window.t ? window.t("pay_required") : "Please complete payment to download this report.");
           return;
         }
+        if (btn.dataset.busy === "1") return;   // prevent double-clicks
+
+        const orig = btn.getAttribute("data-orig-label") || btn.textContent;
+        btn.setAttribute("data-orig-label", orig);
+
+        function resetBtn() { btn.disabled = false; btn.dataset.busy = "0"; btn.textContent = orig; }
 
         if (item === "dasha") {
-          // Single report: Previous + Current + Next MD. Needs the Dasa timeline
-          // rendered first, so open that tab, then build.
-          if (typeof window.buildDasaReport !== "function") return;
+          if (typeof window.buildDasaReport !== "function") { flashStatus("Report builder not loaded — please refresh."); return; }
           const navBtn = document.querySelector('.nav-tab[data-tab="dashaTab"]');
           if (navBtn) navBtn.click();  // ensure timeline is rendered
-          const orig = btn.textContent;
-          btn.disabled = true;
+          btn.disabled = true; btn.dataset.busy = "1";
           setTimeout(function () {
             window.buildDasaReport("full", function (done, total) {
               btn.textContent = "Preparing report… " + done + "/" + total;
             }).then(function (sections) {
-              btn.textContent = orig; btn.disabled = false;
+              resetBtn();
               window.generateReportPDF({
                 userName: userName(),
                 reportTitle: "Dasa Bhukti Period Indications",
@@ -378,18 +381,27 @@ const CONSULT_CONFIG = {
                 paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
               });
             }).catch(function (e) {
-              btn.textContent = orig; btn.disabled = false;
+              resetBtn();
               flashStatus(typeof e === "string" ? e : "Could not build the report. Please try again.");
             });
           }, 300);
         } else {
           // Life Domains — clean structured sections from rendered cards.
-          window.generateReportPDF({
-            userName: userName(),
-            reportTitle: "Life Domains Indications",
-            sections: collectDomainSections(),
-            paymentId: (window.AI_lastPayment && window.AI_lastPayment.domains) || null,
-          });
+          btn.disabled = true; btn.dataset.busy = "1";
+          btn.textContent = "Preparing report…";
+          setTimeout(function () {
+            try {
+              window.generateReportPDF({
+                userName: userName(),
+                reportTitle: "Life Domains Indications",
+                sections: collectDomainSections(),
+                paymentId: (window.AI_lastPayment && window.AI_lastPayment.domains) || null,
+              });
+            } catch (e) {
+              flashStatus("Could not build the report. Please try again.");
+            }
+            resetBtn();
+          }, 200);
         }
       });
     });
@@ -408,16 +420,24 @@ const CONSULT_CONFIG = {
           if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
         });
       }
-      document.querySelectorAll("#verdictSummary .verdict-mini").forEach(function (vm) {
-        const t = vm.getAttribute("title") || vm.textContent;
-        if (isHiddenDomain(t)) vm.style.display = "none";
-      });
+      // Top verdict summary row — domain name is in .vm-title.
+      const vGrid = document.getElementById("verdictSummary");
+      if (vGrid) {
+        vGrid.querySelectorAll(".verdict-mini").forEach(function (vm) {
+          const vt = vm.querySelector(".vm-title");
+          if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
+        });
+      }
     }
-    const domObserverTarget = document.getElementById("domainCards");
-    if (domObserverTarget && "MutationObserver" in window) {
-      const mo = new MutationObserver(function () { pruneHiddenDomains(); });
-      mo.observe(domObserverTarget, { childList: true });
+    function attachPruneObserver(id) {
+      const el = document.getElementById(id);
+      if (el && "MutationObserver" in window) {
+        const mo = new MutationObserver(function () { pruneHiddenDomains(); });
+        mo.observe(el, { childList: true });
+      }
     }
+    attachPruneObserver("domainCards");
+    attachPruneObserver("verdictSummary");
     pruneHiddenDomains();
 
     // Build clean Life Domains sections from the rendered domain cards.
