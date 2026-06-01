@@ -128,6 +128,8 @@ const I18N = {
     pay_processing:    "Processing payment...",
     pay_success:       "Payment successful! Unlocking your report.",
     pay_failed:        "Payment was not completed. Please try again.",
+    pay_unavailable:   "Payment is temporarily unavailable. Please refresh and try again.",
+    pay_required:      "Please complete payment to download this report.",
     pay_coming_soon:   "Payments launching soon. This feature is free for now — tap to view.",
 
     // ── Group C additions ──
@@ -277,6 +279,8 @@ const I18N = {
     pay_processing:    "கட்டணம் செயலாக்கப்படுகிறது...",
     pay_success:       "கட்டணம் வெற்றி! உங்கள் அறிக்கை திறக்கப்படுகிறது.",
     pay_failed:        "கட்டணம் முடிக்கப்படவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    pay_unavailable:   "கட்டணம் தற்காலிகமாக கிடைக்கவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    pay_required:      "இந்த அறிக்கையைப் பதிவிறக்க கட்டணம் செலுத்தவும்.",
     pay_coming_soon:   "கட்டணம் விரைவில். இப்போது இலவசம் — பார்க்க தட்டவும்.",
 
     badge_premium:     "பிரீமியம்",
@@ -425,6 +429,8 @@ const I18N = {
     pay_processing:    "చెల్లింపు ప్రాసెస్ అవుతోంది...",
     pay_success:       "చెల్లింపు విజయవంతం! మీ నివేదిక అన్‌లాక్ అవుతోంది.",
     pay_failed:        "చెల్లింపు పూర్తి కాలేదు. మళ్లీ ప్రయత్నించండి.",
+    pay_unavailable:   "చెల్లింపు తాత్కాలికంగా అందుబాటులో లేదు. మళ్లీ ప్రయత్నించండి.",
+    pay_required:      "ఈ నివేదికను డౌన్‌లోడ్ చేయడానికి చెల్లింపు పూర్తి చేయండి.",
     pay_coming_soon:   "చెల్లింపులు త్వరలో. ఇప్పుడు ఉచితం — చూడటానికి నొక్కండి.",
 
     badge_premium:     "ప్రీమియం",
@@ -573,6 +579,8 @@ const I18N = {
     pay_processing:    "भुगतान संसाधित हो रहा है...",
     pay_success:       "भुगतान सफल! आपकी रिपोर्ट अनलॉक हो रही है।",
     pay_failed:        "भुगतान पूरा नहीं हुआ। कृपया पुनः प्रयास करें।",
+    pay_unavailable:   "भुगतान अस्थायी रूप से अनुपलब्ध है। कृपया पुनः प्रयास करें।",
+    pay_required:      "इस रिपोर्ट को डाउनलोड करने के लिए भुगतान पूरा करें।",
     pay_coming_soon:   "भुगतान जल्द आ रहा है। अभी मुफ़्त — देखने के लिए टैप करें।",
 
     badge_premium:     "प्रीमियम",
@@ -721,6 +729,8 @@ const I18N = {
     pay_processing:    "ಪಾವತಿ ಪ್ರಕ್ರಿಯೆಗೊಳ್ಳುತ್ತಿದೆ...",
     pay_success:       "ಪಾವತಿ ಯಶಸ್ವಿ! ನಿಮ್ಮ ವರದಿ ಅನ್‌ಲಾಕ್ ಆಗುತ್ತಿದೆ.",
     pay_failed:        "ಪಾವತಿ ಪೂರ್ಣಗೊಂಡಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+    pay_unavailable:   "ಪಾವತಿ ತಾತ್ಕಾಲಿಕವಾಗಿ ಲಭ್ಯವಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+    pay_required:      "ಈ ವರದಿಯನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು ಪಾವತಿ ಪೂರ್ಣಗೊಳಿಸಿ.",
     pay_coming_soon:   "ಪಾವತಿ ಶೀಘ್ರದಲ್ಲೇ. ಈಗ ಉಚಿತ — ನೋಡಲು ಟ್ಯಾಪ್ ಮಾಡಿ.",
 
     badge_premium:     "ಪ್ರೀಮಿಯಂ",
@@ -869,6 +879,8 @@ const I18N = {
     pay_processing:    "പണമടയ്ക്കൽ പ്രോസസ് ചെയ്യുന്നു...",
     pay_success:       "പണമടയ്ക്കൽ വിജയകരം! നിങ്ങളുടെ റിപ്പോർട്ട് അൺലോക്ക് ചെയ്യുന്നു.",
     pay_failed:        "പണമടയ്ക്കൽ പൂർത്തിയായില്ല. വീണ്ടും ശ്രമിക്കുക.",
+    pay_unavailable:   "പേയ്‌മെന്റ് താൽക്കാലികമായി ലഭ്യമല്ല. വീണ്ടും ശ്രമിക്കുക.",
+    pay_required:      "ഈ റിപ്പോർട്ട് ഡൗൺലോഡ് ചെയ്യാൻ പേയ്‌മെന്റ് പൂർത്തിയാക്കുക.",
     pay_coming_soon:   "പണമടയ്ക്കൽ ഉടൻ വരുന്നു. ഇപ്പോൾ സൗജന്യം — കാണാൻ ടാപ്പ് ചെയ്യുക.",
 
     badge_premium:     "പ്രീമിയം",
