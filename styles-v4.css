@@ -257,3 +257,8 @@ textarea:focus { outline: none; border-color: var(--gold-dim); }
 
 /* No-refund note on paid cards */
 .fc-norefund { font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 6px; font-style: italic; }
+
+/* Contact Us form helpers */
+.grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 560px) { .grid-2col { grid-template-columns: 1fr; } }
+.form-hint { display: block; font-size: 12px; color: var(--text-dim); margin-top: 4px; }
