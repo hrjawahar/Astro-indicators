@@ -413,33 +413,32 @@ const CONSULT_CONFIG = {
       return HIDDEN_DOMAINS.some(function (h) { return t.indexOf(h) !== -1; });
     }
     function pruneHiddenDomains() {
-      // Detailed cards
       document.querySelectorAll("#domainCards .domain-card").forEach(function (c) {
         const titleEl = c.querySelector(".rc-title");
         if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
       });
-      // Top verdict summary row (name in .vm-title)
       document.querySelectorAll("#verdictSummary .verdict-mini").forEach(function (vm) {
         const vt = vm.querySelector(".vm-title");
         if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
       });
     }
-    function attachPruneObserver(id) {
+    // Expose globally so it's always reachable.
+    window.pruneHiddenDomains = pruneHiddenDomains;
+
+    // The engine RE-RENDERS domain cards each time the tab opens, which restores
+    // hidden cards. So we self-heal: a lightweight repeating check that re-hides
+    // them. Runs every 800ms — cheap, and defeats any re-render.
+    setInterval(function () {
+      try { pruneHiddenDomains(); } catch (e) {}
+    }, 800);
+
+    // Also observe both containers and re-prune on any change.
+    ["domainCards", "verdictSummary"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el && "MutationObserver" in window) {
-        const mo = new MutationObserver(function () { pruneHiddenDomains(); });
-        mo.observe(el, { childList: true, subtree: true });
+        new MutationObserver(function () { pruneHiddenDomains(); }).observe(el, { childList: true, subtree: true });
       }
-    }
-    attachPruneObserver("domainCards");
-    attachPruneObserver("verdictSummary");
-    // Re-prune whenever the user navigates (covers render-before-observer cases).
-    document.querySelectorAll('.nav-tab').forEach(function (t) {
-      t.addEventListener("click", function () { setTimeout(pruneHiddenDomains, 60); });
     });
-    // Also re-prune shortly after load in case analysis was already rendered.
-    setTimeout(pruneHiddenDomains, 500);
-    setTimeout(pruneHiddenDomains, 1500);
     pruneHiddenDomains();
 
     // Build clean Life Domains sections from the rendered domain cards.
