@@ -412,21 +412,28 @@ const CONSULT_CONFIG = {
       const t = (title || "").trim().toLowerCase();
       return HIDDEN_DOMAINS.some(function (h) { return t.indexOf(h) !== -1; });
     }
-  function pruneHiddenDomains() {
-  try {
-    // Hide both sensitive sections entirely. Guarded so a null can't throw.
-    ["eventFlagsBlock", "compoundPatternsBlock"].forEach(function(id){
-      var el = document.getElementById(id);
-      if (el) el.style.display = "none";
-    });
+    function pruneHiddenDomains() {
+      // Hide the entire "Sensitive" event-flags section wholesale (cleanest).
+      var efb = document.getElementById("eventFlagsBlock");
+      if (efb) efb.style.display = "none";
 
-    // Fallback by class, in case an id ever changes.
-    document.querySelectorAll(".event-flags-block, .compound-patterns-block")
-      .forEach(function(el){ el.style.display = "none"; });
-  } catch (e) {
-    if (window.console) console.warn("pruneHiddenDomains failed:", e);
-  }
-}
+      document.querySelectorAll("#domainCards .domain-card").forEach(function (c) {
+        const titleEl = c.querySelector(".rc-title");
+        if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
+      });
+      document.querySelectorAll("#verdictSummary .verdict-mini").forEach(function (vm) {
+        const vt = vm.querySelector(".vm-title");
+        if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
+      });
+      // Belt-and-braces: any leftover ef-card whose tag or title is sensitive.
+      document.querySelectorAll(".ef-card").forEach(function (card) {
+        const tag = card.querySelector(".ef-domain-tag");
+        const title = card.querySelector(".ef-card-title");
+        if ((tag && isHiddenDomain(tag.textContent)) || (title && isHiddenDomain(title.textContent))) {
+          card.style.display = "none";
+        }
+      });
+    }
     // Expose globally so it's always reachable.
     window.pruneHiddenDomains = pruneHiddenDomains;
 
