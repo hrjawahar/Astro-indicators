@@ -413,6 +413,10 @@ const CONSULT_CONFIG = {
       return HIDDEN_DOMAINS.some(function (h) { return t.indexOf(h) !== -1; });
     }
     function pruneHiddenDomains() {
+      // Hide the entire "Sensitive" event-flags section wholesale (cleanest).
+      var efb = document.getElementById("eventFlagsBlock");
+      if (efb) efb.style.display = "none";
+
       document.querySelectorAll("#domainCards .domain-card").forEach(function (c) {
         const titleEl = c.querySelector(".rc-title");
         if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
@@ -421,13 +425,13 @@ const CONSULT_CONFIG = {
         const vt = vm.querySelector(".vm-title");
         if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
       });
-      // Special "ef-card" flag cards: hide if the domain tag OR the title is sensitive.
+      // Belt-and-braces: any leftover ef-card whose tag or title is sensitive.
       document.querySelectorAll(".ef-card").forEach(function (card) {
         const tag = card.querySelector(".ef-domain-tag");
         const title = card.querySelector(".ef-card-title");
-        const tagHit = tag && isHiddenDomain(tag.textContent);
-        const titleHit = title && isHiddenDomain(title.textContent);
-        if (tagHit || titleHit) card.style.display = "none";
+        if ((tag && isHiddenDomain(tag.textContent)) || (title && isHiddenDomain(title.textContent))) {
+          card.style.display = "none";
+        }
       });
     }
     // Expose globally so it's always reachable.
