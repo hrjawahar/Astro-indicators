@@ -412,7 +412,7 @@ const CONSULT_CONFIG = {
       const t = (title || "").trim().toLowerCase();
       return HIDDEN_DOMAINS.some(function (h) { return t.indexOf(h) !== -1; });
     }
-   function pruneHiddenDomains() {
+  function pruneHiddenDomains() {
   try {
     // Hide both sensitive sections entirely. Guarded so a null can't throw.
     ["eventFlagsBlock", "compoundPatternsBlock"].forEach(function(id){
@@ -426,7 +426,7 @@ const CONSULT_CONFIG = {
   } catch (e) {
     if (window.console) console.warn("pruneHiddenDomains failed:", e);
   }
-}    
+}
     // Expose globally so it's always reachable.
     window.pruneHiddenDomains = pruneHiddenDomains;
 
