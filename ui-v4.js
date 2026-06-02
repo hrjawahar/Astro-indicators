@@ -421,6 +421,14 @@ const CONSULT_CONFIG = {
         const vt = vm.querySelector(".vm-title");
         if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
       });
+      // Special "ef-card" flag cards: hide if the domain tag OR the title is sensitive.
+      document.querySelectorAll(".ef-card").forEach(function (card) {
+        const tag = card.querySelector(".ef-domain-tag");
+        const title = card.querySelector(".ef-card-title");
+        const tagHit = tag && isHiddenDomain(tag.textContent);
+        const titleHit = title && isHiddenDomain(title.textContent);
+        if (tagHit || titleHit) card.style.display = "none";
+      });
     }
     // Expose globally so it's always reachable.
     window.pruneHiddenDomains = pruneHiddenDomains;
