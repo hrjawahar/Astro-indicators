@@ -626,7 +626,7 @@ const CONSULT_CONFIG = {
       const out = [];
       const root = document.getElementById("domainCards");
       if (!root) return out;
-      out.push(domainLegendSection());   // plain-English legend leads the report
+      out.push(domainLegendSection());   // legend + how-to-read leads the report
       root.querySelectorAll(".domain-card").forEach(function (c) {
         const title = c.querySelector(".rc-title");
         if (title && isHiddenDomain(title.textContent)) return;  // skip hidden domains
@@ -637,13 +637,17 @@ const CONSULT_CONFIG = {
         const windowEl = c.querySelector(".rc-window, .rc-activation");
         const t = function (el) { return el ? el.textContent.trim() : ""; };
 
-        // Each domain → heading + plain-English, gently-worded body.
+        // Domain cards are kept VERBATIM — exactly as shown on screen. The
+        // specific chart pattern and life-pattern indication are the report's
+        // value and connect the dots, so they are NOT reworded here. The
+        // plain-language / gentle layer is applied elsewhere (e.g. the Dasa
+        // report), never to these cards.
         let body = "";
-        if (verdict)    body += "Strength: " + humanize(t(verdict)) + "\n";
-        if (pattern)    body += "What's behind this: " + humanize(t(pattern)) + "\n";
-        if (indication) body += "What it means: " + humanize(t(indication)) + "\n";
-        if (windowEl)   body += "Strongest periods: " + humanize(t(windowEl)) + "\n";
-        if (confLine)   body += humanize(t(confLine));
+        if (verdict)    body += "Strength: " + t(verdict) + "\n";
+        if (pattern)    body += "Key pattern: " + t(pattern) + "\n";
+        if (indication) body += "Indication: " + t(indication) + "\n";
+        if (windowEl)   body += "Best period: " + t(windowEl) + "\n";
+        if (confLine)   body += t(confLine);
 
         out.push({ heading: t(title) || "Domain", body: body, isDomain: true });
       });
