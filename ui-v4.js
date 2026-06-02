@@ -377,7 +377,7 @@ const CONSULT_CONFIG = {
               window.generateReportPDF({
                 userName: userName(),
                 reportTitle: "Dasa Bhukti Period Indications",
-                sections: sections,
+                sections: humanizeSections(sections),   // gentle wording + plain English
                 paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
               });
             }).catch(function (e) {
@@ -485,11 +485,148 @@ const CONSULT_CONFIG = {
     });
     pruneHiddenDomains();
 
+    // ── PLAIN-LANGUAGE + GENTLE-WORDING LAYER (reports only) ─────────────────
+    // Turns the engine's technical astrology text into clear plain English and
+    // softens alarming health / relationship phrasing — WITHOUT changing meaning.
+    // Runs only at PDF-build time, so it never fights the live engine or flickers.
+
+    // (1) GENTLE WORDING — calmer, non-catastrophic equivalents. Longest first.
+    var GENTLE_MAP = [
+      // health
+      [/life[-\s]?threatening\s+(illness|disease|condition)s?/gi, "serious health concern"],
+      [/mysterious ailments that evade diagnosis/gi, "health issues that may take time to identify"],
+      [/undiagnosed ailments?/gi, "health concerns that need attention"],
+      [/requiring hospitalization or isolation/gi, "that may call for rest and recovery"],
+      [/risk of hospitalizations?/gi, "a need for extra rest or care"],
+      [/hospitalizations?/gi, "periods of rest or medical care"],
+      [/strange infections/gi, "minor infections"],
+      [/immune system weakness/gi, "lowered immunity"],
+      [/heart palpitations/gi, "occasional heart-related sensitivity"],
+      [/health crises/gi, "health challenges"],
+      [/health crisis/gi, "health challenge"],
+      // relationships
+      [/secret affairs/gi, "private or complicated connections"],
+      [/physical separation from (?:your |the )?spouse/gi, "time spent apart from your partner"],
+      [/physical separation/gi, "periods of distance"],
+      [/emotionally unavailable/gi, "less emotionally available"],
+      [/frequent misunderstandings/gi, "occasional misunderstandings"],
+      // general catastrophising
+      [/\ba\s+prolonged identity crisis/gi, "an extended period of self-doubt"],
+      [/\ban?\s+identity crisis/gi, "a period of self-doubt"],
+      [/identity crisis/gi, "period of self-doubt"],
+      [/\bcrises\b/gi, "challenges"],
+      [/\bcrisis\b/gi, "challenging phase"],
+      [/forced departures?/gi, "unexpected changes"],
+      [/career setbacks/gi, "career slowdowns"],
+    ];
+    function softenText(s) {
+      if (!s) return s;
+      GENTLE_MAP.forEach(function (p) { s = s.replace(p[0], p[1]); });
+      return s;
+    }
+
+    // (2) PLAIN ENGLISH — rewrite the engine's standard sentences, then de-jargon
+    //     anything left over with a term glossary.
+    var BOILERPLATE = [
+      [/Neither D1 nor D9 is strongly established\.\s*The potential exists but has not crystallised into consistent outer or inner expression\.\s*Dasha periods of the domain activating planets are the windows when the pattern sharpens\./gi,
+       "This area of life is still taking shape. The potential is there but hasn't fully settled yet. It comes into focus during the life periods linked to this area."],
+      [/The D1 structure is reliable — the external circumstances, capacity, and effort are present\.\s*D9 suggests the soul-level resonance is still forming; the domain functions well but may feel less settled internally than it appears externally\./gi,
+       "The practical side of this area is solid — the circumstances, ability, and effort are there. The deeper, inner side is still settling, so it tends to work well in practice even if it doesn't always feel settled inside."],
+      [/Both the outer experience \(D1\) and the soul-level confirmation \(D9\) align — this domain operates with natural momentum and rarely needs to be forced\./gi,
+       "Both the outer experience and the deeper, inner sense agree here — this area tends to flow naturally and rarely needs forcing."],
+    ];
+    var TERM_MAP = [
+      // chart divisions / house shorthand (most specific first)
+      [/\bD1[-\s]?H(\d{1,2})\b/gi, "house $1 of the birth chart"],
+      [/\bD9:\s*/gi, "Deeper chart: "],
+      [/\bD9\b/gi, "the deeper chart"],
+      [/\bD1\/D9\b/gi, "both charts"],
+      [/\bD1\b/gi, "the birth chart"],
+      // yogas → plain gloss
+      [/Viparita Raja Yoga/gi, "a difficulties-into-gains combination"],
+      [/Raja Yoga/gi, "a success-bringing combination"],
+      [/Kemadruma Yoga/gi, "a combination that can bring emotional ups and downs"],
+      // dignities / roles
+      [/\byogakaraka\b/gi, "most beneficial planet"],
+      [/\bkendra lord\b/gi, "angular-house ruler"],
+      [/\btrikona lord\b/gi, "fortune-house ruler"],
+      [/\bdusthana lords?\b/gi, "challenge-house rulers"],
+      [/\bdusthanas?\b/gi, "challenge houses"],
+      [/\bcombust\b/gi, "weakened by closeness to the Sun"],
+      [/\bdebilitated\b/gi, "in a weakened position"],
+      [/\bfunctional malefic\b/gi, "a more challenging planet for you"],
+      [/\bfunctional benefic\b/gi, "a supportive planet for you"],
+      [/\bas benefic\b/gi, "(a supportive influence)"],
+      [/\bas neutral\b/gi, "(a neutral influence)"],
+      [/\bas malefic\b/gi, "(a more challenging influence)"],
+      // periods
+      [/\bMahadasha\b/gi, "major life period"],
+      [/\bAntardasha\b/gi, "sub-period"],
+      [/\bMD\b/g, "major period"],
+      [/\bAD\b/g, "sub-period"],
+      [/\blagna\b/gi, "rising sign"],
+      [/\bascendant\b/gi, "rising sign"],
+      // leftover house shorthand
+      [/\bown sign in H(\d{1,2})\b/gi, "strong in house $1"],
+      [/\bin H(\d{1,2})\b/gi, "in house $1"],
+      [/\bH(\d{1,2})\b/gi, "house $1"],
+      // standalone benefic/malefic (after the functional/ "as" rules above)
+      [/\bbenefic\b/gi, "supportive"],
+      [/\bmalefic\b/gi, "challenging"],
+    ];
+    function plainifyText(s) {
+      if (!s) return s;
+      BOILERPLATE.forEach(function (p) { s = s.replace(p[0], p[1]); });
+      TERM_MAP.forEach(function (p) { s = s.replace(p[0], p[1]); });
+      s = s.replace(/\s*·\s*/g, ". ");           // tidy the "·" separators
+      s = s.replace(/[ \t]{2,}/g, " ").trim();   // collapse double spaces
+      return s;
+    }
+
+    // Combined: soften first (so plain glosses don't block the gentle matches),
+    // then plainify.
+    function humanize(s) { return plainifyText(softenText(s)); }
+
+    // Map over an array of report sections, humanising string fields only.
+    function humanizeSections(sections) {
+      if (!Array.isArray(sections)) return sections;
+      return sections.map(function (sec) {
+        if (!sec || typeof sec !== "object") return sec;
+        var copy = {};
+        for (var k in sec) if (Object.prototype.hasOwnProperty.call(sec, k)) copy[k] = sec[k];
+        ["heading", "title", "body", "text"].forEach(function (f) {
+          if (typeof copy[f] === "string") copy[f] = humanize(copy[f]);
+        });
+        return copy;
+      });
+    }
+
+    // Legend for the Life Domains report — plain explainer of the labels used.
+    function domainLegendSection() {
+      return {
+        heading: "How to read this report",
+        body:
+          "Strength — how settled this area of life is right now:\n" +
+          "  • Still Forming: the potential is there but hasn't fully taken shape yet.\n" +
+          "  • Foundation Holds: the practical side is solid; the inner side is still settling.\n" +
+          "  • In Full Flow: the outer and inner sides agree and tend to flow naturally.\n\n" +
+          "Confidence — how strongly the signs point the same way:\n" +
+          "  • High: the main signals agree.\n" +
+          "  • Low: the signals are mixed, so timing matters more.\n\n" +
+          "Strongest periods — the life stages when this area is most active.\n\n" +
+          "This report is for self-reflection only. It is not medical, psychological, " +
+          "legal, or financial advice.",
+        isDomain: false,
+      };
+    }
+    window.AI_humanizeSections = humanizeSections;  // reusable by the Dasa path
+
     // Build clean Life Domains sections from the rendered domain cards.
     function collectDomainSections() {
       const out = [];
       const root = document.getElementById("domainCards");
       if (!root) return out;
+      out.push(domainLegendSection());   // plain-English legend leads the report
       root.querySelectorAll(".domain-card").forEach(function (c) {
         const title = c.querySelector(".rc-title");
         if (title && isHiddenDomain(title.textContent)) return;  // skip hidden domains
@@ -500,13 +637,13 @@ const CONSULT_CONFIG = {
         const windowEl = c.querySelector(".rc-window, .rc-activation");
         const t = function (el) { return el ? el.textContent.trim() : ""; };
 
-        // Each domain becomes a heading + a structured body.
+        // Each domain → heading + plain-English, gently-worded body.
         let body = "";
-        if (verdict) body += "Strength: " + t(verdict) + "\n";
-        if (pattern) body += "Key pattern: " + t(pattern) + "\n";
-        if (indication) body += "Indication: " + t(indication) + "\n";
-        if (windowEl) body += "Best period: " + t(windowEl) + "\n";
-        if (confLine) body += t(confLine);
+        if (verdict)    body += "Strength: " + humanize(t(verdict)) + "\n";
+        if (pattern)    body += "What's behind this: " + humanize(t(pattern)) + "\n";
+        if (indication) body += "What it means: " + humanize(t(indication)) + "\n";
+        if (windowEl)   body += "Strongest periods: " + humanize(t(windowEl)) + "\n";
+        if (confLine)   body += humanize(t(confLine));
 
         out.push({ heading: t(title) || "Domain", body: body, isDomain: true });
       });
