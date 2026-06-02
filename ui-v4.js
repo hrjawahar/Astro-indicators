@@ -406,38 +406,40 @@ const CONSULT_CONFIG = {
       });
     });
 
-    // ── Filter out the "Emotional Fidelity" domain everywhere (sensitivity) ──
-    const HIDDEN_DOMAINS = ["emotional fidelity"];
+    // ── Filter out sensitive domains everywhere (screen + report) ──
+    const HIDDEN_DOMAINS = ["emotional fidelity", "hidden connection"];
     function isHiddenDomain(title) {
       const t = (title || "").trim().toLowerCase();
       return HIDDEN_DOMAINS.some(function (h) { return t.indexOf(h) !== -1; });
     }
     function pruneHiddenDomains() {
-      const root = document.getElementById("domainCards");
-      if (root) {
-        root.querySelectorAll(".domain-card").forEach(function (c) {
-          const titleEl = c.querySelector(".rc-title");
-          if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
-        });
-      }
-      // Top verdict summary row — domain name is in .vm-title.
-      const vGrid = document.getElementById("verdictSummary");
-      if (vGrid) {
-        vGrid.querySelectorAll(".verdict-mini").forEach(function (vm) {
-          const vt = vm.querySelector(".vm-title");
-          if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
-        });
-      }
+      // Detailed cards
+      document.querySelectorAll("#domainCards .domain-card").forEach(function (c) {
+        const titleEl = c.querySelector(".rc-title");
+        if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
+      });
+      // Top verdict summary row (name in .vm-title)
+      document.querySelectorAll("#verdictSummary .verdict-mini").forEach(function (vm) {
+        const vt = vm.querySelector(".vm-title");
+        if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
+      });
     }
     function attachPruneObserver(id) {
       const el = document.getElementById(id);
       if (el && "MutationObserver" in window) {
         const mo = new MutationObserver(function () { pruneHiddenDomains(); });
-        mo.observe(el, { childList: true });
+        mo.observe(el, { childList: true, subtree: true });
       }
     }
     attachPruneObserver("domainCards");
     attachPruneObserver("verdictSummary");
+    // Re-prune whenever the user navigates (covers render-before-observer cases).
+    document.querySelectorAll('.nav-tab').forEach(function (t) {
+      t.addEventListener("click", function () { setTimeout(pruneHiddenDomains, 60); });
+    });
+    // Also re-prune shortly after load in case analysis was already rendered.
+    setTimeout(pruneHiddenDomains, 500);
+    setTimeout(pruneHiddenDomains, 1500);
     pruneHiddenDomains();
 
     // Build clean Life Domains sections from the rendered domain cards.
