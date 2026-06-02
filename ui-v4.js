@@ -412,27 +412,59 @@ const CONSULT_CONFIG = {
       const t = (title || "").trim().toLowerCase();
       return HIDDEN_DOMAINS.some(function (h) { return t.indexOf(h) !== -1; });
     }
+    // SURGICAL: remove ONLY the sensitive cards + the Emotional Fidelity nav entry.
+    // Legitimate, non-sensitive chart indicators are always preserved. A block is
+    // collapsed only if EVERY card inside it turned out to be sensitive.
     function pruneHiddenDomains() {
-      // Hide the entire "Sensitive" event-flags section wholesale (cleanest).
-      var efb = document.getElementById("eventFlagsBlock");
-      if (efb) efb.style.display = "none";
+      try {
+        // 1) Life Domains main cards — hide by sensitive title only.
+        document.querySelectorAll("#domainCards .domain-card").forEach(function (c) {
+          var titleEl = c.querySelector(".rc-title");
+          if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
+        });
 
-      document.querySelectorAll("#domainCards .domain-card").forEach(function (c) {
-        const titleEl = c.querySelector(".rc-title");
-        if (titleEl && isHiddenDomain(titleEl.textContent)) c.style.display = "none";
-      });
-      document.querySelectorAll("#verdictSummary .verdict-mini").forEach(function (vm) {
-        const vt = vm.querySelector(".vm-title");
-        if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
-      });
-      // Belt-and-braces: any leftover ef-card whose tag or title is sensitive.
-      document.querySelectorAll(".ef-card").forEach(function (card) {
-        const tag = card.querySelector(".ef-domain-tag");
-        const title = card.querySelector(".ef-card-title");
-        if ((tag && isHiddenDomain(tag.textContent)) || (title && isHiddenDomain(title.textContent))) {
-          card.style.display = "none";
-        }
-      });
+        // 2) Verdict-summary minis — hide by sensitive title only.
+        document.querySelectorAll("#verdictSummary .verdict-mini").forEach(function (vm) {
+          var vt = vm.querySelector(".vm-title");
+          if (vt && isHiddenDomain(vt.textContent)) vm.style.display = "none";
+        });
+
+        // 3) Event-flags cards — hide ONLY the sensitive ones; keep the rest.
+        document.querySelectorAll("#eventFlagsBlock .ef-card").forEach(function (card) {
+          var tag   = card.querySelector(".ef-domain-tag");
+          var title = card.querySelector(".ef-card-title");
+          var txt   = (tag ? tag.textContent : "") + " " + (title ? title.textContent : "");
+          if (isHiddenDomain(txt) || /sensitive/i.test(txt)) card.style.display = "none";
+        });
+
+        // 4) Compound-pattern cards — hide ONLY those carrying the sensitive tag.
+        document.querySelectorAll("#compoundPatternsBlock .cp-tag-sensitive").forEach(function (tag) {
+          var card = tag.closest(".cp-card") || tag.closest("#compoundPatternsGrid > *");
+          if (card) card.style.display = "none";
+        });
+        // ...and any compound card whose text names a hidden domain (belt & braces).
+        document.querySelectorAll("#compoundPatternsBlock .cp-card").forEach(function (card) {
+          if (isHiddenDomain(card.textContent)) card.style.display = "none";
+        });
+
+        // 5) Collapse a block ONLY if it has cards AND none remain visible — so a
+        //    legitimate non-sensitive indicator always keeps its block on screen.
+        [["eventFlagsBlock", ".ef-card"], ["compoundPatternsBlock", ".cp-card"]].forEach(function (pair) {
+          var block = document.getElementById(pair[0]);
+          if (!block) return;
+          var cards = block.querySelectorAll(pair[1]);
+          if (!cards.length) return;  // nothing rendered yet — leave the block alone
+          var anyVisible = [].slice.call(cards).some(function (c) { return c.style.display !== "none"; });
+          block.style.display = anyVisible ? "" : "none";
+        });
+
+        // 6) Remove the "Emotional Fidelity" entry from the top nav bar (by text).
+        document.querySelectorAll(".nav-tab, [data-tab]").forEach(function (tab) {
+          if (isHiddenDomain(tab.textContent)) tab.style.display = "none";
+        });
+      } catch (e) {
+        if (window.console) console.warn("pruneHiddenDomains failed:", e);
+      }
     }
     // Expose globally so it's always reachable.
     window.pruneHiddenDomains = pruneHiddenDomains;
@@ -445,7 +477,7 @@ const CONSULT_CONFIG = {
     }, 800);
 
     // Also observe both containers and re-prune on any change.
-    ["domainCards", "verdictSummary"].forEach(function (id) {
+    ["domainCards", "verdictSummary", "eventFlagsBlock", "compoundPatternsBlock"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el && "MutationObserver" in window) {
         new MutationObserver(function () { pruneHiddenDomains(); }).observe(el, { childList: true, subtree: true });
