@@ -636,71 +636,59 @@ const CONSULT_CONFIG = {
         body:
           "A few terms appear throughout this report. Here is what each one means, in plain language, so the pages that follow read clearly.\n\n" +
 
-          "D1 (Birth chart)\n" +
+          "Don't worry if the technical logic in this report isn't familiar to you — you don't need to understand it. It is included only to show the astrological basis behind each indication. What matters is this: every indication here is drawn specifically from your own D1 (Birth chart) and D9 (Navamsha chart) planetary placements and their interpretation — not from anything generic.\n\n" +
+
+          "**D1 (Birth chart)**\n" +
           "What this means: your main birth chart — the snapshot of the sky at your birth. It describes outer life: circumstances, events, and how things actually play out day to day.\n\n" +
 
-          "D9 (Deeper chart)\n" +
+          "**D9 (Deeper chart)**\n" +
           "What this means: a finer 'zoom-in' chart (the Navamsha). It describes the inner, soul-level side of a matter — durability, depth, and how something feels on the inside rather than how it looks on the outside.\n\n" +
 
-          "D1 vs D9 — the difference\n" +
+          "**D1 vs D9 — the difference**\n" +
           "What this means: D1 is the outer experience; D9 is the inner foundation. When both agree, an area of life is both visible and solid. When only D1 is strong, it works in practice but may feel unsettled inside. When only D9 is strong, it feels right within but hasn't fully shown up outwardly yet.\n\n" +
 
-          "H (House 1–12)\n" +
+          "**H (House 1-12)**\n" +
           "What this means: 'H' is a House — one of the twelve life areas of a chart (for example H1 = self and identity, H7 = partnership, H10 = career). 'D1-H7' means the 7th house of the birth chart; 'D9-H3' means the 3rd house of the deeper chart.\n\n" +
 
-          "Strength — how settled an area of life is right now:\n" +
+          "**Strength — how settled an area of life is right now**\n" +
           "  • Still Forming — the potential is there but hasn't fully taken shape yet.\n" +
           "  • Foundation Holds — the practical side is solid; the inner side is still settling.\n" +
           "  • In Full Flow — the outer and inner sides agree and tend to flow naturally.\n\n" +
 
-          "Confidence — how strongly the signs point the same way:\n" +
+          "**Confidence — how strongly the signs point the same way**\n" +
           "  • High — the main signals agree, so the reading is dependable.\n" +
           "  • Low — the signals are mixed, so timing and personal effort matter more.\n\n" +
 
-          "Other terms you may see:\n" +
+          "**Other terms you may see**\n" +
           "  • Conscious Renewal — a phase where growth comes from deliberately letting go of an old pattern and rebuilding it on purpose, rather than waiting for it to change on its own.\n" +
           "  • Soul-Level Sustenance — the deeper, inner nourishment an area gives you (meaning and fulfilment), as opposed to its outward, material results.\n" +
           "  • A counterweight that must be navigated — there are two opposing pulls in this area (for example, the urge for security versus the urge for freedom, or independence versus closeness). The point is to consciously balance the two so you avoid swinging to either extreme or getting stuck.\n" +
-          "  • Strongest periods — the life stages when this area is most active and most worth acting on.\n\n" +
-
-          "This report is for self-reflection only. It is not medical, psychological, legal, or financial advice.",
-        isDomain: false,
+          "  • Strongest periods — the life stages when this area is most active and most worth acting on.",
+        isRich: true,
       };
     }
 
-    // Opening orientation after the legend: the chart's dominant planetary axis.
-    // Built from what's on screen (yoga badges / verdict-summary) so it reflects
-    // the actual chart rather than a generic statement.
+    // The chart's dominant planetary axis — reproduced from the real on-screen
+    // summary card (#coOpeningText / #coAxisText / #coModifierText), with a short
+    // definition of what the axis means. Returns null if the card isn't present.
     function dominantAxisSection() {
-      var t = function (el) { return el ? el.textContent.trim() : ""; };
-      // Gather the strongest domains (those that aren't "Still Forming") to name
-      // the axis the chart leans on.
-      var strong = [];
-      document.querySelectorAll("#domainCards .domain-card").forEach(function (c) {
-        var title = c.querySelector(".rc-title");
-        var verdict = c.querySelector(".rc-verdict");
-        if (!title || isHiddenDomain(title.textContent)) return;
-        var v = t(verdict).toLowerCase();
-        if (v.indexOf("full flow") !== -1 || v.indexOf("foundation") !== -1) {
-          strong.push(t(title));
-        }
+      var t = function (id) { var el = document.getElementById(id); return el ? el.textContent.trim() : ""; };
+      var badges = [];
+      document.querySelectorAll("#coPatternBadge .co-badge").forEach(function (b) {
+        var s = b.textContent.trim(); if (s) badges.push(s);
       });
-      var axisLine = strong.length
-        ? "In your chart, the areas that carry the most weight are " +
-          strong.slice(0, 3).join(", ") + ". These form the main axis the rest of the reading turns around — " +
-          "the domains where your chart is most established tend to set the tone for the others."
-        : "Your chart's emphasis is still settling across several areas, so no single axis dominates yet — " +
-          "the per-domain readings below show where momentum is building.";
-      return {
-        heading: "The Dominant Axis of Your Chart",
-        body:
-          "Every chart leans on a core axis — the handful of life areas where the planetary support is strongest, " +
-          "which then shapes how the remaining areas express themselves.\n\n" +
-          axisLine + "\n\n" +
-          "Read the domains below with that emphasis in mind: the stronger areas are where you can act with " +
-          "confidence, and the still-forming ones are where timing and steady effort matter most.",
-        isDomain: false,
-      };
+      var opening  = t("coOpeningText");
+      var axisLine = t("coAxisText");
+      var modifier = t("coModifierText");
+      if (!opening && !axisLine && !modifier) return null;   // card not rendered
+
+      var body = "";
+      body += "What this means: every chart turns around a central axis — the pair of life areas that form its core theme, the polarity the whole life tends to revolve around. It is the single most important lens for reading everything else below.\n\n";
+      if (badges.length) body += "**Chart signature: " + badges.join("  ·  ") + "**\n";
+      if (opening)  body += opening + "\n\n";
+      if (axisLine) body += "**" + axisLine + "**\n";
+      if (modifier) body += "\n" + modifier;
+      return { heading: "The Dominant Planetary Axis", body: body.trim(), isRich: true };
     }
     window.AI_humanizeSections = humanizeSections;  // reusable by the Dasa path
 
@@ -710,7 +698,8 @@ const CONSULT_CONFIG = {
       const root = document.getElementById("domainCards");
       if (!root) return out;
       out.push(domainLegendSection());   // full how-to-read page leads the report
-      out.push(dominantAxisSection());   // dominant-axis orientation comes next
+      var axisSec = dominantAxisSection();
+      if (axisSec) out.push(axisSec);    // real dominant-axis card, if present
 
       // helper used throughout
       const t = function (el) { return el ? el.textContent.trim() : ""; };
@@ -741,7 +730,8 @@ const CONSULT_CONFIG = {
       });
 
       // ── Specific Indications From Your Chart (#eventFlagsBlock) ──────────────
-      // Reproduced from the real card structure: title + indication + caution.
+      // Reproduced from the real card structure: bold title + indication.
+      // Caution lines dropped (the bottom disclaimer covers self-reflection use).
       // Sensitive cards excluded; health/illness wording gently softened.
       const efCards = [];
       document.querySelectorAll("#eventFlagsBlock .ef-card").forEach(function (card) {
@@ -749,11 +739,9 @@ const CONSULT_CONFIG = {
         const tag  = t(card.querySelector(".ef-domain-tag"));
         if (isHiddenDomain(ttl + " " + tag) || /sensitive/i.test(ttl + " " + tag)) return;
         const ind  = t(card.querySelector(".ef-card-indication"));
-        const caut = t(card.querySelector(".ef-card-caution"));
         var block = "";
-        if (ttl)  block += ttl + "\n";
-        if (ind)  block += softenHealth(ind) + "\n";
-        if (caut) block += softenHealth(caut.replace(/^[⚠\s]+/, "Note: "));
+        if (ttl)  block += "**" + ttl + "**\n";
+        if (ind)  block += softenHealth(ind);
         if (block.trim()) efCards.push(block.trim());
       });
       if (efCards.length) {
@@ -761,13 +749,13 @@ const CONSULT_CONFIG = {
           heading: "Specific Indications From Your Chart",
           body: "Configurations that carry classical significance beyond the domain reading.\n\n" +
                 efCards.join("\n\n"),
-          isDomain: false,
+          isRich: true,
         });
       }
 
       // ── Life Pattern Indications (#compoundPatternsBlock) ────────────────────
-      // Reproduced from the real structure: title + indicator count + indication
-      // + caution + activation window. Sensitive cards excluded; health softened.
+      // Reproduced: bold title + indicator count + indication + activation window.
+      // Caution lines dropped. Sensitive cards excluded; health softened.
       const cpCards = [];
       document.querySelectorAll("#compoundPatternsBlock .cp-card").forEach(function (card) {
         if (card.querySelector(".cp-tag-sensitive") || isHiddenDomain(card.textContent)) return;
@@ -775,15 +763,13 @@ const CONSULT_CONFIG = {
         const tag   = t(card.querySelector(".cp-domain-tag"));
         const count = t(card.querySelector(".cp-cond-label"));
         const ind   = t(card.querySelector(".cp-indication"));
-        const caut  = t(card.querySelector(".cp-caution"));
         const win   = t(card.querySelector(".cp-window"));
         var block = "";
-        if (ttl)   block += softenHealth(ttl) + "\n";
+        if (ttl)   block += "**" + softenHealth(ttl) + "**\n";
         if (tag)   block += softenHealth(tag) + (count ? "  (" + count + ")" : "") + "\n";
         else if (count) block += count + "\n";
-        if (ind)   block += softenHealth(ind) + "\n";
-        if (caut)  block += softenHealth(caut.replace(/^[⚠\s]+/, "Note: ")) + "\n";
-        if (win)   block += win;
+        if (ind)   block += softenHealth(ind);
+        if (win)   block += "\n" + win;
         if (block.trim()) cpCards.push(block.trim());
       });
       if (cpCards.length) {
@@ -791,7 +777,7 @@ const CONSULT_CONFIG = {
           heading: "Life Pattern Indications",
           body: "Multi-factor compound patterns — probability signals, not predictions.\n\n" +
                 cpCards.join("\n\n"),
-          isDomain: false,
+          isRich: true,
         });
       }
 
