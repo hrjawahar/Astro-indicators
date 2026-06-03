@@ -587,7 +587,12 @@ const CONSULT_CONFIG = {
     // then plainify.
     function humanize(s) { return plainifyText(softenText(s)); }
 
-    // Map over an array of report sections, humanising string fields only.
+    // Map over an array of report sections. For the Dasa report we apply ONLY
+    // the gentle-wording pass (softens alarming health/relationship phrasing) and
+    // deliberately DO NOT run the jargon rewrite — the astrological vocabulary
+    // (Mahadasha, Antardasha, combust, debilitated, house placements, yogas) is
+    // the value of the report and must stay intact, especially now that the
+    // report defines MD/AD terms itself.
     function humanizeSections(sections) {
       if (!Array.isArray(sections)) return sections;
       return sections.map(function (sec) {
@@ -595,7 +600,7 @@ const CONSULT_CONFIG = {
         var copy = {};
         for (var k in sec) if (Object.prototype.hasOwnProperty.call(sec, k)) copy[k] = sec[k];
         ["heading", "title", "body", "text"].forEach(function (f) {
-          if (typeof copy[f] === "string") copy[f] = humanize(copy[f]);
+          if (typeof copy[f] === "string") copy[f] = softenText(copy[f]);
         });
         return copy;
       });
@@ -606,7 +611,7 @@ const CONSULT_CONFIG = {
       return {
         heading: "How to read this report",
         body:
-          "Strength — how settled this area of life is right now:\n" +
+          "Strength — how settled this area of life is right now (defined once here, so each domain below just shows its label):\n" +
           "  • Still Forming: the potential is there but hasn't fully taken shape yet.\n" +
           "  • Foundation Holds: the practical side is solid; the inner side is still settling.\n" +
           "  • In Full Flow: the outer and inner sides agree and tend to flow naturally.\n\n" +
@@ -627,30 +632,77 @@ const CONSULT_CONFIG = {
       const root = document.getElementById("domainCards");
       if (!root) return out;
       out.push(domainLegendSection());   // legend + how-to-read leads the report
+
+      // helper used throughout
+      const t = function (el) { return el ? el.textContent.trim() : ""; };
+
       root.querySelectorAll(".domain-card").forEach(function (c) {
         const title = c.querySelector(".rc-title");
         if (title && isHiddenDomain(title.textContent)) return;  // skip hidden domains
         const verdict = c.querySelector(".rc-verdict");
         const pattern = c.querySelector(".rc-pattern");
-        const indication = c.querySelector(".rc-indication");
         const confLine = c.querySelector(".rc-confidence-line");
         const windowEl = c.querySelector(".rc-window, .rc-activation");
-        const t = function (el) { return el ? el.textContent.trim() : ""; };
+        const yoga = c.querySelector(".rc-yoga-badges");
 
-        // Domain cards are kept VERBATIM — exactly as shown on screen. The
-        // specific chart pattern and life-pattern indication are the report's
-        // value and connect the dots, so they are NOT reworded here. The
-        // plain-language / gentle layer is applied elsewhere (e.g. the Dasa
-        // report), never to these cards.
+        // Kept VERBATIM, exactly as on screen. The repeated tier-explanation
+        // paragraph (.rc-indication) is intentionally OMITTED here — its meaning
+        // is defined once in the legend — so the same sentence no longer prints
+        // under every domain. Each domain keeps only its UNIQUE, chart-specific
+        // content: the Strength label, the specific Pattern, any Yoga badges,
+        // the Activation Window, and the Confidence reason.
         let body = "";
-        if (verdict)    body += "Strength: " + t(verdict) + "\n";
-        if (pattern)    body += "Key pattern: " + t(pattern) + "\n";
-        if (indication) body += "Indication: " + t(indication) + "\n";
-        if (windowEl)   body += "Best period: " + t(windowEl) + "\n";
-        if (confLine)   body += t(confLine);
+        if (verdict)  body += "Strength: " + t(verdict) + "\n";
+        if (yoga && t(yoga)) body += "Yogas: " + t(yoga) + "\n";
+        if (pattern)  body += "Key pattern: " + t(pattern) + "\n";
+        if (windowEl) body += t(windowEl) + "\n";   // already labelled "Activation Window"
+        if (confLine) body += t(confLine);
 
         out.push({ heading: t(title) || "Domain", body: body, isDomain: true });
       });
+
+      // ── Specific Indications From Your Chart (#eventFlagsBlock) ──────────────
+      // High-value section that was previously missing from the PDF. Collected
+      // VERBATIM, excluding only the sensitive cards (same test as the screen).
+      const efCards = [];
+      document.querySelectorAll("#eventFlagsBlock .ef-card").forEach(function (card) {
+        const tag   = card.querySelector(".ef-domain-tag, .ef-card-title");
+        const ttl   = card.querySelector(".ef-card-title");
+        const txt   = (tag ? tag.textContent : "") + " " + (ttl ? ttl.textContent : "");
+        if (isHiddenDomain(txt) || /sensitive/i.test(txt)) return;  // skip sensitive
+        const cTitle = t(ttl) || t(card.querySelector(".ef-domain-tag"));
+        const cBody  = t(card.querySelector(".ef-card-indication, .ef-card-body, .ef-card-text"))
+                       || t(card).replace(cTitle, "").trim();
+        if (cTitle || cBody) efCards.push((cTitle ? cTitle + ": " : "") + cBody);
+      });
+      if (efCards.length) {
+        out.push({
+          heading: "Specific Indications From Your Chart",
+          body: "Configurations that carry classical significance beyond the domain read.\n\n" +
+                efCards.join("\n\n"),
+          isDomain: false,
+        });
+      }
+
+      // ── Life Pattern Indications (#compoundPatternsBlock) ────────────────────
+      // The other high-value section. Collected VERBATIM, sensitive cards excluded.
+      const cpCards = [];
+      document.querySelectorAll("#compoundPatternsBlock .cp-card").forEach(function (card) {
+        if (card.querySelector(".cp-tag-sensitive") || isHiddenDomain(card.textContent)) return;
+        const cTitle = t(card.querySelector(".cp-card-title, .cp-domain-tag, .cp-title"));
+        const cBody  = t(card.querySelector(".cp-card-body, .cp-card-text, .cp-indication"))
+                       || (cTitle ? t(card).replace(cTitle, "").trim() : t(card));
+        if (cTitle || cBody) cpCards.push((cTitle ? cTitle + ": " : "") + cBody);
+      });
+      if (cpCards.length) {
+        out.push({
+          heading: "Life Pattern Indications",
+          body: "Multi-factor compound patterns — probability signals, not predictions.\n\n" +
+                cpCards.join("\n\n"),
+          isDomain: false,
+        });
+      }
+
       return out;
     }
     // Expose so payments can reveal the button on success.
