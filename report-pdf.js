@@ -198,7 +198,11 @@
     });
 
     // Boxed legal disclaimer
-    needPage(150); y += 8;
+    needPage(172); y += 8;
+    // "Important" heading above the box
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+    doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+    doc.text("Important", M, y); y += 16;
     var disc =
       "Disclaimer: This report is provided for educational and self-reflective purposes only and constitutes " +
       "indicative astrological insight, not professional advice or a guarantee of outcomes. It is not a substitute " +
