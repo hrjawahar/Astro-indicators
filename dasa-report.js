@@ -15,6 +15,61 @@
 (function () {
   "use strict";
 
+  // Standard Vimshottari Mahadasha lengths (years). Total = 120.
+  var MD_YEARS = { Ketu: 7, Venus: 20, Sun: 6, Moon: 10, Mars: 7, Rahu: 18, Jupiter: 16, Saturn: 19, Mercury: 17 };
+
+  // Duration label for a Mahadasha. Uses the standard length for FULL periods,
+  // but the actual computed span for a partial period (the first/last period in
+  // a chart is the "balance of dasha" and is shorter than its standard length).
+  function mdYearsLabel(md) {
+    var std = MD_YEARS[md.lord];
+    var actual = null;
+    if (md.start && md.end) {
+      var s = new Date(md.start), e = new Date(md.end);
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) actual = (e - s) / (365.2425 * 86400000);
+    }
+    // Full period: actual is within ~9 months of the standard length → use clean standard.
+    if (actual != null && std != null && Math.abs(actual - std) <= 0.75) return std + " years";
+    // Partial period: show the real span.
+    if (actual != null) {
+      if (actual < 1) { var mo = Math.max(1, Math.round(actual * 12)); return mo + (mo === 1 ? " month" : " months"); }
+      var r = Math.round(actual * 10) / 10;
+      return r + (r === 1 ? " year" : " years");
+    }
+    return std != null ? std + " years" : "";
+  }
+
+  // Duration label for an Antardasha, spelled out as "X years Y months".
+  // ADs are short, so months read more naturally than fractional years.
+  function adYearsMonthsLabel(ad) {
+    if (!ad || !ad.start || !ad.end) return "";
+    var s = new Date(ad.start), e = new Date(ad.end);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return "";
+    var totalMonths = Math.round((e - s) / (365.2425 / 12 * 86400000));
+    if (totalMonths < 1) totalMonths = 1;
+    var yrs = Math.floor(totalMonths / 12), mos = totalMonths % 12;
+    var parts = [];
+    if (yrs) parts.push(yrs + (yrs === 1 ? " year" : " years"));
+    if (mos) parts.push(mos + (mos === 1 ? " month" : " months"));
+    return parts.join(" ") || "1 month";
+  }
+
+  // Plain-language intro defining MD / AD with metaphors, and the report's scope.
+  function introSection() {
+    return {
+      heading: "Understanding Your Dasha Periods",
+      body:
+        "Your life unfolds through a sequence of planetary periods. A Mahadasha (MD) is a major life chapter — " +
+        "picture it as a long season that runs for several years, during which one planet sets the overall theme " +
+        "and weather of your life. Within each season are shorter Antardasha (AD) sub-periods — like the months " +
+        "within a season — where a second planet colours that main theme, shifting the tone from one stretch of " +
+        "time to the next.\n\n" +
+        "This report covers three chapters. Your Previous period and your Next period are given as an Overview only. " +
+        "Your Current period is covered in full — its Overview, followed by each Antardasha (AD) sub-period, " +
+        "detailed separately below.",
+    };
+  }
+
   function readTimeline() {
     var rows = document.querySelectorAll("#dashaTimeline .dasha-row");
     if (!rows || !rows.length) return null;
@@ -92,7 +147,7 @@
       ? window.buildMDPrompt(md.lord, lagna, ctx)
       : "Write a 5-7 sentence overview of the " + md.lord + " Mahadasha for a " + lagna + " ascendant, second person.";
     return fetchIndication(prompt).then(function (ov) {
-      return { heading: label + ": " + md.lord + " Mahadasha (" + md.start + " to " + md.end + ")",
+      return { heading: label + ": " + md.lord + " Mahadasha (" + md.start + " to " + md.end + ", " + mdYearsLabel(md) + ")",
                body: ov || "(overview unavailable)", isMDHeading: true };
     });
   }
@@ -112,8 +167,10 @@
     var sections0 = [];
     var tlText = tl.all.map(function (m, i) {
       var isCur = (m === tl.current);
-      return (i + 1) + ". " + m.lord + " Mahadasha — " + m.start + " to " + m.end + (isCur ? "   ◄ CURRENT" : "");
+      return (i + 1) + ". " + m.lord + " Mahadasha — " + m.start + " to " + m.end +
+             " (" + mdYearsLabel(m) + ")" + (isCur ? "   ◄ CURRENT" : "");
     }).join("\n");
+    sections0.push(introSection());   // plain-language MD/AD definitions lead the report
     sections0.push({ heading: "Your Complete 120-Year Dasha Timeline", body: "", isMDHeading: true });
     sections0.push({ heading: tlText, isTimeline: true, currentLord: tl.current.lord });
 
@@ -125,10 +182,10 @@
     var thunks = [];
 
     if (tl.previous) {
-      thunks.push(function () { return mdOverview(tl.previous, "Previous period", c.lagna, c.ctx).then(function (s) { prevSec = s; tick(); }); });
+      thunks.push(function () { return mdOverview(tl.previous, "Previous Period (Overview)", c.lagna, c.ctx).then(function (s) { prevSec = s; tick(); }); });
     } else { tick(); }
 
-    thunks.push(function () { return mdOverview(tl.current, "Current period", c.lagna, c.ctx).then(function (s) { curOverviewSec = s; tick(); }); });
+    thunks.push(function () { return mdOverview(tl.current, "Current Period (Overview + AD Sub-Periods)", c.lagna, c.ctx).then(function (s) { curOverviewSec = s; tick(); }); });
 
     (tl.current.ads || []).forEach(function (ad, idx) {
       thunks.push(function () {
@@ -136,7 +193,7 @@
           ? window.buildADPrompt(tl.current.lord, ad.lord, c.lagna, c.ctx)
           : "Write a short indication for " + tl.current.lord + " Mahadasha / " + ad.lord + " Antardasha for a " + c.lagna + " ascendant, second person.";
         return fetchIndication(adPrompt).then(function (t) {
-          adSecs[idx] = { heading: ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ")",
+          adSecs[idx] = { heading: ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ", " + adYearsMonthsLabel(ad) + ")",
                           body: t || "(indication unavailable)", isAD: true };
           tick();
         });
@@ -144,7 +201,7 @@
     });
 
     if (tl.next) {
-      thunks.push(function () { return mdOverview(tl.next, "Next period", c.lagna, c.ctx).then(function (s) { nextSec = s; tick(); }); });
+      thunks.push(function () { return mdOverview(tl.next, "Next Period (Overview)", c.lagna, c.ctx).then(function (s) { nextSec = s; tick(); }); });
     } else { tick(); }
 
     // Run in batches of 5 concurrent calls — fast (~1 min) but rate-limit-safe.
@@ -166,7 +223,7 @@
       if (nextSec) sections.push(nextSec);
       sections.push({
         heading: "Want this depth for your other Dasha periods?",
-        body: "If you would like a similarly detailed report for any other Mahadasha and its sub-periods (Antardashas) — like the current period detailed above — please submit a request under the Contact Us tab. You will receive it at an additional cost of Rs.100 per Mahadasha and its Antardasha sub-periods.",
+        body: "If you would like a similarly detailed report for any other Mahadasha and its Antardasha sub-periods — like the current period detailed above — please submit a request under the Contact Us tab, at an additional cost of Rs.100 per Mahadasha. You will receive the report within 48 hours.",
         isNote: true,
       });
       return sections0.concat(sections);
