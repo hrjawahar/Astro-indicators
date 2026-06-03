@@ -525,6 +525,28 @@ const CONSULT_CONFIG = {
       return s;
     }
 
+    // Focused softener for the chart-indication cards: tones down alarming
+    // health/illness phrasing (per request: "soften only health wording") while
+    // leaving the astrological content of the card intact. Applied ONLY to those
+    // two card sections, not to domain cards.
+    var HEALTH_SOFTEN = [
+      [/elevated serious illness probability/gi, "a health area worth extra attention"],
+      [/elevated markers for (?:a |an )?serious or life-impacting health event/gi, "raised emphasis on health and vitality"],
+      [/elevated markers for (?:a |an )?life-impacting health event/gi, "raised emphasis on health and vitality"],
+      [/serious or life-impacting health event/gi, "a significant health matter"],
+      [/life-impacting health event/gi, "a significant health matter"],
+      [/serious illness probability/gi, "a health area to keep an eye on"],
+      [/\bserious illness\b/gi, "a significant health matter"],
+      [/elevated (?:risk|markers) (?:for|of)\b/gi, "raised emphasis on"],
+      [/risk signal/gi, "area to watch"],
+    ];
+    function softenHealth(s) {
+      if (!s) return s;
+      s = softenText(s);                                   // shared gentle pass
+      HEALTH_SOFTEN.forEach(function (p) { s = s.replace(p[0], p[1]); });
+      return s;
+    }
+
     // (2) PLAIN ENGLISH — rewrite the engine's standard sentences, then de-jargon
     //     anything left over with a term glossary.
     var BOILERPLATE = [
@@ -606,21 +628,77 @@ const CONSULT_CONFIG = {
       });
     }
 
-    // Legend for the Life Domains report — plain explainer of the labels used.
+    // Full "How to read this report" legend page. Each term is KEPT, with a
+    // plain "what this means" line beneath it.
     function domainLegendSection() {
       return {
-        heading: "How to read this report",
+        heading: "How to Read This Report",
         body:
-          "Strength — how settled this area of life is right now (defined once here, so each domain below just shows its label):\n" +
-          "  • Still Forming: the potential is there but hasn't fully taken shape yet.\n" +
-          "  • Foundation Holds: the practical side is solid; the inner side is still settling.\n" +
-          "  • In Full Flow: the outer and inner sides agree and tend to flow naturally.\n\n" +
+          "A few terms appear throughout this report. Here is what each one means, in plain language, so the pages that follow read clearly.\n\n" +
+
+          "D1 (Birth chart)\n" +
+          "What this means: your main birth chart — the snapshot of the sky at your birth. It describes outer life: circumstances, events, and how things actually play out day to day.\n\n" +
+
+          "D9 (Deeper chart)\n" +
+          "What this means: a finer 'zoom-in' chart (the Navamsha). It describes the inner, soul-level side of a matter — durability, depth, and how something feels on the inside rather than how it looks on the outside.\n\n" +
+
+          "D1 vs D9 — the difference\n" +
+          "What this means: D1 is the outer experience; D9 is the inner foundation. When both agree, an area of life is both visible and solid. When only D1 is strong, it works in practice but may feel unsettled inside. When only D9 is strong, it feels right within but hasn't fully shown up outwardly yet.\n\n" +
+
+          "H (House 1–12)\n" +
+          "What this means: 'H' is a House — one of the twelve life areas of a chart (for example H1 = self and identity, H7 = partnership, H10 = career). 'D1-H7' means the 7th house of the birth chart; 'D9-H3' means the 3rd house of the deeper chart.\n\n" +
+
+          "Strength — how settled an area of life is right now:\n" +
+          "  • Still Forming — the potential is there but hasn't fully taken shape yet.\n" +
+          "  • Foundation Holds — the practical side is solid; the inner side is still settling.\n" +
+          "  • In Full Flow — the outer and inner sides agree and tend to flow naturally.\n\n" +
+
           "Confidence — how strongly the signs point the same way:\n" +
-          "  • High: the main signals agree.\n" +
-          "  • Low: the signals are mixed, so timing matters more.\n\n" +
-          "Strongest periods — the life stages when this area is most active.\n\n" +
-          "This report is for self-reflection only. It is not medical, psychological, " +
-          "legal, or financial advice.",
+          "  • High — the main signals agree, so the reading is dependable.\n" +
+          "  • Low — the signals are mixed, so timing and personal effort matter more.\n\n" +
+
+          "Other terms you may see:\n" +
+          "  • Conscious Renewal — a phase where growth comes from deliberately letting go of an old pattern and rebuilding it on purpose, rather than waiting for it to change on its own.\n" +
+          "  • Soul-Level Sustenance — the deeper, inner nourishment an area gives you (meaning and fulfilment), as opposed to its outward, material results.\n" +
+          "  • A counterweight that must be navigated — there are two opposing pulls in this area (for example, the urge for security versus the urge for freedom, or independence versus closeness). The point is to consciously balance the two so you avoid swinging to either extreme or getting stuck.\n" +
+          "  • Strongest periods — the life stages when this area is most active and most worth acting on.\n\n" +
+
+          "This report is for self-reflection only. It is not medical, psychological, legal, or financial advice.",
+        isDomain: false,
+      };
+    }
+
+    // Opening orientation after the legend: the chart's dominant planetary axis.
+    // Built from what's on screen (yoga badges / verdict-summary) so it reflects
+    // the actual chart rather than a generic statement.
+    function dominantAxisSection() {
+      var t = function (el) { return el ? el.textContent.trim() : ""; };
+      // Gather the strongest domains (those that aren't "Still Forming") to name
+      // the axis the chart leans on.
+      var strong = [];
+      document.querySelectorAll("#domainCards .domain-card").forEach(function (c) {
+        var title = c.querySelector(".rc-title");
+        var verdict = c.querySelector(".rc-verdict");
+        if (!title || isHiddenDomain(title.textContent)) return;
+        var v = t(verdict).toLowerCase();
+        if (v.indexOf("full flow") !== -1 || v.indexOf("foundation") !== -1) {
+          strong.push(t(title));
+        }
+      });
+      var axisLine = strong.length
+        ? "In your chart, the areas that carry the most weight are " +
+          strong.slice(0, 3).join(", ") + ". These form the main axis the rest of the reading turns around — " +
+          "the domains where your chart is most established tend to set the tone for the others."
+        : "Your chart's emphasis is still settling across several areas, so no single axis dominates yet — " +
+          "the per-domain readings below show where momentum is building.";
+      return {
+        heading: "The Dominant Axis of Your Chart",
+        body:
+          "Every chart leans on a core axis — the handful of life areas where the planetary support is strongest, " +
+          "which then shapes how the remaining areas express themselves.\n\n" +
+          axisLine + "\n\n" +
+          "Read the domains below with that emphasis in mind: the stronger areas are where you can act with " +
+          "confidence, and the still-forming ones are where timing and steady effort matter most.",
         isDomain: false,
       };
     }
@@ -631,7 +709,8 @@ const CONSULT_CONFIG = {
       const out = [];
       const root = document.getElementById("domainCards");
       if (!root) return out;
-      out.push(domainLegendSection());   // legend + how-to-read leads the report
+      out.push(domainLegendSection());   // full how-to-read page leads the report
+      out.push(dominantAxisSection());   // dominant-axis orientation comes next
 
       // helper used throughout
       const t = function (el) { return el ? el.textContent.trim() : ""; };
@@ -662,37 +741,50 @@ const CONSULT_CONFIG = {
       });
 
       // ── Specific Indications From Your Chart (#eventFlagsBlock) ──────────────
-      // High-value section that was previously missing from the PDF. Collected
-      // VERBATIM, excluding only the sensitive cards (same test as the screen).
+      // Reproduced from the real card structure: title + indication + caution.
+      // Sensitive cards excluded; health/illness wording gently softened.
       const efCards = [];
       document.querySelectorAll("#eventFlagsBlock .ef-card").forEach(function (card) {
-        const tag   = card.querySelector(".ef-domain-tag, .ef-card-title");
-        const ttl   = card.querySelector(".ef-card-title");
-        const txt   = (tag ? tag.textContent : "") + " " + (ttl ? ttl.textContent : "");
-        if (isHiddenDomain(txt) || /sensitive/i.test(txt)) return;  // skip sensitive
-        const cTitle = t(ttl) || t(card.querySelector(".ef-domain-tag"));
-        const cBody  = t(card.querySelector(".ef-card-indication, .ef-card-body, .ef-card-text"))
-                       || t(card).replace(cTitle, "").trim();
-        if (cTitle || cBody) efCards.push((cTitle ? cTitle + ": " : "") + cBody);
+        const ttl  = t(card.querySelector(".ef-card-title"));
+        const tag  = t(card.querySelector(".ef-domain-tag"));
+        if (isHiddenDomain(ttl + " " + tag) || /sensitive/i.test(ttl + " " + tag)) return;
+        const ind  = t(card.querySelector(".ef-card-indication"));
+        const caut = t(card.querySelector(".ef-card-caution"));
+        var block = "";
+        if (ttl)  block += ttl + "\n";
+        if (ind)  block += softenHealth(ind) + "\n";
+        if (caut) block += softenHealth(caut.replace(/^[⚠\s]+/, "Note: "));
+        if (block.trim()) efCards.push(block.trim());
       });
       if (efCards.length) {
         out.push({
           heading: "Specific Indications From Your Chart",
-          body: "Configurations that carry classical significance beyond the domain read.\n\n" +
+          body: "Configurations that carry classical significance beyond the domain reading.\n\n" +
                 efCards.join("\n\n"),
           isDomain: false,
         });
       }
 
       // ── Life Pattern Indications (#compoundPatternsBlock) ────────────────────
-      // The other high-value section. Collected VERBATIM, sensitive cards excluded.
+      // Reproduced from the real structure: title + indicator count + indication
+      // + caution + activation window. Sensitive cards excluded; health softened.
       const cpCards = [];
       document.querySelectorAll("#compoundPatternsBlock .cp-card").forEach(function (card) {
         if (card.querySelector(".cp-tag-sensitive") || isHiddenDomain(card.textContent)) return;
-        const cTitle = t(card.querySelector(".cp-card-title, .cp-domain-tag, .cp-title"));
-        const cBody  = t(card.querySelector(".cp-card-body, .cp-card-text, .cp-indication"))
-                       || (cTitle ? t(card).replace(cTitle, "").trim() : t(card));
-        if (cTitle || cBody) cpCards.push((cTitle ? cTitle + ": " : "") + cBody);
+        const ttl   = t(card.querySelector(".cp-card-title"));
+        const tag   = t(card.querySelector(".cp-domain-tag"));
+        const count = t(card.querySelector(".cp-cond-label"));
+        const ind   = t(card.querySelector(".cp-indication"));
+        const caut  = t(card.querySelector(".cp-caution"));
+        const win   = t(card.querySelector(".cp-window"));
+        var block = "";
+        if (ttl)   block += softenHealth(ttl) + "\n";
+        if (tag)   block += softenHealth(tag) + (count ? "  (" + count + ")" : "") + "\n";
+        else if (count) block += count + "\n";
+        if (ind)   block += softenHealth(ind) + "\n";
+        if (caut)  block += softenHealth(caut.replace(/^[⚠\s]+/, "Note: ")) + "\n";
+        if (win)   block += win;
+        if (block.trim()) cpCards.push(block.trim());
       });
       if (cpCards.length) {
         out.push({
