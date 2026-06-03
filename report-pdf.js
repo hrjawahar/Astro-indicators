@@ -187,6 +187,37 @@
         });
         y += 12;
         return;
+      } else if (sec.isRich) {
+        // Rich section: bold gold heading, then body where any line wrapped in
+        // **...** renders as a bold sub-heading on its own line. Used for the
+        // legend, the dominant-axis card, and the two chart-indication sections.
+        doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+        doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+        var rhL = doc.splitTextToSize(heading, CW);
+        rhL.forEach(function (ln) { needPage(60); doc.text(ln, M, y); y += 17; });
+        y += 4;
+        var rbody = fixDates(clean(sec.body));
+        rbody.split("\n").forEach(function (raw) {
+          var line = raw.replace(/\s+$/,"");
+          if (!line.trim()) { y += 6; return; }
+          var boldMatch = line.match(/^\s*\*\*(.+?)\*\*\s*$/);
+          if (boldMatch) {
+            needPage(50);
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10.5);
+            doc.setTextColor(C.sub[0], C.sub[1], C.sub[2]);
+            var bl = doc.splitTextToSize(boldMatch[1].trim(), CW);
+            bl.forEach(function (x) { needPage(40); doc.text(x, M, y); y += 14; });
+          } else {
+            doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
+            doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+            var indent = /^\s{2,}[•\-]/.test(raw) ? 12 : 0;   // keep bullet indent
+            var txt = line.replace(/^\s+/, "").replace(/\*\*/g, "");
+            var ol = doc.splitTextToSize(txt, CW - indent);
+            ol.forEach(function (x) { needPage(40); doc.text(x, M + indent, y); y += 14; });
+          }
+        });
+        y += 10;
+        return;
       } else {
         doc.setFont("helvetica", "bold"); doc.setFontSize(12);
         doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
