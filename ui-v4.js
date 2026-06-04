@@ -359,6 +359,15 @@ const CONSULT_CONFIG = {
         }
         if (btn.dataset.busy === "1") return;   // prevent double-clicks
 
+        // Refund notice — must be acknowledged BEFORE the report is generated.
+        // Applies to both the Dasa and Life Domains download buttons.
+        var refundMsg = window.t ? window.t("refund_confirm")
+          : "No refund after the report is downloaded.\n\nOnce you download this report, the purchase is final and cannot be refunded. Do you want to continue?";
+        if (!window.confirm(refundMsg)) {
+          flashStatus(window.t ? window.t("download_cancelled") : "Download cancelled.");
+          return;
+        }
+
         const orig = btn.getAttribute("data-orig-label") || btn.textContent;
         btn.setAttribute("data-orig-label", orig);
 
