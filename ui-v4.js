@@ -369,6 +369,8 @@ const CONSULT_CONFIG = {
           const navBtn = document.querySelector('.nav-tab[data-tab="dashaTab"]');
           if (navBtn) navBtn.click();  // ensure timeline is rendered
           btn.disabled = true; btn.dataset.busy = "1";
+          btn.textContent = "Preparing your report… please wait";   // immediate cue
+          flashStatus(window.t ? window.t("report_preparing") : "Preparing your Dasa report… this can take a few seconds.");
           setTimeout(function () {
             window.buildDasaReport("full", function (done, total) {
               btn.textContent = "Preparing report… " + done + "/" + total;
@@ -693,6 +695,58 @@ const CONSULT_CONFIG = {
     window.AI_humanizeSections = humanizeSections;  // reusable by the Dasa path
 
     // Build clean Life Domains sections from the rendered domain cards.
+    // Plain "what it means for you" line per domain × strength tier. Gives every
+    // domain a human takeaway even when it isn't covered in the card sections.
+    // Unmapped tiers fall back to a sensible generic line (see whatItMeans()).
+    var DOMAIN_MEANING = {
+      "identity & personality": {
+        "still forming":     "your sense of self and how you come across is still taking shape. The raw material is there, but it firms up through the active periods below rather than all at once.",
+        "foundation holds":  "your core identity is steady and dependable on the outside; the inner sense of self is still settling, so you may feel less certain within than you appear.",
+        "peak comes early":  "your strongest, clearest sense of self lands earlier in life — lean into it then, as the qualities you build early become your lasting signature.",
+        "in full flow":      "your identity and self-expression move with natural confidence — who you are and how you show up are well aligned."
+      },
+      "wealth & family": {
+        "still forming":     "your financial and family footing is still building. Stability comes from steady habits during the active periods rather than from any single windfall.",
+        "foundation holds":  "the practical side of money and family is solid and reliable; the deeper sense of 'enough' may still be settling, so security can feel less certain than it is.",
+        "peak comes early":  "your strongest earning and family-building window arrives earlier — save and consolidate aggressively then, as those gains anchor the later years.",
+        "in full flow":      "wealth and family support move smoothly and tend to sustain themselves with little forcing."
+      },
+      "marriage & relationship": {
+        "still forming":     "your partnership life is still finding its shape. Connections deepen and steady through the active periods rather than arriving fully formed.",
+        "foundation holds":  "your relationships are practically stable and committed; the emotional depth may still be maturing, so they can feel less settled inside than they look.",
+        "peak comes early":  "your most significant relationship window comes earlier — the bonds and patterns set then tend to define your relational life going forward.",
+        "in full flow":      "partnership comes naturally to you — closeness and commitment tend to flow without strain."
+      },
+      "career & ambition": {
+        "still forming":     "your professional direction is still crystallising. Momentum builds through the active periods, so consistent effort now matters more than early results.",
+        "foundation holds":  "your career has a solid, dependable base; the sense of true calling may still be forming, so outward success can outpace inner conviction for a while.",
+        "peak comes early":  "your strongest career-building window lands earlier — push for position and skill then, as that groundwork carries the rest of your working life.",
+        "in full flow":      "work and ambition move with natural momentum — opportunity and capability tend to line up."
+      },
+      "health & vitality": {
+        "still forming":     "your vitality and physical resilience are still taking shape. The foundation isn't fully set, so steady habits and attention during the active periods matter more than assuming it will hold on its own.",
+        "foundation holds":  "your physical constitution is fundamentally sound; the deeper resilience is still settling, so consistent routines keep it dependable.",
+        "peak comes early":  "your strongest, most robust health window is earlier in life — the habits you set then largely determine how well vitality holds later, so build them deliberately.",
+        "in full flow":      "your health and energy tend to sustain themselves naturally, recovering well with ordinary care."
+      }
+    };
+    function whatItMeans(domainTitle, strength) {
+      var d = (domainTitle || "").trim().toLowerCase();
+      var s = (strength || "").trim().toLowerCase();
+      var row = DOMAIN_MEANING[d];
+      if (row && row[s]) return row[s];
+      // Generic fallback keyed on common phrasings, so no domain is left blank.
+      if (s.indexOf("still") !== -1 || s.indexOf("forming") !== -1)
+        return "this area is still taking shape — it firms up through the active periods below rather than all at once.";
+      if (s.indexOf("foundation") !== -1)
+        return "the practical side of this area is solid; the inner side is still settling, so it may feel less certain than it looks.";
+      if (s.indexOf("peak") !== -1 || s.indexOf("early") !== -1)
+        return "this area is strongest earlier in life — act on it during that window, as what you build then tends to last.";
+      if (s.indexOf("flow") !== -1)
+        return "this area moves with natural ease and tends to sustain itself without forcing.";
+      return "read this area alongside its strength and timing below — the active periods are when it comes into focus.";
+    }
+
     function collectDomainSections() {
       const out = [];
       const root = document.getElementById("domainCards");
@@ -723,6 +777,7 @@ const CONSULT_CONFIG = {
         if (verdict)  body += "Strength: " + t(verdict) + "\n";
         if (yoga && t(yoga)) body += "Yogas: " + t(yoga) + "\n";
         if (pattern)  body += "Key pattern: " + t(pattern) + "\n";
+        body += "What it means for you: " + whatItMeans(t(title), t(verdict)) + "\n";
         if (windowEl) body += t(windowEl) + "\n";   // already labelled "Activation Window"
         if (confLine) body += t(confLine);
 
@@ -739,9 +794,11 @@ const CONSULT_CONFIG = {
         const tag  = t(card.querySelector(".ef-domain-tag"));
         if (isHiddenDomain(ttl + " " + tag) || /sensitive/i.test(ttl + " " + tag)) return;
         const ind  = t(card.querySelector(".ef-card-indication"));
+        const caut = t(card.querySelector(".ef-card-caution"));
         var block = "";
         if (ttl)  block += "**" + ttl + "**\n";
         if (ind)  block += softenHealth(ind);
+        if (caut) block += "\n" + softenHealth(caut.replace(/^[⚠\s]+/, "Tip: "));
         if (block.trim()) efCards.push(block.trim());
       });
       if (efCards.length) {
@@ -763,12 +820,14 @@ const CONSULT_CONFIG = {
         const tag   = t(card.querySelector(".cp-domain-tag"));
         const count = t(card.querySelector(".cp-cond-label"));
         const ind   = t(card.querySelector(".cp-indication"));
+        const caut  = t(card.querySelector(".cp-caution"));
         const win   = t(card.querySelector(".cp-window"));
         var block = "";
         if (ttl)   block += "**" + softenHealth(ttl) + "**\n";
         if (tag)   block += softenHealth(tag) + (count ? "  (" + count + ")" : "") + "\n";
         else if (count) block += count + "\n";
         if (ind)   block += softenHealth(ind);
+        if (caut)  block += "\n" + softenHealth(caut.replace(/^[⚠\s]+/, "Tip: "));
         if (win)   block += "\n" + win;
         if (block.trim()) cpCards.push(block.trim());
       });
