@@ -226,6 +226,11 @@
         body: "If you would like a similarly detailed report for any other Mahadasha and its Antardasha sub-periods — like the current period detailed above — please submit a request under the Contact Us tab, at an additional cost of Rs.100 per Mahadasha. You will receive the report within 48 hours.",
         isNote: true,
       });
+      sections.push({
+        heading: "No refund after the report is downloaded.",
+        body: "Please review your details before generating. Once the report is downloaded, the purchase is final and cannot be refunded.",
+        isNote: true,
+      });
       return sections0.concat(sections);
     });
   };
