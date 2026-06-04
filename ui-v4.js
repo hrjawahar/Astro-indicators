@@ -170,6 +170,14 @@ const CONSULT_CONFIG = {
           return;
         }
 
+        // Refund notice — acknowledged BEFORE payment opens. Plain text (not a
+        // t() key) so it always shows real wording, never a raw key like
+        // "refund_confirm". Cancel stops here; Razorpay never opens.
+        if (!window.confirm("No refund — please confirm before you proceed to payment.")) {
+          flashStatus(window.t ? window.t("pay_cancelled") : "Payment cancelled.");
+          return;
+        }
+
         // Title for the checkout label — safe lookup (works in every language).
         let label = item;
         try {
@@ -358,15 +366,6 @@ const CONSULT_CONFIG = {
           return;
         }
         if (btn.dataset.busy === "1") return;   // prevent double-clicks
-
-        // Refund notice — must be acknowledged BEFORE the report is generated.
-        // Applies to both the Dasa and Life Domains download buttons.
-        var refundMsg = window.t ? window.t("refund_confirm")
-          : "No refund after the report is downloaded.\n\nOnce you download this report, the purchase is final and cannot be refunded. Do you want to continue?";
-        if (!window.confirm(refundMsg)) {
-          flashStatus(window.t ? window.t("download_cancelled") : "Download cancelled.");
-          return;
-        }
 
         const orig = btn.getAttribute("data-orig-label") || btn.textContent;
         btn.setAttribute("data-orig-label", orig);
