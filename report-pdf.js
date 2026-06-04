@@ -166,7 +166,7 @@
         var dbody = fixDates(clean(sec.body));
         dbody.split("\n").forEach(function (lineRaw) {
           var lr = lineRaw.trim(); if (!lr) return;
-          var labelMatch = lr.match(/^(Strength|Key pattern|Indication|Best period|Confidence)\s*:\s*(.*)$/i);
+          var labelMatch = lr.match(/^(Strength|Key pattern|What it means for you|Indication|Best period|Confidence)\s*:\s*(.*)$/i);
           if (labelMatch) {
             needPage(50);
             doc.setFont("helvetica", "bold"); doc.setFontSize(10);
@@ -229,7 +229,14 @@
     });
 
     // Boxed legal disclaimer
-    needPage(172); y += 8;
+    needPage(210); y += 8;
+    // Q&A pointer note (appears in every report, just above Important)
+    doc.setFont("helvetica", "italic"); doc.setFontSize(9.5);
+    doc.setTextColor(C.sub[0], C.sub[1], C.sub[2]);
+    var qa = "Still unsure what a term means? See the Q&A section on the main page for plain-language explanations of everything used in this report.";
+    var qaL = doc.splitTextToSize(qa, CW);
+    qaL.forEach(function (ln) { needPage(40); doc.text(ln, M, y); y += 13; });
+    y += 10;
     // "Important" heading above the box
     doc.setFont("helvetica", "bold"); doc.setFontSize(11);
     doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
