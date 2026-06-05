@@ -356,6 +356,109 @@ const CONSULT_CONFIG = {
       if (window.AI_unlocked.dasha) revealDownload("dasha");
       if (window.AI_unlocked.domains) revealDownload("domains");
     }
+
+    // ── TRANSLATED REPORT (Word) — Stage 1 ───────────────────────────────────
+    // English keeps the rich jsPDF PDF. Non-English is delivered as a .doc that
+    // mirrors the SAME sections, because jsPDF cannot render Indic scripts but
+    // Word uses the reader's system fonts. Reuses the proven /api/indicate
+    // translate pattern already used by the Dasa on-screen panels.
+    var REPORT_LANG_LABELS = { EN:"English", TA:"தமிழ்", TE:"తెలుగు", HI:"हिंदी", KA:"ಕನ್ನಡ", ML:"മലയാളം" };
+    function currentLang() {
+      var l = (typeof window._currentLang !== "undefined" && window._currentLang) ? window._currentLang : "EN";
+      return REPORT_LANG_LABELS[l] ? l : "EN";
+    }
+
+    // Flatten the section array into one delimited block for a single translate
+    // call (one API pass, not dozens). Headings are marked so we can rebuild the
+    // structure after translation. **bold** markers are preserved as-is.
+    function sectionsToBlock(sections) {
+      return sections.map(function (s, i) {
+        return "§§H" + i + "§§ " + (s.heading || "") + "\n" + (s.body || "");
+      }).join("\n\n§§§\n\n");
+    }
+    function blockToSections(translated, original) {
+      var parts = translated.split(/§§§/);
+      return original.map(function (orig, i) {
+        var chunk = parts[i] || "";
+        // strip the heading marker line; first line after marker is heading
+        var m = chunk.match(/§§H\d+§§\s*([^\n]*)\n?([\s\S]*)/);
+        return {
+          heading: m && m[1] ? m[1].trim() : (orig.heading || ""),
+          body: m ? m[2].trim() : chunk.trim(),
+          isRich: orig.isRich, isDomain: orig.isDomain, isNote: orig.isNote,
+        };
+      });
+    }
+
+    // One-pass translation of the whole report via the existing API endpoint.
+    function translateSections(sections, langCode) {
+      var langName = REPORT_LANG_LABELS[langCode] || "English";
+      var prompt =
+        "Translate the following Vedic astrology report into " + langName + ".\n\n" +
+        "Rules:\n" +
+        "- Translate all descriptive sentences and headings completely.\n" +
+        "- Keep these UNTRANSLATED: planet names (Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu, Ketu), house labels (H1-H12, D1, D9), and technical terms (Mahadasha, Antardasha, Yogakaraka, Lagna, Navamsha, Vimshottari, Parivartana, Raja Yoga, Viparita, Bhadra, Kemadruma, dusthana, Tapas).\n" +
+        "- Keep every line that starts with §§H or equals §§§ EXACTLY as-is, unchanged, in the same positions. These are structure markers.\n" +
+        "- Keep any **double-asterisk** markers exactly around the same phrase.\n" +
+        "- Do not add or remove sections. Do not add commentary.\n\n" +
+        "REPORT:\n" + sectionsToBlock(sections);
+      return fetch("/api/indicate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: prompt, max_tokens: 8000 }),
+      }).then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        var reader = res.body.getReader(), decoder = new TextDecoder(), full = "";
+        return (function read() {
+          return reader.read().then(function (r) {
+            if (r.done) return full;
+            decoder.decode(r.value, { stream: true }).split("\n").forEach(function (line) {
+              if (!line.startsWith("data: ")) return;
+              var raw = line.slice(6).trim();
+              if (raw === "[DONE]") return;
+              try { var d = JSON.parse(raw).delta && JSON.parse(raw).delta.text; if (d) full += d; } catch (e) {}
+            });
+            return read();
+          });
+        })();
+      }).then(function (full) {
+        return blockToSections(full, sections);
+      });
+    }
+
+    // Build a Word (.doc) file mirroring the English report's sections.
+    function downloadWordReport(sections, title, name) {
+      function fmtBody(body) {
+        return (body || "").split("\n").map(function (raw) {
+          var line = raw.replace(/\s+$/, "");
+          if (!line.trim()) return "";
+          var bold = line.match(/^\s*\*\*(.+?)\*\*\s*$/);
+          if (bold) return "<p style='margin:10px 0 2px'><b>" + esc(bold[1].trim()) + "</b></p>";
+          var indent = /^\s{2,}[•\-]/.test(raw);
+          var txt = esc(line.replace(/^\s+/, "").replace(/\*\*/g, ""));
+          return "<p style='margin:0 0 7px" + (indent ? ";padding-left:18px" : "") + "'>" + txt + "</p>";
+        }).join("");
+      }
+      var secHTML = sections.map(function (s) {
+        return "<h2 style='font-size:13pt;color:#5a3e00;border-bottom:1px solid #c9a84c;padding-bottom:3px;margin:22px 0 8px'>" +
+          esc(s.heading || "") + "</h2>" + fmtBody(s.body);
+      }).join("");
+      var html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>" +
+        "<head><meta charset='utf-8'><title>" + esc(title) + "</title></head>" +
+        "<body style='font-family:Nirmala UI,Latha,Arial,sans-serif;font-size:12pt;line-height:1.7;color:#1a1a1a;max-width:720px;margin:36px auto'>" +
+        "<h1 style='font-size:17pt;color:#1a2a4a'>AstroIndicators</h1>" +
+        "<p style='font-size:10pt;color:#666;margin-top:-6px'>Horoscope &amp; Dasa Period Indicators · Swiss Ephemeris · Lahiri Ayanamsha</p>" +
+        "<h2 style='font-size:14pt;color:#1a2a4a;margin-top:14px'>" + esc(title) + "</h2>" +
+        (name ? "<p><b>Prepared for:</b> " + esc(name) + "</p>" : "") +
+        secHTML + "</body></html>";
+      var blob = new Blob(["\uFEFF", html], { type: "application/msword" });
+      var url = URL.createObjectURL(blob);
+      var safe = (name || "report").replace(/[^a-z0-9]/gi, "_");
+      var a = document.createElement("a");
+      a.href = url; a.download = "AstroIndicators_" + safe + "_" + currentLang() + ".doc";
+      a.click(); URL.revokeObjectURL(url);
+    }
+
     document.querySelectorAll("[data-download]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         const item = btn.getAttribute("data-download");
@@ -398,20 +501,38 @@ const CONSULT_CONFIG = {
         } else {
           // Life Domains — clean structured sections from rendered cards.
           btn.disabled = true; btn.dataset.busy = "1";
-          btn.textContent = "Preparing report…";
-          setTimeout(function () {
-            try {
-              window.generateReportPDF({
-                userName: userName(),
-                reportTitle: "Life Domains Indications",
-                sections: collectDomainSections(),
-                paymentId: (window.AI_lastPayment && window.AI_lastPayment.domains) || null,
+          var lang = currentLang();
+          if (lang === "EN") {
+            btn.textContent = "Preparing report…";
+            setTimeout(function () {
+              try {
+                window.generateReportPDF({
+                  userName: userName(),
+                  reportTitle: "Life Domains Indications",
+                  sections: collectDomainSections(),
+                  paymentId: (window.AI_lastPayment && window.AI_lastPayment.domains) || null,
+                });
+              } catch (e) {
+                flashStatus("Could not build the report. Please try again.");
+              }
+              resetBtn();
+            }, 200);
+          } else {
+            // Non-English → translate the same sections, deliver as Word.
+            btn.textContent = "Preparing your " + REPORT_LANG_LABELS[lang] + " report… please wait";
+            setTimeout(function () {
+              var sections;
+              try { sections = collectDomainSections(); }
+              catch (e) { flashStatus("Could not build the report."); resetBtn(); return; }
+              translateSections(sections, lang).then(function (translated) {
+                downloadWordReport(translated, "Life Domains Indications", userName());
+                resetBtn();
+              }).catch(function (e) {
+                flashStatus("Translation could not be completed. Please try again, or download in English.");
+                resetBtn();
               });
-            } catch (e) {
-              flashStatus("Could not build the report. Please try again.");
-            }
-            resetBtn();
-          }, 200);
+            }, 200);
+          }
         }
       });
     });
