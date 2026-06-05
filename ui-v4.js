@@ -366,7 +366,11 @@ const CONSULT_CONFIG = {
     var REPORT_LANG_LABELS = { EN: "English", TA: "தமிழ்" };
     // Future: TE:"తెలుగు", HI:"हिंदी", KA:"ಕನ್ನಡ", ML:"മലയാളം"
     function currentLang() {
-      var l = (typeof window._currentLang !== "undefined" && window._currentLang) ? window._currentLang : "EN";
+      // Source of truth = the top language toggle, which app.js persists to
+      // localStorage as "jyotish-lang" (EN / TA). Fall back to window state,
+      // then EN. Any non-supported value falls back to EN.
+      var l = "EN";
+      try { l = localStorage.getItem("jyotish-lang") || (window._currentLang || "EN"); } catch (e) { l = window._currentLang || "EN"; }
       return REPORT_LANG_LABELS[l] ? l : "EN";
     }
 
@@ -586,13 +590,16 @@ const CONSULT_CONFIG = {
               resetBtn();
             }, 200);
           } else {
-            // Non-English → translate the same sections, deliver as Word.
+            // Non-English → translate each section individually (no truncation,
+            // guaranteed complete), deliver as Word with identical structure.
             btn.textContent = "Preparing your " + REPORT_LANG_LABELS[lang] + " report… please wait";
             setTimeout(function () {
               var sections;
               try { sections = collectDomainSections(); }
               catch (e) { flashStatus("Could not build the report."); resetBtn(); return; }
-              translateSections(sections, lang).then(function (translated) {
+              translateSectionsIndividually(sections, lang, function (n, tot) {
+                btn.textContent = "Translating… " + n + "/" + tot;
+              }).then(function (translated) {
                 downloadWordReport(translated, "Life Domains Indications", userName());
                 resetBtn();
               }).catch(function (e) {
