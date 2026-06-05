@@ -362,7 +362,9 @@ const CONSULT_CONFIG = {
     // mirrors the SAME sections, because jsPDF cannot render Indic scripts but
     // Word uses the reader's system fonts. Reuses the proven /api/indicate
     // translate pattern already used by the Dasa on-screen panels.
-    var REPORT_LANG_LABELS = { EN:"English", TA:"தமிழ்", TE:"తెలుగు", HI:"हिंदी", KA:"ಕನ್ನಡ", ML:"മലയാളം" };
+    // Go-live languages: English + Tamil only. (Others kept commented for later.)
+    var REPORT_LANG_LABELS = { EN: "English", TA: "தமிழ்" };
+    // Future: TE:"తెలుగు", HI:"हिंदी", KA:"ಕನ್ನಡ", ML:"മലയാളം"
     function currentLang() {
       var l = (typeof window._currentLang !== "undefined" && window._currentLang) ? window._currentLang : "EN";
       return REPORT_LANG_LABELS[l] ? l : "EN";
@@ -426,6 +428,56 @@ const CONSULT_CONFIG = {
       });
     }
 
+    // Section-by-section translation for LONG reports (Dasa). Each section is
+    // translated in its own API call so nothing is truncated. Runs sequentially
+    // (gentle on the API), reporting progress. Headings + **bold** preserved.
+    function translateSectionsIndividually(sections, langCode, onProgress) {
+      var langName = REPORT_LANG_LABELS[langCode] || "English";
+      var out = [];
+      var i = 0;
+      function step() {
+        if (i >= sections.length) return Promise.resolve(out);
+        var s = sections[i];
+        if (onProgress) onProgress(i + 1, sections.length);
+        var prompt =
+          "Translate this section of a Vedic astrology report into " + langName + ".\n\n" +
+          "Rules:\n" +
+          "- Translate all sentences and the heading completely; do not stop mid-sentence.\n" +
+          "- Keep UNTRANSLATED: planet names (Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu, Ketu), house/chart labels (H1-H12, D1, D9), and technical terms (Mahadasha, Antardasha, Yogakaraka, Lagna, Navamsha, Vimshottari, Parivartana, Raja Yoga, Viparita, Bhadra, Kemadruma, dusthana, Tapas).\n" +
+          "- Keep any **double-asterisk** markers exactly around the same phrase.\n" +
+          "- Output the heading on the first line, then the body. No commentary.\n\n" +
+          "HEADING: " + (s.heading || "") + "\n\nBODY:\n" + (s.body || "");
+        return fetch("/api/indicate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: prompt, max_tokens: 3000 }),
+        }).then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          var reader = res.body.getReader(), decoder = new TextDecoder(), full = "";
+          return (function read() {
+            return reader.read().then(function (r) {
+              if (r.done) return full;
+              decoder.decode(r.value, { stream: true }).split("\n").forEach(function (line) {
+                if (!line.startsWith("data: ")) return;
+                var raw = line.slice(6).trim();
+                if (raw === "[DONE]") return;
+                try { var p = JSON.parse(raw); var d = p.delta && p.delta.text; if (d) full += d; } catch (e) {}
+              });
+              return read();
+            });
+          })();
+        }).then(function (full) {
+          var lines = full.replace(/\r/g, "").split("\n");
+          var heading = (lines.shift() || "").replace(/^HEADING:\s*/i, "").trim() || s.heading;
+          var body = lines.join("\n").replace(/^\s*BODY:\s*/i, "").trim();
+          out.push({ heading: heading, body: body, isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote });
+          i++;
+          return step();
+        });
+      }
+      return step();
+    }
+
     // Build a Word (.doc) file mirroring the English report's sections.
     function downloadWordReport(sections, title, name) {
       function fmtBody(body) {
@@ -480,19 +532,35 @@ const CONSULT_CONFIG = {
           const navBtn = document.querySelector('.nav-tab[data-tab="dashaTab"]');
           if (navBtn) navBtn.click();  // ensure timeline is rendered
           btn.disabled = true; btn.dataset.busy = "1";
+          var dasaLang = currentLang();
           btn.textContent = "Preparing your report… please wait";   // immediate cue
           flashStatus(window.t ? window.t("report_preparing") : "Preparing your Dasa report… this can take a few seconds.");
           setTimeout(function () {
             window.buildDasaReport("full", function (done, total) {
               btn.textContent = "Preparing report… " + done + "/" + total;
             }).then(function (sections) {
-              resetBtn();
-              window.generateReportPDF({
-                userName: userName(),
-                reportTitle: "Dasa Bhukti Period Indications",
-                sections: humanizeSections(sections),   // gentle wording + plain English
-                paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
-              });
+              var prepared = humanizeSections(sections);   // gentle wording + plain English
+              if (dasaLang === "EN") {
+                resetBtn();
+                window.generateReportPDF({
+                  userName: userName(),
+                  reportTitle: "Dasa Bhukti Period Indications",
+                  sections: prepared,
+                  paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
+                });
+              } else {
+                // Non-English → translate each section (no truncation), deliver Word.
+                btn.textContent = "Translating to " + REPORT_LANG_LABELS[dasaLang] + "…";
+                translateSectionsIndividually(prepared, dasaLang, function (n, tot) {
+                  btn.textContent = "Translating… " + n + "/" + tot;
+                }).then(function (translated) {
+                  downloadWordReport(translated, "Dasa Bhukti Period Indications", userName());
+                  resetBtn();
+                }).catch(function (e) {
+                  resetBtn();
+                  flashStatus("Translation could not be completed. Please try again, or download in English.");
+                });
+              }
             }).catch(function (e) {
               resetBtn();
               flashStatus(typeof e === "string" ? e : "Could not build the report. Please try again.");
