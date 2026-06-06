@@ -202,6 +202,9 @@ const CONSULT_CONFIG = {
           window.AI_lastPayment[item] = res.paymentId;
           flashStatus(window.t ? window.t("pay_success") : "Payment successful!");
           if (window.AI_revealDownload) window.AI_revealDownload(item);
+          // If Tamil is selected, begin translating in the background now, so the
+          // download is instant by the time they click it.
+          try { if (currentLang() !== "EN") startPregeneration(item); } catch (e) {}
           goToTab(tab);
         }).catch(function (err) {
           if (err !== "dismissed") flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
@@ -591,6 +594,52 @@ const CONSULT_CONFIG = {
       return out;
     }
 
+    // ── BACKGROUND PRE-GENERATION ────────────────────────────────────────────
+    // Translating at download time is too slow (server throttles concurrency).
+    // Instead, right after payment, if Tamil is selected we translate in the
+    // background while the customer reads the screen, and cache the result so
+    // the download is INSTANT. Keyed by item ("dasha"/"domains") + language.
+    var _pregenCache = {};   // key → { promise, sections, lang, ready }
+    function pregenKey(item, lang) { return item + ":" + lang; }
+
+    // Build the English sections for an item (without rendering to PDF).
+    function buildSectionsFor(item) {
+      if (item === "domains") {
+        return Promise.resolve(augmentForWord(collectDomainSections()));
+      }
+      if (item === "dasha") {
+        if (typeof window.buildDasaReport !== "function") return Promise.reject("Report builder not loaded.");
+        var navBtn = document.querySelector('.nav-tab[data-tab="dashaTab"]');
+        if (navBtn) navBtn.click();
+        return window.buildDasaReport("full", function () {}).then(function (sections) {
+          return augmentForWord(humanizeSections(sections));
+        });
+      }
+      return Promise.reject("Unknown report type.");
+    }
+
+    // Kick off (or reuse) a background Tamil translation for an item.
+    function startPregeneration(item) {
+      var lang = currentLang();
+      if (lang === "EN") return;                       // English needs no pre-gen
+      var key = pregenKey(item, lang);
+      if (_pregenCache[key]) return;                   // already running/done
+      var entry = { ready: false, sections: null, lang: lang, error: null };
+      entry.promise = buildSectionsFor(item).then(function (sections) {
+        return translateSectionsIndividually(sections, lang, function (n, tot) {
+          entry.progress = n + "/" + tot;
+        });
+      }).then(function (translated) {
+        entry.sections = translated; entry.ready = true;
+        // Reflect readiness on the button if it's waiting.
+        var b = document.querySelector('[data-download="' + item + '"]');
+        if (b && b.dataset.busy !== "1") b.textContent = b.getAttribute("data-orig-label") || b.textContent;
+        return translated;
+      }).catch(function (e) { entry.error = e || true; throw e; });
+      _pregenCache[key] = entry;
+    }
+    window.AI_startPregeneration = startPregeneration;
+
     document.querySelectorAll("[data-download]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         const item = btn.getAttribute("data-download");
@@ -607,47 +656,63 @@ const CONSULT_CONFIG = {
 
         function resetBtn() { btn.disabled = false; btn.dataset.busy = "0"; btn.textContent = orig; }
 
+        // Deliver a non-English report from the pre-gen cache: instant if ready,
+        // otherwise wait on the in-flight translation (or start one if none).
+        function deliverTranslated(item, lang, title) {
+          var key = pregenKey(item, lang);
+          if (!_pregenCache[key]) { try { startPregeneration(item); } catch (e) {} }
+          var entry = _pregenCache[key];
+          if (entry && entry.ready && entry.sections) {
+            downloadWordReport(entry.sections, title, userName());
+            resetBtn();
+            return;
+          }
+          // Not ready yet — wait on the promise, showing progress.
+          btn.textContent = "Preparing your " + REPORT_LANG_LABELS[lang] + " report…";
+          var tick = setInterval(function () {
+            if (entry && entry.progress && btn.dataset.busy === "1") btn.textContent = "Preparing… " + entry.progress;
+          }, 1000);
+          (entry ? entry.promise : Promise.reject("no translation")).then(function (translated) {
+            clearInterval(tick);
+            downloadWordReport(translated, title, userName());
+            resetBtn();
+          }).catch(function (e) {
+            clearInterval(tick);
+            flashStatus("Translation could not be completed. Please try again, or download in English.");
+            resetBtn();
+          });
+        }
+
         if (item === "dasha") {
           if (typeof window.buildDasaReport !== "function") { flashStatus("Report builder not loaded — please refresh."); return; }
           const navBtn = document.querySelector('.nav-tab[data-tab="dashaTab"]');
           if (navBtn) navBtn.click();  // ensure timeline is rendered
           btn.disabled = true; btn.dataset.busy = "1";
           var dasaLang = currentLang();
-          btn.textContent = "Preparing your report… please wait";   // immediate cue
-          flashStatus(window.t ? window.t("report_preparing") : "Preparing your Dasa report… this can take a few seconds.");
-          setTimeout(function () {
-            window.buildDasaReport("full", function (done, total) {
-              btn.textContent = "Preparing report… " + done + "/" + total;
-            }).then(function (sections) {
-              var prepared = humanizeSections(sections);   // gentle wording + plain English
-              if (dasaLang === "EN") {
+          if (dasaLang === "EN") {
+            btn.textContent = "Preparing your report… please wait";
+            flashStatus(window.t ? window.t("report_preparing") : "Preparing your Dasa report… this can take a few seconds.");
+            setTimeout(function () {
+              window.buildDasaReport("full", function (done, total) {
+                btn.textContent = "Preparing report… " + done + "/" + total;
+              }).then(function (sections) {
                 resetBtn();
                 window.generateReportPDF({
                   userName: userName(),
                   reportTitle: "Dasa Bhukti Period Indications",
-                  sections: prepared,
+                  sections: humanizeSections(sections),
                   paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
                 });
-              } else {
-                // Non-English → translate each section (no truncation), deliver Word.
-                btn.textContent = "Translating to " + REPORT_LANG_LABELS[dasaLang] + "…";
-                translateSectionsIndividually(augmentForWord(prepared), dasaLang, function (n, tot) {
-                  btn.textContent = "Translating… " + n + "/" + tot;
-                }).then(function (translated) {
-                  downloadWordReport(translated, "Dasa Bhukti Period Indications", userName());
-                  resetBtn();
-                }).catch(function (e) {
-                  resetBtn();
-                  flashStatus("Translation could not be completed. Please try again, or download in English.");
-                });
-              }
-            }).catch(function (e) {
-              resetBtn();
-              flashStatus(typeof e === "string" ? e : "Could not build the report. Please try again.");
-            });
-          }, 300);
+              }).catch(function (e) {
+                resetBtn();
+                flashStatus(typeof e === "string" ? e : "Could not build the report. Please try again.");
+              });
+            }, 300);
+          } else {
+            deliverTranslated("dasha", dasaLang, "Dasa Bhukti Period Indications");
+          }
         } else {
-          // Life Domains — clean structured sections from rendered cards.
+          // Life Domains
           btn.disabled = true; btn.dataset.busy = "1";
           var lang = currentLang();
           if (lang === "EN") {
@@ -666,23 +731,7 @@ const CONSULT_CONFIG = {
               resetBtn();
             }, 200);
           } else {
-            // Non-English → translate each section individually (no truncation,
-            // guaranteed complete), deliver as Word with identical structure.
-            btn.textContent = "Preparing your " + REPORT_LANG_LABELS[lang] + " report… please wait";
-            setTimeout(function () {
-              var sections;
-              try { sections = collectDomainSections(); }
-              catch (e) { flashStatus("Could not build the report."); resetBtn(); return; }
-              translateSectionsIndividually(augmentForWord(sections), lang, function (n, tot) {
-                btn.textContent = "Translating… " + n + "/" + tot;
-              }).then(function (translated) {
-                downloadWordReport(translated, "Life Domains Indications", userName());
-                resetBtn();
-              }).catch(function (e) {
-                flashStatus("Translation could not be completed. Please try again, or download in English.");
-                resetBtn();
-              });
-            }, 200);
+            deliverTranslated("domains", lang, "Life Domains Indications");
           }
         }
       });
@@ -897,6 +946,20 @@ const CONSULT_CONFIG = {
     // (Mahadasha, Antardasha, combust, debilitated, house placements, yogas) is
     // the value of the report and must stay intact, especially now that the
     // report defines MD/AD terms itself.
+    // Remove the "standard Vimshottari period lengths" list the MD-overview AI
+    // sometimes inserts (a lead line like "...period lengths:" followed by
+    // "Planet: N years" lines). Requested removed from the report.
+    function stripDurationList(text) {
+      if (!text) return text;
+      var planets = "Sun|Moon|Mars|Mercury|Jupiter|Venus|Saturn|Rahu|Ketu";
+      // Drop a "period lengths" / "Vimshottari ... lengths" lead line.
+      text = text.replace(/^.*\b(period lengths|Vimshottari[^\n]*lengths)\b.*$/gim, "");
+      // Drop standalone "Planet: N years" list lines (the 9-planet block).
+      text = text.replace(new RegExp("^\\s*[-•]?\\s*(" + planets + ")\\s*:\\s*\\d+\\s*(years?|yrs?)\\.?\\s*$", "gim"), "");
+      // Collapse the blank lines left behind.
+      return text.replace(/\n{3,}/g, "\n\n").trim();
+    }
+
     function humanizeSections(sections) {
       if (!Array.isArray(sections)) return sections;
       return sections.map(function (sec) {
@@ -904,7 +967,7 @@ const CONSULT_CONFIG = {
         var copy = {};
         for (var k in sec) if (Object.prototype.hasOwnProperty.call(sec, k)) copy[k] = sec[k];
         ["heading", "title", "body", "text"].forEach(function (f) {
-          if (typeof copy[f] === "string") copy[f] = softenText(copy[f]);
+          if (typeof copy[f] === "string") copy[f] = stripDurationList(softenText(copy[f]));
         });
         return copy;
       });
