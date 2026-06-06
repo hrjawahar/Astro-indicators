@@ -435,8 +435,37 @@ const CONSULT_CONFIG = {
     // Section-by-section translation for LONG reports (Dasa). Each section is
     // translated in its own API call so nothing is truncated. Runs sequentially
     // (gentle on the API), reporting progress. Headings + **bold** preserved.
+    // Fixed Tamil glossary so the bracketed gloss is CONSISTENT every time
+    // (not the model's varying guess). English term → Tamil shown in brackets.
+    var TA_GLOSSARY = {
+      "Sun": "சூரியன்", "Moon": "சந்திரன்", "Mars": "செவ்வாய்", "Mercury": "புதன்",
+      "Jupiter": "குரு", "Venus": "சுக்கிரன்", "Saturn": "சனி", "Rahu": "ராகு", "Ketu": "கேது",
+      "Aries": "மேஷம்", "Taurus": "ரிஷபம்", "Gemini": "மிதுனம்", "Cancer": "கடகம்",
+      "Leo": "சிம்மம்", "Virgo": "கன்னி", "Libra": "துலாம்", "Scorpio": "விருச்சிகம்",
+      "Sagittarius": "தனுசு", "Capricorn": "மகரம்", "Aquarius": "கும்பம்", "Pisces": "மீனம்",
+      "Mahadasha": "மகா தசை", "Antardasha": "புக்தி", "Lagna": "லக்னம்", "Navamsha": "நவாம்சம்",
+      "Yogakaraka": "யோககாரகன்", "Vimshottari": "விம்ஷோத்தரி", "Raja Yoga": "ராஜ யோகம்",
+      "Viparita Raja Yoga": "விபரீத ராஜ யோகம்", "Parivartana": "பரிவர்த்தனை",
+      "Bhadra": "பத்ர", "Kemadruma": "கேமத்ரும", "dusthana": "துஷ்தான", "Tapas": "தபஸ்",
+    };
+    function glossaryText(langCode) {
+      if (langCode !== "TA") return "";
+      return Object.keys(TA_GLOSSARY).map(function (k) {
+        return "  " + k + " = " + TA_GLOSSARY[k];
+      }).join("\n");
+    }
+
+    // Reformat ISO dates (YYYY-MM-DD) to DD/MM/YYYY for easier reading.
+    function reformatDates(text) {
+      if (!text) return text;
+      return text.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, function (_, y, m, d) {
+        return d + "/" + m + "/" + y;
+      });
+    }
+
     function translateSectionsIndividually(sections, langCode, onProgress) {
       var langName = REPORT_LANG_LABELS[langCode] || "English";
+      var gloss = glossaryText(langCode);
       var out = [];
       var i = 0;
       function step() {
@@ -445,16 +474,20 @@ const CONSULT_CONFIG = {
         if (onProgress) onProgress(i + 1, sections.length);
         var prompt =
           "Translate this section of a Vedic astrology report into " + langName + ".\n\n" +
-          "Rules:\n" +
-          "- Translate all sentences and the heading completely; do not stop mid-sentence.\n" +
-          "- Keep UNTRANSLATED: planet names (Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu, Ketu), house/chart labels (H1-H12, D1, D9), and technical terms (Mahadasha, Antardasha, Yogakaraka, Lagna, Navamsha, Vimshottari, Parivartana, Raja Yoga, Viparita, Bhadra, Kemadruma, dusthana, Tapas).\n" +
+          "STYLE: Use plain, clear, modern " + langName + " as a native speaker would naturally say it. " +
+          "Avoid heavy literary or archaic words; prefer simple everyday vocabulary. Translate completely — never stop mid-sentence, never leave English sentences untranslated.\n\n" +
+          "TECHNICAL TERMS: Keep these in English, but the FIRST time each appears in this section, add its " + langName + " form in brackets right after it" +
+          (gloss ? ", using exactly these forms:\n" + gloss + "\n" : ".\n") +
+          "Example: \"Jupiter (குரு)\", \"Cancer (கடகம்)\", \"Antardasha (புக்தி)\". Keep house/chart labels (H1-H12, D1, D9) in English as-is.\n\n" +
+          "FORMATTING:\n" +
+          "- Translate the heading too (add the bracketed " + langName + " term there as well).\n" +
           "- Keep any **double-asterisk** markers exactly around the same phrase.\n" +
-          "- Output the heading on the first line, then the body. No commentary.\n\n" +
+          "- Output the heading on the first line, then the body. No commentary, no notes.\n\n" +
           "HEADING: " + (s.heading || "") + "\n\nBODY:\n" + (s.body || "");
         return fetch("/api/indicate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: prompt, max_tokens: 3000 }),
+          body: JSON.stringify({ prompt: prompt, max_tokens: 4000 }),
         }).then(function (res) {
           if (!res.ok) throw new Error("HTTP " + res.status);
           var reader = res.body.getReader(), decoder = new TextDecoder(), full = "";
@@ -515,6 +548,31 @@ const CONSULT_CONFIG = {
       a.click(); URL.revokeObjectURL(url);
     }
 
+    // For the translated Word path: reformat dates to DD/MM/YYYY and append the
+    // SAME disclaimer + Q&A note the English PDF carries, so they get translated
+    // too (they live in report-pdf.js for the PDF path, so the Word path must add
+    // them explicitly). Returns a new section array; originals untouched.
+    function augmentForWord(sections) {
+      var out = sections.map(function (s) {
+        return {
+          heading: reformatDates(s.heading || ""),
+          body: reformatDates(s.body || ""),
+          isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote,
+        };
+      });
+      out.push({
+        heading: "Q&A",
+        body: "Still unsure what a term means? See the Q&A section on the main page for plain-language explanations of everything used in this report.",
+        isNote: true,
+      });
+      out.push({
+        heading: "Important",
+        body: "Disclaimer: This report is provided for educational and self-reflective purposes only and constitutes indicative astrological insight, not professional advice or a guarantee of outcomes. It is not a substitute for medical, psychological, legal, or financial counsel. The user assumes full responsibility for any decision made in reliance on this report, and AstroIndicators disclaims all liability to the fullest extent permitted by law. All payments are final and non-refundable once the report is generated.",
+        isNote: true,
+      });
+      return out;
+    }
+
     document.querySelectorAll("[data-download]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         const item = btn.getAttribute("data-download");
@@ -555,7 +613,7 @@ const CONSULT_CONFIG = {
               } else {
                 // Non-English → translate each section (no truncation), deliver Word.
                 btn.textContent = "Translating to " + REPORT_LANG_LABELS[dasaLang] + "…";
-                translateSectionsIndividually(prepared, dasaLang, function (n, tot) {
+                translateSectionsIndividually(augmentForWord(prepared), dasaLang, function (n, tot) {
                   btn.textContent = "Translating… " + n + "/" + tot;
                 }).then(function (translated) {
                   downloadWordReport(translated, "Dasa Bhukti Period Indications", userName());
@@ -597,7 +655,7 @@ const CONSULT_CONFIG = {
               var sections;
               try { sections = collectDomainSections(); }
               catch (e) { flashStatus("Could not build the report."); resetBtn(); return; }
-              translateSectionsIndividually(sections, lang, function (n, tot) {
+              translateSectionsIndividually(augmentForWord(sections), lang, function (n, tot) {
                 btn.textContent = "Translating… " + n + "/" + tot;
               }).then(function (translated) {
                 downloadWordReport(translated, "Life Domains Indications", userName());
