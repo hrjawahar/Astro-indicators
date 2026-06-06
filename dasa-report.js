@@ -193,7 +193,7 @@
           ? window.buildADPrompt(tl.current.lord, ad.lord, c.lagna, c.ctx)
           : "Write a short indication for " + tl.current.lord + " Mahadasha / " + ad.lord + " Antardasha for a " + c.lagna + " ascendant, second person.";
         return fetchIndication(adPrompt).then(function (t) {
-          adSecs[idx] = { heading: ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ", " + adYearsMonthsLabel(ad) + ")",
+          adSecs[idx] = { heading: tl.current.lord + " Mahadasha — " + ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ", " + adYearsMonthsLabel(ad) + ")",
                           body: t || "(indication unavailable)", isAD: true };
           tick();
         });
