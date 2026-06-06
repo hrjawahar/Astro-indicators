@@ -447,6 +447,10 @@ const CONSULT_CONFIG = {
       "Yogakaraka": "யோககாரகன்", "Vimshottari": "விம்ஷோத்தரி", "Raja Yoga": "ராஜ யோகம்",
       "Viparita Raja Yoga": "விபரீத ராஜ யோகம்", "Parivartana": "பரிவர்த்தனை",
       "Bhadra": "பத்ர", "Kemadruma": "கேமத்ரும", "dusthana": "துஷ்தான", "Tapas": "தபஸ்",
+      "ascendant": "லக்னம்", "exalted": "உச்சம்", "debilitated": "நீசம்",
+      "lordship": "அதிபத்தியம்", "lord": "அதிபதி", "retrograde": "வக்ரம்",
+      "combust": "அஸ்தமனம்", "aspect": "பார்வை", "conjunction": "சேர்க்கை",
+      "own sign": "சொந்த ராசி", "house": "வீடு", "dasha": "தசை", "bhukti": "புக்தி",
     };
     function glossaryText(langCode) {
       if (langCode !== "TA") return "";
@@ -467,21 +471,20 @@ const CONSULT_CONFIG = {
       var langName = REPORT_LANG_LABELS[langCode] || "English";
       var gloss = glossaryText(langCode);
       var out = [];
-      var i = 0;
-      function step() {
-        if (i >= sections.length) return Promise.resolve(out);
-        var s = sections[i];
-        if (onProgress) onProgress(i + 1, sections.length);
+      // Translate ONE section → returns a Promise of the translated section.
+      function translateOne(s) {
         var prompt =
           "Translate this section of a Vedic astrology report into " + langName + ".\n\n" +
           "STYLE: Use plain, clear, modern " + langName + " as a native speaker would naturally say it. " +
           "Avoid heavy literary or archaic words; prefer simple everyday vocabulary. Translate completely — never stop mid-sentence, never leave English sentences untranslated.\n\n" +
           "TECHNICAL TERMS: Keep these in English, but the FIRST time each appears in this section, add its " + langName + " form in brackets right after it" +
           (gloss ? ", using exactly these forms:\n" + gloss + "\n" : ".\n") +
-          "Example: \"Jupiter (குரு)\", \"Cancer (கடகம்)\", \"Antardasha (புக்தி)\". Keep house/chart labels (H1-H12, D1, D9) in English as-is.\n\n" +
+          "Example: \"Jupiter (குரு)\", \"Cancer (கடகம்)\", \"Antardasha (புக்தி)\", \"ascendant (லக்னம்)\", \"exalted (உச்சம்)\", \"lordship (அதிபத்தியம்)\". Keep house/chart labels (H1-H12, D1, D9) in English as-is.\n\n" +
+          "DURATIONS & DATES: Translate duration words — 'years'→'வருடங்கள்', 'months'→'மாதங்கள்', 'year'→'வருடம்', 'month'→'மாதம்', and the word 'to' between dates → 'முதல் … வரை'. Keep the numbers and DD/MM/YYYY dates exactly as written.\n\n" +
           "FORMATTING:\n" +
           "- Translate the heading too (add the bracketed " + langName + " term there as well).\n" +
           "- Keep any **double-asterisk** markers exactly around the same phrase.\n" +
+          "- Do not output literal '#' characters.\n" +
           "- Output the heading on the first line, then the body. No commentary, no notes.\n\n" +
           "HEADING: " + (s.heading || "") + "\n\nBODY:\n" + (s.body || "");
         return fetch("/api/indicate", {
@@ -505,14 +508,29 @@ const CONSULT_CONFIG = {
           })();
         }).then(function (full) {
           var lines = full.replace(/\r/g, "").split("\n");
-          var heading = (lines.shift() || "").replace(/^HEADING:\s*/i, "").trim() || s.heading;
+          var heading = (lines.shift() || "").replace(/^HEADING:\s*/i, "").replace(/^#+\s*/, "").trim() || s.heading;
           var body = lines.join("\n").replace(/^\s*BODY:\s*/i, "").trim();
-          out.push({ heading: heading, body: body, isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote });
-          i++;
-          return step();
+          return { heading: heading, body: body, isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote };
         });
       }
-      return step();
+
+      // Run in BATCHES of 4 in parallel — ~4x faster than sequential, while
+      // staying gentle on the API (avoids rate-limit bursts). Order preserved.
+      var BATCH = 4;
+      var done = 0;
+      function runBatch(start) {
+        if (start >= sections.length) return Promise.resolve(out);
+        var slice = sections.slice(start, start + BATCH);
+        return Promise.all(slice.map(function (s, k) {
+          return translateOne(s).then(function (t) {
+            out[start + k] = t;
+            done++;
+            if (onProgress) onProgress(done, sections.length);
+            return t;
+          });
+        })).then(function () { return runBatch(start + BATCH); });
+      }
+      return runBatch(0);
     }
 
     // Build a Word (.doc) file mirroring the English report's sections.
