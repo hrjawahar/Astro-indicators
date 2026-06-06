@@ -490,31 +490,52 @@ const CONSULT_CONFIG = {
           "- Do not output literal '#' characters.\n" +
           "- Output the heading on the first line, then the body. No commentary, no notes.\n\n" +
           "HEADING: " + (s.heading || "") + "\n\nBODY:\n" + (s.body || "");
-        return fetch("/api/indicate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: prompt, max_tokens: 4000 }),
-        }).then(function (res) {
-          if (!res.ok) throw new Error("HTTP " + res.status);
-          var reader = res.body.getReader(), decoder = new TextDecoder(), full = "";
-          return (function read() {
-            return reader.read().then(function (r) {
-              if (r.done) return full;
-              decoder.decode(r.value, { stream: true }).split("\n").forEach(function (line) {
-                if (!line.startsWith("data: ")) return;
-                var raw = line.slice(6).trim();
-                if (raw === "[DONE]") return;
-                try { var p = JSON.parse(raw); var d = p.delta && p.delta.text; if (d) full += d; } catch (e) {}
+
+        // One network attempt with a hard timeout, so a stalled QUIC/HTTP call
+        // can't hang forever — it aborts and the retry wrapper tries again.
+        function attemptOnce() {
+          var ctrl = new AbortController();
+          var timer = setTimeout(function () { ctrl.abort(); }, 90000);  // 90s cap
+          return fetch("/api/indicate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: prompt, max_tokens: 4000 }),
+            signal: ctrl.signal,
+          }).then(function (res) {
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            var reader = res.body.getReader(), decoder = new TextDecoder(), full = "";
+            return (function read() {
+              return reader.read().then(function (r) {
+                if (r.done) return full;
+                decoder.decode(r.value, { stream: true }).split("\n").forEach(function (line) {
+                  if (!line.startsWith("data: ")) return;
+                  var raw = line.slice(6).trim();
+                  if (raw === "[DONE]") return;
+                  try { var p = JSON.parse(raw); var d = p.delta && p.delta.text; if (d) full += d; } catch (e) {}
+                });
+                return read();
               });
-              return read();
-            });
-          })();
-        }).then(function (full) {
-          var lines = full.replace(/\r/g, "").split("\n");
-          var heading = (lines.shift() || "").replace(/^HEADING:\s*/i, "").replace(/^#+\s*/, "").trim() || s.heading;
-          var body = lines.join("\n").replace(/^\s*BODY:\s*/i, "").trim();
-          return { heading: heading, body: body, isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote };
-        });
+            })();
+          }).then(function (full) {
+            clearTimeout(timer);
+            if (!full || !full.trim()) throw new Error("empty response");
+            var lines = full.replace(/\r/g, "").split("\n");
+            var heading = (lines.shift() || "").replace(/^HEADING:\s*/i, "").replace(/^#+\s*/, "").trim() || s.heading;
+            var body = lines.join("\n").replace(/^\s*BODY:\s*/i, "").trim();
+            return { heading: heading, body: body, isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote };
+          }).catch(function (e) { clearTimeout(timer); throw e; });
+        }
+
+        // Retry transient failures (QUIC drops, timeouts, 5xx) up to 3 times
+        // with a short backoff. Only the final failure rejects.
+        function withRetry(attemptsLeft, delay) {
+          return attemptOnce().catch(function (e) {
+            if (attemptsLeft <= 1) throw e;
+            return new Promise(function (resolve) { setTimeout(resolve, delay); })
+              .then(function () { return withRetry(attemptsLeft - 1, delay * 2); });
+          });
+        }
+        return withRetry(3, 1500);
       }
 
       // Run in BATCHES of 4 in parallel — ~4x faster than sequential, while
@@ -660,6 +681,8 @@ const CONSULT_CONFIG = {
         // otherwise wait on the in-flight translation (or start one if none).
         function deliverTranslated(item, lang, title) {
           var key = pregenKey(item, lang);
+          // If a prior pre-gen attempt errored, discard it and start fresh.
+          if (_pregenCache[key] && _pregenCache[key].error) { delete _pregenCache[key]; }
           if (!_pregenCache[key]) { try { startPregeneration(item); } catch (e) {} }
           var entry = _pregenCache[key];
           if (entry && entry.ready && entry.sections) {
