@@ -494,17 +494,30 @@ let currentData = null;
 // ── TAB ROUTING ───────────────────────────────────────────────────────────────
 function switchTab(tabId) {
   // ── PAYMENT LOCK ──────────────────────────────────────────────────────────
-  // Dasa & Domain screens stay locked until that report is paid for, no matter
-  // how navigation is triggered (click, auto-switch, programmatic, ui-v4.js).
-  // window.AI_unlocked is set by ui-v4.js on successful payment.
+  // Dasa & Domain stay locked until paid. window.AI_unlocked is set by ui-v4.js.
   const LOCKED = { dashaTab: "dasha", domainTab: "domains" };
   const lockKey = LOCKED[tabId];
   if (lockKey && !(window.AI_unlocked && window.AI_unlocked[lockKey] === true)) {
-    const msg = (window._currentLang === "TA")
-      ? "இந்த அறிக்கையைப் பார்க்க, முதலில் கட்டணம் செலுத்தவும். மாதிரி அறிக்கையை (View Sample Report) இலவசமாகப் பார்க்கலாம்."
-      : "This report unlocks after payment. You can preview it free using ‘View Sample Report’.";
+    const ta = (window._currentLang === "TA");
+    const msg = ta
+      ? "இந்த அறிக்கை கட்டணம் செலுத்திய பிறகு திறக்கப்படும். கீழே உள்ள ‘பெறுக’ அட்டையில் கட்டணம் செலுத்துங்கள் அல்லது மாதிரி அறிக்கையைப் பார்க்கவும்."
+      : "This report unlocks after payment. Use the ‘Get It’ card below to pay, or view the free sample.";
+    // Send them to the birth-details screen where the Get It cards live.
+    tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === "inputTab"));
+    screens.forEach(s => s.classList.toggle("active", s.id === "inputTab"));
     const sb = document.getElementById("statusMsg");
     if (sb) { sb.textContent = msg; sb.className = "status-msg"; }
+    // Scroll to and highlight the matching Get It card.
+    setTimeout(() => {
+      const payBtn = document.querySelector('[data-pay="' + lockKey + '"]');
+      const card = payBtn ? (payBtn.closest('[class*="fc"]') || payBtn.parentElement) : null;
+      if (card && card.scrollIntoView) {
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.style.transition = "box-shadow .3s";
+        card.style.boxShadow = "0 0 0 3px var(--accent-gold, #c9a84c)";
+        setTimeout(() => { card.style.boxShadow = ""; }, 2200);
+      }
+    }, 80);
     return;   // block navigation to the locked screen
   }
   // ──────────────────────────────────────────────────────────────────────────
@@ -512,15 +525,6 @@ function switchTab(tabId) {
   tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
   screens.forEach(s => s.classList.toggle("active", s.id === tabId));
 }
-
-tabs.forEach(tab => {
-  tab.addEventListener("click", () => {
-    const requires = tab.dataset.requires;
-    if (requires === "chart" && !currentData?.chart) return;
-    if (requires === "analysis" && !currentData?.analysis) return;
-    switchTab(tab.dataset.tab);
-  });
-});
  
 // ── LANGUAGE SELECTOR ─────────────────────────────────────────────────────────
 function initLangSelector() {
@@ -2656,3 +2660,18 @@ restoreInputs();
 renderHistory();
 initCitySearch();
 initLangSelector();
+// Always-on "Paid" badge on the Dasa & Domain tabs (a standard cue for users).
+  (function addPaidBadges() {
+    ["dashaTab", "domainTab"].forEach(function (id) {
+      var tab = document.querySelector('.nav-tab[data-tab="' + id + '"]');
+      if (!tab || tab.querySelector(".paid-badge")) return;
+      var b = document.createElement("span");
+      b.className = "paid-badge";
+      b.textContent = "Paid";
+      b.style.cssText = "display:inline-block;margin-left:6px;font-size:9px;font-weight:700;" +
+        "padding:1px 6px;border-radius:8px;background:var(--accent-gold,#c9a84c);" +
+        "color:#1a1f33;vertical-align:middle;letter-spacing:.04em";
+      tab.appendChild(b);
+    });
+  })();
+ 
