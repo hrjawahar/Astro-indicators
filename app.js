@@ -525,7 +525,14 @@ function switchTab(tabId) {
   tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
   screens.forEach(s => s.classList.toggle("active", s.id === tabId));
 }
- 
+ tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    const requires = tab.dataset.requires;
+    if (requires === "chart" && !currentData?.chart) return;
+    if (requires === "analysis" && !currentData?.analysis) return;
+    switchTab(tab.dataset.tab);
+  });
+});
 // ── LANGUAGE SELECTOR ─────────────────────────────────────────────────────────
 function initLangSelector() {
   const btns = document.querySelectorAll(".lang-btn");
