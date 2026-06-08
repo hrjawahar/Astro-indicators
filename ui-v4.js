@@ -203,8 +203,13 @@ const CONSULT_CONFIG = {
           flashStatus(window.t ? window.t("pay_success") : "Payment successful!");
           if (window.AI_revealDownload) window.AI_revealDownload(item);
           // If Tamil is selected, begin translating in the background now, so the
-          // download is instant by the time they click it.
-          try { if (currentLang() !== "EN") startPregeneration(item); } catch (e) {}
+          // download is ready by the time they click it — and tell them so.
+          try {
+            if (currentLang() !== "EN") {
+              startPregeneration(item);
+              showTamilWaitNotice();
+            }
+          } catch (e) {}
           goToTab(tab);
         }).catch(function (err) {
           if (err !== "dismissed") flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
@@ -581,6 +586,9 @@ const CONSULT_CONFIG = {
         "<p style='font-size:10pt;color:#666;margin-top:-6px'>Horoscope &amp; Dasa Period Indicators · Swiss Ephemeris · Lahiri Ayanamsha</p>" +
         "<h2 style='font-size:14pt;color:#1a2a4a;margin-top:14px'>" + esc(title) + "</h2>" +
         (name ? "<p><b>Prepared for:</b> " + esc(name) + "</p>" : "") +
+        (currentLang() === "TA"
+          ? "<div style='background:#fdf6e3;border:1px solid #c9a84c;border-radius:8px;padding:12px 16px;margin:14px 0;font-size:11pt;color:#5a3e00;line-height:1.7'>" + esc(TA_QUALITY_NOTE) + "</div>"
+          : "") +
         secHTML + "</body></html>";
       var blob = new Blob(["\uFEFF", html], { type: "application/msword" });
       var url = URL.createObjectURL(blob);
@@ -660,6 +668,32 @@ const CONSULT_CONFIG = {
       _pregenCache[key] = entry;
     }
     window.AI_startPregeneration = startPregeneration;
+
+    // Tamil messages (shown to Tamil-mode customers).
+    var TA_WAIT_MSG =
+      "உங்கள் அறிக்கை தமிழில் தயாராகிக் கொண்டிருக்கிறது — இதற்கு சுமார் 5–7 நிமிடங்கள் ஆகும். " +
+      "இந்த நேரத்தில் திரையில் உங்கள் ஜாதக விளக்கங்களைப் படித்து அனுபவியுங்கள். " +
+      "உங்கள் பதிவிறக்கம் தயாரானதும் தானாகவே தோன்றும் — மீண்டும் கிளிக் செய்ய வேண்டியதில்லை.";
+    // Refined Tamil-quality note placed at the top of translated reports.
+    var TA_QUALITY_NOTE =
+      "இந்த அறிக்கை, உங்களுக்கு எளிதாக புரியும் வகையில் தமிழில் மொழிபெயர்க்கப்பட்டுள்ளது. " +
+      "சில சொற்றொடர்கள் இயல்பான தமிழிலிருந்து சற்று வேறுபட்டு இருக்கலாம் — வார்த்தைகளை விட " +
+      "உள்ளடக்கத்தையும் வழிகாட்டுதலையும் கவனத்தில் கொள்ளுமாறு கேட்டுக்கொள்கிறோம். உங்கள் புரிதலுக்கு நன்றி.";
+
+    function showTamilWaitNotice() {
+      if (document.getElementById("taWaitNotice")) return;
+      var ov = document.createElement("div");
+      ov.id = "taWaitNotice";
+      ov.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55)";
+      ov.innerHTML =
+        "<div style='max-width:440px;margin:20px;background:#1a1f33;border:1px solid #c9a84c;border-radius:14px;padding:26px 24px;color:#f0e8d8;font-family:inherit;line-height:1.7;text-align:center'>" +
+        "<div style='font-size:15px;margin-bottom:18px'>" + TA_WAIT_MSG + "</div>" +
+        "<button id='taWaitOk' style='background:#c9a84c;color:#1a1f33;border:none;border-radius:8px;padding:10px 28px;font-size:15px;font-weight:600;cursor:pointer'>சரி (OK)</button>" +
+        "</div>";
+      document.body.appendChild(ov);
+      var ok = document.getElementById("taWaitOk");
+      if (ok) ok.addEventListener("click", function () { ov.remove(); });
+    }
 
     document.querySelectorAll("[data-download]").forEach(function (btn) {
       btn.addEventListener("click", function () {
