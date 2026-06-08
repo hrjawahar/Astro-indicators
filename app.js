@@ -493,6 +493,22 @@ let currentData = null;
 
 // ── TAB ROUTING ───────────────────────────────────────────────────────────────
 function switchTab(tabId) {
+  // ── PAYMENT LOCK ──────────────────────────────────────────────────────────
+  // Dasa & Domain screens stay locked until that report is paid for, no matter
+  // how navigation is triggered (click, auto-switch, programmatic, ui-v4.js).
+  // window.AI_unlocked is set by ui-v4.js on successful payment.
+  const LOCKED = { dashaTab: "dasha", domainTab: "domains" };
+  const lockKey = LOCKED[tabId];
+  if (lockKey && !(window.AI_unlocked && window.AI_unlocked[lockKey] === true)) {
+    const msg = (window._currentLang === "TA")
+      ? "இந்த அறிக்கையைப் பார்க்க, முதலில் கட்டணம் செலுத்தவும். மாதிரி அறிக்கையை (View Sample Report) இலவசமாகப் பார்க்கலாம்."
+      : "This report unlocks after payment. You can preview it free using ‘View Sample Report’.";
+    const sb = document.getElementById("statusMsg");
+    if (sb) { sb.textContent = msg; sb.className = "status-msg"; }
+    return;   // block navigation to the locked screen
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+ 
   tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
   screens.forEach(s => s.classList.toggle("active", s.id === tabId));
 }
@@ -502,26 +518,10 @@ tabs.forEach(tab => {
     const requires = tab.dataset.requires;
     if (requires === "chart" && !currentData?.chart) return;
     if (requires === "analysis" && !currentData?.analysis) return;
- 
-    // ── PAYMENT LOCK ──────────────────────────────────────────────────────
-    // Dasa & Domain screens stay locked until that report is paid for.
-    // window.AI_unlocked is set by ui-v4.js on successful payment.
-    const LOCKED = { dashaTab: "dasha", domainTab: "domains" };
-    const lockKey = LOCKED[tab.dataset.tab];
-    if (lockKey && !(window.AI_unlocked && window.AI_unlocked[lockKey] === true)) {
-      const msg = (window._currentLang === "TA")
-        ? "இந்த அறிக்கையைப் பார்க்க, முதலில் கட்டணம் செலுத்தவும். மாதிரி அறிக்கையை (View Sample Report) இலவசமாகப் பார்க்கலாம்."
-        : "This report unlocks after payment. You can preview it free using ‘View Sample Report’.";
-      const sb = document.getElementById("statusMsg");
-      if (sb) { sb.textContent = msg; sb.className = "status-msg"; }
-      else { alert(msg); }
-      return;   // block the tab switch
-    }
-    // ──────────────────────────────────────────────────────────────────────
- 
     switchTab(tab.dataset.tab);
   });
 });
+ 
 // ── LANGUAGE SELECTOR ─────────────────────────────────────────────────────────
 function initLangSelector() {
   const btns = document.querySelectorAll(".lang-btn");
