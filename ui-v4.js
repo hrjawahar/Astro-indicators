@@ -483,8 +483,9 @@ const CONSULT_CONFIG = {
       function translateOne(s) {
         var prompt =
           "Translate this section of a Vedic astrology report into " + langName + ".\n\n" +
-          "STYLE: Use plain, clear, modern " + langName + " as a native speaker would naturally say it. " +
-          "Avoid heavy literary or archaic words; prefer simple everyday vocabulary. Translate completely — never stop mid-sentence, never leave English sentences untranslated.\n\n" +
+          "STYLE: Write in FORMAL, professional, written " + langName + " — the dignified register used in a paid astrology report or a serious published article, NOT casual spoken/conversational language. " +
+          "Use formal verb and sentence endings (in Tamil: என்று / ஆகும் / உள்ளது / கூறுகிறோம் — never spoken forms like னு / சொல்றோம் / இருக்கு / பண்றது / தெரியாதுன்னா / கவலைப்படாதீங்க). " +
+          "Avoid slang and casual contractions, but also avoid archaic/over-literary words — aim for clear, respectful, modern formal prose. Translate completely — never stop mid-sentence, never leave English sentences untranslated. " +
           "TECHNICAL TERMS: Keep these in English, but the FIRST time each appears in this section, add its " + langName + " form in brackets right after it" +
           (gloss ? ", using exactly these forms:\n" + gloss + "\n" : ".\n") +
           "Example: \"Jupiter (குரு)\", \"Cancer (கடகம்)\", \"Antardasha (புக்தி)\", \"ascendant (லக்னம்)\", \"exalted (உச்சம்)\", \"lordship (அதிபத்தியம்)\". Keep house/chart labels (H1-H12, D1, D9) in English as-is.\n\n" +
