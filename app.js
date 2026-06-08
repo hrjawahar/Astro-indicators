@@ -502,8 +502,8 @@ tabs.forEach(tab => {
     const requires = tab.dataset.requires;
     if (requires === "chart" && !currentData?.chart) return;
     if (requires === "analysis" && !currentData?.analysis) return;
-
-// ── PAYMENT LOCK ──────────────────────────────────────────────────────
+ 
+    // ── PAYMENT LOCK ──────────────────────────────────────────────────────
     // Dasa & Domain screens stay locked until that report is paid for.
     // window.AI_unlocked is set by ui-v4.js on successful payment.
     const LOCKED = { dashaTab: "dasha", domainTab: "domains" };
@@ -522,7 +522,6 @@ tabs.forEach(tab => {
     switchTab(tab.dataset.tab);
   });
 });
-
 // ── LANGUAGE SELECTOR ─────────────────────────────────────────────────────────
 function initLangSelector() {
   const btns = document.querySelectorAll(".lang-btn");
