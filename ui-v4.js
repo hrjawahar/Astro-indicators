@@ -203,13 +203,9 @@ const CONSULT_CONFIG = {
           flashStatus(window.t ? window.t("pay_success") : "Payment successful!");
           if (window.AI_revealDownload) window.AI_revealDownload(item);
           // If Tamil is selected, begin translating in the background now, so the
-          // download is ready by the time they click it — and tell them so.
-          try {
-            if (currentLang() !== "EN") {
-              startPregeneration(item);
-              showTamilWaitNotice();
-            }
-          } catch (e) {}
+          // report is ready (or nearly) by the time they click download. The wait
+          // notice is shown on the DOWNLOAD click if it's not ready yet — not here.
+          try { if (currentLang() !== "EN") startPregeneration(item); } catch (e) {}
           goToTab(tab);
         }).catch(function (err) {
           if (err !== "dismissed") flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
@@ -491,7 +487,7 @@ const CONSULT_CONFIG = {
           "Example: \"Jupiter (குரு)\", \"Cancer (கடகம்)\", \"Antardasha (புக்தி)\", \"ascendant (லக்னம்)\", \"exalted (உச்சம்)\", \"lordship (அதிபத்தியம்)\". Keep house/chart labels (H1-H12, D1, D9) in English as-is.\n\n" +
           "DURATIONS & DATES: Translate duration words — 'years'→'வருடங்கள்', 'months'→'மாதங்கள்', 'year'→'வருடம்', 'month'→'மாதம்', and the word 'to' between dates → 'முதல் … வரை'. Keep the numbers and DD/MM/YYYY dates exactly as written.\n\n" +
           "FORMATTING:\n" +
-          "- Translate the heading too (add the bracketed " + langName + " term there as well).\n" +
+          "- Translate the heading too (add the bracketed " + langName + " term there as well). Output the heading as PLAIN TEXT — do NOT add '#', '##', or '**' around it.\n" +
           "- Keep any **double-asterisk** markers exactly around the same phrase.\n" +
           "- Do not output literal '#' characters.\n" +
           "- Output the heading on the first line, then the body. No commentary, no notes.\n\n" +
@@ -565,10 +561,24 @@ const CONSULT_CONFIG = {
 
     // Build a Word (.doc) file mirroring the English report's sections.
     function downloadWordReport(sections, title, name) {
+      // Strip stray markdown (##, **, leading bullets) the model sometimes adds
+      // to headings — these were mangling the first character in Word.
+      function cleanHeading(h) {
+        return (h || "")
+          .replace(/^#+\s*/, "")        // leading ## heading markers
+          .replace(/\*\*/g, "")          // bold markers
+          .replace(/^\s*[-•]\s*/, "")    // stray bullet
+          .trim();
+      }
       function fmtBody(body) {
         return (body || "").split("\n").map(function (raw) {
           var line = raw.replace(/\s+$/, "");
           if (!line.trim()) return "";
+          // A body line that is actually a markdown heading (## ...) → render as
+          // a clean bold sub-heading, not literal text with stray symbols.
+          if (/^\s*#+\s+/.test(line)) {
+            return "<p style='margin:12px 0 4px'><b>" + esc(cleanHeading(line)) + "</b></p>";
+          }
           var bold = line.match(/^\s*\*\*(.+?)\*\*\s*$/);
           if (bold) return "<p style='margin:10px 0 2px'><b>" + esc(bold[1].trim()) + "</b></p>";
           var indent = /^\s{2,}[•\-]/.test(raw);
@@ -578,7 +588,7 @@ const CONSULT_CONFIG = {
       }
       var secHTML = sections.map(function (s) {
         return "<h2 style='font-size:13pt;color:#5a3e00;border-bottom:1px solid #c9a84c;padding-bottom:3px;margin:22px 0 8px'>" +
-          esc(s.heading || "") + "</h2>" + fmtBody(s.body);
+          esc(cleanHeading(s.heading)) + "</h2>" + fmtBody(s.body);
       }).join("");
       var html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>" +
         "<head><meta charset='utf-8'><title>" + esc(title) + "</title></head>" +
@@ -724,7 +734,8 @@ const CONSULT_CONFIG = {
             resetBtn();
             return;
           }
-          // Not ready yet — wait on the promise, showing progress.
+          // Not ready yet — show the wait notice (Tamil) and wait on the promise.
+          if (lang === "TA") showTamilWaitNotice();
           btn.textContent = "Preparing your " + REPORT_LANG_LABELS[lang] + " report…";
           var tick = setInterval(function () {
             if (entry && entry.progress && btn.dataset.busy === "1") btn.textContent = "Preparing… " + entry.progress;
