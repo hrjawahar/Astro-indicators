@@ -493,21 +493,35 @@ let currentData = null;
 
 // ── TAB ROUTING ───────────────────────────────────────────────────────────────
 function switchTab(tabId) {
- // ── PAYMENT LOCK (chart-specific) ─────────────────────────────────────────
-  // Dasa & Domain stay locked until THIS chart is paid for. We ask ui-v4.js's
-  // helper, which checks the unlock flag against the current chart id — so a new
-  // set of birth details re-locks correctly.
+ // ── PAYMENT LOCK (chart-specific, server-aware) ───────────────────────────
   const LOCKED = { dashaTab: "dasha", domainTab: "domains" };
   const lockKey = LOCKED[tabId];
-  const unlockedForThisChart =
+  const unlockedNow =
     (typeof window.AI_isUnlockedHere === "function") && lockKey
       ? window.AI_isUnlockedHere(lockKey)
       : false;
-  if (lockKey && !unlockedForThisChart) {
+ 
+  if (lockKey && !unlockedNow) {
+    // Maybe this chart was paid in a previous session — ask the server, and if it
+    // confirms, open the screen automatically. Runs in the background.
+    if (typeof window.AI_syncUnlock === "function") {
+      window.AI_syncUnlock();
+      setTimeout(function () {
+        if (window.AI_isUnlockedHere && window.AI_isUnlockedHere(lockKey)) {
+          // Now unlocked (server confirmed) → open it.
+          tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
+          screens.forEach(s => s.classList.toggle("active", s.id === tabId));
+          const sb0 = document.getElementById("statusMsg");
+          if (sb0) sb0.textContent = "";
+        }
+      }, 1200);   // give the server check time to return
+    }
+ 
+    // Meanwhile show the guidance (in case it's genuinely unpaid).
     const ta = (window._currentLang === "TA");
     const msg = ta
-      ? "இந்த அறிக்கை கட்டணம் செலுத்திய பிறகு திறக்கப்படும். கீழே உள்ள ‘பெறுக’ அட்டையில் கட்டணம் செலுத்துங்கள் அல்லது மாதிரி அறிக்கையைப் பார்க்கவும்."
-      : "This report unlocks after payment. Use the ‘Get It’ card below to pay, or view the free sample.";
+      ? "சரிபார்க்கிறோம்… இந்த அறிக்கை ஏற்கனவே வாங்கப்பட்டிருந்தால் சில நொடிகளில் திறக்கும். இல்லையெனில், கீழே உள்ள ‘பெறுக’ அட்டையில் கட்டணம் செலுத்தவும்."
+      : "Checking your purchase… if you already bought this, it will open in a moment. Otherwise, use the ‘Get It’ card below to pay.";
     tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === "inputTab"));
     screens.forEach(s => s.classList.toggle("active", s.id === "inputTab"));
     const sb = document.getElementById("statusMsg");
@@ -522,7 +536,7 @@ function switchTab(tabId) {
         setTimeout(() => { card.style.boxShadow = ""; }, 2200);
       }
     }, 80);
-    return;   // block navigation to the locked screen
+    return;
   }
   // ──────────────────────────────────────────────────────────────────────────
  
