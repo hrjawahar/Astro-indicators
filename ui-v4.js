@@ -153,8 +153,8 @@ const CONSULT_CONFIG = {
         const item = btn.getAttribute("data-pay");
         const tab  = PAY_TAB[item] || "inputTab";
 
-        // Already PAID this session → open it.
-        if (window.AI_unlocked && window.AI_unlocked[item] === true) { goToTab(tab); return; }
+        // Already PAID this session for THIS chart → open it.
+        if (isUnlockedHere(item)) { goToTab(tab); return; }
 
         // Require a generated chart first (need the data to build the report).
         const navBtn = document.querySelector('.nav-tab[data-tab="' + tab + '"]');
@@ -198,7 +198,7 @@ const CONSULT_CONFIG = {
             return;
           }
           window.AI_unlocked = window.AI_unlocked || {};
-          window.AI_unlocked[item] = true;
+          window.AI_unlocked[item] = chartId();   // tag unlock to THIS chart
           window.AI_lastPayment = window.AI_lastPayment || {};
           window.AI_lastPayment[item] = res.paymentId;
           flashStatus(window.t ? window.t("pay_success") : "Payment successful!");
@@ -370,14 +370,22 @@ const CONSULT_CONFIG = {
       return "c" + h.toString(16) + "_" + basis.length;
     }
     window.AI_chartId = chartId;
+
+    // An item is unlocked in THIS session only if the unlock flag was set for the
+    // CURRENT chart. We store the chartId as the flag value (not just `true`), so a
+    // payment for one chart can never leak to a different set of birth details.
+    function isUnlockedHere(item) {
+      return !!(window.AI_unlocked && window.AI_unlocked[item] === chartId());
+    }
+    window.AI_isUnlockedHere = isUnlockedHere;
     function revealDownload(item) {
       const card = document.getElementById(item === "dasha" ? "dashaDownloadCard" : "domainDownloadCard");
       if (card) card.style.display = "";
     }
-    // Reveal download cards if already unlocked this session.
+    // Reveal download cards only if unlocked this session FOR THIS CHART.
     if (window.AI_unlocked) {
-      if (window.AI_unlocked.dasha) revealDownload("dasha");
-      if (window.AI_unlocked.domains) revealDownload("domains");
+      if (isUnlockedHere("dasha")) revealDownload("dasha");
+      if (isUnlockedHere("domains")) revealDownload("domains");
     }
 
     // ── TRANSLATED REPORT (Word) — Stage 1 ───────────────────────────────────
@@ -749,14 +757,14 @@ const CONSULT_CONFIG = {
         // Safety gate: never generate a paid report without a verified payment.
         // Accept either the in-session unlock flag OR a server-confirmed paid
         // record (a returning customer who paid earlier, even on another device).
-        if (window.AI_unlocked && window.AI_unlocked[item] === true) {
+        if (isUnlockedHere(item)) {
           proceed();
         } else {
           flashStatus("Checking your purchase…");
           srvStatus(item).then(function (r) {
             if (r && r.paid) {
               window.AI_unlocked = window.AI_unlocked || {};
-              window.AI_unlocked[item] = true;   // remember for this session
+              window.AI_unlocked[item] = chartId();   // tag to THIS chart
               proceed();
             } else {
               flashStatus(window.t ? window.t("pay_required") : "Please complete payment to download this report.");
