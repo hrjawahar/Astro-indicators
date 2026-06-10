@@ -388,6 +388,25 @@ const CONSULT_CONFIG = {
       if (isUnlockedHere("domains")) revealDownload("domains");
     }
 
+    // Sync unlock state from the SERVER for the current chart. A returning paid
+    // customer has an empty session flag, but the server knows the chart is paid.
+    // We set the session flag (= chartId) so the synchronous app.js screen lock
+    // and the reveal logic both recognise it. Safe to call repeatedly.
+    function syncUnlockFromServer() {
+      if (!chartId()) return;
+      ["dasha", "domains"].forEach(function (item) {
+        srvStatus(item).then(function (r) {
+          if (r && r.paid) {
+            window.AI_unlocked = window.AI_unlocked || {};
+            window.AI_unlocked[item] = chartId();
+            revealDownload(item);
+          }
+        }).catch(function () {});
+      });
+    }
+    window.AI_syncUnlock = syncUnlockFromServer;
+    syncUnlockFromServer();   // run once on load for the current chart
+
     // ── TRANSLATED REPORT (Word) — Stage 1 ───────────────────────────────────
     // English keeps the rich jsPDF PDF. Non-English is delivered as a .doc that
     // mirrors the SAME sections, because jsPDF cannot render Indic scripts but
