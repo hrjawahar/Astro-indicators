@@ -156,6 +156,26 @@ const CONSULT_CONFIG = {
         // Already PAID this session for THIS chart → open it.
         if (isUnlockedHere(item)) { goToTab(tab); return; }
 
+        // Maybe this chart was paid in a PREVIOUS session — ask the server before
+        // ever opening payment. If it's already paid, unlock and open instead of
+        // charging again. This is what prevents double-charging across sessions.
+        flashStatus(window.t ? window.t("pay_checking") : "Checking your purchase…");
+        srvStatus(item).then(function (r) {
+          if (r && r.paid) {
+            window.AI_unlocked = window.AI_unlocked || {};
+            window.AI_unlocked[item] = chartId();          // tag unlock to THIS chart
+            if (window.AI_revealDownload) window.AI_revealDownload(item);
+            flashStatus(window.t ? window.t("already_paid") : "You already own this report — opening it.");
+            goToTab(tab);
+            return;
+          }
+          openPaymentFlow();   // not paid → proceed to Razorpay
+        }).catch(function () {
+          openPaymentFlow();   // server unreachable → fall back to normal payment
+        });
+        return;
+
+        function openPaymentFlow() {
         // Require a generated chart first (need the data to build the report).
         const navBtn = document.querySelector('.nav-tab[data-tab="' + tab + '"]');
         if (navBtn && navBtn.disabled) {
@@ -211,6 +231,7 @@ const CONSULT_CONFIG = {
         }).catch(function (err) {
           if (err !== "dismissed") flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
         });
+        }   // end openPaymentFlow()
       });
     });
 
