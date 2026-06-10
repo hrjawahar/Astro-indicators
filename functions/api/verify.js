@@ -1,16 +1,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  FILE: functions/api/verify.js
-//  Cloudflare Pages Function — verifies a Razorpay payment is genuine, and (for
-//  consultation bookings) emails the booking details to the app owner.
+//  Cloudflare Pages Function — verifies a Razorpay payment is genuine, records
+//  the paid chart in D1 (so it stays unlocked across sessions / devices), and
+//  (for consultation bookings) emails the booking details to the app owner.
 //
 //  WHY: After payment, the browser could lie about success. Razorpay signs each
 //  successful payment; only the SECRET can verify that signature. So we verify
-//  here, server-side, before unlocking anything or sending a booking.
+//  here, server-side, before unlocking anything, recording payment, or emailing.
 //
 //  SETUP (Cloudflare → Settings → Environment variables):
 //    RAZORPAY_KEY_SECRET   = your secret (already set for order.js)
 //    OWNER_EMAIL           = where consultation bookings are emailed to you
-//    RESEND_API_KEY        = (optional) for email sending — see notes below
+//    RESEND_API_KEY        = (optional) for email sending
+//  SETUP (Cloudflare → Settings → Functions → D1 bindings):
+//    DB = your D1 database (astro_paid)  — see functions/schema.sql
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function onRequestPost(context) {
@@ -22,7 +25,10 @@ export async function onRequestPost(context) {
   try { body = await request.json(); }
   catch { return json({ error: "Invalid request body." }, 400); }
 
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, booking } = body;
+  const {
+    razorpay_order_id, razorpay_payment_id, razorpay_signature,
+    booking, chartId, item,
+  } = body;
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     return json({ error: "Missing payment fields." }, 400);
   }
@@ -33,7 +39,24 @@ export async function onRequestPost(context) {
     return json({ verified: false, error: "Payment signature mismatch." }, 400);
   }
 
-  // Payment is genuine. If this was a consultation booking, notify the owner.
+  // Payment is genuine.
+  // ── Record the paid report in D1 (so it persists across sessions) ──────────
+  // Only for report purchases (chartId + item present). Consultations skip this.
+  if (env.DB && chartId && item) {
+    try {
+      const now = Date.now();
+      await env.DB.prepare(
+        "INSERT INTO paid_reports (chart_id, item, payment_id, created_at, updated_at) " +
+        "VALUES (?, ?, ?, ?, ?) " +
+        "ON CONFLICT(chart_id, item) DO UPDATE SET payment_id = excluded.payment_id, updated_at = excluded.updated_at"
+      ).bind(String(chartId), String(item), razorpay_payment_id, now, now).run();
+    } catch (e) {
+      // Don't fail the payment verification if the DB write hiccups — the user
+      // still paid. They can re-download; status will self-heal on next write.
+    }
+  }
+
+  // If this was a consultation booking, notify the owner.
   if (booking && booking.type === "consultation") {
     await notifyOwner(env, booking, razorpay_payment_id).catch(() => {});
   }
