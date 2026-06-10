@@ -493,21 +493,25 @@ let currentData = null;
 
 // ── TAB ROUTING ───────────────────────────────────────────────────────────────
 function switchTab(tabId) {
-  // ── PAYMENT LOCK ──────────────────────────────────────────────────────────
-  // Dasa & Domain stay locked until paid. window.AI_unlocked is set by ui-v4.js.
+ // ── PAYMENT LOCK (chart-specific) ─────────────────────────────────────────
+  // Dasa & Domain stay locked until THIS chart is paid for. We ask ui-v4.js's
+  // helper, which checks the unlock flag against the current chart id — so a new
+  // set of birth details re-locks correctly.
   const LOCKED = { dashaTab: "dasha", domainTab: "domains" };
   const lockKey = LOCKED[tabId];
-  if (lockKey && !(window.AI_unlocked && window.AI_unlocked[lockKey] === true)) {
+  const unlockedForThisChart =
+    (typeof window.AI_isUnlockedHere === "function") && lockKey
+      ? window.AI_isUnlockedHere(lockKey)
+      : false;
+  if (lockKey && !unlockedForThisChart) {
     const ta = (window._currentLang === "TA");
     const msg = ta
       ? "இந்த அறிக்கை கட்டணம் செலுத்திய பிறகு திறக்கப்படும். கீழே உள்ள ‘பெறுக’ அட்டையில் கட்டணம் செலுத்துங்கள் அல்லது மாதிரி அறிக்கையைப் பார்க்கவும்."
       : "This report unlocks after payment. Use the ‘Get It’ card below to pay, or view the free sample.";
-    // Send them to the birth-details screen where the Get It cards live.
     tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === "inputTab"));
     screens.forEach(s => s.classList.toggle("active", s.id === "inputTab"));
     const sb = document.getElementById("statusMsg");
     if (sb) { sb.textContent = msg; sb.className = "status-msg"; }
-    // Scroll to and highlight the matching Get It card.
     setTimeout(() => {
       const payBtn = document.querySelector('[data-pay="' + lockKey + '"]');
       const card = payBtn ? (payBtn.closest('[class*="fc"]') || payBtn.parentElement) : null;
