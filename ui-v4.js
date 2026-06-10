@@ -378,13 +378,23 @@ const CONSULT_CONFIG = {
     // (name deliberately excluded — same birth data = same paid chart).
     // Reads from currentData.form if present, else the form inputs. Normalised
     // (lowercased/trimmed) so the same chart always hashes identically.
+    // Stable chart identity for the pay-once rule. Built ONLY from values that are
+    // identical every session for the same birth data: DOB + TOB + coordinates
+    // ROUNDED to 2 decimals (~1km — unique enough for a birthplace, but immune to
+    // geocoder precision drift). The free-form place STRING is deliberately NOT
+    // used because the geocoded text varies between sessions (different length /
+    // wording), which previously produced a different id each visit. Name excluded.
+    function round2(v) {
+      var n = parseFloat(v);
+      return isFinite(n) ? (Math.round(n * 100) / 100).toFixed(2) : "";
+    }
     function chartId() {
       var f = (window.currentData && window.currentData.form) || {};
-      var dob   = (f.dob   || (document.getElementById("inputDOB")  || {}).value || "").trim();
-      var tob   = (f.tob   || (document.getElementById("inputTOB")  || {}).value || "").trim();
-      var place = (f.place || (document.getElementById("inputPlaceDisplay") || {}).value || "").trim().toLowerCase();
-      var lat   = (f.lat != null ? String(f.lat) : "");
-      var basis = [dob, tob, place, lat].join("|");
+      var dob = (f.dob || (document.getElementById("inputDOB") || {}).value || "").trim();
+      var tob = (f.tob || (document.getElementById("inputTOB") || {}).value || "").trim();
+      var lat = round2(f.lat != null ? f.lat : (document.getElementById("inputLat") || {}).value);
+      var lng = round2(f.lng != null ? f.lng : (f.lon != null ? f.lon : (document.getElementById("inputLng") || {}).value));
+      var basis = [dob, tob, lat, lng].join("|");
       // djb2 string hash → hex; stable and collision-safe enough for this use.
       var h = 5381;
       for (var i = 0; i < basis.length; i++) h = ((h << 5) + h + basis.charCodeAt(i)) >>> 0;
