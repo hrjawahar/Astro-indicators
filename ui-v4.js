@@ -191,6 +191,7 @@ const CONSULT_CONFIG = {
           item: item,
           amount: priceFor(item),
           label: label,
+          chartId: chartId(),   // pay-once key, forwarded to /api/verify for the DB record
         }).then(function (res) {
           if (!res || !res.paymentId) {   // must have a verified payment id
             flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
@@ -351,6 +352,24 @@ const CONSULT_CONFIG = {
       const el = document.getElementById("inputName");
       return (el && el.value.trim()) ? el.value.trim() : "Seeker";
     }
+
+    // Stable chart identity for the pay-once rule: DOB + TOB + place ONLY
+    // (name deliberately excluded — same birth data = same paid chart).
+    // Reads from currentData.form if present, else the form inputs. Normalised
+    // (lowercased/trimmed) so the same chart always hashes identically.
+    function chartId() {
+      var f = (window.currentData && window.currentData.form) || {};
+      var dob   = (f.dob   || (document.getElementById("inputDOB")  || {}).value || "").trim();
+      var tob   = (f.tob   || (document.getElementById("inputTOB")  || {}).value || "").trim();
+      var place = (f.place || (document.getElementById("inputPlaceDisplay") || {}).value || "").trim().toLowerCase();
+      var lat   = (f.lat != null ? String(f.lat) : "");
+      var basis = [dob, tob, place, lat].join("|");
+      // djb2 string hash → hex; stable and collision-safe enough for this use.
+      var h = 5381;
+      for (var i = 0; i < basis.length; i++) h = ((h << 5) + h + basis.charCodeAt(i)) >>> 0;
+      return "c" + h.toString(16) + "_" + basis.length;
+    }
+    window.AI_chartId = chartId;
     function revealDownload(item) {
       const card = document.getElementById(item === "dasha" ? "dashaDownloadCard" : "domainDownloadCard");
       if (card) card.style.display = "";
@@ -634,11 +653,26 @@ const CONSULT_CONFIG = {
       return out;
     }
 
+    // ── SERVER PERSISTENCE (paid records + stored reports) ───────────────────
+    // Talks to /api/report. Fails soft: if the server/DB is unreachable, the app
+    // still works from the in-session flow (no hard dependency for a sale).
+    function srvReport(payload) {
+      return fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    }
+    function srvStatus(item) { return srvReport({ action: "status", chartId: chartId(), item: item }); }
+    function srvFetch(item, lang) { return srvReport({ action: "fetch", chartId: chartId(), item: item, lang: lang }); }
+    function srvStore(item, lang, sections) {
+      return srvReport({ action: "store", chartId: chartId(), item: item, lang: lang, sections: sections });
+    }
+
     // ── BACKGROUND PRE-GENERATION ────────────────────────────────────────────
-    // Translating at download time is too slow (server throttles concurrency).
-    // Instead, right after payment, if Tamil is selected we translate in the
-    // background while the customer reads the screen, and cache the result so
-    // the download is INSTANT. Keyed by item ("dasha"/"domains") + language.
+    // After payment we generate BOTH English and Tamil in the background and
+    // store them server-side, so either language downloads instantly later, on
+    // any device/session, with no repeat AI cost.
     var _pregenCache = {};   // key → { promise, sections, lang, ready }
     function pregenKey(item, lang) { return item + ":" + lang; }
 
@@ -658,25 +692,26 @@ const CONSULT_CONFIG = {
       return Promise.reject("Unknown report type.");
     }
 
-    // Kick off (or reuse) a background Tamil translation for an item.
+    // After payment: generate English (instant) + Tamil (translation) and store
+    // BOTH on the server. Runs in the background; download reads from server.
     function startPregeneration(item) {
-      var lang = currentLang();
-      if (lang === "EN") return;                       // English needs no pre-gen
-      var key = pregenKey(item, lang);
-      if (_pregenCache[key]) return;                   // already running/done
-      var entry = { ready: false, sections: null, lang: lang, error: null };
-      entry.promise = buildSectionsFor(item).then(function (sections) {
-        return translateSectionsIndividually(sections, lang, function (n, tot) {
-          entry.progress = n + "/" + tot;
-        });
-      }).then(function (translated) {
-        entry.sections = translated; entry.ready = true;
-        // Reflect readiness on the button if it's waiting.
-        var b = document.querySelector('[data-download="' + item + '"]');
-        if (b && b.dataset.busy !== "1") b.textContent = b.getAttribute("data-orig-label") || b.textContent;
-        return translated;
-      }).catch(function (e) { entry.error = e || true; throw e; });
-      _pregenCache[key] = entry;
+      buildSectionsFor(item).then(function (enSections) {
+        // Store English immediately.
+        srvStore(item, "EN", enSections);
+        _pregenCache[pregenKey(item, "EN")] = { ready: true, sections: enSections, lang: "EN" };
+        // Then translate to Tamil and store it too.
+        var taEntry = { ready: false, sections: null, lang: "TA", error: null };
+        _pregenCache[pregenKey(item, "TA")] = taEntry;
+        taEntry.promise = translateSectionsIndividually(enSections, "TA", function (n, tot) {
+          taEntry.progress = n + "/" + tot;
+        }).then(function (taSections) {
+          taEntry.sections = taSections; taEntry.ready = true;
+          srvStore(item, "TA", taSections);
+          var b = document.querySelector('[data-download="' + item + '"]');
+          if (b && b.dataset.busy !== "1") b.textContent = b.getAttribute("data-orig-label") || b.textContent;
+          return taSections;
+        }).catch(function (e) { taEntry.error = e || true; throw e; });
+      }).catch(function () {});
     }
     window.AI_startPregeneration = startPregeneration;
 
@@ -709,22 +744,55 @@ const CONSULT_CONFIG = {
       btn.addEventListener("click", function () {
         const item = btn.getAttribute("data-download");
         if (typeof window.generateReportPDF !== "function") return;
-        // Safety gate: never generate a paid PDF without a verified payment.
-        if (!(window.AI_unlocked && window.AI_unlocked[item] === true)) {
-          flashStatus(window.t ? window.t("pay_required") : "Please complete payment to download this report.");
-          return;
-        }
         if (btn.dataset.busy === "1") return;   // prevent double-clicks
 
+        // Safety gate: never generate a paid report without a verified payment.
+        // Accept either the in-session unlock flag OR a server-confirmed paid
+        // record (a returning customer who paid earlier, even on another device).
+        if (window.AI_unlocked && window.AI_unlocked[item] === true) {
+          proceed();
+        } else {
+          flashStatus("Checking your purchase…");
+          srvStatus(item).then(function (r) {
+            if (r && r.paid) {
+              window.AI_unlocked = window.AI_unlocked || {};
+              window.AI_unlocked[item] = true;   // remember for this session
+              proceed();
+            } else {
+              flashStatus(window.t ? window.t("pay_required") : "Please complete payment to download this report.");
+            }
+          }).catch(function () {
+            flashStatus(window.t ? window.t("pay_required") : "Please complete payment to download this report.");
+          });
+        }
+
+        function proceed() {
         const orig = btn.getAttribute("data-orig-label") || btn.textContent;
         btn.setAttribute("data-orig-label", orig);
 
         function resetBtn() { btn.disabled = false; btn.dataset.busy = "0"; btn.textContent = orig; }
 
-        // Deliver a non-English report from the pre-gen cache: instant if ready,
-        // otherwise wait on the in-flight translation (or start one if none).
+        // Deliver a non-English report. Order of preference:
+        //   1) server-stored report (returning paid customer — instant, no cost)
+        //   2) in-session pre-gen cache (just paid this session)
+        //   3) start a fresh translation and wait
         function deliverTranslated(item, lang, title) {
           var key = pregenKey(item, lang);
+          // 1) Try the server first — a paid chart's report persists across sessions.
+          srvFetch(item, lang).then(function (r) {
+            if (r && r.paid && r.sections) {
+              downloadWordReport(r.sections, title, userName());
+              resetBtn();
+              return;
+            }
+            // 2) + 3) fall back to local cache / fresh generation.
+            deliverFromCacheOrGenerate(item, lang, title, key);
+          }).catch(function () {
+            deliverFromCacheOrGenerate(item, lang, title, key);
+          });
+        }
+
+        function deliverFromCacheOrGenerate(item, lang, title, key) {
           // If a prior pre-gen attempt errored, discard it and start fresh.
           if (_pregenCache[key] && _pregenCache[key].error) { delete _pregenCache[key]; }
           if (!_pregenCache[key]) { try { startPregeneration(item); } catch (e) {} }
@@ -802,6 +870,7 @@ const CONSULT_CONFIG = {
             deliverTranslated("domains", lang, "Life Domains Indications");
           }
         }
+        }   // end proceed()
       });
     });
 
