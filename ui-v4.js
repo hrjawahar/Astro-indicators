@@ -1053,11 +1053,10 @@ const CONSULT_CONFIG = {
       } catch (e) { if (window.console) console.warn("pruneExtraLanguages failed:", e); }
     }
     window.pruneExtraLanguages = pruneExtraLanguages;
+    // Self-heal on a gentle interval only. (We deliberately do NOT observe the
+    // whole document for mutations: pruneExtraLanguages itself changes element
+    // styles, which would retrigger a body-wide observer in a feedback loop.)
     setInterval(function () { try { pruneExtraLanguages(); } catch (e) {} }, 800);
-    if ("MutationObserver" in window) {
-      new MutationObserver(function () { pruneExtraLanguages(); })
-        .observe(document.body, { childList: true, subtree: true });
-    }
     pruneExtraLanguages();
 
     // ── PLAIN-LANGUAGE + GENTLE-WORDING LAYER (reports only) ─────────────────
