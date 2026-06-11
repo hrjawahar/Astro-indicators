@@ -1032,6 +1032,34 @@ const CONSULT_CONFIG = {
     });
     pruneHiddenDomains();
 
+    // ── LIMIT LANGUAGE CHOICES TO ENGLISH + TAMIL (go-live) ──────────────────
+    // The engine renders language buttons for 6 languages in two places (the top
+    // i18n toggle and the references "Translate" menu). For launch we offer only
+    // English + Tamil, so we HIDE the others. Hiding (not deleting) keeps the
+    // engine's language logic intact. Matches by data-lang AND by visible text.
+    function pruneExtraLanguages() {
+      try {
+        var KEEP_LANGS = ["EN", "TA"];
+        var DROP_TEXT = /telugu|hindi|kannada|malayalam|తెలుగు|हिन्दी|हिंदी|ಕನ್ನಡ|മലയാളം/i;
+        document.querySelectorAll("button, a, [role='option'], li").forEach(function (el) {
+          // Skip containers with lots of children (don't hide whole panels).
+          if (el.children && el.children.length > 2) return;
+          var dl = el.getAttribute && el.getAttribute("data-lang");
+          if (dl && KEEP_LANGS.indexOf(dl.toUpperCase()) === -1) { el.style.display = "none"; return; }
+          // Text-labelled language buttons without data-lang.
+          var txt = (el.textContent || "").trim();
+          if (!dl && txt.length < 40 && DROP_TEXT.test(txt)) { el.style.display = "none"; }
+        });
+      } catch (e) { if (window.console) console.warn("pruneExtraLanguages failed:", e); }
+    }
+    window.pruneExtraLanguages = pruneExtraLanguages;
+    setInterval(function () { try { pruneExtraLanguages(); } catch (e) {} }, 800);
+    if ("MutationObserver" in window) {
+      new MutationObserver(function () { pruneExtraLanguages(); })
+        .observe(document.body, { childList: true, subtree: true });
+    }
+    pruneExtraLanguages();
+
     // ── PLAIN-LANGUAGE + GENTLE-WORDING LAYER (reports only) ─────────────────
     // Turns the engine's technical astrology text into clear plain English and
     // softens alarming health / relationship phrasing — WITHOUT changing meaning.
