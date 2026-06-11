@@ -104,7 +104,31 @@
       var heading = fixDates(clean(sec.heading));
       needPage(110);
 
-      if (sec.isMDHeading) {
+      if (sec.isSeparator) {
+        // Boundary divider: dotted line, centered bold label, dotted line.
+        needPage(70);
+        y += 10;
+        doc.setLineDashPattern([1.5, 1.5], 0);
+        doc.setDrawColor(C.gold[0], C.gold[1], C.gold[2]);
+        doc.setLineWidth(1.2);
+        doc.line(M, y, M + CW, y);
+        doc.setLineDashPattern([], 0);
+        y += 16;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11.5);
+        doc.setTextColor(C.goldDk[0], C.goldDk[1], C.goldDk[2]);
+        var sl = doc.splitTextToSize(heading, CW);
+        sl.forEach(function (ln) {
+          var w = doc.getTextWidth(ln);
+          doc.text(ln, M + (CW - w) / 2, y); y += 14;
+        });
+        y += 4;
+        doc.setLineDashPattern([1.5, 1.5], 0);
+        doc.line(M, y, M + CW, y);
+        doc.setLineDashPattern([], 0);
+        y += 14;
+        doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+        return;
+      } else if (sec.isMDHeading) {
         y += 8;
         doc.setFillColor(245, 240, 228);
         doc.setFont("helvetica", "bold"); doc.setFontSize(12.5);
