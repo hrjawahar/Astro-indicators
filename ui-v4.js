@@ -223,10 +223,12 @@ const CONSULT_CONFIG = {
           window.AI_lastPayment[item] = res.paymentId;
           flashStatus(window.t ? window.t("pay_success") : "Payment successful!");
           if (window.AI_revealDownload) window.AI_revealDownload(item);
-          // If Tamil is selected, begin translating in the background now, so the
-          // report is ready (or nearly) by the time they click download. The wait
-          // notice is shown on the DOWNLOAD click if it's not ready yet — not here.
-          try { if (currentLang() !== "EN") startPregeneration(item); } catch (e) {}
+          // Generate + store BOTH languages in the background, regardless of which
+          // language is currently selected — so the paid report is saved server-side
+          // and either language downloads instantly later with no repeat AI cost.
+          // Wait briefly for verify.js to finish writing the paid record (otherwise
+          // the store is rejected as "not yet paid"), confirming via the server.
+          startPregenerationWhenPaid(item);
           goToTab(tab);
         }).catch(function (err) {
           if (err !== "dismissed") flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
@@ -772,6 +774,25 @@ const CONSULT_CONFIG = {
       }).catch(function () {});
     }
     window.AI_startPregeneration = startPregeneration;
+
+    // Wait until the server confirms the paid record exists (verify.js writes it
+    // right after payment), THEN pre-generate + store. Without this, srvStore can
+    // fire before the paid row exists and report.js rejects it ("not paid"), so
+    // nothing gets saved. Polls a few times, then proceeds regardless.
+    function startPregenerationWhenPaid(item) {
+      var tries = 0;
+      (function poll() {
+        tries++;
+        srvStatus(item).then(function (r) {
+          if (r && r.paid) { startPregeneration(item); return; }
+          if (tries < 6) { setTimeout(poll, 1000); }   // up to ~6s
+          else { startPregeneration(item); }            // proceed anyway
+        }).catch(function () {
+          if (tries < 6) { setTimeout(poll, 1000); } else { startPregeneration(item); }
+        });
+      })();
+    }
+    window.AI_startPregenerationWhenPaid = startPregenerationWhenPaid;
 
     // Tamil messages (shown to Tamil-mode customers).
     var TA_WAIT_MSG =
