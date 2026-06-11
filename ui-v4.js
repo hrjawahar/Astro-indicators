@@ -556,6 +556,16 @@ const CONSULT_CONFIG = {
       var out = [];
       // Translate ONE section → returns a Promise of the translated section.
       function translateOne(s) {
+        // Separators carry a fixed label — use a known Tamil translation directly,
+        // no API call (and never translate the empty body).
+        if (s.isSeparator) {
+          var taLabel = s.heading;
+          if (langCode === "TA") {
+            if (/personal chart interpretation/i.test(s.heading)) taLabel = "உங்கள் சொந்த ஜாதக விளக்கம்";
+            else if (/end of your chart interpretation/i.test(s.heading)) taLabel = "உங்கள் ஜாதக விளக்கம் நிறைவடைந்தது";
+          }
+          return Promise.resolve({ heading: taLabel, body: "", isSeparator: true });
+        }
         var prompt =
           "Translate this section of a Vedic astrology report into " + langName + ".\n\n" +
           "STYLE: Write in FORMAL, professional, written " + langName + " — the dignified register used in a paid astrology report or a serious published article, NOT casual spoken/conversational language. " +
@@ -603,7 +613,7 @@ const CONSULT_CONFIG = {
             var lines = full.replace(/\r/g, "").split("\n");
             var heading = (lines.shift() || "").replace(/^HEADING:\s*/i, "").replace(/^#+\s*/, "").trim() || s.heading;
             var body = lines.join("\n").replace(/^\s*BODY:\s*/i, "").trim();
-            return { heading: heading, body: body, isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote };
+            return { heading: heading, body: body, isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote, isSeparator: s.isSeparator };
           }).catch(function (e) { clearTimeout(timer); throw e; });
         }
 
@@ -666,6 +676,15 @@ const CONSULT_CONFIG = {
         }).join("");
       }
       var secHTML = sections.map(function (s) {
+        if (s.isSeparator) {
+          // Dotted divider with a centered label marking a report boundary.
+          return "<div style='margin:26px 0;text-align:center'>" +
+            "<div style='border-top:2px dotted #c9a84c;margin-bottom:8px'></div>" +
+            "<div style='font-size:12pt;font-weight:bold;color:#5a3e00;letter-spacing:.04em'>" +
+            esc(cleanHeading(s.heading)) + "</div>" +
+            "<div style='border-top:2px dotted #c9a84c;margin-top:8px'></div>" +
+            "</div>";
+        }
         return "<h2 style='font-size:13pt;color:#5a3e00;border-bottom:1px solid #c9a84c;padding-bottom:3px;margin:22px 0 8px'>" +
           esc(cleanHeading(s.heading)) + "</h2>" + fmtBody(s.body);
       }).join("");
@@ -692,14 +711,55 @@ const CONSULT_CONFIG = {
     // SAME disclaimer + Q&A note the English PDF carries, so they get translated
     // too (they live in report-pdf.js for the PDF path, so the Word path must add
     // them explicitly). Returns a new section array; originals untouched.
+    // Labels for the two boundary separators (mirror EN ↔ TA). The translator
+    // will localise these for Tamil along with everything else; for the English
+    // path they print as-is.
+    var SEP_TOP_LABEL = "Your Personal Chart Interpretation";
+    var SEP_BOTTOM_LABEL = "End of Your Chart Interpretation";
+    function sepSection(label) {
+      return { heading: label, body: "", isSeparator: true };
+    }
+
+    // Insert ONLY the two boundary separators (no Q&A/disclaimer) — for the
+    // English PDF path, since report-pdf.js already appends its own notes.
+    function addSeparatorsOnly(sections) {
+      var out = [];
+      var insertedTop = false;
+      sections.forEach(function (s) {
+        out.push(s);
+        if (!insertedTop && /how to read this report/i.test(s.heading || "")) {
+          out.push(sepSection(SEP_TOP_LABEL));
+          insertedTop = true;
+        }
+      });
+      if (!insertedTop) out.unshift(sepSection(SEP_TOP_LABEL));
+      out.push(sepSection(SEP_BOTTOM_LABEL));
+      return out;
+    }
+
     function augmentForWord(sections) {
-      var out = sections.map(function (s) {
-        return {
+      var out = [];
+      // Copy sections, inserting the TOP separator right after the legend
+      // ("How to Read This Report") so the reader sees where the personal
+      // interpretation begins.
+      var insertedTop = false;
+      sections.forEach(function (s) {
+        out.push({
           heading: reformatDates(s.heading || ""),
           body: reformatDates(s.body || ""),
           isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote,
-        };
+        });
+        if (!insertedTop && /how to read this report/i.test(s.heading || "")) {
+          out.push(sepSection(SEP_TOP_LABEL));
+          insertedTop = true;
+        }
       });
+      // If there was no legend (shouldn't happen), put the top separator first.
+      if (!insertedTop) out.unshift(sepSection(SEP_TOP_LABEL));
+
+      // BOTTOM separator — marks the end of the personal interpretation, before
+      // the general Q&A + disclaimer notes that follow.
+      out.push(sepSection(SEP_BOTTOM_LABEL));
       out.push({
         heading: "Q&A",
         body: "Still unsure what a term means? See the Q&A section on the main page for plain-language explanations of everything used in this report.",
@@ -915,7 +975,7 @@ const CONSULT_CONFIG = {
                 window.generateReportPDF({
                   userName: userName(),
                   reportTitle: "Dasa Bhukti Period Indications",
-                  sections: humanizeSections(sections),
+                  sections: addSeparatorsOnly(humanizeSections(sections)),
                   paymentId: (window.AI_lastPayment && window.AI_lastPayment.dasha) || null,
                 });
               }).catch(function (e) {
@@ -937,7 +997,7 @@ const CONSULT_CONFIG = {
                 window.generateReportPDF({
                   userName: userName(),
                   reportTitle: "Life Domains Indications",
-                  sections: collectDomainSections(),
+                  sections: addSeparatorsOnly(collectDomainSections()),
                   paymentId: (window.AI_lastPayment && window.AI_lastPayment.domains) || null,
                 });
               } catch (e) {
