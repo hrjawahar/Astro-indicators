@@ -1032,32 +1032,9 @@ const CONSULT_CONFIG = {
     });
     pruneHiddenDomains();
 
-    // ── LIMIT LANGUAGE CHOICES TO ENGLISH + TAMIL (go-live) ──────────────────
-    // The engine renders language buttons for 6 languages in two places (the top
-    // i18n toggle and the references "Translate" menu). For launch we offer only
-    // English + Tamil, so we HIDE the others. Hiding (not deleting) keeps the
-    // engine's language logic intact. Matches by data-lang AND by visible text.
-    function pruneExtraLanguages() {
-      try {
-        var KEEP_LANGS = ["EN", "TA"];
-        var DROP_TEXT = /telugu|hindi|kannada|malayalam|తెలుగు|हिन्दी|हिंदी|ಕನ್ನಡ|മലയാളം/i;
-        document.querySelectorAll("button, a, [role='option'], li").forEach(function (el) {
-          // Skip containers with lots of children (don't hide whole panels).
-          if (el.children && el.children.length > 2) return;
-          var dl = el.getAttribute && el.getAttribute("data-lang");
-          if (dl && KEEP_LANGS.indexOf(dl.toUpperCase()) === -1) { el.style.display = "none"; return; }
-          // Text-labelled language buttons without data-lang.
-          var txt = (el.textContent || "").trim();
-          if (!dl && txt.length < 40 && DROP_TEXT.test(txt)) { el.style.display = "none"; }
-        });
-      } catch (e) { if (window.console) console.warn("pruneExtraLanguages failed:", e); }
-    }
-    window.pruneExtraLanguages = pruneExtraLanguages;
-    // Self-heal on a gentle interval only. (We deliberately do NOT observe the
-    // whole document for mutations: pruneExtraLanguages itself changes element
-    // styles, which would retrigger a body-wide observer in a feedback loop.)
-    setInterval(function () { try { pruneExtraLanguages(); } catch (e) {} }, 800);
-    pruneExtraLanguages();
+    // NOTE: language limiting (English + Tamil only) is handled by the
+    // INDEPENDENT block at the very end of this file (outside the closure), so it
+    // runs reliably regardless of anything in this closure. See AI_pruneLanguages.
 
     // ── PLAIN-LANGUAGE + GENTLE-WORDING LAYER (reports only) ─────────────────
     // Turns the engine's technical astrology text into clear plain English and
@@ -1583,4 +1560,37 @@ const CONSULT_CONFIG = {
     }
 
   });
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  INDEPENDENT LANGUAGE LIMITER (English + Tamil only).
+//  Deliberately OUTSIDE the main closure so it runs no matter what happens above.
+//  Hides the extra-language buttons in BOTH the top i18n toggle and the
+//  references "Translate" menu. Self-contained: its own interval + DOM hooks.
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
+  var KEEP = ["EN", "TA"];
+  var DROP = /telugu|hindi|kannada|malayalam|తెలుగు|हिन्दी|हिंदी|ಕನ್ನಡ|മലയാളം/i;
+  function prune() {
+    try {
+      var nodes = document.querySelectorAll("button, a, [role='option'], li");
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (el.children && el.children.length > 2) continue;
+        var dl = el.getAttribute && el.getAttribute("data-lang");
+        if (dl && KEEP.indexOf(dl.toUpperCase()) === -1) { el.style.display = "none"; continue; }
+        if (!dl) {
+          var txt = (el.textContent || "").trim();
+          if (txt.length < 40 && DROP.test(txt)) el.style.display = "none";
+        }
+      }
+    } catch (e) {}
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", prune);
+  } else {
+    prune();
+  }
+  setInterval(prune, 700);
+  window.AI_pruneLanguages = prune;
 })();
