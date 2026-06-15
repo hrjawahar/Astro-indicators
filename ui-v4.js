@@ -1760,3 +1760,144 @@ const CONSULT_CONFIG = {
   } else { ensureButton(); }
   setInterval(ensureButton, 1000);
 })();
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CUSTOMER REVIEWS (testimonials).  Independent block, outside the main closure.
+//  • Approved reviews shown as static cards on the input (first) screen.
+//  • A "Leave a Review" form near the Contact tab, with a privacy popup that
+//    tells users they may use a changed name. Submissions are PENDING until the
+//    owner approves them in the D1 console. EN + TA aware (reads jyotish-lang).
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
+  function lang() { try { return localStorage.getItem("jyotish-lang") === "TA" ? "TA" : "EN"; } catch (e) { return "EN"; } }
+  var T = {
+    heading:   { EN: "What our users say", TA: "எங்கள் பயனர்கள் கூறுவது" },
+    leaveBtn:  { EN: "✍ Leave a Review", TA: "✍ உங்கள் கருத்தை பகிரவும்" },
+    privacy:   { EN: "Your privacy matters. You may use a different name or initials instead of your real name — your review will display exactly as you enter it.",
+                 TA: "உங்கள் தனியுரிமை முக்கியம். உங்கள் உண்மையான பெயருக்குப் பதிலாக வேறு பெயரையோ அல்லது முதலெழுத்துக்களையோ பயன்படுத்தலாம் — நீங்கள் உள்ளிடும் விதத்திலேயே உங்கள் கருத்து காண்பிக்கப்படும்." },
+    gotit:     { EN: "Got it", TA: "சரி" },
+    formTitle: { EN: "Share your experience", TA: "உங்கள் அனுபவத்தைப் பகிரவும்" },
+    namePh:    { EN: "Name to display (or leave blank)", TA: "காண்பிக்க பெயர் (அல்லது காலியாக விடவும்)" },
+    placePh:   { EN: "Place (optional)", TA: "இடம் (விருப்பத்திற்கு)" },
+    anon:      { EN: "Post anonymously", TA: "அநாமதேயமாக பதிவிடுங்கள்" },
+    reviewPh:  { EN: "Write your review…", TA: "உங்கள் கருத்தை எழுதுங்கள்…" },
+    submit:    { EN: "Submit", TA: "சமர்ப்பிக்கவும்" },
+    thanks:    { EN: "Thank you! Your review has been submitted and will appear after approval.", TA: "நன்றி! உங்கள் கருத்து சமர்ப்பிக்கப்பட்டது, ஒப்புதலுக்குப் பிறகு காண்பிக்கப்படும்." },
+    empty:     { EN: "", TA: "" },
+  };
+  function t(k) { return (T[k] && T[k][lang()]) || (T[k] && T[k].EN) || ""; }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  // ── Load + render approved reviews as static cards on the input screen ──
+  function renderCards() {
+    var host = document.getElementById("reviewCards");
+    if (!host) return;
+    fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var list = (d && d.reviews) || [];
+        if (!list.length) { host.innerHTML = ""; return; }
+        host.innerHTML =
+          "<div style='font-weight:700;color:#c9a84c;font-size:16px;margin:6px 0 12px;text-align:center'>" + esc(t("heading")) + "</div>" +
+          "<div style='display:flex;flex-wrap:wrap;gap:12px;justify-content:center'>" +
+          list.map(function (rv) {
+            var who = esc(rv.name || "Anonymous") + (rv.place ? ", " + esc(rv.place) : "");
+            return "<div style='background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.3);border-radius:10px;padding:14px 16px;max-width:280px;flex:1 1 240px'>" +
+              "<div style='color:#e8e2d4;font-size:13.5px;line-height:1.6;font-style:italic'>“" + esc(rv.body) + "”</div>" +
+              "<div style='color:#c9a84c;font-size:12px;margin-top:8px;font-weight:600'>— " + who + "</div></div>";
+          }).join("") + "</div>";
+      })
+      .catch(function () {});
+  }
+
+  // ── Privacy popup, shown before the form ──
+  function showPrivacyThen(cb) {
+    if (document.getElementById("revPrivacy")) return;
+    var ov = document.createElement("div");
+    ov.id = "revPrivacy";
+    ov.style.cssText = "position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.innerHTML =
+      "<div style='background:#1a1f33;border:1px solid #c9a84c;border-radius:14px;max-width:440px;padding:24px;text-align:center;color:#e8e2d4;font-family:inherit;line-height:1.7'>" +
+      "<div style='font-size:14.5px;margin-bottom:18px'>" + esc(t("privacy")) + "</div>" +
+      "<button id='revPrivacyOk' style='background:#c9a84c;color:#1a1f33;border:none;border-radius:8px;padding:9px 26px;font-weight:700;cursor:pointer'>" + esc(t("gotit")) + "</button>" +
+      "</div>";
+    document.body.appendChild(ov);
+    ov.querySelector("#revPrivacyOk").addEventListener("click", function () { ov.remove(); cb && cb(); });
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+  }
+
+  // ── Review submission form (modal) ──
+  function openForm() {
+    if (document.getElementById("revForm")) return;
+    var ov = document.createElement("div");
+    ov.id = "revForm";
+    ov.style.cssText = "position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.innerHTML =
+      "<div style='background:#1a1f33;border:1px solid #c9a84c;border-radius:14px;max-width:460px;width:100%;padding:22px;color:#e8e2d4;font-family:inherit'>" +
+      "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'>" +
+        "<div style='font-weight:700;color:#c9a84c;font-size:16px'>" + esc(t("formTitle")) + "</div>" +
+        "<button id='revClose' style='background:transparent;color:#c9a84c;border:none;font-size:24px;cursor:pointer;line-height:1'>&times;</button>" +
+      "</div>" +
+      "<input id='revName' placeholder='" + esc(t("namePh")) + "' style='width:100%;box-sizing:border-box;margin-bottom:10px;padding:9px 11px;border-radius:8px;border:1px solid rgba(201,168,76,.4);background:#12162a;color:#e8e2d4;font-size:14px'>" +
+      "<input id='revPlace' placeholder='" + esc(t("placePh")) + "' style='width:100%;box-sizing:border-box;margin-bottom:10px;padding:9px 11px;border-radius:8px;border:1px solid rgba(201,168,76,.4);background:#12162a;color:#e8e2d4;font-size:14px'>" +
+      "<label style='display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;cursor:pointer'><input type='checkbox' id='revAnon'> " + esc(t("anon")) + "</label>" +
+      "<textarea id='revBody' placeholder='" + esc(t("reviewPh")) + "' rows='4' style='width:100%;box-sizing:border-box;margin-bottom:12px;padding:9px 11px;border-radius:8px;border:1px solid rgba(201,168,76,.4);background:#12162a;color:#e8e2d4;font-size:14px;resize:vertical'></textarea>" +
+      "<button id='revSubmit' style='width:100%;background:#c9a84c;color:#1a1f33;border:none;border-radius:8px;padding:11px;font-weight:700;font-size:15px;cursor:pointer'>" + esc(t("submit")) + "</button>" +
+      "<div id='revMsg' style='margin-top:10px;font-size:13px;color:#c9a84c;text-align:center'></div>" +
+      "</div>";
+    document.body.appendChild(ov);
+    ov.querySelector("#revClose").addEventListener("click", function () { ov.remove(); });
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+    ov.querySelector("#revSubmit").addEventListener("click", function () {
+      var body = ov.querySelector("#revBody").value.trim();
+      var msg = ov.querySelector("#revMsg");
+      if (!body) { msg.textContent = "Please write your review."; return; }
+      var payload = {
+        action: "submit",
+        body: body,
+        displayName: ov.querySelector("#revName").value,
+        place: ov.querySelector("#revPlace").value,
+        anonymous: ov.querySelector("#revAnon").checked,
+      };
+      ov.querySelector("#revSubmit").disabled = true;
+      fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok) { msg.style.color = "#7ec77e"; msg.textContent = t("thanks"); setTimeout(function () { ov.remove(); }, 2600); }
+          else { msg.textContent = (d && d.error) || "Could not submit."; ov.querySelector("#revSubmit").disabled = false; }
+        })
+        .catch(function () { msg.textContent = "Could not submit. Please try again."; ov.querySelector("#revSubmit").disabled = false; });
+    });
+  }
+  function startReview() { showPrivacyThen(openForm); }
+  window.AI_openReviewForm = startReview;
+
+  // ── Inject the cards host (first screen) + the Leave-a-Review button (Contact) ──
+  function ensureUI() {
+    try {
+      // Cards on the input (first) screen.
+      var input = document.getElementById("inputTab");
+      if (input && !document.getElementById("reviewCards")) {
+        var cards = document.createElement("div");
+        cards.id = "reviewCards";
+        cards.style.cssText = "margin:22px auto 0;max-width:900px";
+        var card = input.querySelector("[class*='card'], .input-card") || input;
+        card.appendChild(cards);
+        renderCards();
+      }
+      // "Leave a Review" button near the Contact tab.
+      var contact = document.getElementById("contactTab");
+      if (contact && !document.getElementById("revOpenBtn")) {
+        var btn = document.createElement("button");
+        btn.id = "revOpenBtn";
+        btn.textContent = t("leaveBtn");
+        btn.style.cssText = "display:block;margin:16px auto;background:#c9a84c;color:#1a1f33;border:none;border-radius:8px;padding:11px 24px;font-size:15px;font-weight:700;cursor:pointer";
+        btn.addEventListener("click", startReview);
+        contact.appendChild(btn);
+      }
+    } catch (e) {}
+  }
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", ensureUI); }
+  else { ensureUI(); }
+  setInterval(ensureUI, 1200);
+})();
