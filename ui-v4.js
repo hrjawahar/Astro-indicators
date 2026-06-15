@@ -1654,3 +1654,109 @@ const CONSULT_CONFIG = {
   setInterval(prune, 700);
   window.AI_pruneLanguages = prune;
 })();
+// ─────────────────────────────────────────────────────────────────────────────
+//  Q&A OVERLAY (English + Tamil).  Independent block, outside the main closure.
+//  Adds a button on the Birth Data (input) screen that opens a panel with EN/TA
+//  tabs. Content is STATIC (pre-written + pre-translated) — no runtime AI.
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
+  var QA_EN = [
+    ["How do I use this site?",
+     "A simple step-by-step flow:<br>• <b>Enter your birth details</b> — date, time, and place of birth.<br>• <b>Horoscope Chart</b> — generated instantly <i>(Free)</i>.<br>• <b>Dasha Bhukti Report</b> — your planetary period indications <i>(Paid)</i>.<br>• <b>Life Domains</b> — indications across the key areas of your life <i>(Paid)</i>.<br>• <b>Summary</b> — an overview of your chart <i>(Free)</i>.<br>• <b>References</b> — guides to houses, planets, and concepts <i>(Free)</i>.<br>• <b>Personal Consultation</b> — one-on-one guidance <i>(Paid)</i>.<br>• <b>Contact Us</b> — reach us with any questions or feedback."],
+    ["What's free and what's paid?",
+     "Free: entering your birth details, your Horoscope Chart, the Summary, the References guides, and previewing a sample report. Paid: the full Dasha Bhukti Report, the Life Domains report, and Personal Consultations. You can explore everything that's free before deciding to purchase."],
+    ["How should I read this report?",
+     "Treat everything in your report as an <i>indication</i>, not a fixed destiny. Vedic astrology points to tendencies and possibilities based on your chart — it does not dictate certainties. How any indication actually unfolds depends on many personal factors: your choices, environment, upbringing, effort, and circumstances. Two people with similar placements can experience them quite differently. Use the report as thoughtful guidance for reflection, not as a fixed prediction."],
+    ["Are the indications specific to me, or generic?",
+     "Every indication is drawn specifically from the birth details you provide — your date, time, and place of birth. Nothing in your report is generic filler. The calculations use the Swiss Ephemeris (the same precision standard used by professional astrologers), so your report reflects your unique chart."],
+    ["Do I have to pay again to download my report later?",
+     "No. Once you've paid for a report, it's yours. You can download it again anytime — in English or Tamil — without paying again, as long as you use the same birth details. A new set of birth details is treated as a new chart and requires a separate purchase."],
+    ["Can I get a personal consultation?",
+     "Yes. If you'd like personalized guidance beyond the automated reports, personal consultations are available — see the Personal Consultation tab to book one."],
+    ["How do I share feedback or get help?",
+     "We'd love to hear from you. Use the Contact Us tab to send any questions, suggestions, or feedback."],
+    ["Which languages are available?",
+     "Reports are currently available in English and Tamil. Choose your language using the toggle at the top of the page, and download your report in either language at no extra cost."]
+  ];
+  var QA_TA = [
+    ["இந்த இணையதளத்தை எவ்வாறு பயன்படுத்துவது?",
+     "எளிய படிநிலை:<br>• <b>உங்கள் பிறப்பு விவரங்களை உள்ளிடுங்கள்</b> — பிறந்த தேதி, நேரம், இடம்.<br>• <b>ஜாதகம்</b> — உடனடியாக உருவாக்கப்படும் <i>(இலவசம்)</i>.<br>• <b>தசா புக்தி அறிக்கை</b> — உங்கள் கிரக கால அறிகுறிகள் <i>(கட்டணம்)</i>.<br>• <b>வாழ்க்கைத் துறைகள்</b> — உங்கள் வாழ்வின் முக்கிய பகுதிகள் குறித்த அறிகுறிகள் <i>(கட்டணம்)</i>.<br>• <b>சுருக்கம்</b> — உங்கள் ஜாதகத்தின் ஒரு மேலோட்டப் பார்வை <i>(இலவசம்)</i>.<br>• <b>குறிப்புகள்</b> — வீடுகள், கிரகங்கள், கருத்துகள் பற்றிய வழிகாட்டிகள் <i>(இலவசம்)</i>.<br>• <b>தனிப்பட்ட ஆலோசனை</b> — நேரடி வழிகாட்டுதல் <i>(கட்டணம்)</i>.<br>• <b>தொடர்பு கொள்ளவும்</b> — கேள்விகள் அல்லது கருத்துகளுக்கு எங்களை அணுகவும்."],
+    ["எது இலவசம், எது கட்டணம்?",
+     "இலவசம்: பிறப்பு விவரங்களை உள்ளிடுவது, உங்கள் ஜாதகம், சுருக்கம், குறிப்பு வழிகாட்டிகள், மற்றும் மாதிரி அறிக்கையைப் பார்ப்பது. கட்டணம்: முழு தசா புக்தி அறிக்கை, வாழ்க்கைத் துறைகள் அறிக்கை, மற்றும் தனிப்பட்ட ஆலோசனைகள். வாங்குவதற்கு முன், இலவசமாக உள்ள அனைத்தையும் நீங்கள் பார்வையிடலாம்."],
+    ["இந்த அறிக்கையை எவ்வாறு புரிந்துகொள்வது?",
+     "உங்கள் அறிக்கையில் உள்ள அனைத்தையும் ஒரு <i>அறிகுறியாகக்</i> கருதுங்கள், மாறாத விதியாக அல்ல. வேத ஜோதிடம் உங்கள் ஜாதகத்தின் அடிப்படையில் சாத்தியங்களையும் போக்குகளையும் சுட்டிக்காட்டுகிறது — அது உறுதியான முடிவுகளைத் தீர்மானிப்பதில்லை. எந்த ஒரு அறிகுறியும் எவ்வாறு வெளிப்படுகிறது என்பது பல தனிப்பட்ட காரணிகளைச் சார்ந்தது: உங்கள் தேர்வுகள், சூழல், வளர்ப்பு, முயற்சி, மற்றும் சூழ்நிலைகள். ஒரே மாதிரியான கிரக நிலைகளைக் கொண்ட இருவர் அவற்றை வெவ்வேறு விதமாக அனுபவிக்கலாம். இந்த அறிக்கையை ஒரு உறுதியான கணிப்பாக அல்லாமல், சிந்தனைக்கான வழிகாட்டுதலாகப் பயன்படுத்துங்கள்."],
+    ["அறிகுறிகள் எனக்கு மட்டும் உரியதா, அல்லது பொதுவானதா?",
+     "ஒவ்வொரு அறிகுறியும் நீங்கள் வழங்கிய பிறப்பு விவரங்களிலிருந்து — உங்கள் பிறந்த தேதி, நேரம், இடம் — குறிப்பாக எடுக்கப்பட்டது. உங்கள் அறிக்கையில் பொதுவான, அர்த்தமற்ற உள்ளடக்கம் எதுவும் இல்லை. கணக்கீடுகள் Swiss Ephemeris (ஸ்விஸ் எபிமெரிஸ் — தொழில்முறை ஜோதிடர்கள் பயன்படுத்தும் அதே துல்லிய தரநிலை) மூலம் செய்யப்படுகின்றன, எனவே உங்கள் அறிக்கை உங்கள் தனிப்பட்ட ஜாதகத்தைப் பிரதிபலிக்கிறது."],
+    ["அறிக்கையை மீண்டும் பதிவிறக்கம் செய்ய மீண்டும் கட்டணம் செலுத்த வேண்டுமா?",
+     "வேண்டாம். ஒரு அறிக்கைக்கு நீங்கள் ஒருமுறை கட்டணம் செலுத்திவிட்டால், அது உங்களுடையது. அதே பிறப்பு விவரங்களைப் பயன்படுத்தும் வரை, அதை எப்போது வேண்டுமானாலும் — ஆங்கிலத்திலோ தமிழிலோ — மீண்டும் கட்டணம் இல்லாமல் பதிவிறக்கம் செய்யலாம். புதிய பிறப்பு விவரங்கள் ஒரு புதிய ஜாதகமாகக் கருதப்பட்டு, தனியாகக் கட்டணம் தேவைப்படும்."],
+    ["தனிப்பட்ட ஆலோசனை பெற முடியுமா?",
+     "ஆம். தானியங்கி அறிக்கைகளுக்கு அப்பால் தனிப்பட்ட வழிகாட்டுதல் தேவைப்பட்டால், தனிப்பட்ட ஆலோசனைகள் கிடைக்கின்றன — பதிவு செய்ய 'தனிப்பட்ட ஆலோசனை' தாவலைப் பார்க்கவும்."],
+    ["கருத்து தெரிவிக்க அல்லது உதவி பெற எப்படி?",
+     "உங்கள் கருத்தை அறிய நாங்கள் விரும்புகிறோம். ஏதேனும் கேள்விகள், ஆலோசனைகள் அல்லது கருத்துகளை அனுப்ப 'தொடர்பு கொள்ளவும்' தாவலைப் பயன்படுத்தவும்."],
+    ["எந்தெந்த மொழிகள் கிடைக்கின்றன?",
+     "அறிக்கைகள் தற்போது ஆங்கிலம் மற்றும் தமிழில் கிடைக்கின்றன. பக்கத்தின் மேற்பகுதியில் உள்ள மொழிபெயர்ப்பு பட்டன் மூலம் உங்கள் மொழியைத் தேர்வுசெய்து, கூடுதல் கட்டணம் இல்லாமல் இரு மொழிகளிலும் உங்கள் அறிக்கையைப் பதிவிறக்கம் செய்யலாம்."]
+  ];
+
+  function buildList(pairs) {
+    return pairs.map(function (qa, i) {
+      return "<div style='margin-bottom:18px'>" +
+        "<div style='font-weight:700;color:#c9a84c;font-size:15px;margin-bottom:5px'>" + (i + 1) + ". " + qa[0] + "</div>" +
+        "<div style='color:#e8e2d4;font-size:14px;line-height:1.7'>" + qa[1] + "</div></div>";
+    }).join("");
+  }
+
+  function openQA() {
+    if (document.getElementById("qaOverlay")) return;
+    var ov = document.createElement("div");
+    ov.id = "qaOverlay";
+    ov.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.innerHTML =
+      "<div style='background:#1a1f33;border:1px solid #c9a84c;border-radius:14px;max-width:620px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;font-family:inherit'>" +
+        "<div style='display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(201,168,76,.3)'>" +
+          "<div style='display:flex;gap:8px'>" +
+            "<button id='qaTabEN' class='qa-tab' style='background:#c9a84c;color:#1a1f33;border:none;border-radius:7px;padding:7px 16px;font-weight:700;cursor:pointer'>English</button>" +
+            "<button id='qaTabTA' class='qa-tab' style='background:transparent;color:#c9a84c;border:1px solid #c9a84c;border-radius:7px;padding:7px 16px;font-weight:700;cursor:pointer'>தமிழ்</button>" +
+          "</div>" +
+          "<button id='qaClose' style='background:transparent;color:#c9a84c;border:none;font-size:24px;cursor:pointer;line-height:1'>&times;</button>" +
+        "</div>" +
+        "<div id='qaBody' style='padding:20px;overflow-y:auto'></div>" +
+      "</div>";
+    document.body.appendChild(ov);
+    var body = ov.querySelector("#qaBody");
+    var tEN = ov.querySelector("#qaTabEN"), tTA = ov.querySelector("#qaTabTA");
+    function show(lang) {
+      body.innerHTML = buildList(lang === "TA" ? QA_TA : QA_EN);
+      var onEN = lang !== "TA";
+      tEN.style.background = onEN ? "#c9a84c" : "transparent"; tEN.style.color = onEN ? "#1a1f33" : "#c9a84c";
+      tTA.style.background = onEN ? "transparent" : "#c9a84c"; tTA.style.color = onEN ? "#c9a84c" : "#1a1f33";
+    }
+    tEN.addEventListener("click", function () { show("EN"); });
+    tTA.addEventListener("click", function () { show("TA"); });
+    ov.querySelector("#qaClose").addEventListener("click", function () { ov.remove(); });
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+    // Default to the currently selected app language.
+    var cur = "EN";
+    try { cur = localStorage.getItem("jyotish-lang") === "TA" ? "TA" : "EN"; } catch (e) {}
+    show(cur);
+  }
+  window.AI_openQA = openQA;
+
+  // Inject a Q&A button onto the input (Birth Data) screen.
+  function ensureButton() {
+    try {
+      var input = document.getElementById("inputTab");
+      if (!input || input.querySelector("#qaOpenBtn")) return;
+      var btn = document.createElement("button");
+      btn.id = "qaOpenBtn";
+      btn.textContent = "❓ Q&A · கேள்விகள்";
+      btn.style.cssText = "display:block;margin:14px auto 0;background:transparent;color:#c9a84c;border:1px solid #c9a84c;border-radius:8px;padding:9px 20px;font-size:14px;font-weight:600;cursor:pointer";
+      btn.addEventListener("click", openQA);
+      var card = input.querySelector("[class*='card'], .input-card") || input.firstElementChild || input;
+      card.appendChild(btn);
+    } catch (e) {}
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ensureButton);
+  } else { ensureButton(); }
+  setInterval(ensureButton, 1000);
+})();
