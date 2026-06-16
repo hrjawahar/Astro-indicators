@@ -584,9 +584,11 @@ const CONSULT_CONFIG = {
 
         // One network attempt with a hard timeout, so a stalled QUIC/HTTP call
         // can't hang forever — it aborts and the retry wrapper tries again.
+        // 180s: long Dasa sections (full MD/AD text) need more than 90s; the
+        // shorter timeout was aborting them mid-stream and forcing retries.
         function attemptOnce() {
           var ctrl = new AbortController();
-          var timer = setTimeout(function () { ctrl.abort(); }, 90000);  // 90s cap
+          var timer = setTimeout(function () { ctrl.abort(); }, 180000);  // 180s cap
           return fetch("/api/indicate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -626,7 +628,7 @@ const CONSULT_CONFIG = {
               .then(function () { return withRetry(attemptsLeft - 1, delay * 2); });
           });
         }
-        return withRetry(3, 1500);
+        return withRetry(4, 1500);
       }
 
       // Run in BATCHES of 4 in parallel — ~4x faster than sequential, while
