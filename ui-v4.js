@@ -1903,3 +1903,151 @@ const CONSULT_CONFIG = {
   else { ensureUI(); }
   setInterval(ensureUI, 1200);
 })();
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SAMPLE REPORT OVERLAY (English + Tamil).  Independent block.
+//  Repoints the existing "மாதிரி அறிக்கை" (Sample Report) button to show a
+//  representative EXCERPT of both reports, with EN | TA tabs (like the Q&A).
+//  Content is STATIC (pre-written + pre-translated) — no runtime AI.
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
+  var SAMPLE_EN =
+    "<div style='text-align:center;color:#c9a84c;font-weight:700;font-size:13px;letter-spacing:.08em;margin-bottom:14px'>SAMPLE — for preview only</div>" +
+    "<h3 style='color:#c9a84c;font-size:16px;margin:0 0 4px'>Dasha Bhukti Period Indications</h3>" +
+    "<div style='color:#9aa0b5;font-size:12px;margin-bottom:14px'>A sample showing the depth and style of the full report.</div>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>Understanding Your Dasha Periods</div>" +
+    "<p>Your life unfolds through a sequence of planetary periods. A <b>Mahadasha (MD)</b> is a major life chapter — a long season running for several years, during which one planet sets the overall theme of your life. Within each season are shorter <b>Antardasha (AD)</b> sub-periods, where a second planet colours that main theme, shifting the tone from one stretch of time to the next. Your full report covers your previous, current, and next chapters — the current one in complete detail.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>Your Complete 120-Year Dasha Timeline</div>" +
+    "<p>1. Saturn Mahadasha — 1980 to 1994 (14.8 years)<br>2. Mercury Mahadasha — 1994 to 2011 (17 years)<br>3. Ketu Mahadasha — 2011 to 2018 (7 years)<br>4. Venus Mahadasha — 2018 to 2038 (20 years) — <b>CURRENT</b><br>5. Sun Mahadasha — 2038 to 2044 (6 years)<br>…continuing through all nine Mahadashas across 120 years.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>Current Period Overview: Venus Mahadasha (2018–2038, 20 years)</div>" +
+    "<p>Your Venus Mahadasha unfolds as a mixed season. As your ascendant lord placed in the 7th house of partnerships, Venus brings relationship and collaboration themes strongly to the forefront — significant partnerships that test your independence and reshape how you see yourself and how the world perceives you. Saturn's aspect onto the 7th provides both protection and delay, stabilizing commitments through patience while bringing karmic weight to relationships.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>Sample Sub-Period: Venus — Sun Antardasha (2022–2023)</div>" +
+    "<p><i>Career & Profession:</i> The Sun in the 6th house creates a competitive work environment — increased competition, disputes with colleagues, or office politics, requiring you to prove your competence rather than enjoy smooth advancement.<br><i>Relationships & Marriage:</i> Your spouse or partner may become more demanding or distant, with ego clashes or differing goals creating friction around finances and life direction.<br><i>Finances & Wealth:</i> Income may come through effort and competitive work — but expenses around obligations or disputes can drain it as quickly as it arrives.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>Sample Sub-Period: Venus — Moon Antardasha (2023–2024)</div>" +
+    "<p><i>Career & Profession:</i> With the Moon ruling and placed in your 10th house of profession, your career comes sharply into focus — visibility and recognition opportunities arise, though they bring workplace pressure and possible repositioning driven by inner restlessness.<br><i>Relationships & Marriage:</i> Emotional sensitivity heightens; the need for stability in close relationships grows, and professional demands may compete with personal time.</p>" +
+
+    "<p style='color:#9aa0b5;font-style:italic;margin-top:10px'>…your full report details every Antardasha sub-period of your current Mahadasha at this depth, plus overviews of your previous and next chapters, and the option to request any other Mahadasha in full.</p>" +
+
+    "<hr style='border:none;border-top:1px dotted #c9a84c;margin:22px 0'>" +
+
+    "<h3 style='color:#c9a84c;font-size:16px;margin:0 0 4px'>Life Domains Indications</h3>" +
+    "<div style='color:#9aa0b5;font-size:12px;margin-bottom:14px'>A sample showing the depth and style of the full report.</div>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>How to Read This Report</div>" +
+    "<p>Every indication here is drawn specifically from your own D1 (Birth chart) and D9 (Navamsha chart) placements — not from anything generic. D1 describes outer life as it plays out day to day; D9 describes the inner, soul-level foundation — durability and depth.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>The Dominant Planetary Axis</div>" +
+    "<p>This chart carries a Raja signature, with an inherent capacity for visible achievement, social standing, and recognition. The dominant axis is 5–11: creativity and community — individual expression and collective belonging are the central motifs the whole life revolves around.</p>" +
+
+    "<p><b>Identity & Personality</b> — <i>Peak Comes Early:</i> your strongest, clearest sense of self lands earlier in life — lean into it then, as the qualities you build early become your lasting signature.</p>" +
+    "<p><b>Wealth & Family</b> — <i>Foundation Holds:</i> the practical side of money and family is solid and reliable; the deeper sense of 'enough' may still be settling, so security can feel less certain than it actually is.</p>" +
+    "<p><b>Marriage & Relationship</b> — <i>Foundation Holds:</i> your relationships are practically stable and committed; the emotional depth may still be maturing, so they can feel less settled inside than they look.</p>" +
+    "<p><b>Career & Ambition</b> — <i>Peak Comes Early:</i> your strongest career-building window lands earlier — push for position and skill then, as that groundwork carries the rest of your working life.</p>" +
+    "<p><b>Health & Vitality</b> — <i>Peak Comes Early:</i> your most robust health window is earlier in life — the habits you set then largely determine how well vitality holds later.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>Specific Indications From Your Chart (a glimpse)</div>" +
+    "<p><i>Venus in 7th — natural partner magnetism:</i> a favourable placement for partnership, with a natural capacity for harmony and a refined, socially skilled partner.</p>" +
+
+    "<p style='color:#9aa0b5;font-style:italic;margin-top:10px'>…your full report also includes multi-factor life-pattern indications — compound probability signals drawn from several placements at once.</p>";
+
+  var SAMPLE_TA =
+    "<div style='text-align:center;color:#c9a84c;font-weight:700;font-size:13px;letter-spacing:.08em;margin-bottom:14px'>மாதிரி — முன்னோட்டத்திற்கு மட்டும்</div>" +
+    "<h3 style='color:#c9a84c;font-size:16px;margin:0 0 4px'>தசா புக்தி கால அறிகுறிகள்</h3>" +
+    "<div style='color:#9aa0b5;font-size:12px;margin-bottom:14px'>முழு அறிக்கையின் ஆழத்தையும் பாணியையும் காட்டும் ஒரு மாதிரி.</div>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>உங்கள் தசா காலங்களைப் புரிந்துகொள்ளுதல்</div>" +
+    "<p>உங்கள் வாழ்க்கை கிரக காலங்களின் வரிசையாக விரிகிறது. ஒரு <b>மகா தசை (MD)</b> என்பது ஒரு முக்கிய வாழ்க்கை அத்தியாயம் — பல வருடங்கள் நீளும் ஒரு நீண்ட பருவம், அதில் ஒரு கிரகம் உங்கள் வாழ்வின் ஒட்டுமொத்த மையக் கருத்தை அமைக்கிறது. ஒவ்வொரு பருவத்திற்குள்ளும் குறுகிய <b>புக்தி (AD)</b> துணைக்காலங்கள் உள்ளன, அதில் இரண்டாவது கிரகம் அந்த மையக் கருத்துக்கு வண்ணம் சேர்த்து, ஒரு கால கட்டத்திலிருந்து அடுத்ததற்கு தொனியை மாற்றுகிறது. உங்கள் முழு அறிக்கை உங்கள் முந்தைய, தற்போதைய மற்றும் அடுத்த அத்தியாயங்களை உள்ளடக்கியது — தற்போதையது முழுமையான விவரத்துடன்.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>உங்கள் முழுமையான 120-வருட தசா காலவரிசை</div>" +
+    "<p>1. சனி மகா தசை — 1980 முதல் 1994 வரை (14.8 வருடங்கள்)<br>2. புதன் மகா தசை — 1994 முதல் 2011 வரை (17 வருடங்கள்)<br>3. கேது மகா தசை — 2011 முதல் 2018 வரை (7 வருடங்கள்)<br>4. சுக்கிர மகா தசை — 2018 முதல் 2038 வரை (20 வருடங்கள்) — <b>தற்போதையது</b><br>5. சூரிய மகா தசை — 2038 முதல் 2044 வரை (6 வருடங்கள்)<br>…மொத்தம் ஒன்பது மகா தசைகளாக 120 வருடங்கள் வரை தொடர்கிறது.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>தற்போதைய கால மேலோட்டம்: சுக்கிர மகா தசை (2018–2038, 20 வருடங்கள்)</div>" +
+    "<p>உங்கள் சுக்கிர மகா தசை ஒரு கலப்புப் பருவமாக விரிகிறது. உங்கள் லக்னாதிபதியாக 7வது வீட்டில் (கூட்டாண்மை) அமைந்திருப்பதால், சுக்கிரன் உறவு மற்றும் கூட்டுறவுக் கருத்துகளை முன்னணிக்குக் கொண்டுவருகிறது — உங்கள் சுதந்திரத்தைச் சோதிக்கும், நீங்கள் உங்களை எவ்வாறு பார்க்கிறீர்கள் என்பதையும் உலகம் உங்களை எவ்வாறு உணர்கிறது என்பதையும் மறுவடிவமைக்கும் முக்கியமான கூட்டாண்மைகள். 7வது வீட்டின் மீதான சனியின் பார்வை பாதுகாப்பையும் தாமதத்தையும் தருகிறது — பொறுமையின் மூலம் உறுதிப்பாடுகளை நிலைப்படுத்துகிறது.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>மாதிரி துணைக்காலம்: சுக்கிரன் — சூரிய புக்தி (2022–2023)</div>" +
+    "<p><i>தொழில் & வாழ்க்கைத் தொழில்:</i> 6வது வீட்டில் சூரியன் அமைவது போட்டி நிறைந்த பணிச்சூழலை உருவாக்குகிறது — அதிகரித்த போட்டி, சக ஊழியர்களுடன் கருத்து வேறுபாடுகள் அல்லது அலுவலக அரசியல், சுமூகமான முன்னேற்றத்தைவிட உங்கள் திறமையை நிரூபிக்க வேண்டிய நிலை.<br><i>உறவு & திருமணம்:</i> உங்கள் துணை அல்லது கூட்டாளி அதிக கோரிக்கை வைப்பவராகவோ அல்லது விலகியவராகவோ மாறலாம்; சுய மரியாதை மோதல்கள் அல்லது வேறுபட்ட இலக்குகள் நிதி மற்றும் வாழ்க்கைப் பாதையில் உராய்வை உருவாக்கலாம்.<br><i>நிதி & செல்வம்:</i> வருமானம் முயற்சி மற்றும் போட்டிப் பணியின் மூலம் வரலாம் — ஆனால் கடமைகள் அல்லது சர்ச்சைகள் தொடர்பான செலவுகள் அதை விரைவாகவே வடிகட்டிவிடலாம்.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>மாதிரி துணைக்காலம்: சுக்கிரன் — சந்திர புக்தி (2023–2024)</div>" +
+    "<p><i>தொழில் & வாழ்க்கைத் தொழில்:</i> சந்திரன் உங்கள் 10வது வீட்டை (தொழில்) ஆண்டு அங்கேயே அமைந்திருப்பதால், உங்கள் தொழில் கூர்மையான கவனத்திற்கு வருகிறது — தெரிவுநிலை மற்றும் அங்கீகார வாய்ப்புகள் எழுகின்றன, இருப்பினும் அவை பணியிட அழுத்தத்தையும், உள் அமைதியின்மையால் இடமாற்றத்தையும் கொண்டுவரலாம்.<br><i>உறவு & திருமணம்:</i> உணர்வுபூர்வ உணர்திறன் அதிகரிக்கிறது; நெருங்கிய உறவுகளில் நிலைத்தன்மைக்கான தேவை வளர்கிறது, மேலும் தொழில் கோரிக்கைகள் தனிப்பட்ட நேரத்துடன் போட்டியிடலாம்.</p>" +
+
+    "<p style='color:#9aa0b5;font-style:italic;margin-top:10px'>…உங்கள் முழு அறிக்கை உங்கள் தற்போதைய மகா தசையின் ஒவ்வொரு புக்தி துணைக்காலத்தையும் இந்த ஆழத்தில் விவரிக்கிறது, மேலும் உங்கள் முந்தைய மற்றும் அடுத்த அத்தியாயங்களின் மேலோட்டங்கள், மற்றும் வேறு எந்த மகா தசையையும் முழுமையாகக் கோரும் வாய்ப்பு.</p>" +
+
+    "<hr style='border:none;border-top:1px dotted #c9a84c;margin:22px 0'>" +
+
+    "<h3 style='color:#c9a84c;font-size:16px;margin:0 0 4px'>வாழ்க்கைத் துறை அறிகுறிகள்</h3>" +
+    "<div style='color:#9aa0b5;font-size:12px;margin-bottom:14px'>முழு அறிக்கையின் ஆழத்தையும் பாணியையும் காட்டும் ஒரு மாதிரி.</div>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>இந்த அறிக்கையை எவ்வாறு படிப்பது</div>" +
+    "<p>இங்குள்ள ஒவ்வொரு அறிகுறியும் உங்கள் சொந்த D1 (ஜாதகம்) மற்றும் D9 (நவாம்சம்) கிரக அமைவுகளிலிருந்து குறிப்பாக எடுக்கப்பட்டது — பொதுவான எதிலிருந்தும் அல்ல. D1 அன்றாட வெளி வாழ்க்கையை விவரிக்கிறது; D9 உள், ஆன்மீக அளவிலான அடித்தளத்தை — நிலைத்தன்மையையும் ஆழத்தையும் — விவரிக்கிறது.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>முதன்மை கிரக அச்சு</div>" +
+    "<p>இந்த ஜாதகம் ஒரு ராஜ அடையாளத்தைக் கொண்டுள்ளது — புலப்படும் சாதனை, சமூக அந்தஸ்து மற்றும் அங்கீகாரத்திற்கான இயல்பான திறன். முதன்மை அச்சு 5–11: படைப்பாற்றல் மற்றும் சமூகம் — தனிப்பட்ட வெளிப்பாடும் கூட்டு உறுப்புணர்வும் வாழ்க்கை சுற்றிவரும் மையக் கருத்துகள்.</p>" +
+
+    "<p><b>அடையாளம் & ஆளுமை</b> — <i>உச்சம் முன்கூட்டியே வருகிறது:</i> உங்கள் வலுவான, தெளிவான சுய உணர்வு வாழ்க்கையில் முன்னதாகவே வருகிறது — அப்போது அதை நம்பி முன்னேறுங்கள், ஏனெனில் நீங்கள் முன்கூட்டியே உருவாக்கும் பண்புகள் உங்கள் நிரந்தர அடையாளமாகின்றன.</p>" +
+    "<p><b>செல்வம் & குடும்பம்</b> — <i>அடித்தளம் உறுதியாக உள்ளது:</i> பணம் மற்றும் குடும்பத்தின் நடைமுறைப் பக்கம் உறுதியானது; 'போதும்' என்ற ஆழமான உணர்வு இன்னும் நிலைபெறலாம், எனவே பாதுகாப்பு உண்மையில் இருப்பதைவிடக் குறைவாகத் தோன்றலாம்.</p>" +
+    "<p><b>திருமணம் & உறவு</b> — <i>அடித்தளம் உறுதியாக உள்ளது:</i> உங்கள் உறவுகள் நடைமுறையில் நிலையானவை, அர்ப்பணிப்புள்ளவை; உணர்வு ஆழம் இன்னும் முதிர்ச்சியடையலாம், எனவே அவை வெளியில் தோன்றுவதைவிட உள்ளே குறைவாக நிலைபெற்றதாக உணரலாம்.</p>" +
+    "<p><b>தொழில் & லட்சியம்</b> — <i>உச்சம் முன்கூட்டியே வருகிறது:</i> உங்கள் வலுவான தொழில் கட்டமைப்பு காலம் முன்னதாகவே வருகிறது — அப்போது பதவி மற்றும் திறனுக்காக முயலுங்கள், ஏனெனில் அந்த அடித்தளம் உங்கள் வேலை வாழ்க்கையின் மற்ற பகுதிகளைச் சுமக்கிறது.</p>" +
+    "<p><b>ஆரோக்கியம் & வீரியம்</b> — <i>உச்சம் முன்கூட்டியே வருகிறது:</i> உங்கள் வலுவான ஆரோக்கிய காலம் வாழ்க்கையில் முன்னதாகவே — அப்போது நீங்கள் அமைக்கும் பழக்கங்கள் பின்னர் வீரியம் எவ்வளவு நன்றாக நிலைக்கும் என்பதைப் பெரிதும் தீர்மானிக்கின்றன.</p>" +
+
+    "<div style='font-weight:700;color:#e8e2d4;margin:14px 0 4px'>உங்கள் ஜாதகத்திலிருந்து குறிப்பிட்ட அறிகுறிகள் (ஒரு பார்வை)</div>" +
+    "<p><i>7வது வீட்டில் சுக்கிரன் — இயல்பான கூட்டாளி ஈர்ப்பு:</i> கூட்டாண்மைக்கு ஒரு சாதகமான அமைவு, இணக்கத்திற்கான இயல்பான திறனுடன், ஒரு நேர்த்தியான, சமூகத் திறன் கொண்ட துணை.</p>" +
+
+    "<p style='color:#9aa0b5;font-style:italic;margin-top:10px'>…உங்கள் முழு அறிக்கையில் பல-காரணி வாழ்க்கை-முறை அறிகுறிகளும் அடங்கும் — பல அமைவுகளிலிருந்து ஒரே நேரத்தில் எடுக்கப்படும் கூட்டு நிகழ்தகவு சமிக்ஞைகள்.</p>";
+
+  function openSample() {
+    if (document.getElementById("sampleOverlay")) return;
+    var isTA = false;
+    try { isTA = localStorage.getItem("jyotish-lang") === "TA"; } catch (e) {}
+    var ov = document.createElement("div");
+    ov.id = "sampleOverlay";
+    ov.style.cssText = "position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.innerHTML =
+      "<div style='background:#1a1f33;border:1px solid #c9a84c;border-radius:14px;max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;font-family:inherit'>" +
+        "<div style='display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(201,168,76,.3)'>" +
+          "<div style='display:flex;gap:8px'>" +
+            "<button id='smpEN' style='border-radius:7px;padding:7px 16px;font-weight:700;cursor:pointer;border:1px solid #c9a84c'>English</button>" +
+            "<button id='smpTA' style='border-radius:7px;padding:7px 16px;font-weight:700;cursor:pointer;border:1px solid #c9a84c'>தமிழ்</button>" +
+          "</div>" +
+          "<button id='smpClose' style='background:transparent;color:#c9a84c;border:none;font-size:24px;cursor:pointer;line-height:1'>&times;</button>" +
+        "</div>" +
+        "<div id='smpBody' style='padding:20px;overflow-y:auto;color:#d8d2c4;font-size:14px;line-height:1.7'></div>" +
+      "</div>";
+    document.body.appendChild(ov);
+    var body = ov.querySelector("#smpBody"), bEN = ov.querySelector("#smpEN"), bTA = ov.querySelector("#smpTA");
+    function show(ta) {
+      body.innerHTML = ta ? SAMPLE_TA : SAMPLE_EN;
+      bEN.style.background = ta ? "transparent" : "#c9a84c"; bEN.style.color = ta ? "#c9a84c" : "#1a1f33";
+      bTA.style.background = ta ? "#c9a84c" : "transparent"; bTA.style.color = ta ? "#1a1f33" : "#c9a84c";
+      body.scrollTop = 0;
+    }
+    bEN.addEventListener("click", function () { show(false); });
+    bTA.addEventListener("click", function () { show(true); });
+    ov.querySelector("#smpClose").addEventListener("click", function () { ov.remove(); });
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+    show(isTA);
+  }
+  window.AI_openSample = openSample;
+
+  // Repoint the existing "மாதிரி அறிக்கை" (Sample Report) button to our overlay.
+  function wireSampleButton() {
+    try {
+      var btns = document.querySelectorAll("a,button");
+      for (var i = 0; i < btns.length; i++) {
+        var el = btns[i];
+        var txt = (el.textContent || "").trim();
+        if (/மாதிரி அறிக்கை|sample report/i.test(txt) && txt.length < 40 && !el.dataset.smpWired) {
+          el.dataset.smpWired = "1";
+          el.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); openSample(); }, true);
+        }
+      }
+    } catch (e) {}
+  }
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", wireSampleButton); }
+  else { wireSampleButton(); }
+  setInterval(wireSampleButton, 1000);
+})();
