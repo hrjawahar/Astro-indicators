@@ -1933,7 +1933,7 @@ const CONSULT_CONFIG = {
 
     "<p style='color:#9aa0b5;font-style:italic;margin-top:10px'>…your full report details every Antardasha sub-period of your current Mahadasha at this depth, plus overviews of your previous and next chapters, and the option to request any other Mahadasha in full.</p>" +
 
-    "<hr style='border:none;border-top:1px dotted #c9a84c;margin:22px 0'>" +
+"@@SPLIT@@" +
 
     "<h3 style='color:#c9a84c;font-size:16px;margin:0 0 4px'>Life Domains Indications</h3>" +
     "<div style='color:#9aa0b5;font-size:12px;margin-bottom:14px'>A sample showing the depth and style of the full report.</div>" +
@@ -1977,7 +1977,7 @@ const CONSULT_CONFIG = {
 
     "<p style='color:#9aa0b5;font-style:italic;margin-top:10px'>…உங்கள் முழு அறிக்கை உங்கள் தற்போதைய மகா தசையின் ஒவ்வொரு புக்தி துணைக்காலத்தையும் இந்த ஆழத்தில் விவரிக்கிறது, மேலும் உங்கள் முந்தைய மற்றும் அடுத்த அத்தியாயங்களின் மேலோட்டங்கள், மற்றும் வேறு எந்த மகா தசையையும் முழுமையாகக் கோரும் வாய்ப்பு.</p>" +
 
-    "<hr style='border:none;border-top:1px dotted #c9a84c;margin:22px 0'>" +
+"@@SPLIT@@" +
 
     "<h3 style='color:#c9a84c;font-size:16px;margin:0 0 4px'>வாழ்க்கைத் துறை அறிகுறிகள்</h3>" +
     "<div style='color:#9aa0b5;font-size:12px;margin-bottom:14px'>முழு அறிக்கையின் ஆழத்தையும் பாணியையும் காட்டும் ஒரு மாதிரி.</div>" +
@@ -1999,8 +1999,14 @@ const CONSULT_CONFIG = {
 
     "<p style='color:#9aa0b5;font-style:italic;margin-top:10px'>…உங்கள் முழு அறிக்கையில் பல-காரணி வாழ்க்கை-முறை அறிகுறிகளும் அடங்கும் — பல அமைவுகளிலிருந்து ஒரே நேரத்தில் எடுக்கப்படும் கூட்டு நிகழ்தகவு சமிக்ஞைகள்.</p>";
 
-  function openSample() {
+  function openSample(which) {
     if (document.getElementById("sampleOverlay")) return;
+    // which: "dasha" → first half, "domains" → second half. Split on the marker.
+    function half(full) {
+      var parts = full.split("@@SPLIT@@");
+      if (which === "domains") return parts[1] || parts[0];
+      return parts[0];
+    }
     var isTA = false;
     try { isTA = localStorage.getItem("jyotish-lang") === "TA"; } catch (e) {}
     var ov = document.createElement("div");
@@ -2020,7 +2026,7 @@ const CONSULT_CONFIG = {
     document.body.appendChild(ov);
     var body = ov.querySelector("#smpBody"), bEN = ov.querySelector("#smpEN"), bTA = ov.querySelector("#smpTA");
     function show(ta) {
-      body.innerHTML = ta ? SAMPLE_TA : SAMPLE_EN;
+      body.innerHTML = half(ta ? SAMPLE_TA : SAMPLE_EN);
       bEN.style.background = ta ? "transparent" : "#c9a84c"; bEN.style.color = ta ? "#c9a84c" : "#1a1f33";
       bTA.style.background = ta ? "#c9a84c" : "transparent"; bTA.style.color = ta ? "#1a1f33" : "#c9a84c";
       body.scrollTop = 0;
@@ -2033,18 +2039,24 @@ const CONSULT_CONFIG = {
   }
   window.AI_openSample = openSample;
 
-  // Repoint the existing "மாதிரி அறிக்கை" (Sample Report) button to our overlay.
+  // Repoint the two "View Sample Report" buttons. They share a label, so we
+  // distinguish by DOM order: the FIRST is the Dasa sample, the SECOND is the
+  // Life Domains sample (confirmed on the live page). Each opens only its own
+  // report's excerpt, with EN/TA tabs.
   function wireSampleButton() {
     try {
-      var btns = document.querySelectorAll("a,button");
-      for (var i = 0; i < btns.length; i++) {
-        var el = btns[i];
-        var txt = (el.textContent || "").trim();
-        if (/மாதிரி அறிக்கை|sample report/i.test(txt) && txt.length < 40 && !el.dataset.smpWired) {
-          el.dataset.smpWired = "1";
-          el.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); openSample(); }, true);
-        }
+      var all = document.querySelectorAll("a,button");
+      var samples = [];
+      for (var i = 0; i < all.length; i++) {
+        var txt = (all[i].textContent || "").trim();
+        if (/மாதிரி அறிக்கை|view sample report|sample report/i.test(txt) && txt.length < 40) samples.push(all[i]);
       }
+      samples.forEach(function (el, idx) {
+        if (el.dataset.smpWired) return;
+        el.dataset.smpWired = "1";
+        var which = (idx === 0) ? "dasha" : "domains";  // 0=Dasa, 1=Domains
+        el.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); openSample(which); }, true);
+      });
     } catch (e) {}
   }
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", wireSampleButton); }
