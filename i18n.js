@@ -80,9 +80,9 @@ const I18N = {
 
     // Charts screen
     d1_title:          "D1 — Rashi Chart (Birth Chart)",
-    d1_body:           "This is your primary birth chart. It shows the actual positions of all 9 planets in the sky at the moment you were born, divided across 12 houses.",
+    d1_body:           "This is your primary birth chart. It shows the actual positions of all 9 planets in the sky at the moment you were born, divided across 12 houses. Think of looking at a house from the street: you see its size, the colour of the paint, and the overall design. The D1 is that outer view — your outward personality, your physical body, and how you appear to the world. It is the 'outer shell' of your life.",
     d9_title:          "D9 — Navamsha Chart (Soul & Maturity Chart)",
-    d9_body:           "If D1 is your smartphone hardware, D9 is the operating system — it shapes how the hardware actually performs in real life, especially in relationships and inner strength.",
+    d9_body:           "The D9 chart is like walking inside that house. A home may look like a grand mansion from the outside (a strong D1), but only inside do you see whether the woodwork is sound, the plumbing works, and the foundation is stable. Equally, a house may look small from the street yet be remarkably sturdy, cosy, and rich within. The D9 reveals this inner reality — durability, depth, and inner strength, especially in relationships and character.",
     chart_legend:      "Chart Legend",
 
     // Dasha screen
@@ -236,9 +236,9 @@ const I18N = {
     saved_empty:       "இன்னும் ஜாதகம் சேமிக்கப்படவில்லை. ஒன்றை உருவாக்கி சேமி அழுத்தவும்.",
 
     d1_title:          "D1 — ராசி கட்டம் (ஜாதகம்)",
-    d1_body:           "இது உங்கள் முதன்மை ஜாதகம். நீங்கள் பிறந்த தருணத்தில் 9 கிரகங்களின் நிலைகளை 12 வீடுகளில் காட்டுகிறது.",
+    d1_body:           "இது உங்கள் முதன்மை ஜாதகம். நீங்கள் பிறந்த தருணத்தில் 9 கிரகங்களின் உண்மையான நிலைகளை 12 வீடுகளில் காட்டுகிறது. ஒரு வீட்டை தெருவிலிருந்து பார்ப்பதைப் போல நினைத்துக் கொள்ளுங்கள்: அதன் அளவு, வண்ணம், ஒட்டுமொத்த வடிவமைப்பு ஆகியவற்றைக் காண்கிறீர்கள். D1 என்பது அந்த வெளிப்புறக் காட்சி — உங்கள் வெளிப்புற ஆளுமை, உடல், மற்றும் உலகிற்கு நீங்கள் எவ்வாறு தோன்றுகிறீர்கள் என்பது. இது உங்கள் வாழ்வின் 'வெளி ஓடு'.",
     d9_title:          "D9 — நவாம்ச கட்டம் (ஆத்மா & முதிர்ச்சி)",
-    d9_body:           "D1 உங்கள் கைபேசியின் வன்பொருள் என்றால், D9 இயக்க முறைமை — உறவுகள் மற்றும் உள் வலிமையில் அது எவ்வாறு செயல்படுகிறது என்பதை வடிவமைக்கிறது.",
+    d9_body:           "D9 கட்டம் என்பது அந்த வீட்டிற்குள் நடந்து செல்வது போன்றது. ஒரு வீடு வெளியில் இருந்து பெரிய மாளிகையாகத் தோன்றலாம் (வலுவான D1), ஆனால் உள்ளே சென்றால்தான் மரவேலை உறுதியாக உள்ளதா, குழாய் அமைப்பு வேலை செய்கிறதா, அடித்தளம் நிலையானதா என்பது தெரியும். அதேபோல், ஒரு வீடு வெளியில் சிறியதாகத் தோன்றினாலும் உள்ளே மிகவும் உறுதியாகவும், வசதியாகவும், செழுமையாகவும் இருக்கலாம். D9 இந்த உள் உண்மையை வெளிப்படுத்துகிறது — நிலைத்தன்மை, ஆழம், மற்றும் உள் வலிமை, குறிப்பாக உறவுகளிலும் குணத்திலும்.",
     chart_legend:      "கட்ட விளக்கம்",
 
     dasha_what_title:  "விம்சோத்தரி தசா என்றால் என்ன?",
