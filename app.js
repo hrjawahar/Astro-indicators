@@ -703,15 +703,15 @@ function renderChartScreen(data) {
   const moonNak  = planets.Moon?.nakshatra || "";
   const moonPada = planets.Moon?.pada || "";
   document.getElementById("lagnaBar").innerHTML = `
-    <div class="lagna-item"><div class="lagna-key">D1 Lagna</div><div class="lagna-val">${d1.lagnaSign} ${d1.lagnaDegree?.toFixed(1)}°</div></div>
-    <div class="lagna-item"><div class="lagna-key">D9 Lagna</div><div class="lagna-val">${d9.lagnaSign}</div></div>
-    <div class="lagna-item"><div class="lagna-key">Moon Nakshatra</div><div class="lagna-val">${moonNak} Pada ${moonPada}</div></div>
-    <div class="lagna-item"><div class="lagna-key">Ayanamsha</div><div class="lagna-val">Lahiri ${ayanamsha?.toFixed(4)}°</div></div>
-    <div class="lagna-item"><div class="lagna-key">Native</div><div class="lagna-val">${data.input?.name || "—"}</div></div>
+    <div class="lagna-item"><div class="lagna-key">${T("lagna_d1")}</div><div class="lagna-val">${d1.lagnaSign} ${d1.lagnaDegree?.toFixed(1)}°</div></div>
+    <div class="lagna-item"><div class="lagna-key">${T("lagna_d9")}</div><div class="lagna-val">${d9.lagnaSign}</div></div>
+    <div class="lagna-item"><div class="lagna-key">${T("lagna_moonnak")}</div><div class="lagna-val">${moonNak} ${T("lagna_pada")} ${moonPada}</div></div>
+    <div class="lagna-item"><div class="lagna-key">${T("lagna_ayanamsha")}</div><div class="lagna-val">Lahiri ${ayanamsha?.toFixed(4)}°</div></div>
+    <div class="lagna-item"><div class="lagna-key">${T("lagna_native")}</div><div class="lagna-val">${data.input?.name || "—"}</div></div>
   `;
 
-  document.getElementById("d1LagnaLabel").textContent = `Lagna: ${d1.lagnaSign}`;
-  document.getElementById("d9LagnaLabel").textContent = `Lagna: ${d9.lagnaSign}`;
+  document.getElementById("d1LagnaLabel").textContent = `${T("lagna_prefix")}: ${d1.lagnaSign}`;
+  document.getElementById("d9LagnaLabel").textContent = `${T("lagna_prefix")}: ${d9.lagnaSign}`;
 
   const combust   = buildCombustSet(planets);
   const warLosers = buildWarSet(planets);
@@ -765,6 +765,7 @@ function getDignity(planet, sign) {
 
 // ── South Indian chart SVG — with house lord relationships & language support ──
 function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warLosers, isD9) {
+  const T = (k) => (typeof window!=="undefined" && window.t) ? window.t(k) : k;
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
 
@@ -795,6 +796,24 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
   bg.setAttribute("width",SIZE); bg.setAttribute("height",SIZE);
   bg.setAttribute("fill","#FFF8F0");
   svg.appendChild(bg);
+
+  // Center label (in the empty 2x2 middle): "D1 — Birth Chart" / "D9 — Navamsha".
+  (function () {
+    var lines = (isD9 ? (T("center_d9") || "D9 — Navamsha Chart") : (T("center_d1") || "D1 — Birth Chart")).split(" — ");
+    var cy = SIZE / 2;
+    lines.forEach(function (ln, i) {
+      var ct = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      ct.setAttribute("x", SIZE / 2);
+      ct.setAttribute("y", cy - 8 + i * 18);
+      ct.setAttribute("font-size", "13");
+      ct.setAttribute("font-weight", "bold");
+      ct.setAttribute("fill", "rgba(140,90,20,0.45)");
+      ct.setAttribute("text-anchor", "middle");
+      ct.setAttribute("font-family", "Cinzel,serif");
+      ct.textContent = ln;
+      svg.appendChild(ct);
+    });
+  })();
 
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
@@ -836,9 +855,10 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       // House number
       const hTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
       hTxt.setAttribute("x", x + CELL - PAD - 4);
-      hTxt.setAttribute("y", y + 11);
-      hTxt.setAttribute("font-size","8");
-      hTxt.setAttribute("fill","rgba(0,0,0,0.55)");
+      hTxt.setAttribute("y", y + 12);
+      hTxt.setAttribute("font-size","11");
+      hTxt.setAttribute("font-weight","bold");
+      hTxt.setAttribute("fill","rgba(0,0,0,0.65)");
       hTxt.setAttribute("text-anchor","end");
       hTxt.textContent = hNum;
       svg.appendChild(hTxt);
@@ -2699,4 +2719,3 @@ initLangSelector();
       tab.appendChild(b);
     });
   })();
- 
