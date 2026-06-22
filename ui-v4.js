@@ -1750,7 +1750,7 @@ const CONSULT_CONFIG = {
       if (!input || input.querySelector("#qaOpenBtn")) return;
       var btn = document.createElement("button");
       btn.id = "qaOpenBtn";
-      btn.textContent = "❓ Q&A · கேள்விகள்";
+      btn.textContent = "❓ Q&A · கேள்வி-பதில்கள்";
       btn.style.cssText = "display:block;margin:14px auto 0;background:transparent;color:#c9a84c;border:1px solid #c9a84c;border-radius:8px;padding:9px 20px;font-size:14px;font-weight:600;cursor:pointer";
       btn.addEventListener("click", openQA);
       var card = input.querySelector("[class*='card'], .input-card") || input.firstElementChild || input;
@@ -1773,7 +1773,7 @@ const CONSULT_CONFIG = {
 (function () {
   function lang() { try { return localStorage.getItem("jyotish-lang") === "TA" ? "TA" : "EN"; } catch (e) { return "EN"; } }
   var T = {
-    heading:   { EN: "What our users say", TA: "எங்கள் பயனர்கள் கூறுவது" },
+    heading:   { EN: "What our users say", TA: "எங்கள் பயனாளர்கள் கூறுவது" },
     leaveBtn:  { EN: "✍ Leave a Review", TA: "✍ உங்கள் கருத்தை பகிரவும்" },
     privacy:   { EN: "Your privacy matters. You may use a different name or initials instead of your real name — your review will display exactly as you enter it.",
                  TA: "உங்கள் தனியுரிமை முக்கியம். உங்கள் உண்மையான பெயருக்குப் பதிலாக வேறு பெயரையோ அல்லது முதலெழுத்துக்களையோ பயன்படுத்தலாம் — நீங்கள் உள்ளிடும் விதத்திலேயே உங்கள் கருத்து காண்பிக்கப்படும்." },
