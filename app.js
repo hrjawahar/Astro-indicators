@@ -699,6 +699,7 @@ async function generate() {
 
 function renderChartScreen(data) {
   const { d1, d9, planets, ayanamsha } = data;
+  const T = (k) => (typeof window!=="undefined" && window.t) ? window.t(k) : k;
 
   const moonNak  = planets.Moon?.nakshatra || "";
   const moonPada = planets.Moon?.pada || "";
