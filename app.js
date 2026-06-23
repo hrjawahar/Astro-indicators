@@ -711,7 +711,9 @@ function renderChartScreen(data) {
 
   const moonNak  = planets.Moon?.nakshatra || "";
   const moonPada = planets.Moon?.pada || "";
+  const moonSign = planets.Moon?.sign || "";
   document.getElementById("lagnaBar").innerHTML = `
+    <div class="lagna-item"><div class="lagna-key">${T("lagna_rashi")}</div><div class="lagna-val">${txSign(moonSign)}</div></div>
     <div class="lagna-item"><div class="lagna-key">${T("lagna_d1")}</div><div class="lagna-val">${txSign(d1.lagnaSign)} ${d1.lagnaDegree?.toFixed(1)}°</div></div>
     <div class="lagna-item"><div class="lagna-key">${T("lagna_d9")}</div><div class="lagna-val">${txSign(d9.lagnaSign)}</div></div>
     <div class="lagna-item"><div class="lagna-key">${T("lagna_moonnak")}</div><div class="lagna-val">${txNak(moonNak)} ${T("lagna_pada")} ${moonPada}</div></div>
@@ -850,14 +852,16 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       rect.setAttribute("stroke-width","0.5");
       svg.appendChild(rect);
 
-      // Sign abbreviation
-      const signAbbr = signInHouse.substring(0,3).toUpperCase();
+      // Sign abbreviation (English 3-letter, or short Tamil form when Tamil active)
+      const _isTAcell = (() => { try { return localStorage.getItem("jyotish-lang") === "TA"; } catch(e){ return false; } })();
+      const SIGN_ABBR_TA = { Aries:"மேஷ", Taurus:"ரிஷ", Gemini:"மிது", Cancer:"கடக", Leo:"சிம்", Virgo:"கன்", Libra:"துலா", Scorpio:"விரு", Sagittarius:"தனு", Capricorn:"மகர", Aquarius:"கும்", Pisces:"மீன" };
+      const signAbbr = (_isTAcell && SIGN_ABBR_TA[signInHouse]) ? SIGN_ABBR_TA[signInHouse] : signInHouse.substring(0,3).toUpperCase();
       const signTxt  = document.createElementNS("http://www.w3.org/2000/svg","text");
       signTxt.setAttribute("x", x + PAD + 2);
       signTxt.setAttribute("y", y + 11);
-      signTxt.setAttribute("font-size","8");
+      signTxt.setAttribute("font-size", _isTAcell ? "9" : "8");
       signTxt.setAttribute("fill","rgba(100,65,10,0.85)");
-      signTxt.setAttribute("font-family","Cinzel,serif");
+      signTxt.setAttribute("font-family", _isTAcell ? "Inter,sans-serif" : "Cinzel,serif");
       signTxt.textContent = signAbbr;
       svg.appendChild(signTxt);
 
@@ -894,7 +898,7 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
         lTxt.setAttribute("font-size","7");
         lTxt.setAttribute("fill","rgba(140,85,15,0.65)");
         lTxt.setAttribute("text-anchor","end");
-        lTxt.textContent = "ASC";
+        lTxt.textContent = _isTAcell ? "லக்" : "ASC";
         svg.appendChild(lTxt);
       }
 
