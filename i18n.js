@@ -60,6 +60,10 @@ const I18N = {
     // Birth details form
     form_birth_title:  "Birth Details",
     form_name:         "Full name",
+    form_email:        "Email Address",
+    form_email_hint:   "(required — invoice will be sent here)",
+    form_email_ph:     "you@example.com",
+    email_required:    "Please enter a valid email — your invoice will be sent there.",
     form_name_hint:    "(appears in report)",
     form_name_ph:      "e.g. Ravi Kumar",
     form_dob:          "Date of birth",
@@ -239,6 +243,10 @@ const I18N = {
 
     form_birth_title:  "பிறப்பு விவரங்கள்",
     form_name:         "முழுப் பெயர்",
+    form_email:        "மின்னஞ்சல் முகவரி",
+    form_email_hint:   "(அவசியம் — விலைப்பட்டியல் இங்கு அனுப்பப்படும்)",
+    form_email_ph:     "you@example.com",
+    email_required:    "சரியான மின்னஞ்சலை உள்ளிடவும் — உங்கள் விலைப்பட்டியல் அங்கு அனுப்பப்படும்.",
     form_name_hint:    "(அறிக்கையில் தோன்றும்)",
     form_name_ph:      "எ.கா. ரவி குமார்",
     form_dob:          "பிறந்த தேதி",
