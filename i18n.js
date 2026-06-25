@@ -161,6 +161,8 @@ const I18N = {
     // ── Group C additions ──
     badge_premium:     "Premium",
     badge_free:        "Free",
+    tab_free:          "Free",
+    tab_paid:          "Paid",
     badge_view_only:   "View only · no download",
     tile_domains_price:"₹299",
     tile_domains_old:  "",
@@ -337,6 +339,8 @@ const I18N = {
 
     badge_premium:     "கட்டணத்திற்கு உட்பட்டது",
     badge_free:        "இலவசம்",
+    tab_free:          "இலவசம்",
+    tab_paid:          "கட்டணம்",
     badge_view_only:   "பார்வைக்கு மட்டும் · பதிவிறக்கம் இல்லை",
     tile_domains_price:"₹299",
     tile_domains_old:  "",
