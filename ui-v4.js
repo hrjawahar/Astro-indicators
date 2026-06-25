@@ -1821,16 +1821,25 @@ const CONSULT_CONFIG = {
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var list = (d && d.reviews) || [];
-        if (!list.length) { host.innerHTML = ""; return; }
-        host.innerHTML =
-          "<div style='font-weight:700;color:#c9a84c;font-size:16px;margin:6px 0 12px;text-align:center'>" + esc(t("heading")) + "</div>" +
-          "<div style='display:flex;flex-wrap:wrap;gap:12px;justify-content:center'>" +
-          list.map(function (rv) {
-            var who = esc(rv.name || "Anonymous") + (rv.place ? ", " + esc(rv.place) : "");
-            return "<div style='background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.3);border-radius:10px;padding:14px 16px;max-width:280px;flex:1 1 240px'>" +
-              "<div style='color:#e8e2d4;font-size:13.5px;line-height:1.6;font-style:italic'>“" + esc(rv.body) + "”</div>" +
-              "<div style='color:#c9a84c;font-size:12px;margin-top:8px;font-weight:600'>— " + who + "</div></div>";
-          }).join("") + "</div>";
+        // Heading + "Leave a Review" button (always shown, even with no reviews yet).
+        var html =
+          "<div style='display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px 0 14px'>" +
+            "<div style='font-weight:700;color:#c9a84c;font-size:16px;text-align:center'>" + esc(t("heading")) + "</div>" +
+            "<button id='revOpenBtnTop' style='background:#c9a84c;color:#1a1f33;border:none;border-radius:8px;padding:9px 22px;font-size:14px;font-weight:700;cursor:pointer'>" + esc(t("leaveBtn")) + "</button>" +
+          "</div>";
+        // Review cards below, if any are approved.
+        if (list.length) {
+          html += "<div style='display:flex;flex-wrap:wrap;gap:12px;justify-content:center'>" +
+            list.map(function (rv) {
+              var who = esc(rv.name || "Anonymous") + (rv.place ? ", " + esc(rv.place) : "");
+              return "<div style='background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.3);border-radius:10px;padding:14px 16px;max-width:280px;flex:1 1 240px'>" +
+                "<div style='color:#e8e2d4;font-size:13.5px;line-height:1.6;font-style:italic'>“" + esc(rv.body) + "”</div>" +
+                "<div style='color:#c9a84c;font-size:12px;margin-top:8px;font-weight:600'>— " + who + "</div></div>";
+            }).join("") + "</div>";
+        }
+        host.innerHTML = html;
+        var topBtn = document.getElementById("revOpenBtnTop");
+        if (topBtn) topBtn.addEventListener("click", startReview);
       })
       .catch(function () {});
   }
@@ -1919,9 +1928,21 @@ const CONSULT_CONFIG = {
         btn.style.cssText = "display:block;margin:16px auto;background:#c9a84c;color:#1a1f33;border:none;border-radius:8px;padding:11px 24px;font-size:15px;font-weight:700;cursor:pointer";
         btn.addEventListener("click", startReview);
         contact.appendChild(btn);
+      } else if (contact) {
+        // Keep the Contact button's label in sync with the current language.
+        var existing = document.getElementById("revOpenBtn");
+        if (existing) existing.textContent = t("leaveBtn");
       }
     } catch (e) {}
   }
+  // Re-render the first-page reviews (heading + button + cards) on language switch,
+  // so the Tamil/English labels update live.
+  document.addEventListener("click", function (e) {
+    var tgt = e.target;
+    if (tgt && tgt.closest && tgt.closest("[data-setlang],[data-lang]")) {
+      setTimeout(function () { renderCards(); ensureUI(); }, 140);
+    }
+  }, true);
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", ensureUI); }
   else { ensureUI(); }
   setInterval(ensureUI, 1200);
