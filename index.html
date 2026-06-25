@@ -19,11 +19,13 @@
   <link rel="stylesheet" href="styles.css"/>
   <link rel="stylesheet" href="styles-v4.css"/>
   <style>
-    /* Nav ribbon: scroll horizontally when tabs + badges exceed screen width
-       (Tamil labels are wide; badges add width). Keeps all tabs reachable. */
+    /* Nav ribbon: float the Free/Paid badge ABOVE each tab (absolute position)
+       so it adds NO horizontal width — the tab keeps its normal icon+label row.
+       This stops the ribbon running off-screen with wide Tamil labels.
+       Horizontal scroll remains as a safety net for very narrow screens. */
     .nav-tabs {
       overflow-x: auto;
-      overflow-y: hidden;
+      overflow-y: visible;
       flex-wrap: nowrap;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: thin;
@@ -31,15 +33,22 @@
     .nav-tabs .nav-tab {
       flex: 0 0 auto;
       white-space: nowrap;
+      position: relative;          /* anchor for the floating badge */
+      padding-top: 15px;           /* room for the badge above the label */
     }
-    /* Slim scrollbar so it isn't visually heavy */
+    /* Badge floats centered above the label — takes no horizontal space. */
+    .nav-tab .tab-badge {
+      position: absolute;
+      top: 1px;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-left: 0 !important;   /* override the inline left-margin */
+    }
     .nav-tabs::-webkit-scrollbar { height: 4px; }
     .nav-tabs::-webkit-scrollbar-thumb {
       background: rgba(201,168,76,0.4); border-radius: 4px;
     }
     .nav-tabs::-webkit-scrollbar-track { background: transparent; }
-    /* Tab badge: keep it compact so it adds minimal width */
-    .nav-tab .tab-badge { flex: 0 0 auto; }
   </style>
 </head>
 <body>
