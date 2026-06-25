@@ -27,7 +27,7 @@ export async function onRequestPost(context) {
 
   const {
     razorpay_order_id, razorpay_payment_id, razorpay_signature,
-    booking, chartId, item,
+    booking, chartId, item, email,
   } = body;
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     return json({ error: "Missing payment fields." }, 400);
@@ -56,6 +56,20 @@ export async function onRequestPost(context) {
     }
   }
 
+  // ── Store the customer's email (for invoicing), keyed by chart_id ──────────
+  if (env.DB && chartId && email) {
+    try {
+      const now = Date.now();
+      await env.DB.prepare(
+        "INSERT INTO customers (chart_id, email, name, created_at, updated_at) " +
+        "VALUES (?, ?, ?, ?, ?) " +
+        "ON CONFLICT(chart_id) DO UPDATE SET email = excluded.email, name = excluded.name, updated_at = excluded.updated_at"
+      ).bind(String(chartId), String(email), (body.name ? String(body.name) : null), now, now).run();
+    } catch (e) {
+      // Email storage is best-effort; never block a verified payment over it.
+    }
+  }
+
   // If this was a consultation booking, notify the owner.
   if (booking && booking.type === "consultation") {
     await notifyOwner(env, booking, razorpay_payment_id).catch(() => {});
@@ -75,6 +89,7 @@ async function notifyOwner(env, booking, paymentId) {
     "A new consultation has been booked and paid for.\n\n" +
     "Name: "    + (booking.name  || "-") + "\n" +
     "Phone: "   + (booking.phone || "-") + "\n" +
+    "Email: "   + (booking.email || "-") + "\n" +
     "DOB: "     + (booking.dob   || "-") + "\n" +
     "Duration: "+ (booking.duration || "-") + "\n" +
     "Amount: ₹" + (booking.amount || "-") + "\n" +
