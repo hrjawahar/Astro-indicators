@@ -486,7 +486,7 @@ const genText   = document.getElementById("generateBtnText");
 const statusMsg = document.getElementById("statusMsg");
 const errorBox  = document.getElementById("errorBox");
 const saveBtn   = document.getElementById("saveBtn");
-const dlBtn     = document.getElementById("downloadBtn");
+const dlBtn     = null;  // Report button removed (paywall leak) — kept as null so guarded refs are safe
 const resetBtn  = document.getElementById("resetBtn");
 
 let currentData = null;
@@ -1580,15 +1580,9 @@ resetBtn.addEventListener("click", () => {
   if (confirm("Reset all inputs and clear current chart?")) { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }
 });
 
-dlBtn.addEventListener("click", () => {
-  if (!currentData) return;
-  const html = buildHTMLReport(currentData);
-  const blob  = new Blob(["\uFEFF",html], { type:"application/msword" });
-  const url   = URL.createObjectURL(blob);
-  const a     = document.createElement("a");
-  a.href=url; a.download=`jyotish-${currentData.form?.name||"chart"}-${currentData.form?.dob||"report"}.doc`;
-  a.click(); URL.revokeObjectURL(url);
-});
+// Report button removed — it generated the full Life Domains analysis as a free
+// Word download with no payment check, bypassing the paywall. Deleted before launch.
+
 
 function buildHTMLReport(data) {
   const { chart, analysis, form } = data;
@@ -2718,17 +2712,45 @@ restoreInputs();
 renderHistory();
 initCitySearch();
 initLangSelector();
-// Always-on "Paid" badge on the Dasa & Domain tabs (a standard cue for users).
-  (function addPaidBadges() {
-    ["dashaTab", "domainTab"].forEach(function (id) {
-      var tab = document.querySelector('.nav-tab[data-tab="' + id + '"]');
-      if (!tab || tab.querySelector(".paid-badge")) return;
-      var b = document.createElement("span");
-      b.className = "paid-badge";
-      b.textContent = "Paid";
-      b.style.cssText = "display:inline-block;margin-left:6px;font-size:9px;font-weight:700;" +
-        "padding:1px 6px;border-radius:8px;background:var(--accent-gold,#c9a84c);" +
-        "color:#1a1f33;vertical-align:middle;letter-spacing:.04em";
-      tab.appendChild(b);
-    });
+// Always-on "Paid" / "Free" badges on the nav tabs (a standard cue for users).
+// Dasa & Domain = Paid; Charts, Summary, Planets, References = Free. Both translate.
+  (function addTabBadges() {
+    var T = function (k, fallback) {
+      return (typeof window !== "undefined" && window.t) ? window.t(k) : fallback;
+    };
+    function apply() {
+      var map = {
+        dashaTab:      { key: "tab_paid", text: T("tab_paid", "Paid"), paid: true },
+        domainTab:     { key: "tab_paid", text: T("tab_paid", "Paid"), paid: true },
+        chartTab:      { key: "tab_free", text: T("tab_free", "Free"), paid: false },
+        summaryTab:    { key: "tab_free", text: T("tab_free", "Free"), paid: false },
+        planetsTab:    { key: "tab_free", text: T("tab_free", "Free"), paid: false },
+        referencesTab: { key: "tab_free", text: T("tab_free", "Free"), paid: false },
+      };
+      Object.keys(map).forEach(function (id) {
+        var tab = document.querySelector('.nav-tab[data-tab="' + id + '"]');
+        if (!tab) return;
+        var cfg = map[id];
+        var b = tab.querySelector(".tab-badge");
+        if (!b) {
+          b = document.createElement("span");
+          b.className = "tab-badge";
+          tab.appendChild(b);
+        }
+        b.textContent = cfg.text;
+        var bg = cfg.paid ? "var(--accent-gold,#c9a84c)" : "rgba(120,190,120,0.9)";
+        var fg = cfg.paid ? "#1a1f33" : "#0e1a0e";
+        b.style.cssText = "display:inline-block;margin-left:6px;font-size:9px;font-weight:700;" +
+          "padding:1px 6px;border-radius:8px;background:" + bg + ";" +
+          "color:" + fg + ";vertical-align:middle;letter-spacing:.04em";
+      });
+    }
+    apply();
+    // Re-apply when the language changes (badges re-translate).
+    document.addEventListener("click", function (e) {
+      var t = e.target;
+      if (t && t.closest && t.closest("[data-setlang],[data-lang]")) {
+        setTimeout(apply, 120);
+      }
+    }, true);
   })();
