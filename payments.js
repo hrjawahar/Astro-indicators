@@ -40,6 +40,7 @@
           name: cfg.razorpay.businessName,
           description: opts.label || opts.item,
           order_id: order.orderId,
+          prefill: { email: opts.email || "" },
           theme: { color: cfg.razorpay.themeColor },
           handler: function (response) {
             // 3. Verify the payment on our backend before trusting it.
@@ -53,6 +54,7 @@
                 booking: opts.booking || null,
                 chartId: opts.chartId || null,   // pay-once key for the paid-report DB record
                 item:    opts.item || null,
+                email:   opts.email || null,      // for the customers (invoicing) table
               }),
             })
             .then(function (r) { return r.json(); })
