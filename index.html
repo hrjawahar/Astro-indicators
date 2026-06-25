@@ -18,6 +18,29 @@
 
   <link rel="stylesheet" href="styles.css"/>
   <link rel="stylesheet" href="styles-v4.css"/>
+  <style>
+    /* Nav ribbon: scroll horizontally when tabs + badges exceed screen width
+       (Tamil labels are wide; badges add width). Keeps all tabs reachable. */
+    .nav-tabs {
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+    .nav-tabs .nav-tab {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    /* Slim scrollbar so it isn't visually heavy */
+    .nav-tabs::-webkit-scrollbar { height: 4px; }
+    .nav-tabs::-webkit-scrollbar-thumb {
+      background: rgba(201,168,76,0.4); border-radius: 4px;
+    }
+    .nav-tabs::-webkit-scrollbar-track { background: transparent; }
+    /* Tab badge: keep it compact so it adds minimal width */
+    .nav-tab .tab-badge { flex: 0 0 auto; }
+  </style>
 </head>
 <body>
 
