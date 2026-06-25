@@ -190,6 +190,16 @@ const CONSULT_CONFIG = {
           return;
         }
 
+        // Email is required (for the invoice). Validate before anything else.
+        var payerEmail = "";
+        try { payerEmail = (document.getElementById("inputEmail") || {}).value || ""; } catch (e) {}
+        payerEmail = payerEmail.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail)) {
+          flashStatus(window.t ? window.t("email_required") : "Please enter a valid email — your invoice will be sent there.");
+          try { var ef = document.getElementById("inputEmail"); if (ef) { ef.focus(); ef.scrollIntoView({behavior:"smooth", block:"center"}); } } catch (e) {}
+          return;
+        }
+
         // Refund notice — acknowledged BEFORE payment opens. Plain text (not a
         // t() key) so it always shows real wording, never a raw key like
         // "refund_confirm". Cancel stops here; Razorpay never opens.
@@ -212,6 +222,7 @@ const CONSULT_CONFIG = {
           amount: priceFor(item),
           label: label,
           chartId: chartId(),   // pay-once key, forwarded to /api/verify for the DB record
+          email: payerEmail,    // for the customers (invoicing) table + Razorpay prefill
         }).then(function (res) {
           if (!res || !res.paymentId) {   // must have a verified payment id
             flashStatus(window.t ? window.t("pay_failed") : "Payment not completed.");
@@ -318,6 +329,7 @@ const CONSULT_CONFIG = {
       consultBtn.addEventListener("click", function () {
         const name  = (document.getElementById("consultName")  || {}).value || "";
         const phone = (document.getElementById("consultPhone") || {}).value || "";
+        const email = (document.getElementById("consultEmail") || {}).value || "";
         const dob   = (document.getElementById("consultDOB")   || {}).value || "";
         const date  = (document.getElementById("consultDate")  || {}).value || "";
         const query = (document.getElementById("consultQuery") || {}).value || "";
@@ -327,6 +339,11 @@ const CONSULT_CONFIG = {
           if (status) { status.textContent = "Please enter your name and mobile number."; status.style.color = "var(--danger)"; }
           return;
         }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+          if (status) { status.textContent = window.t ? window.t("email_required") : "Please enter a valid email — your invoice will be sent there."; status.style.color = "var(--danger)"; }
+          try { var cef = document.getElementById("consultEmail"); if (cef) cef.focus(); } catch (e) {}
+          return;
+        }
         if (!selectedType) {
           if (status) { status.textContent = "Please select a consultation type."; status.style.color = "var(--danger)"; }
           return;
@@ -334,7 +351,7 @@ const CONSULT_CONFIG = {
 
         const booking = {
           type: "consultation",
-          name: name, phone: phone, dob: dob, date: date, query: query,
+          name: name, phone: phone, email: email.trim(), dob: dob, date: date, query: query,
           duration: selectedType.minutes + " min",
           amount: selectedType.amount,
         };
@@ -351,6 +368,7 @@ const CONSULT_CONFIG = {
           amount: selectedType.amount,
           label: "Consultation (" + selectedType.minutes + " min)",
           booking: booking,
+          email: email.trim(),   // for Razorpay prefill
         }).then(function () {
           showConsultConfirmed(status);
         }).catch(function (err) {
@@ -614,6 +632,11 @@ const CONSULT_CONFIG = {
             if (!full || !full.trim()) throw new Error("empty response");
             var lines = full.replace(/\r/g, "").split("\n");
             var heading = (lines.shift() || "").replace(/^HEADING:\s*/i, "").replace(/^#+\s*/, "").trim() || s.heading;
+            // Known fixed headings: the AI translation occasionally drops the first
+            // Tamil character (e.g. இந்த → ந்த). Force the correct Tamil for these.
+            if (langCode === "TA" && s.heading) {
+              if (/how to read this report/i.test(s.heading)) heading = "இந்த அறிக்கையை எவ்வாறு படிப்பது";
+            }
             var body = lines.join("\n").replace(/^\s*BODY:\s*/i, "").trim();
             return { heading: heading, body: body, isRich: s.isRich, isDomain: s.isDomain, isNote: s.isNote, isSeparator: s.isSeparator };
           }).catch(function (e) { clearTimeout(timer); throw e; });
