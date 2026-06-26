@@ -49,6 +49,18 @@
       background: rgba(201,168,76,0.4); border-radius: 4px;
     }
     .nav-tabs::-webkit-scrollbar-track { background: transparent; }
+
+    /* #5 — Wider email input boxes everywhere (they were cramped). */
+    #inputEmail, #consultEmail, #contactEmail {
+      min-width: 260px;
+      width: 100%;
+    }
+    /* #2 — Tighten nav tab spacing so more fits before scrolling kicks in
+       (helps the wider Tamil labels reach Contact without overflow). */
+    .nav-tabs .nav-tab {
+      padding-left: 10px;
+      padding-right: 10px;
+    }
   </style>
 </head>
 <body>
@@ -163,6 +175,7 @@
             <div class="fc-icon" aria-hidden="true">◉</div>
             <div class="fc-title" data-i18n="tile_dasha_title">Dasa Bhukti Periods — MD &amp; AD Indicators</div>
             <div class="fc-price">
+              <span class="fc-price-old">₹999</span>
               <span class="fc-price-now fc-price-paid" data-i18n="tile_dasha_price">₹499</span>
             </div>
             <div class="fc-actions">
@@ -177,6 +190,7 @@
             <div class="fc-icon" aria-hidden="true">◈</div>
             <div class="fc-title" data-i18n="tile_domains_title">Life Domains Indicators</div>
             <div class="fc-price">
+              <span class="fc-price-old">₹599</span>
               <span class="fc-price-now fc-price-paid" data-i18n="tile_domains_price">₹299</span>
             </div>
             <div class="fc-actions">
