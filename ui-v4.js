@@ -190,25 +190,13 @@ const CONSULT_CONFIG = {
           return;
         }
 
-        // Email is required (for the invoice). Read from the birth form; if it's
-        // empty/invalid (e.g. a returning user buying only this report), PROMPT
-        // for it inline so they can enter it without hunting for the form field.
+        // Email for the invoice: read from the birth form and pass to Razorpay's
+        // checkout (which prefills it). Razorpay's own screen also collects/confirms
+        // email, so we do NOT add a separate popup here. If the birth-form email is
+        // empty, Razorpay will still ask for it on its checkout screen.
         var payerEmail = "";
         try { payerEmail = (document.getElementById("inputEmail") || {}).value || ""; } catch (e) {}
         payerEmail = payerEmail.trim();
-        var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRe.test(payerEmail)) {
-          var promptMsg = window.t ? window.t("email_prompt") : "Enter your email — your invoice will be sent there:";
-          var entered = "";
-          try { entered = (window.prompt(promptMsg, payerEmail) || "").trim(); } catch (e) {}
-          if (!emailRe.test(entered)) {
-            flashStatus(window.t ? window.t("email_required") : "Please enter a valid email — your invoice will be sent there.");
-            return;
-          }
-          payerEmail = entered;
-          // Mirror it into the birth-form field so it's remembered this session.
-          try { var ifld = document.getElementById("inputEmail"); if (ifld) ifld.value = payerEmail; } catch (e) {}
-        }
 
         // Refund notice — acknowledged BEFORE payment opens. Plain text (not a
         // t() key) so it always shows real wording, never a raw key like
