@@ -1,55 +1,60 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  FILE: functions/api/contact.js
-//  Cloudflare Pages Function — emails a Contact Us submission to the owner.
+//  Cloudflare Pages Function — handles the Contact Us / feedback form.
+//  Emails the submission to the app owner (via Resend), same as consultation
+//  bookings. Fail-soft and validates input.
 //
-//  SETUP (Cloudflare → Settings → Environment variables):
-//    OWNER_EMAIL     = vidhurtss@gmail.com   (already set)
-//    RESEND_API_KEY  = your Resend key       (set this up at resend.com)
-//
-//  Until RESEND_API_KEY is set, this returns ok so the form still confirms;
-//  it just won't send the email yet.
+//  SETUP (Cloudflare → Settings → Environment variables) — already set for verify.js:
+//    OWNER_EMAIL     = where contact messages are emailed to you
+//    RESEND_API_KEY  = your Resend API key
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  let body;
-  try { body = await request.json(); }
+  let b;
+  try { b = await request.json(); }
   catch { return json({ error: "Invalid request body." }, 400); }
 
-  const type    = String(body.type || "Others");
-  const name    = String(body.name || "");
-  const email   = String(body.email || "");
-  const phone   = String(body.phone || "");
-  const message = String(body.message || "");
-  const mdWanted= String(body.mdWanted || "");
+  const type     = String(b.type || "Feedback").slice(0, 60);
+  const name     = String(b.name || "").trim().slice(0, 120);
+  const email    = String(b.email || "").trim().slice(0, 160);
+  const phone    = String(b.phone || "").trim().slice(0, 40);
+  const message  = String(b.message || "").trim().slice(0, 4000);
+  const mdWanted = String(b.mdWanted || "").trim().slice(0, 200);
 
-  if (!name.trim() || (!email.trim() && !phone.trim())) {
-    return json({ error: "Please provide your name and a way to reach you." }, 400);
-  }
+  // Minimal validation: need a name and some way to reply (email or phone),
+  // plus either a message or an MD-report request.
+  if (!name) return json({ error: "Please enter your name." }, 400);
+  if (!email && !phone) return json({ error: "Please enter your email or phone." }, 400);
 
-  const ownerEmail = env.OWNER_EMAIL || "vidhurtss@gmail.com";
+  const ownerEmail = env.OWNER_EMAIL;
   const resendKey  = env.RESEND_API_KEY;
 
-  // If email isn't configured yet, still succeed so the user gets confirmation.
-  if (!resendKey) return json({ ok: true, emailed: false });
+  // If email isn't configured, don't hard-fail the user — accept the message.
+  if (!ownerEmail || !resendKey) {
+    return json({ ok: true, note: "received" });
+  }
 
-  const subject = "AstroIndicators Contact — " + type + (name ? " — " + name : "");
+  const subject = "AstroIndicators — " + type + " from " + (name || "user");
   const text =
-    "New Contact Us submission\n\n" +
-    "Type: " + type + "\n" +
-    (mdWanted ? "MD period(s) requested: " + mdWanted + "  (Rs.100 per MD period)\n" : "") +
-    "Name: " + name + "\n" +
-    "Email: " + (email || "-") + "\n" +
-    "Phone: " + (phone || "-") + "\n\n" +
-    "Message:\n" + (message || "-") + "\n";
+    "A new message was submitted via the Contact form.\n\n" +
+    "Type: "    + type + "\n" +
+    "Name: "    + (name    || "-") + "\n" +
+    "Email: "   + (email   || "-") + "\n" +
+    "Phone: "   + (phone   || "-") + "\n" +
+    (mdWanted ? ("MD period(s) wanted: " + mdWanted + "\n") : "") +
+    "\nMessage:\n" + (message || "-") + "\n";
 
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "Authorization": "Bearer " + resendKey, "Content-Type": "application/json" },
+      headers: {
+        "Authorization": "Bearer " + resendKey,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        from: "AstroIndicators <contact@astroindicators.com>",
+        from: "AstroIndicators <bookings@astroindicators.com>",
         to: [ownerEmail],
         reply_to: email || undefined,
         subject: subject,
@@ -57,16 +62,17 @@ export async function onRequestPost(context) {
       }),
     });
     if (!r.ok) {
-      const t = await r.text().catch(() => "");
-      return json({ ok: true, emailed: false, note: t.slice(0, 120) });
+      // Resend rejected — surface a soft error so the user can retry.
+      return json({ error: "Could not send right now. Please try again." }, 502);
     }
+    return json({ ok: true });
   } catch (e) {
-    return json({ ok: true, emailed: false });
+    return json({ error: "Could not send right now. Please try again." }, 502);
   }
-
-  return json({ ok: true, emailed: true });
 }
 
 function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(obj), {
+    status, headers: { "Content-Type": "application/json" },
+  });
 }
