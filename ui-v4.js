@@ -190,14 +190,24 @@ const CONSULT_CONFIG = {
           return;
         }
 
-        // Email is required (for the invoice). Validate before anything else.
+        // Email is required (for the invoice). Read from the birth form; if it's
+        // empty/invalid (e.g. a returning user buying only this report), PROMPT
+        // for it inline so they can enter it without hunting for the form field.
         var payerEmail = "";
         try { payerEmail = (document.getElementById("inputEmail") || {}).value || ""; } catch (e) {}
         payerEmail = payerEmail.trim();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail)) {
-          flashStatus(window.t ? window.t("email_required") : "Please enter a valid email — your invoice will be sent there.");
-          try { var ef = document.getElementById("inputEmail"); if (ef) { ef.focus(); ef.scrollIntoView({behavior:"smooth", block:"center"}); } } catch (e) {}
-          return;
+        var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRe.test(payerEmail)) {
+          var promptMsg = window.t ? window.t("email_prompt") : "Enter your email — your invoice will be sent there:";
+          var entered = "";
+          try { entered = (window.prompt(promptMsg, payerEmail) || "").trim(); } catch (e) {}
+          if (!emailRe.test(entered)) {
+            flashStatus(window.t ? window.t("email_required") : "Please enter a valid email — your invoice will be sent there.");
+            return;
+          }
+          payerEmail = entered;
+          // Mirror it into the birth-form field so it's remembered this session.
+          try { var ifld = document.getElementById("inputEmail"); if (ifld) ifld.value = payerEmail; } catch (e) {}
         }
 
         // Refund notice — acknowledged BEFORE payment opens. Plain text (not a
@@ -1804,7 +1814,7 @@ const CONSULT_CONFIG = {
     formTitle: { EN: "Share your experience", TA: "உங்கள் அனுபவத்தைப் பகிரவும்" },
     namePh:    { EN: "Name to display (or leave blank)", TA: "காண்பிக்க பெயர் (அல்லது காலியாக விடவும்)" },
     placePh:   { EN: "Place (optional)", TA: "இடம் (விருப்பத்திற்கு)" },
-    anon:      { EN: "Post anonymously", TA: "அநாமதேயமாக பதிவிடுங்கள்" },
+    anon:      { EN: "Post anonymously", TA: "அடையாளமின்றி பதிவிடுங்கள்" },
     reviewPh:  { EN: "Write your review…", TA: "உங்கள் கருத்தை எழுதுங்கள்…" },
     submit:    { EN: "Submit", TA: "சமர்ப்பிக்கவும்" },
     thanks:    { EN: "Thank you! Your review has been submitted and will appear after approval.", TA: "நன்றி! உங்கள் கருத்து சமர்ப்பிக்கப்பட்டது, ஒப்புதலுக்குப் பிறகு காண்பிக்கப்படும்." },
