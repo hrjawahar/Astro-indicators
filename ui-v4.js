@@ -202,17 +202,16 @@ const CONSULT_CONFIG = {
           // Go to the Birth Data tab so the field is visible.
           try { if (window.goToTab) window.goToTab("inputTab"); } catch (e) {}
           if (ef) {
-            // Highlight in a soft gold/amber (brand tone) — a gentle cue, not an
-            // alarming dark red while the user is mid-typing.
+            // Cue the field with a colored BORDER only — no background tint — so
+            // the text the user types stays fully readable while they type.
             ef.style.border = "2px solid #c9a84c";
-            ef.style.background = "rgba(201,168,76,0.10)";
+            ef.style.boxShadow = "0 0 0 2px rgba(201,168,76,0.25)";
             try { ef.focus(); ef.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
-            // Clear the highlight once they start typing a valid email.
+            // Clear the cue on the FIRST keystroke — so the field returns to its
+            // normal readable state immediately and the user can see each letter.
             var clearHi = function () {
-              if (emailRe.test(ef.value.trim())) {
-                ef.style.border = ""; ef.style.background = "";
-                ef.removeEventListener("input", clearHi);
-              }
+              ef.style.border = ""; ef.style.boxShadow = "";
+              ef.removeEventListener("input", clearHi);
             };
             ef.addEventListener("input", clearHi);
           }
