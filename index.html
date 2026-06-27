@@ -50,11 +50,20 @@
     }
     .nav-tabs::-webkit-scrollbar-track { background: transparent; }
 
-    /* #5 — Wider email input boxes everywhere (they were cramped). */
+    /* #5 — Email box WIDTH: make it noticeably wider. Force the field and its
+       containing group to a wide minimum, and span the full grid row if the form
+       is a grid. Works across flex/grid layouts. */
     #inputEmail, #consultEmail, #contactEmail {
-      min-width: 320px;
       width: 100%;
+      min-width: 340px;
       box-sizing: border-box;
+    }
+    .form-group:has(#inputEmail),
+    .form-group:has(#consultEmail),
+    .form-group:has(#contactEmail) {
+      grid-column: 1 / -1;
+      flex: 1 1 100%;
+      width: 100%;
     }
     /* #2 — Tighten nav tab spacing so more fits before scrolling kicks in
        (helps the wider Tamil labels reach Contact without overflow). */
