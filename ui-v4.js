@@ -202,9 +202,10 @@ const CONSULT_CONFIG = {
           // Go to the Birth Data tab so the field is visible.
           try { if (window.goToTab) window.goToTab("inputTab"); } catch (e) {}
           if (ef) {
-            // Highlight red + focus + scroll into view.
-            ef.style.border = "2px solid #e05a5a";
-            ef.style.background = "rgba(224,90,90,0.08)";
+            // Highlight in a soft gold/amber (brand tone) — a gentle cue, not an
+            // alarming dark red while the user is mid-typing.
+            ef.style.border = "2px solid #c9a84c";
+            ef.style.background = "rgba(201,168,76,0.10)";
             try { ef.focus(); ef.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
             // Clear the highlight once they start typing a valid email.
             var clearHi = function () {
