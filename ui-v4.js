@@ -190,13 +190,34 @@ const CONSULT_CONFIG = {
           return;
         }
 
-        // Email for the invoice: read from the birth form and pass to Razorpay's
-        // checkout (which prefills it). Razorpay's own screen also collects/confirms
-        // email, so we do NOT add a separate popup here. If the birth-form email is
-        // empty, Razorpay will still ask for it on its checkout screen.
+        // Email is MANDATORY for the invoice. Read from the birth form. If empty
+        // or invalid, BLOCK payment, take the user to the Birth Data tab, highlight
+        // the email field in red, and explain — so we always capture it in our DB.
         var payerEmail = "";
         try { payerEmail = (document.getElementById("inputEmail") || {}).value || ""; } catch (e) {}
         payerEmail = payerEmail.trim();
+        var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRe.test(payerEmail)) {
+          var ef = document.getElementById("inputEmail");
+          // Go to the Birth Data tab so the field is visible.
+          try { if (window.goToTab) window.goToTab("inputTab"); } catch (e) {}
+          if (ef) {
+            // Highlight red + focus + scroll into view.
+            ef.style.border = "2px solid #e05a5a";
+            ef.style.background = "rgba(224,90,90,0.08)";
+            try { ef.focus(); ef.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
+            // Clear the highlight once they start typing a valid email.
+            var clearHi = function () {
+              if (emailRe.test(ef.value.trim())) {
+                ef.style.border = ""; ef.style.background = "";
+                ef.removeEventListener("input", clearHi);
+              }
+            };
+            ef.addEventListener("input", clearHi);
+          }
+          flashStatus(window.t ? window.t("email_required") : "Please enter a valid email — your invoice will be sent there.");
+          return;
+        }
 
         // Refund notice — acknowledged BEFORE payment opens. Plain text (not a
         // t() key) so it always shows real wording, never a raw key like
