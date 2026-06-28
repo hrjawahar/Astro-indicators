@@ -1048,8 +1048,27 @@ function renderDashaScreen(data) {
   timeline.innerHTML="";
   const nowMs=new Date().getTime();
 
+  // Owner override: if this browser has the owner flag set, ALL MD periods are
+  // unlocked (so the owner can read any period for reference / consultations).
+  // Set it once in the owner's browser console:
+  //   localStorage.setItem("ai_owner", "own-kSfeE_BD9rv3_GSIKVpAA583")
+  // Customers never have this, so the lock applies to them normally.
+  var _ownerMode = false;
+  try { _ownerMode = (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583"); } catch(e){}
+
+  // Paid Dasa report covers a 3-period window: PREVIOUS + CURRENT + FOLLOWING MD.
+  // Any other MD (and its ADs) is locked — clicking it must NOT call the API.
+  var _curIdx = dasha.dashas.findIndex(function(x){ return x.startDate<=today && today<x.endDate; });
+  var _unlockedMD = {};
+  if (_curIdx >= 0) {
+    [_curIdx-1, _curIdx, _curIdx+1].forEach(function(i){
+      if (i>=0 && i<dasha.dashas.length) _unlockedMD[dasha.dashas[i].lord] = true;
+    });
+  }
+
   dasha.dashas.forEach(d => {
     const isCurrent=d.startDate<=today&&today<d.endDate;
+    const mdUnlocked = _ownerMode || !!_unlockedMD[d.lord];   // owner sees all; else paid window
     const dS=new Date(d.startDate).getTime(), dE=new Date(d.endDate).getTime();
     let prog=0;
     if (isCurrent) prog=Math.max(0,Math.min(100,((nowMs-dS)/(dE-dS))*100));
@@ -1095,12 +1114,18 @@ function renderDashaScreen(data) {
         ${antarHTML}
       </div>`;
 
-    // MD row toggle — lazy-load season
+    // MD row toggle — lazy-load season (ONLY for unlocked periods)
     row.querySelector(".dasha-header").addEventListener("click",()=>{
       row.classList.toggle("open");
       if (row.classList.contains("open")) {
         const sp=row.querySelector(".md-api-panel");
         if (sp&&!sp.dataset.loaded) {
+          if (!mdUnlocked) {
+            // Locked period — do NOT call the API. Show a lock message instead.
+            sp.dataset.loaded="1";
+            sp.innerHTML=`<div class="ind-content" style="opacity:.85;font-style:italic;color:var(--text-dim,#9aa)">🔒 ${ (typeof window!=="undefined"&&window.t)?window.t("md_locked"):"This period is outside your report window (previous, current, and next Maha Dasa). " }</div>`;
+            return;
+          }
           sp.dataset.loaded="1";
           if (_mdSeasonCache.has(mdCK)) sp.innerHTML=`<div class="ind-content">${markdownToHTML(_mdSeasonCache.get(mdCK))}</div>`;
           else callIndicationAPI(buildMDPrompt(d.lord,lagna,chartCtx),sp,mdCK,_mdSeasonCache);
@@ -1132,6 +1157,12 @@ function renderDashaScreen(data) {
         if (!open) {
           const ap=item.querySelector(".ad-api-panel");
           if (ap&&!ap.dataset.loaded) {
+            if (!mdUnlocked) {
+              // AD under a locked MD — do NOT call the API.
+              ap.dataset.loaded="1";
+              ap.innerHTML=`<div class="ind-content" style="opacity:.85;font-style:italic;color:var(--text-dim,#9aa)">🔒 ${ (typeof window!=="undefined"&&window.t)?window.t("md_locked"):"This period is outside your report window (previous, current, and next Maha Dasa)." }</div>`;
+              return;
+            }
             ap.dataset.loaded="1";
             const ck=ap.dataset.cache;
             if (_indicationCache.has(ck)) ap.innerHTML=`<div class="ind-content">${markdownToHTML(_indicationCache.get(ck))}</div>`;
