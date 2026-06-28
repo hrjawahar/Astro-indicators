@@ -184,6 +184,19 @@ const CONSULT_CONFIG = {
           return;
         }
 
+        // OWNER BYPASS: if this browser has the owner flag, unlock the report
+        // directly without going through Razorpay (no dummy card needed). Set once
+        // in the owner's console:  localStorage.setItem("ai_owner","own-kSfeE_BD9rv3_GSIKVpAA583")
+        var _ownerMode = false;
+        try { _ownerMode = (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583"); } catch (e) {}
+        if (_ownerMode) {
+          window.AI_unlocked = window.AI_unlocked || {};
+          window.AI_unlocked[item] = chartId();
+          flashStatus("Owner mode: unlocked without payment.");
+          if (window.AI_revealDownload) window.AI_revealDownload(item);
+          return;
+        }
+
         // Payment must be available. If not, BLOCK (never hand over paid content).
         if (typeof window.startPayment !== "function") {
           flashStatus(window.t ? window.t("pay_unavailable") : "Payment is temporarily unavailable. Please try again shortly.");
