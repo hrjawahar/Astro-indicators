@@ -1068,7 +1068,8 @@ function renderDashaScreen(data) {
 
   dasha.dashas.forEach(d => {
     const isCurrent=d.startDate<=today&&today<d.endDate;
-    const mdUnlocked = _ownerMode || !!_unlockedMD[d.lord];   // owner sees all; else paid window
+    const mdUnlocked = _ownerMode || !!_unlockedMD[d.lord];   // owner sees all; else paid window (prev/current/next) for MD OVERVIEW
+    const adUnlocked = _ownerMode || isCurrent;               // AD sub-periods unlock ONLY for the CURRENT MD (or owner)
     const dS=new Date(d.startDate).getTime(), dE=new Date(d.endDate).getTime();
     let prog=0;
     if (isCurrent) prog=Math.max(0,Math.min(100,((nowMs-dS)/(dE-dS))*100));
@@ -1157,10 +1158,11 @@ function renderDashaScreen(data) {
         if (!open) {
           const ap=item.querySelector(".ad-api-panel");
           if (ap&&!ap.dataset.loaded) {
-            if (!mdUnlocked) {
-              // AD under a locked MD — do NOT call the API.
+            if (!adUnlocked) {
+              // AD sub-period is only included for the CURRENT Maha Dasa. For
+              // previous/following MDs, the overview is shown but ADs are locked.
               ap.dataset.loaded="1";
-              ap.innerHTML=`<div class="ind-content" style="opacity:.85;font-style:italic;color:var(--text-dim,#9aa)">🔒 ${ (typeof window!=="undefined"&&window.t)?window.t("md_locked"):"This period is outside your report window (previous, current, and next Maha Dasa)." }</div>`;
+              ap.innerHTML=`<div class="ind-content" style="opacity:.85;font-style:italic;color:var(--text-dim,#9aa)">🔒 ${ (typeof window!=="undefined"&&window.t)?window.t("ad_locked"):"Detailed sub-period analysis is included for your current Maha Dasa only." }</div>`;
               return;
             }
             ap.dataset.loaded="1";
