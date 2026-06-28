@@ -2139,3 +2139,160 @@ const CONSULT_CONFIG = {
   else { wireSampleButton(); }
   setInterval(wireSampleButton, 1000);
 })();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OWNER-ONLY CHART PDF EXPORT
+   Adds a "Download Charts (PDF)" button on the Charts tab, visible ONLY when
+   owner mode is active. Captures the live D1 + D9 SVG charts and builds a PDF
+   with a header (name/DOB/TOB/place) + lagna data + both chart grids.
+   Independent block — does not touch chart rendering or any paid logic.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+  var OWNER_KEY = "own-kSfeE_BD9rv3_GSIKVpAA583";
+  function isOwner() {
+    try { return localStorage.getItem("ai_owner") === OWNER_KEY; } catch (e) { return false; }
+  }
+
+  // Convert an on-screen <svg> element to a PNG data URL via canvas.
+  function svgToPng(svgEl, scale) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var clone = svgEl.cloneNode(true);
+        // Ensure explicit width/height for rasterization.
+        var vb = (svgEl.getAttribute("viewBox") || "0 0 400 400").split(/\s+/);
+        var w = parseFloat(vb[2]) || 400, h = parseFloat(vb[3]) || 400;
+        clone.setAttribute("width", w);
+        clone.setAttribute("height", h);
+        var xml = new XMLSerializer().serializeToString(clone);
+        var svg64 = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(xml)));
+        var img = new Image();
+        img.onload = function () {
+          var c = document.createElement("canvas");
+          c.width = w * (scale || 3); c.height = h * (scale || 3);
+          var ctx = c.getContext("2d");
+          ctx.fillStyle = "#FFF8F0"; ctx.fillRect(0, 0, c.width, c.height);
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          resolve({ url: c.toDataURL("image/png"), w: w, h: h });
+        };
+        img.onerror = reject;
+        img.src = svg64;
+      } catch (e) { reject(e); }
+    });
+  }
+
+  function getField(id) {
+    var el = document.getElementById(id);
+    return el ? (el.value || el.textContent || "").trim() : "";
+  }
+
+  function buildPDF() {
+    var jsPDFns = window.jspdf || window.jsPDF;
+    var JsPDF = jsPDFns && (jsPDFns.jsPDF || jsPDFns);
+    if (!JsPDF) { alert("PDF library not loaded."); return; }
+
+    var d1 = document.querySelector("#d1ChartWrap svg");
+    var d9 = document.querySelector("#d9ChartWrap svg");
+    if (!d1 || !d9) { alert("Generate a chart first."); return; }
+
+    // Gather header + lagna data from the page.
+    var name  = getField("inputName") || "—";
+    var dob   = getField("inputDOB")  || "—";
+    var tob   = getField("inputTOB")  || "—";
+    var place = getField("inputPlaceDisplay") || getField("inputPlace") || "—";
+    var lagnaItems = [];
+    document.querySelectorAll("#lagnaBar .lagna-item").forEach(function (it) {
+      var k = it.querySelector(".lagna-key"), v = it.querySelector(".lagna-val");
+      if (k && v) lagnaItems.push([k.textContent.trim(), v.textContent.trim()]);
+    });
+
+    Promise.all([svgToPng(d1, 3), svgToPng(d9, 3)]).then(function (imgs) {
+      var pdf = new JsPDF({ unit: "pt", format: "a4" });
+      var W = pdf.internal.pageSize.getWidth();
+      var M = 40, y = 46;
+
+      // Header
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(20); pdf.setTextColor(40, 40, 60);
+      pdf.text("AstroIndicators", M, y);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.setTextColor(120, 120, 130);
+      pdf.text("Birth Chart Sheet (D1 & D9)", M, y + 16);
+      y += 38;
+
+      // Native details
+      pdf.setDrawColor(201, 168, 76); pdf.setLineWidth(1); pdf.line(M, y, W - M, y); y += 18;
+      pdf.setFontSize(11); pdf.setTextColor(40, 40, 60);
+      pdf.setFont("helvetica", "bold"); pdf.text("Native: ", M, y);
+      pdf.setFont("helvetica", "normal"); pdf.text(name, M + 42, y);
+      y += 16;
+      pdf.setFont("helvetica", "bold"); pdf.text("DOB: ", M, y);
+      pdf.setFont("helvetica", "normal"); pdf.text(dob + "    TOB: " + tob, M + 32, y);
+      y += 16;
+      pdf.setFont("helvetica", "bold"); pdf.text("Place: ", M, y);
+      pdf.setFont("helvetica", "normal"); pdf.text(place, M + 38, y);
+      y += 20;
+
+      // Lagna data (two columns)
+      if (lagnaItems.length) {
+        pdf.setDrawColor(220, 220, 225); pdf.line(M, y, W - M, y); y += 16;
+        pdf.setFontSize(10);
+        var colX = [M, W / 2];
+        lagnaItems.forEach(function (pair, i) {
+          var x = colX[i % 2];
+          pdf.setFont("helvetica", "bold"); pdf.setTextColor(150, 120, 40);
+          pdf.text(pair[0] + ": ", x, y);
+          var kw = pdf.getTextWidth(pair[0] + ": ");
+          pdf.setFont("helvetica", "normal"); pdf.setTextColor(40, 40, 60);
+          pdf.text(pair[1], x + kw, y);
+          if (i % 2 === 1) y += 15;
+        });
+        if (lagnaItems.length % 2 === 1) y += 15;
+        y += 8;
+      }
+
+      // Charts — two side by side
+      var gap = 16;
+      var cw = (W - M * 2 - gap) / 2;
+      var ch = cw; // square
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); pdf.setTextColor(40, 40, 60);
+      pdf.text("D1 — Rashi Chart", M, y + 10);
+      pdf.text("D9 — Navamsha Chart", M + cw + gap, y + 10);
+      y += 18;
+      pdf.addImage(imgs[0].url, "PNG", M, y, cw, ch);
+      pdf.addImage(imgs[1].url, "PNG", M + cw + gap, y, cw, ch);
+      y += ch + 24;
+
+      // Footer
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(150, 150, 160);
+      pdf.text("Generated " + new Date().toLocaleString() + " · astroindicators.com", M, pdf.internal.pageSize.getHeight() - 24);
+
+      var safe = (name === "—" ? "chart" : name).replace(/[^a-z0-9]+/gi, "_");
+      pdf.save("AstroIndicators_" + safe + "_D1_D9.pdf");
+    }).catch(function (e) {
+      alert("Could not build the PDF. Please try again.");
+      console.error(e);
+    });
+  }
+
+  // Inject the owner-only button into the Charts tab.
+  function ensureButton() {
+    if (!isOwner()) {
+      var ex = document.getElementById("ownerChartPdfBtn");
+      if (ex) ex.remove();
+      return;
+    }
+    if (document.getElementById("ownerChartPdfBtn")) return;
+    var lagnaBar = document.getElementById("lagnaBar");
+    if (!lagnaBar) return;
+    var btn = document.createElement("button");
+    btn.id = "ownerChartPdfBtn";
+    btn.textContent = "⬇ Download Charts (PDF)";
+    btn.style.cssText = "display:block;margin:14px auto 4px;background:#c9a84c;color:#1a1f33;" +
+      "border:none;border-radius:8px;padding:10px 22px;font-size:14px;font-weight:700;cursor:pointer";
+    btn.addEventListener("click", buildPDF);
+    lagnaBar.parentNode.insertBefore(btn, lagnaBar.nextSibling);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensureButton);
+  else ensureButton();
+  setInterval(ensureButton, 1200);
+})();
