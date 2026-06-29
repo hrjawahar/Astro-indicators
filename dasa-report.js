@@ -106,26 +106,24 @@
   }
 
   function getCtx() {
-    var lagna = "", ctx = "";
+    var lagna = "", chart = null;
     var cd = window.currentData;
     if (cd && cd.chart && cd.chart.d1) {
       lagna = cd.chart.d1.lagnaSign || "";
-      try {
-        if (typeof window.buildChartContext === "function")
-          ctx = window.buildChartContext(cd.chart.d1.lagnaSign, cd.chart.d1.houses, cd.chart.planets);
-      } catch (e) {}
+      if (cd.chart.d1.houses && cd.chart.planets)
+        chart = { houses: cd.chart.d1.houses, planets: cd.chart.planets };
     }
     if (!lagna) {
       var el = document.getElementById("d1LagnaLabel") || document.getElementById("lagnaBar");
       if (el) { var m = el.textContent.match(/(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)/); if (m) lagna = m[1]; }
     }
-    return { lagna: lagna, ctx: ctx };
+    return { lagna: lagna, chart: chart };
   }
 
-  function fetchIndication(prompt) {
+  function fetchIndication(payload) {
     return fetch("/api/indicate", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: prompt })
+      body: JSON.stringify(payload)
     }).then(function (r) { return r.ok ? r.text() : ""; }).then(extractText).catch(function () { return ""; });
   }
   function extractText(raw) {
@@ -142,11 +140,8 @@
     return out.trim();
   }
 
-  function mdOverview(md, label, lagna, ctx) {
-    var prompt = (typeof window.buildMDPrompt === "function")
-      ? window.buildMDPrompt(md.lord, lagna, ctx)
-      : "Write a 5-7 sentence overview of the " + md.lord + " Mahadasha for a " + lagna + " ascendant, second person.";
-    return fetchIndication(prompt).then(function (ov) {
+  function mdOverview(md, label, lagna, chart) {
+    return fetchIndication({ kind: "md", lagna: lagna, mdLord: md.lord, chart: chart }).then(function (ov) {
       return { heading: label + ": " + md.lord + " Mahadasha (" + md.start + " to " + md.end + ", " + mdYearsLabel(md) + ")",
                body: ov || "(overview unavailable)", isMDHeading: true };
     });
@@ -182,17 +177,14 @@
     var thunks = [];
 
     if (tl.previous) {
-      thunks.push(function () { return mdOverview(tl.previous, "Previous Period (Overview)", c.lagna, c.ctx).then(function (s) { prevSec = s; tick(); }); });
+      thunks.push(function () { return mdOverview(tl.previous, "Previous Period (Overview)", c.lagna, c.chart).then(function (s) { prevSec = s; tick(); }); });
     } else { tick(); }
 
-    thunks.push(function () { return mdOverview(tl.current, "Current Period (Overview + AD Sub-Periods)", c.lagna, c.ctx).then(function (s) { curOverviewSec = s; tick(); }); });
+    thunks.push(function () { return mdOverview(tl.current, "Current Period (Overview + AD Sub-Periods)", c.lagna, c.chart).then(function (s) { curOverviewSec = s; tick(); }); });
 
     (tl.current.ads || []).forEach(function (ad, idx) {
       thunks.push(function () {
-        var adPrompt = (typeof window.buildADPrompt === "function")
-          ? window.buildADPrompt(tl.current.lord, ad.lord, c.lagna, c.ctx)
-          : "Write a short indication for " + tl.current.lord + " Mahadasha / " + ad.lord + " Antardasha for a " + c.lagna + " ascendant, second person.";
-        return fetchIndication(adPrompt).then(function (t) {
+        return fetchIndication({ kind: "ad", lagna: c.lagna, mdLord: tl.current.lord, adLord: ad.lord, chart: c.chart }).then(function (t) {
           adSecs[idx] = { heading: tl.current.lord + " Mahadasha — " + ad.lord + " Antardasha (" + ad.start + " to " + ad.end + ", " + adYearsMonthsLabel(ad) + ")",
                           body: t || "(indication unavailable)", isAD: true };
           tick();
@@ -201,7 +193,7 @@
     });
 
     if (tl.next) {
-      thunks.push(function () { return mdOverview(tl.next, "Next Period (Overview)", c.lagna, c.ctx).then(function (s) { nextSec = s; tick(); }); });
+      thunks.push(function () { return mdOverview(tl.next, "Next Period (Overview)", c.lagna, c.chart).then(function (s) { nextSec = s; tick(); }); });
     } else { tick(); }
 
     // Run in batches of 5 concurrent calls — fast (~1 min) but rate-limit-safe.
