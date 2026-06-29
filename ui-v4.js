@@ -544,7 +544,7 @@ const CONSULT_CONFIG = {
       return fetch("/api/indicate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompt, max_tokens: 8000 }),
+        body: JSON.stringify({ kind: "translate", format: "block", targetLang: langCode, text: sectionsToBlock(sections), max_tokens: 8000 }),
       }).then(function (res) {
         if (!res.ok) throw new Error("HTTP " + res.status);
         var reader = res.body.getReader(), decoder = new TextDecoder(), full = "";
@@ -642,7 +642,7 @@ const CONSULT_CONFIG = {
           return fetch("/api/indicate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: prompt, max_tokens: 4000 }),
+            body: JSON.stringify({ kind: "translate", format: "section", targetLang: langCode, heading: s.heading, body: s.body, max_tokens: 4000 }),
             signal: ctrl.signal,
           }).then(function (res) {
             if (!res.ok) throw new Error("HTTP " + res.status);
@@ -2141,11 +2141,20 @@ const CONSULT_CONFIG = {
 })();
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   OWNER-ONLY CHART PDF EXPORT
+   OWNER-ONLY CHART PDF EXPORT  (v2 — vector redraw + Dasha page)
    Adds a "Download Charts (PDF)" button on the Charts tab, visible ONLY when
-   owner mode is active. Captures the live D1 + D9 SVG charts and builds a PDF
-   with a header (name/DOB/TOB/place) + lagna data + both chart grids.
+   owner mode is active.
+
+   PAGE 1 — header (name/DOB/TOB/place) + lagna data + D1 & D9 charts.
+            The charts are now drawn as NATIVE jsPDF VECTOR graphics (crisp text,
+            full-contrast colours) instead of rasterising the on-screen SVG, which
+            was the source of the blur/low-clarity in the previous version.
+   PAGE 2 — Vimshottari Dasha periods: all 9 Maha Dasas, each with its Antar Dasa
+            sub-periods, with the CURRENTLY RUNNING MD and AD highlighted.
+            Reference sheet for consultations — no AI interpretations.
+
    Independent block — does not touch chart rendering or any paid logic.
+   Data source: window.currentData.chart (falls back to on-page fields).
    ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
   "use strict";
@@ -2154,123 +2163,359 @@ const CONSULT_CONFIG = {
     try { return localStorage.getItem("ai_owner") === OWNER_KEY; } catch (e) { return false; }
   }
 
-  // Convert an on-screen <svg> element to a PNG data URL via canvas.
-  function svgToPng(svgEl, scale) {
-    return new Promise(function (resolve, reject) {
-      try {
-        var clone = svgEl.cloneNode(true);
-        // Ensure explicit width/height for rasterization.
-        var vb = (svgEl.getAttribute("viewBox") || "0 0 400 400").split(/\s+/);
-        var w = parseFloat(vb[2]) || 400, h = parseFloat(vb[3]) || 400;
-        clone.setAttribute("width", w);
-        clone.setAttribute("height", h);
-        var xml = new XMLSerializer().serializeToString(clone);
-        var svg64 = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(xml)));
-        var img = new Image();
-        img.onload = function () {
-          var c = document.createElement("canvas");
-          c.width = w * (scale || 3); c.height = h * (scale || 3);
-          var ctx = c.getContext("2d");
-          ctx.fillStyle = "#FFF8F0"; ctx.fillRect(0, 0, c.width, c.height);
-          ctx.drawImage(img, 0, 0, c.width, c.height);
-          resolve({ url: c.toDataURL("image/png"), w: w, h: h });
-        };
-        img.onerror = reject;
-        img.src = svg64;
-      } catch (e) { reject(e); }
+  // ── Reference tables (mirror of the chart engine) ──────────────────────────
+  var SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+  var ABBR  = { Sun:"Su", Moon:"Mo", Mars:"Ma", Mercury:"Me", Jupiter:"Ju", Venus:"Ve", Saturn:"Sa", Rahu:"Ra", Ketu:"Ke" };
+  var SIGN_LORD = {
+    Aries:"Mars", Taurus:"Venus", Gemini:"Mercury", Cancer:"Moon", Leo:"Sun", Virgo:"Mercury",
+    Libra:"Venus", Scorpio:"Mars", Sagittarius:"Jupiter", Capricorn:"Saturn", Aquarius:"Saturn", Pisces:"Jupiter"
+  };
+  var EXALTATION   = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
+  var DEBILITATION = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries",Rahu:"Sagittarius",Ketu:"Gemini" };
+  var OWN_SIGNS    = { Sun:["Leo"],Moon:["Cancer"],Mars:["Aries","Scorpio"],Mercury:["Gemini","Virgo"],Jupiter:["Sagittarius","Pisces"],Venus:["Taurus","Libra"],Saturn:["Capricorn","Aquarius"],Rahu:[],Ketu:[] };
+  var NATURAL_FRIENDS = {
+    Sun:{friends:["Moon","Mars","Jupiter"],enemies:["Venus","Saturn"]},
+    Moon:{friends:["Sun","Mercury"],enemies:[]},
+    Mars:{friends:["Sun","Moon","Jupiter"],enemies:["Mercury"]},
+    Mercury:{friends:["Sun","Venus"],enemies:["Moon"]},
+    Jupiter:{friends:["Sun","Moon","Mars"],enemies:["Mercury","Venus"]},
+    Venus:{friends:["Mercury","Saturn"],enemies:["Sun","Moon"]},
+    Saturn:{friends:["Mercury","Venus"],enemies:["Sun","Moon","Mars"]},
+    Rahu:{friends:["Mercury","Venus","Saturn"],enemies:["Sun","Moon","Mars"]},
+    Ketu:{friends:["Sun","Moon","Mars"],enemies:["Mercury","Venus","Saturn"]}
+  };
+  var FS_MAP = {
+    Aries:{Sun:"N",Moon:"B",Mars:"Y",Mercury:"N",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Taurus:{Sun:"M",Moon:"N",Mars:"M",Mercury:"N",Jupiter:"N",Venus:"B",Saturn:"Y",Rahu:"N",Ketu:"N"},
+    Gemini:{Sun:"M",Moon:"M",Mars:"M",Mercury:"Y",Jupiter:"B",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+    Cancer:{Sun:"B",Moon:"N",Mars:"Y",Mercury:"M",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Leo:{Sun:"N",Moon:"M",Mars:"Y",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Virgo:{Sun:"M",Moon:"M",Mars:"M",Mercury:"N",Jupiter:"B",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+    Libra:{Sun:"M",Moon:"M",Mars:"M",Mercury:"B",Jupiter:"N",Venus:"N",Saturn:"Y",Rahu:"N",Ketu:"N"},
+    Scorpio:{Sun:"M",Moon:"B",Mars:"Y",Mercury:"N",Jupiter:"M",Venus:"M",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Sagittarius:{Sun:"N",Moon:"M",Mars:"M",Mercury:"M",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Capricorn:{Sun:"M",Moon:"M",Mars:"Y",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+    Aquarius:{Sun:"M",Moon:"M",Mars:"N",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+    Pisces:{Sun:"M",Moon:"N",Mars:"M",Mercury:"N",Jupiter:"B",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"}
+  };
+  // South-Indian fixed cell → house map (same as the on-screen chart).
+  var CELL_HOUSE = { "0,0":11,"0,1":12,"0,2":1,"0,3":2, "1,0":10,"1,3":3, "2,0":9,"2,3":4, "3,0":8,"3,1":7,"3,2":6,"3,3":5 };
+
+  function getDignity(planet, sign) {
+    if (EXALTATION[planet] === sign) return "ex";
+    if (DEBILITATION[planet] === sign) return "de";
+    if ((OWN_SIGNS[planet] || []).indexOf(sign) >= 0) return "own";
+    return "";
+  }
+  function relTag(houseLord, visitor) {
+    if (!houseLord || !visitor || houseLord === visitor) return null;
+    var rel = NATURAL_FRIENDS[houseLord];
+    if (!rel) return "N";
+    if (rel.friends.indexOf(visitor) >= 0) return "F";
+    if (rel.enemies.indexOf(visitor) >= 0) return "E";
+    return "N";
+  }
+  function planetHouseMap(houses) {
+    var map = {};
+    for (var h = 1; h <= 12; h++) (houses[h] || houses[String(h)] || []).forEach(function (p) { map[p] = h; });
+    return map;
+  }
+  function combustSetOf(planets) {
+    var orbs = { Moon:7, Mars:17, Mercury:14, Jupiter:11, Venus:10, Saturn:15 }, out = {};
+    if (!planets || !planets.Sun || planets.Sun.longitude == null) return out;
+    var sun = planets.Sun.longitude;
+    Object.keys(orbs).forEach(function (p) {
+      if (!planets[p] || planets[p].longitude == null) return;
+      var diff = Math.abs(planets[p].longitude - sun); if (diff > 180) diff = 360 - diff;
+      if (diff <= orbs[p]) out[p] = true;
     });
+    return out;
+  }
+  function warSetOf(planets) {
+    var ps = ["Mars","Mercury","Jupiter","Venus","Saturn"], out = {};
+    for (var i = 0; i < ps.length; i++) for (var j = i + 1; j < ps.length; j++) {
+      var a = ps[i], b = ps[j];
+      if (!planets[a] || !planets[b] || planets[a].longitude == null || planets[b].longitude == null) continue;
+      var diff = Math.abs(planets[a].longitude - planets[b].longitude); if (diff > 180) diff = 360 - diff;
+      if (diff <= 1.0) out[(planets[a].latitude || 0) < (planets[b].latitude || 0) ? a : b] = true;
+    }
+    return out;
   }
 
   function getField(id) {
     var el = document.getElementById(id);
     return el ? (el.value || el.textContent || "").trim() : "";
   }
+  function fmtDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
+    return m ? (m[3] + "/" + m[2] + "/" + m[1]) : (iso || "");
+  }
 
+  // ── Native vector South-Indian chart ───────────────────────────────────────
+  function drawChart(pdf, ox, oy, S, lagnaSign, houses, planets, isD9) {
+    var cell = S / 4, pad = 4;
+    var lagnaIdx = SIGNS.indexOf(lagnaSign);
+    var phMap = planetHouseMap(houses);
+    var combust = combustSetOf(planets);
+    var war = warSetOf(planets);
+
+    // backdrop
+    pdf.setFillColor(255, 253, 248); pdf.rect(ox, oy, S, S, "F");
+
+    // centre label
+    pdf.setTextColor(198, 172, 120); pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9); pdf.text(isD9 ? "D9" : "D1", ox + S / 2, oy + S / 2 - 2, { align: "center" });
+    pdf.setFontSize(6.5); pdf.setFont("helvetica", "normal");
+    pdf.text(isD9 ? "Navamsha" : "Rashi", ox + S / 2, oy + S / 2 + 7, { align: "center" });
+
+    for (var row = 0; row < 4; row++) {
+      for (var c = 0; c < 4; c++) {
+        if ((row === 1 || row === 2) && (c === 1 || c === 2)) continue;
+        var hNum = CELL_HOUSE[row + "," + c];
+        if (!hNum) continue;
+        var signInHouse = SIGNS[(lagnaIdx + hNum - 1) % 12];
+        var isLagna = hNum === 1;
+        var houseLord = SIGN_LORD[signInHouse];
+        var x = ox + c * cell, y = oy + row * cell;
+
+        // cell box
+        if (isLagna) { pdf.setFillColor(250, 243, 226); pdf.setDrawColor(201, 168, 76); pdf.setLineWidth(1.1); }
+        else { pdf.setFillColor(255, 255, 255); pdf.setDrawColor(206, 196, 176); pdf.setLineWidth(0.6); }
+        pdf.rect(x, y, cell, cell, "FD");
+
+        // sign abbr (top-left) + house number (top-right)
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(6.6); pdf.setTextColor(150, 100, 30);
+        pdf.text(signInHouse.substring(0, 3).toUpperCase(), x + pad, y + 9);
+        pdf.setFontSize(8.4); pdf.setTextColor(60, 60, 84);
+        pdf.text(String(hNum), x + cell - pad, y + 9.5, { align: "right" });
+
+        // house-lord pointer (bottom-left): "Ma>H8"
+        var lordH = phMap[houseLord];
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(5.8); pdf.setTextColor(120, 108, 86);
+        pdf.text((ABBR[houseLord] || houseLord.slice(0, 2)) + (lordH ? ">H" + lordH : ""), x + pad, y + cell - 4);
+
+        // ASC marker (bottom-right) in lagna cell
+        if (isLagna) {
+          pdf.setFontSize(5.8); pdf.setTextColor(150, 95, 20);
+          pdf.text("ASC", x + cell - pad, y + cell - 4, { align: "right" });
+        }
+
+        // planets
+        var ph = houses[hNum] || houses[String(hNum)] || [];
+        var py = y + 18;
+        for (var k = 0; k < ph.length; k++) {
+          if (py > y + cell - 9) break;          // keep clear of the lord/ASC row
+          var planet = ph[k], pl = planets[planet] || {};
+          var sgn = isD9 ? (pl.d9sign || signInHouse) : signInHouse;
+          var dig = getDignity(planet, sgn);
+          var pc = [44, 50, 72];
+          if (dig === "ex") pc = [26, 110, 60];
+          else if (dig === "de") pc = [143, 26, 26];
+          else if (dig === "own") pc = [30, 74, 143];
+          if (combust[planet]) pc = [160, 92, 0];
+
+          var lbl = (ABBR[planet] || planet.slice(0, 2));
+          if (dig) lbl += " " + (dig === "ex" ? "Ex" : dig === "de" ? "De" : "Ow");
+          lbl += " " + Math.round(pl.degree || 0) + "\u00B0";
+          var fl = [];
+          if (pl.retrograde) fl.push("R");
+          if (combust[planet]) fl.push("c");
+          if (war[planet]) fl.push("w");
+          if (fl.length) lbl += " (" + fl.join("") + ")";
+
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(pc[0], pc[1], pc[2]);
+          pdf.text(lbl, x + pad, py);
+
+          // natural-relationship tag (F/N/E) to the house lord
+          var rt = relTag(houseLord, planet);
+          if (rt) {
+            var rc = rt === "F" ? [26, 110, 60] : rt === "E" ? [143, 26, 26] : [150, 150, 150];
+            pdf.setFont("helvetica", "bold"); pdf.setFontSize(6); pdf.setTextColor(rc[0], rc[1], rc[2]);
+            pdf.text(rt, x + cell - pad, py, { align: "right" });
+          }
+          py += 8.6;
+        }
+      }
+    }
+
+    // centre diamond diagonals
+    pdf.setDrawColor(212, 198, 172); pdf.setLineWidth(0.4);
+    pdf.line(ox + cell, oy + cell, ox + 3 * cell, oy + 3 * cell);
+    pdf.line(ox + 3 * cell, oy + cell, ox + cell, oy + 3 * cell);
+  }
+
+  // ── Page 2: Vimshottari dasha reference ────────────────────────────────────
+  function drawDashaPage(pdf, CD, name) {
+    pdf.addPage();
+    var W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
+    var M = 36, y = 48, bottom = H - 40;
+    var dasha = (CD && CD.dasha) || {}, dashas = dasha.dashas || [];
+    var lagna = CD && CD.d1 ? CD.d1.lagnaSign : "";
+    var today = new Date().toISOString().split("T")[0];
+
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(16); pdf.setTextColor(34, 38, 54);
+    pdf.text("Vimshottari Dasha Periods", M, y); y += 15;
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.setTextColor(120, 120, 130);
+    pdf.text((name ? name + "   ·   " : "") + "Moon Nakshatra: " + (dasha.nakshatra || "-") +
+      (dasha.nakshataLord ? " (" + dasha.nakshataLord + ")" : ""), M, y); y += 9;
+    pdf.setDrawColor(201, 168, 76); pdf.setLineWidth(1); pdf.line(M, y, W - M, y); y += 16;
+
+    // legend
+    pdf.setFillColor(201, 168, 76); pdf.rect(M, y - 7, 9, 9, "F");
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5); pdf.setTextColor(90, 90, 100);
+    pdf.text("Currently running Maha Dasa", M + 13, y);
+    pdf.setFillColor(250, 238, 205); pdf.setDrawColor(201, 168, 76); pdf.setLineWidth(0.5);
+    pdf.rect(M + 200, y - 7, 9, 9, "FD");
+    pdf.text("Currently running Antar Dasa", M + 213, y); y += 16;
+
+    // find current MD/AD
+    var curMD = null, curAD = null;
+    dashas.forEach(function (d) {
+      if (d.startDate <= today && today < d.endDate) {
+        curMD = d.lord;
+        (d.antarDasas || []).forEach(function (a) { if (a.startDate <= today && today < a.endDate) curAD = a.lord; });
+      }
+    });
+
+    function needPage(h) {
+      if (y + h > bottom) {
+        pdf.addPage(); y = 48;
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.setTextColor(150, 120, 40);
+        pdf.text("Vimshottari Dasha Periods (continued)", M, y); y += 16;
+      }
+    }
+
+    var colW = (W - 2 * M) / 3;
+
+    dashas.forEach(function (d) {
+      var ads = d.antarDasas || [];
+      var rows = Math.max(1, Math.ceil(ads.length / 3));
+      var blockH = 18 + rows * 12 + 12;
+      needPage(blockH);
+
+      var isCurMD = d.lord === curMD && d.startDate <= today && today < d.endDate;
+      var fs = (FS_MAP[lagna] && FS_MAP[lagna][d.lord]) || "N";
+      var fsLabel = fs === "Y" ? "Yogakaraka" : fs === "B" ? "Benefic" : fs === "M" ? "Malefic" : "Neutral";
+
+      // MD header band
+      if (isCurMD) { pdf.setFillColor(201, 168, 76); pdf.rect(M, y - 10, W - 2 * M, 16, "F"); pdf.setTextColor(26, 31, 51); }
+      else { pdf.setFillColor(243, 239, 230); pdf.rect(M, y - 10, W - 2 * M, 16, "F"); pdf.setTextColor(44, 44, 64); }
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(9.5);
+      if (isCurMD) { pdf.setFillColor(26, 31, 51); pdf.circle(M + 11, y - 2, 2.3, "F"); }
+      pdf.text(d.lord + " Mahadasha", M + (isCurMD ? 19 : 7), y + 1);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8);
+      pdf.text(fsLabel, M + 150, y + 1);
+      pdf.text(fmtDate(d.startDate) + "  -  " + fmtDate(d.endDate) + "    " + d.years + " yrs", W - M - 7, y + 1, { align: "right" });
+      y += 17;
+
+      // AD grid (3 columns)
+      ads.forEach(function (a, i) {
+        var cc = i % 3, rr = Math.floor(i / 3);
+        var cx = M + cc * colW, cy = y + rr * 12;
+        var isCurAD = isCurMD && a.lord === curAD && a.startDate <= today && today < a.endDate;
+        if (isCurAD) {
+          pdf.setFillColor(250, 238, 205); pdf.setDrawColor(201, 168, 76); pdf.setLineWidth(0.5);
+          pdf.rect(cx + 2, cy - 8.5, colW - 4, 11, "FD");
+        }
+        pdf.setFont("helvetica", isCurAD ? "bold" : "normal"); pdf.setFontSize(7.4);
+        pdf.setTextColor(isCurAD ? 120 : 60, isCurAD ? 90 : 60, isCurAD ? 20 : 80);
+        pdf.text(a.lord, cx + 6, cy);
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(6.8); pdf.setTextColor(118, 118, 128);
+        pdf.text(fmtDate(a.startDate) + " - " + fmtDate(a.endDate), cx + 44, cy);
+      });
+      y += rows * 12 + 12;
+    });
+
+    // footer
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(150, 150, 160);
+    pdf.text("Generated " + new Date().toLocaleString() + " · astroindicators.com", M, H - 24);
+  }
+
+  // ── Build the whole PDF ────────────────────────────────────────────────────
   function buildPDF() {
     var jsPDFns = window.jspdf || window.jsPDF;
     var JsPDF = jsPDFns && (jsPDFns.jsPDF || jsPDFns);
     if (!JsPDF) { alert("PDF library not loaded."); return; }
 
-    var d1 = document.querySelector("#d1ChartWrap svg");
-    var d9 = document.querySelector("#d9ChartWrap svg");
-    if (!d1 || !d9) { alert("Generate a chart first."); return; }
+    var CD = (window.currentData && window.currentData.chart) || null;
+    if (!CD || !CD.d1 || !CD.d9 || !CD.planets) { alert("Generate a chart first."); return; }
 
-    // Gather header + lagna data from the page.
-    var name  = getField("inputName") || "—";
-    var dob   = getField("inputDOB")  || "—";
-    var tob   = getField("inputTOB")  || "—";
-    var place = getField("inputPlaceDisplay") || getField("inputPlace") || "—";
-    var lagnaItems = [];
-    document.querySelectorAll("#lagnaBar .lagna-item").forEach(function (it) {
-      var k = it.querySelector(".lagna-key"), v = it.querySelector(".lagna-val");
-      if (k && v) lagnaItems.push([k.textContent.trim(), v.textContent.trim()]);
+    var planets = CD.planets;
+    var inp = CD.input || {};
+    var name  = inp.name  || getField("inputName") || "—";
+    var dob   = inp.dob   || getField("inputDOB")  || "—";
+    var tob   = inp.tob   || getField("inputTOB")  || "—";
+    var place = inp.place || getField("inputPlaceDisplay") || getField("inputPlace") || "—";
+
+    var pdf = new JsPDF({ unit: "pt", format: "a4" });
+    var W = pdf.internal.pageSize.getWidth();
+    var M = 36, y = 46;
+
+    // Header
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(20); pdf.setTextColor(34, 38, 54);
+    pdf.text("AstroIndicators", M, y);
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.setTextColor(120, 120, 130);
+    pdf.text("Birth Chart Sheet (D1 & D9)", M, y + 16);
+    y += 36;
+    pdf.setDrawColor(201, 168, 76); pdf.setLineWidth(1); pdf.line(M, y, W - M, y); y += 18;
+
+    // Native details
+    pdf.setFontSize(11); pdf.setTextColor(40, 40, 60);
+    pdf.setFont("helvetica", "bold"); pdf.text("Native: ", M, y);
+    pdf.setFont("helvetica", "normal"); pdf.text(String(name), M + 44, y); y += 16;
+    pdf.setFont("helvetica", "bold"); pdf.text("DOB: ", M, y);
+    pdf.setFont("helvetica", "normal"); pdf.text(dob + "     TOB: " + tob, M + 34, y); y += 16;
+    pdf.setFont("helvetica", "bold"); pdf.text("Place: ", M, y);
+    pdf.setFont("helvetica", "normal");
+    var placeLines = pdf.splitTextToSize(String(place), W - M - (M + 40));
+    pdf.text(placeLines.slice(0, 2), M + 40, y);
+    y += 16 * Math.min(placeLines.length, 2) + 6;
+
+    // Lagna data (two columns), built from the chart data
+    var moon = planets.Moon || {};
+    var pairs = [
+      ["Zodiac Sign", moon.sign || "—"],
+      ["D1 Lagna", CD.d1.lagnaSign + (CD.d1.lagnaDegree != null ? " " + CD.d1.lagnaDegree.toFixed(1) + "\u00B0" : "")],
+      ["D9 Lagna", CD.d9.lagnaSign || "—"],
+      ["Moon Nakshatra", (moon.nakshatra || "—") + (moon.pada ? " Pada " + moon.pada : "")],
+      ["Ayanamsha", "Lahiri " + (CD.ayanamsha != null ? CD.ayanamsha.toFixed(4) + "\u00B0" : "—")],
+      ["Native", String(name)]
+    ];
+    pdf.setDrawColor(222, 222, 227); pdf.setLineWidth(0.6); pdf.line(M, y, W - M, y); y += 16;
+    pdf.setFontSize(10);
+    var colX = [M, W / 2];
+    pairs.forEach(function (pair, i) {
+      var x = colX[i % 2];
+      pdf.setFont("helvetica", "bold"); pdf.setTextColor(150, 120, 40);
+      pdf.text(pair[0] + ": ", x, y);
+      var kw = pdf.getTextWidth(pair[0] + ": ");
+      pdf.setFont("helvetica", "normal"); pdf.setTextColor(40, 40, 60);
+      pdf.text(String(pair[1]), x + kw, y);
+      if (i % 2 === 1) y += 15;
     });
+    if (pairs.length % 2 === 1) y += 15;
+    y += 10;
 
-    Promise.all([svgToPng(d1, 3), svgToPng(d9, 3)]).then(function (imgs) {
-      var pdf = new JsPDF({ unit: "pt", format: "a4" });
-      var W = pdf.internal.pageSize.getWidth();
-      var M = 40, y = 46;
+    // Chart titles + the two vector charts, side by side
+    var gap = 18;
+    var S = (W - M * 2 - gap) / 2;     // square side
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); pdf.setTextColor(40, 40, 60);
+    pdf.text("D1 — Rashi Chart", M, y + 10);
+    pdf.text("D9 — Navamsha Chart", M + S + gap, y + 10);
+    y += 18;
+    drawChart(pdf, M,          y, S, CD.d1.lagnaSign, CD.d1.houses, planets, false);
+    drawChart(pdf, M + S + gap, y, S, CD.d9.lagnaSign, CD.d9.houses, planets, true);
+    y += S + 18;
 
-      // Header
-      pdf.setFont("helvetica", "bold"); pdf.setFontSize(20); pdf.setTextColor(40, 40, 60);
-      pdf.text("AstroIndicators", M, y);
-      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.setTextColor(120, 120, 130);
-      pdf.text("Birth Chart Sheet (D1 & D9)", M, y + 16);
-      y += 38;
+    // Page-1 footer
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(150, 150, 160);
+    pdf.text("Generated " + new Date().toLocaleString() + " · astroindicators.com", M, pdf.internal.pageSize.getHeight() - 24);
 
-      // Native details
-      pdf.setDrawColor(201, 168, 76); pdf.setLineWidth(1); pdf.line(M, y, W - M, y); y += 18;
-      pdf.setFontSize(11); pdf.setTextColor(40, 40, 60);
-      pdf.setFont("helvetica", "bold"); pdf.text("Native: ", M, y);
-      pdf.setFont("helvetica", "normal"); pdf.text(name, M + 42, y);
-      y += 16;
-      pdf.setFont("helvetica", "bold"); pdf.text("DOB: ", M, y);
-      pdf.setFont("helvetica", "normal"); pdf.text(dob + "    TOB: " + tob, M + 32, y);
-      y += 16;
-      pdf.setFont("helvetica", "bold"); pdf.text("Place: ", M, y);
-      pdf.setFont("helvetica", "normal"); pdf.text(place, M + 38, y);
-      y += 20;
+    // Page 2 — dasha periods
+    try { drawDashaPage(pdf, CD, name === "—" ? "" : name); } catch (e) { console.error("dasha page", e); }
 
-      // Lagna data (two columns)
-      if (lagnaItems.length) {
-        pdf.setDrawColor(220, 220, 225); pdf.line(M, y, W - M, y); y += 16;
-        pdf.setFontSize(10);
-        var colX = [M, W / 2];
-        lagnaItems.forEach(function (pair, i) {
-          var x = colX[i % 2];
-          pdf.setFont("helvetica", "bold"); pdf.setTextColor(150, 120, 40);
-          pdf.text(pair[0] + ": ", x, y);
-          var kw = pdf.getTextWidth(pair[0] + ": ");
-          pdf.setFont("helvetica", "normal"); pdf.setTextColor(40, 40, 60);
-          pdf.text(pair[1], x + kw, y);
-          if (i % 2 === 1) y += 15;
-        });
-        if (lagnaItems.length % 2 === 1) y += 15;
-        y += 8;
-      }
-
-      // Charts — two side by side
-      var gap = 16;
-      var cw = (W - M * 2 - gap) / 2;
-      var ch = cw; // square
-      pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); pdf.setTextColor(40, 40, 60);
-      pdf.text("D1 — Rashi Chart", M, y + 10);
-      pdf.text("D9 — Navamsha Chart", M + cw + gap, y + 10);
-      y += 18;
-      pdf.addImage(imgs[0].url, "PNG", M, y, cw, ch);
-      pdf.addImage(imgs[1].url, "PNG", M + cw + gap, y, cw, ch);
-      y += ch + 24;
-
-      // Footer
-      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(150, 150, 160);
-      pdf.text("Generated " + new Date().toLocaleString() + " · astroindicators.com", M, pdf.internal.pageSize.getHeight() - 24);
-
-      var safe = (name === "—" ? "chart" : name).replace(/[^a-z0-9]+/gi, "_");
-      pdf.save("AstroIndicators_" + safe + "_D1_D9.pdf");
-    }).catch(function (e) {
-      alert("Could not build the PDF. Please try again.");
-      console.error(e);
-    });
+    var safe = (name === "—" ? "chart" : name).replace(/[^a-z0-9]+/gi, "_");
+    pdf.save("AstroIndicators_" + safe + "_D1_D9.pdf");
   }
 
   // Inject the owner-only button into the Charts tab.
