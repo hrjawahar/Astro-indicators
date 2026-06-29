@@ -298,19 +298,7 @@ async function translateIndication(text, targetLang, contentEl, panelId) {
     const res = await fetch("/api/indicate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        max_tokens: 2500,
-        prompt: `Translate the following Vedic astrology reading into ${IND_LANG_LABELS[targetLang]}.
-
-Rules:
-- Translate section headers too
-- Keep UNTRANSLATED: planet names (Saturn, Jupiter, Venus, Mars, Mercury, Sun, Moon, Rahu, Ketu), house numbers (H1–H12), technical terms (Mahadasha, Antardasha, Yogakaraka, Lagna, D9, Navamsha, Vimshottari), sign names (Aries, Taurus etc), dignity terms (Exalted, Debilitated)
-- Translate ALL descriptive sentences completely — do not stop mid-sentence
-- Complete the full translation without truncating
-
-TEXT TO TRANSLATE:
-${text}`,
-      }),
+      body: JSON.stringify({ kind: "translate", format: "block", targetLang, text, max_tokens: 2500 }),
     });
     if (!res.ok) throw new Error("HTTP "+res.status);
     let full = "";
@@ -415,14 +403,14 @@ function wireToolbar(panelId, originalText) {
 }
 
 // Stream Claude API via Cloudflare proxy
-async function callIndicationAPI(prompt, targetEl, cacheKey, cacheMap) {
+async function callIndicationAPI(payload, targetEl, cacheKey, cacheMap) {
   targetEl.innerHTML=`<div class="ind-loading"><span class="spinner"></span>Generating from chart data…</div>`;
   const panelId=cacheKey.replace(/[^a-zA-Z0-9]/g,"_");
   try {
     const res=await fetch("/api/indicate",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({prompt,max_tokens:2000}),
+      body:JSON.stringify(Object.assign({max_tokens:2000},payload)),
     });
     if (!res.ok){const err=await res.json().catch(()=>({error:`HTTP ${res.status}`}));throw new Error(err.error||`HTTP ${res.status}`);}
     targetEl.innerHTML=`${buildIndicationToolbar(panelId)}<div class="ind-content" id="content-${panelId}"></div>`;
@@ -1037,7 +1025,7 @@ function renderDashaScreen(data) {
       if (panel) {
         const ck=`${currentMaha.lord}:${currentAntar.lord}:${lagna}`;
         if (_indicationCache.has(ck)) panel.innerHTML=`<div class="ind-content">${markdownToHTML(_indicationCache.get(ck))}</div>`;
-        else callIndicationAPI(buildADPrompt(currentMaha.lord,currentAntar.lord,lagna,chartCtx),panel,ck,_indicationCache);
+        else callIndicationAPI({kind:"ad",lagna,mdLord:currentMaha.lord,adLord:currentAntar.lord,chart:{houses,planets}},panel,ck,_indicationCache);
       }
     }
   }
@@ -1129,7 +1117,7 @@ function renderDashaScreen(data) {
           }
           sp.dataset.loaded="1";
           if (_mdSeasonCache.has(mdCK)) sp.innerHTML=`<div class="ind-content">${markdownToHTML(_mdSeasonCache.get(mdCK))}</div>`;
-          else callIndicationAPI(buildMDPrompt(d.lord,lagna,chartCtx),sp,mdCK,_mdSeasonCache);
+          else callIndicationAPI({kind:"md",lagna,mdLord:d.lord,chart:{houses,planets}},sp,mdCK,_mdSeasonCache);
         }
       }
     });
@@ -1141,7 +1129,7 @@ function renderDashaScreen(data) {
       if (sp) {
         sp.dataset.loaded="1";
         if (_mdSeasonCache.has(mdCK)) sp.innerHTML=`<div class="ind-content">${markdownToHTML(_mdSeasonCache.get(mdCK))}</div>`;
-        else callIndicationAPI(buildMDPrompt(d.lord,lagna,chartCtx),sp,mdCK,_mdSeasonCache);
+        else callIndicationAPI({kind:"md",lagna,mdLord:d.lord,chart:{houses,planets}},sp,mdCK,_mdSeasonCache);
       }
     }
 
@@ -1168,7 +1156,7 @@ function renderDashaScreen(data) {
             ap.dataset.loaded="1";
             const ck=ap.dataset.cache;
             if (_indicationCache.has(ck)) ap.innerHTML=`<div class="ind-content">${markdownToHTML(_indicationCache.get(ck))}</div>`;
-            else callIndicationAPI(buildADPrompt(btn.dataset.md,btn.dataset.ad,lagna,chartCtx),ap,ck,_indicationCache);
+            else callIndicationAPI({kind:"ad",lagna,mdLord:btn.dataset.md,adLord:btn.dataset.ad,chart:{houses,planets}},ap,ck,_indicationCache);
           }
         }
       });
@@ -1187,7 +1175,7 @@ function renderDashaScreen(data) {
           ap.dataset.loaded="1";
           const ck=ap.dataset.cache;
           if (_indicationCache.has(ck)) ap.innerHTML=`<div class="ind-content">${markdownToHTML(_indicationCache.get(ck))}</div>`;
-          else callIndicationAPI(buildADPrompt(btn?.dataset.md||d.lord,btn?.dataset.ad||currentAntar.lord,lagna,chartCtx),ap,ck,_indicationCache);
+          else callIndicationAPI({kind:"ad",lagna,mdLord:btn?.dataset.md||d.lord,adLord:btn?.dataset.ad||currentAntar.lord,chart:{houses,planets}},ap,ck,_indicationCache);
         }
       }
     }
