@@ -2431,6 +2431,235 @@ const CONSULT_CONFIG = {
     pdf.text("Generated " + new Date().toLocaleString() + " · astroindicators.com", M, H - 24);
   }
 
+  // ══ TAMIL PATH ═════════════════════════════════════════════════════════════
+  // jsPDF's standard fonts cannot SHAPE Tamil (vowel signs mis-order), so for
+  // Tamil we render each page as an SVG — which the browser shapes correctly —
+  // and rasterise it into the PDF. English keeps the crisp vector path above.
+  var SIGN_TA = { Aries:"மேஷம்", Taurus:"ரிஷபம்", Gemini:"மிதுனம்", Cancer:"கடகம்", Leo:"சிம்மம்", Virgo:"கன்னி", Libra:"துலாம்", Scorpio:"விருச்சிகம்", Sagittarius:"தனுசு", Capricorn:"மகரம்", Aquarius:"கும்பம்", Pisces:"மீனம்" };
+  var SIGN_ABBR_TA = { Aries:"மேஷ", Taurus:"ரிஷ", Gemini:"மிது", Cancer:"கடக", Leo:"சிம்", Virgo:"கன்", Libra:"துலா", Scorpio:"விரு", Sagittarius:"தனு", Capricorn:"மகர", Aquarius:"கும்", Pisces:"மீன" };
+  var PLANET_TA_ABBR = { Sun:"சூ", Moon:"சந்", Mars:"செவ்", Mercury:"பு", Jupiter:"கு", Venus:"சுக்", Saturn:"சனி", Rahu:"ரா", Ketu:"கே" };
+  var PLANET_TA_FULL = { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்", Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" };
+  var NAK_TA = { Ashwini:"அசுவினி", Bharani:"பரணி", Krittika:"கார்த்திகை", Rohini:"ரோகிணி", Mrigashira:"மிருகசீரிடம்", Mrigashirsha:"மிருகசீரிடம்", Ardra:"திருவாதிரை", Punarvasu:"புனர்பூசம்", Pushya:"பூசம்", Ashlesha:"ஆயில்யம்", Magha:"மகம்", "Purva Phalguni":"பூரம்", "Uttara Phalguni":"உத்திரம்", Hasta:"அஸ்தம்", Chitra:"சித்திரை", Swati:"சுவாதி", Vishakha:"விசாகம்", Anuradha:"அனுஷம்", Jyeshtha:"கேட்டை", Mula:"மூலம்", Moola:"மூலம்", "Purva Ashadha":"பூராடம்", "Uttara Ashadha":"உத்திராடம்", Shravana:"திருவோணம்", Dhanishta:"அவிட்டம்", Shatabhisha:"சதயம்", "Purva Bhadrapada":"பூரட்டாதி", "Uttara Bhadrapada":"உத்திரட்டாதி", Revati:"ரேவதி" };
+  var FS_TA = { Y:"யோககாரகன்", B:"சாதகம்", M:"தீயது", N:"நடுநிலை" };
+  var TA_FONT = "'Noto Sans Tamil','Nirmala UI','Latha','Tamil Sangam MN',system-ui,sans-serif";
+
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function svgT(x, y, size, fill, str, o) {
+    o = o || {};
+    return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" fill="' + fill + '"' +
+      (o.a ? ' text-anchor="' + o.a + '"' : "") + (o.b ? ' font-weight="700"' : "") + '>' + esc(str) + '</text>';
+  }
+  function svgR(x, y, w, h, fill, stroke, sw) {
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"' +
+      (fill ? ' fill="' + fill + '"' : ' fill="none"') +
+      (stroke ? ' stroke="' + stroke + '" stroke-width="' + sw + '"' : "") + '/>';
+  }
+  function svgL(x1, y1, x2, y2, stroke, sw) {
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + stroke + '" stroke-width="' + sw + '"/>';
+  }
+
+  // One South-Indian chart as SVG markup (Tamil labels), at origin ox,oy, side S.
+  function taChartCells(ox, oy, S, lagnaSign, houses, planets, isD9) {
+    var cell = S / 4, pad = 4, li = SIGNS.indexOf(lagnaSign);
+    var ph = planetHouseMap(houses), comb = combustSetOf(planets), war = warSetOf(planets);
+    var o = svgR(ox, oy, S, S, "#FFFDF8");
+    o += svgT(ox + S / 2, oy + S / 2 - 2, 9, "#C6AA78", isD9 ? "D9" : "D1", { a: "middle", b: 1 });
+    o += svgT(ox + S / 2, oy + S / 2 + 8, 6.5, "#C6AA78", isD9 ? "நவாம்சம்" : "ராசி", { a: "middle" });
+    for (var r = 0; r < 4; r++) for (var c = 0; c < 4; c++) {
+      if ((r === 1 || r === 2) && (c === 1 || c === 2)) continue;
+      var hN = CELL_HOUSE[r + "," + c]; if (!hN) continue;
+      var sgnH = SIGNS[(li + hN - 1) % 12], isL = hN === 1, hl = SIGN_LORD[sgnH];
+      var x = ox + c * cell, y = oy + r * cell;
+      o += svgR(x, y, cell, cell, isL ? "#FAF3E2" : "#FFFFFF", isL ? "#C9A84C" : "#CEC4B0", isL ? 1.1 : 0.6);
+      o += svgT(x + pad, y + 9, 6.6, "#966420", SIGN_ABBR_TA[sgnH] || sgnH.substr(0, 3), { b: 1 });
+      o += svgT(x + cell - pad, y + 9.5, 8.4, "#3C3C54", String(hN), { a: "end", b: 1 });
+      var lh = ph[hl];
+      o += svgT(x + pad, y + cell - 4, 5.8, "#786C56", (PLANET_TA_ABBR[hl] || hl.substr(0, 2)) + (lh ? ">H" + lh : ""));
+      if (isL) o += svgT(x + cell - pad, y + cell - 4, 5.8, "#965F14", "லக்", { a: "end" });
+      var pl = houses[hN] || houses[String(hN)] || [], py = y + 18;
+      for (var k = 0; k < pl.length; k++) {
+        if (py > y + cell - 9) break;
+        var p = pl[k], pd = planets[p] || {}, sg = isD9 ? (pd.d9sign || sgnH) : sgnH, dg = getDignity(p, sg);
+        var col = dg === "ex" ? "#1A6E3C" : dg === "de" ? "#8F1A1A" : dg === "own" ? "#1E4A8F" : "#2C3248";
+        if (comb[p]) col = "#A05C00";
+        var lbl = (PLANET_TA_ABBR[p] || p.substr(0, 2));
+        if (dg) lbl += " " + (dg === "ex" ? "உச்" : dg === "de" ? "நீ" : "ஆ");
+        lbl += " " + Math.round(pd.degree || 0) + "\u00B0";
+        var fl = [];
+        if (pd.retrograde) fl.push("வ"); if (comb[p]) fl.push("அ"); if (war[p]) fl.push("யு");
+        if (fl.length) lbl += " (" + fl.join("") + ")";
+        o += svgT(x + pad, py, 7, col, lbl);
+        var rt = relTag(hl, p);
+        if (rt) { var rc = rt === "F" ? "#1A6E3C" : rt === "E" ? "#8F1A1A" : "#969696"; var rl = rt === "F" ? "ந" : rt === "E" ? "ப" : "ச"; o += svgT(x + cell - pad, py, 6, rc, rl, { a: "end", b: 1 }); }
+        py += 8.6;
+      }
+    }
+    o += svgL(ox + cell, oy + cell, ox + 3 * cell, oy + 3 * cell, "#D4C6AC", 0.4);
+    o += svgL(ox + 3 * cell, oy + cell, ox + cell, oy + 3 * cell, "#D4C6AC", 0.4);
+    return o;
+  }
+
+  // Page 1 (Tamil) as a full A4 SVG string.
+  function taPage1SVG(CD, name, dob, tob, place) {
+    var W = 595, H = 842, M = 36, y = 46;
+    var planets = CD.planets, moon = planets.Moon || {};
+    var o = "";
+    o += svgT(M, y, 20, "#222236", "AstroIndicators", { b: 1 });
+    o += svgT(M, y + 16, 10, "#787882", "ஜாதக விளக்கப் படிவம் (D1 & D9)"); y += 36;
+    o += svgL(M, y, W - M, y, "#C9A84C", 1); y += 18;
+    o += svgT(M, y, 11, "#28283C", "ஜாதகர்: ", { b: 1 }); o += svgT(M + 64, y, 11, "#28283C", name); y += 16;
+    o += svgT(M, y, 11, "#28283C", "தேதி: ", { b: 1 }); o += svgT(M + 48, y, 11, "#28283C", dob + "    நேரம்: " + tob); y += 16;
+    o += svgT(M, y, 11, "#28283C", "இடம்: ", { b: 1 });
+    var pl = wrapText(place, 78);
+    o += svgT(M + 46, y, 11, "#28283C", pl[0] || "");
+    if (pl[1]) { y += 14; o += svgT(M + 46, y, 11, "#28283C", pl[1]); }
+    y += 22;
+    o += svgL(M, y, W - M, y, "#DEDEE3", 0.6); y += 16;
+    var pairs = [
+      ["ராசி", SIGN_TA[moon.sign] || moon.sign || "—"],
+      ["D1 லக்னம்", (SIGN_TA[CD.d1.lagnaSign] || CD.d1.lagnaSign) + (CD.d1.lagnaDegree != null ? " " + CD.d1.lagnaDegree.toFixed(1) + "\u00B0" : "")],
+      ["D9 லக்னம்", SIGN_TA[CD.d9.lagnaSign] || CD.d9.lagnaSign || "—"],
+      ["நட்சத்திரம்", (NAK_TA[moon.nakshatra] || moon.nakshatra || "—") + (moon.pada ? " பாதம் " + moon.pada : "")],
+      ["அயனாம்சம்", "Lahiri " + (CD.ayanamsha != null ? CD.ayanamsha.toFixed(4) + "\u00B0" : "—")],
+      ["ஜாதகர்", name]
+    ];
+    var colX = [M, W / 2];
+    pairs.forEach(function (pr, i) {
+      var x = colX[i % 2];
+      o += svgT(x, y, 10, "#967828", pr[0] + ": ", { b: 1 });
+      o += svgT(x + 92, y, 10, "#28283C", String(pr[1]));
+      if (i % 2 === 1) y += 15;
+    });
+    if (pairs.length % 2 === 1) y += 15;
+    y += 12;
+    var gap = 18, S = (W - M * 2 - gap) / 2;
+    o += svgT(M, y + 10, 11, "#28283C", "D1 — ராசி", { b: 1 });
+    o += svgT(M + S + gap, y + 10, 11, "#28283C", "D9 — நவாம்சம்", { b: 1 });
+    y += 18;
+    o += taChartCells(M, y, S, CD.d1.lagnaSign, CD.d1.houses, planets, false);
+    o += taChartCells(M + S + gap, y, S, CD.d9.lagnaSign, CD.d9.houses, planets, true);
+    o += svgT(M, H - 24, 8, "#969aa0", "Generated " + new Date().toLocaleString() + " · astroindicators.com");
+    return wrapSVG(W, H, o);
+  }
+
+  // Page 2 (Tamil) — dasha periods — as one or more A4 SVG strings.
+  function taPage2SVGs(CD, name) {
+    var W = 595, H = 842, M = 36, bottom = H - 40;
+    var dasha = (CD && CD.dasha) || {}, dashas = dasha.dashas || [];
+    var lagna = CD && CD.d1 ? CD.d1.lagnaSign : "";
+    var today = new Date().toISOString().split("T")[0];
+    var pages = [], o = "", y;
+
+    function header(cont) {
+      var s = "", yy = 48;
+      s += svgT(M, yy, 16, "#222236", cont ? "விம்ஷோத்தரி தசா காலங்கள் (தொடர்ச்சி)" : "விம்ஷோத்தரி தசா காலங்கள்", { b: 1 }); yy += 15;
+      if (!cont) {
+        s += svgT(M, yy, 9, "#787882", (name ? name + "   ·   " : "") + "நட்சத்திரம்: " + (NAK_TA[dasha.nakshatra] || dasha.nakshatra || "-") +
+          (dasha.nakshataLord ? " (" + (PLANET_TA_FULL[dasha.nakshataLord] || dasha.nakshataLord) + ")" : "")); yy += 9;
+        s += svgL(M, yy, W - M, yy, "#C9A84C", 1); yy += 16;
+        s += svgR(M, yy - 7, 9, 9, "#C9A84C");
+        s += svgT(M + 13, yy, 7.5, "#5A5A64", "தற்போதைய மகா தசை");
+        s += svgR(M + 200, yy - 7, 9, 9, "#FAEECD", "#C9A84C", 0.5);
+        s += svgT(M + 213, yy, 7.5, "#5A5A64", "தற்போதைய புக்தி"); yy += 16;
+      } else { s += svgL(M, yy - 6, W - M, yy - 6, "#C9A84C", 1); yy += 10; }
+      return { s: s, y: yy };
+    }
+    var hd = header(false); o = hd.s; y = hd.y;
+
+    var curMD = null, curAD = null;
+    dashas.forEach(function (d) {
+      if (d.startDate <= today && today < d.endDate) {
+        curMD = d.lord;
+        (d.antarDasas || []).forEach(function (a) { if (a.startDate <= today && today < a.endDate) curAD = a.lord; });
+      }
+    });
+
+    var colW = (W - 2 * M) / 3;
+    dashas.forEach(function (d) {
+      var ads = d.antarDasas || [], rows = Math.max(1, Math.ceil(ads.length / 3));
+      var blockH = 17 + rows * 12 + 12;
+      if (y + blockH > bottom) { pages.push(wrapSVG(W, H, o)); var h2 = header(true); o = h2.s; y = h2.y; }
+      var isCurMD = d.lord === curMD && d.startDate <= today && today < d.endDate;
+      var fs = (FS_MAP[lagna] && FS_MAP[lagna][d.lord]) || "N";
+      if (isCurMD) { o += svgR(M, y - 10, W - 2 * M, 16, "#C9A84C"); }
+      else { o += svgR(M, y - 10, W - 2 * M, 16, "#F3EFE6"); }
+      var hc = isCurMD ? "#1A1F33" : "#2C2C40";
+      if (isCurMD) o += '<circle cx="' + (M + 11) + '" cy="' + (y - 2) + '" r="2.3" fill="#1A1F33"/>';
+      o += svgT(M + (isCurMD ? 19 : 7), y + 1, 9.5, hc, (PLANET_TA_FULL[d.lord] || d.lord) + " மகா தசை", { b: 1 });
+      o += svgT(M + 165, y + 1, 8, hc, FS_TA[fs] || "");
+      o += svgT(W - M - 7, y + 1, 8, hc, fmtDate(d.startDate) + "  -  " + fmtDate(d.endDate) + "    " + d.years + " ஆ", { a: "end" });
+      y += 17;
+      ads.forEach(function (a, i) {
+        var cc = i % 3, rr = Math.floor(i / 3), cx = M + cc * colW, cy = y + rr * 12;
+        var isCurAD = isCurMD && a.lord === curAD && a.startDate <= today && today < a.endDate;
+        if (isCurAD) o += svgR(cx + 2, cy - 8.5, colW - 4, 11, "#FAEECD", "#C9A84C", 0.5);
+        o += svgT(cx + 6, cy, 7.4, isCurAD ? "#785A14" : "#3C3C50", PLANET_TA_FULL[a.lord] || a.lord, { b: isCurAD ? 1 : 0 });
+        o += svgT(cx + 56, cy, 6.8, "#767680", fmtDate(a.startDate) + " - " + fmtDate(a.endDate));
+      });
+      y += rows * 12 + 12;
+    });
+    o += svgT(M, H - 24, 8, "#969aa0", "Generated " + new Date().toLocaleString() + " · astroindicators.com");
+    pages.push(wrapSVG(W, H, o));
+    return pages;
+  }
+
+  function wrapSVG(W, H, inner) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' +
+      '<rect width="' + W + '" height="' + H + '" fill="#ffffff"/>' +
+      '<g font-family="' + TA_FONT.replace(/"/g, "&quot;") + '">' + inner + '</g></svg>';
+  }
+  function wrapText(s, maxChars) {
+    s = String(s || ""); if (s.length <= maxChars) return [s];
+    var cut = s.lastIndexOf(" ", maxChars); if (cut < 0) cut = maxChars;
+    return [s.slice(0, cut), s.slice(cut + 1, cut + 1 + maxChars)];
+  }
+  // crude label width estimate for the lagna grid value offset (pt at 10px)
+  function labelW(label) { return label.length * 6.4 + 10; }
+
+  // SVG string → PNG data URL (browser shapes the Tamil text)
+  function rasterizeSVG(markup, wPt, hPt, scale) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var svg64 = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(markup)));
+        var img = new Image();
+        img.onload = function () {
+          var cv = document.createElement("canvas");
+          cv.width = Math.round(wPt * scale); cv.height = Math.round(hPt * scale);
+          var ctx = cv.getContext("2d");
+          ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, cv.width, cv.height);
+          ctx.drawImage(img, 0, 0, cv.width, cv.height);
+          resolve(cv.toDataURL("image/png"));
+        };
+        img.onerror = reject;
+        img.src = svg64;
+      } catch (e) { reject(e); }
+    });
+  }
+
+  function buildPDF_TA(JsPDF, CD) {
+    var W = 595.28, H = 841.89, scale = 3;
+    var inp = CD.input || {};
+    var name = inp.name || getField("inputName") || "—";
+    var dob = inp.dob || getField("inputDOB") || "—";
+    var tob = inp.tob || getField("inputTOB") || "—";
+    var place = inp.place || getField("inputPlaceDisplay") || getField("inputPlace") || "—";
+
+    var p1 = taPage1SVG(CD, name === "—" ? "" : name, dob, tob, place);
+    var p2pages = taPage2SVGs(CD, name === "—" ? "" : name);
+
+    var jobs = [rasterizeSVG(p1, W, H, scale)].concat(p2pages.map(function (s) { return rasterizeSVG(s, W, H, scale); }));
+    Promise.all(jobs).then(function (urls) {
+      var pdf = new JsPDF({ unit: "pt", format: "a4" });
+      urls.forEach(function (u, i) {
+        if (i > 0) pdf.addPage();
+        pdf.addImage(u, "PNG", 0, 0, W, H, undefined, "FAST");
+      });
+      var safe = (name === "—" ? "chart" : name).replace(/[^a-z0-9\u0B80-\u0BFF]+/gi, "_");
+      pdf.save("AstroIndicators_" + safe + "_D1_D9_TA.pdf");
+    }).catch(function (e) { alert("Could not build the Tamil PDF. Please try again."); console.error(e); });
+  }
+
+
   // ── Build the whole PDF ────────────────────────────────────────────────────
   function buildPDF() {
     var jsPDFns = window.jspdf || window.jsPDF;
@@ -2439,6 +2668,11 @@ const CONSULT_CONFIG = {
 
     var CD = (window.currentData && window.currentData.chart) || null;
     if (!CD || !CD.d1 || !CD.d9 || !CD.planets) { alert("Generate a chart first."); return; }
+
+    // Tamil sheet uses the SVG-raster path (jsPDF cannot shape Tamil); English
+    // continues with the crisp native-vector path below.
+    var _ta = false; try { _ta = localStorage.getItem("jyotish-lang") === "TA"; } catch (e) {}
+    if (_ta) { buildPDF_TA(JsPDF, CD); return; }
 
     var planets = CD.planets;
     var inp = CD.input || {};
