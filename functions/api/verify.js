@@ -9,6 +9,8 @@
 //  here, server-side, before unlocking anything, recording payment, or emailing.
 //
 //  SETUP (Cloudflare → Settings → Environment variables):
+//    RAZORPAY_KEY_ID       = your key id (already set for order.js — now also
+//                            used here to look the order up at verify time)
 //    RAZORPAY_KEY_SECRET   = your secret (already set for order.js)
 //    OWNER_EMAIL           = where consultation bookings are emailed to you
 //    RESEND_API_KEY        = (optional) for email sending
@@ -40,16 +42,29 @@ export async function onRequestPost(context) {
   }
 
   // Payment is genuine.
+  // ── Determine WHAT was paid for from the ORDER, not the browser ────────────
+  // order.js stamps the item into the order's `notes` at creation time, using a
+  // server-side price. We read it back from Razorpay here so a client cannot pay
+  // for a cheap item (e.g. "domains" ₹299) and then claim a more expensive one
+  // (e.g. "dasha" ₹499) at verify time. The client-sent `item` is used only as a
+  // fallback if the order lookup is briefly unavailable (an attacker cannot force
+  // that lookup to fail, since it is a server-to-server call).
+  let paidItem = item;
+  if (chartId) {
+    const orderItem = await fetchOrderItem(env, razorpay_order_id);
+    if (orderItem) paidItem = orderItem;
+  }
+
   // ── Record the paid report in D1 (so it persists across sessions) ──────────
   // Only for report purchases (chartId + item present). Consultations skip this.
-  if (env.DB && chartId && item) {
+  if (env.DB && chartId && paidItem) {
     try {
       const now = Date.now();
       await env.DB.prepare(
         "INSERT INTO paid_reports (chart_id, item, payment_id, created_at, updated_at) " +
         "VALUES (?, ?, ?, ?, ?) " +
         "ON CONFLICT(chart_id, item) DO UPDATE SET payment_id = excluded.payment_id, updated_at = excluded.updated_at"
-      ).bind(String(chartId), String(item), razorpay_payment_id, now, now).run();
+      ).bind(String(chartId), String(paidItem), razorpay_payment_id, now, now).run();
     } catch (e) {
       // Don't fail the payment verification if the DB write hiccups — the user
       // still paid. They can re-download; status will self-heal on next write.
@@ -111,6 +126,28 @@ async function notifyOwner(env, booking, paymentId) {
       text: text,
     }),
   });
+}
+
+// ── Read the item the order was actually created for (from Razorpay) ──────────
+// order.js stores { notes: { item } } when it creates the order. We fetch the
+// order and return that item, so verify trusts the order — not the browser.
+// Returns the item string, or null if it cannot be determined.
+async function fetchOrderItem(env, orderId) {
+  const keyId  = env.RAZORPAY_KEY_ID;
+  const secret = env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !secret) return null;
+  try {
+    const auth = btoa(keyId + ":" + secret);
+    const res = await fetch("https://api.razorpay.com/v1/orders/" + encodeURIComponent(orderId), {
+      headers: { "Authorization": "Basic " + auth },
+    });
+    if (!res.ok) return null;
+    const order = await res.json();
+    const it = order && order.notes && order.notes.item;
+    return it ? String(it) : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 // ── Crypto helper: HMAC-SHA256 → hex string ───────────────────────────────────
