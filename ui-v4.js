@@ -2500,6 +2500,42 @@ const CONSULT_CONFIG = {
   }
 
   // Page 1 (Tamil) as a full A4 SVG string.
+
+  // Legend drawn under the charts on page 1 (Tamil). Aligned label + column grid.
+  function taLegendSVG(x0, yTop, W) {
+    var pad = 10, w = W - 2 * x0, bx = x0 + pad, lineH = 12;
+    var labelW = 80, vx = bx + labelW, cols = 5, colW = (w - 2 * pad - labelW) / cols;
+    function colX(i) { return vx + i * colW; }
+    var h = pad * 2 + lineH * 6 + 2;
+    var o = svgR(x0, yTop, w, h, "#F8F6F0", "#DCD4BE", 0.6);
+    var ty = yTop + pad + 5;
+    o += svgT(bx, ty, 8.3, "#967828", "\u0bb5\u0bbf\u0bb3\u0b95\u0bcd\u0b95\u0b95\u0bcd \u0b95\u0bc1\u0bb1\u0bbf\u0baa\u0bcd\u0baa\u0bc1", { b: 1 }); ty += lineH + 2;
+
+    function lab(t) { o += svgT(bx, ty, 7, "#5A5037", t, { b: 1 }); }
+
+    lab("\u0b95\u0bbf\u0bb0\u0b95\u0b99\u0bcd\u0b95\u0bb3\u0bcd:");
+    o += svgT(vx, ty, 6.3, "#37374A", "\u0b9a\u0bc2 \u0b9a\u0bc2\u0bb0\u0bbf\u0baf\u0ba9\u0bcd \u00b7 \u0b9a\u0ba8\u0bcd \u0b9a\u0ba8\u0bcd\u0ba4\u0bbf\u0bb0\u0ba9\u0bcd \u00b7 \u0b9a\u0bc6\u0bb5\u0bcd \u0b9a\u0bc6\u0bb5\u0bcd\u0bb5\u0bbe\u0baf\u0bcd \u00b7 \u0baa\u0bc1 \u0baa\u0bc1\u0ba4\u0ba9\u0bcd \u00b7 \u0b95\u0bc1 \u0b95\u0bc1\u0bb0\u0bc1 \u00b7 \u0b9a\u0bc1\u0b95\u0bcd \u0b9a\u0bc1\u0b95\u0bcd\u0b95\u0bbf\u0bb0\u0ba9\u0bcd \u00b7 \u0b9a\u0ba9\u0bbf \u0b9a\u0ba9\u0bbf \u00b7 \u0bb0\u0bbe \u0bb0\u0bbe\u0b95\u0bc1 \u00b7 \u0b95\u0bc7 \u0b95\u0bc7\u0ba4\u0bc1"); ty += lineH;
+
+    lab("\u0ba8\u0bbf\u0bb2\u0bc8:");
+    var key = [["#1A6E3C","\u0b89\u0b9a\u0bcd \u0b89\u0b9a\u0bcd\u0b9a\u0bae\u0bcd"],["#8F1A1A","\u0ba8\u0bc0 \u0ba8\u0bc0\u0b9a\u0bae\u0bcd"],["#1E4A8F","\u0b86 \u0b86\u0b9f\u0bcd\u0b9a\u0bbf"],["#A05C00","\u0b85\u0bb8\u0bcd\u0ba4\u0bae\u0ba9\u0bae\u0bcd"],["#2C3248","\u0ba8\u0b9f\u0bc1\u0ba8\u0bbf\u0bb2\u0bc8"]];
+    key.forEach(function (k, i) { var cx = colX(i); o += svgR(cx, ty - 6.5, 7, 7, k[0]); o += svgT(cx + 10, ty, 6.8, k[0], k[1]); });
+    ty += lineH;
+
+    lab("\u0b95\u0bc1\u0bb1\u0bbf\u0baf\u0bc0\u0b9f\u0bc1:");
+    var fl = ["(\u0bb5) \u0bb5\u0b95\u0bcd\u0bb0\u0bae\u0bcd", "(\u0b85) \u0b85\u0bb8\u0bcd\u0ba4\u0bae\u0ba9\u0bae\u0bcd", "(\u0baf\u0bc1) \u0baf\u0bc1\u0ba4\u0bcd\u0ba4\u0bae\u0bcd"];
+    fl.forEach(function (f, i) { o += svgT(colX(i), ty, 6.8, "#37374A", f); });
+    ty += lineH;
+
+    lab("\u0b89\u0bb1\u0bb5\u0bc1:");
+    var rel = [["#1A6E3C","\u0ba8 \u0ba8\u0ba3\u0bcd\u0baa\u0ba9\u0bcd"],["#787882","\u0b9a \u0b9a\u0bae\u0bae\u0bcd"],["#8F1A1A","\u0baa \u0baa\u0b95\u0bc8"]];
+    rel.forEach(function (r, i) { o += svgT(colX(i), ty, 6.8, r[0], r[1]); });
+    o += svgT(colX(3), ty, 6.2, "#8C8C94", "(\u0b85\u0ba4\u0bbf\u0baa\u0ba4\u0bbf\u0baf\u0bc1\u0b9f\u0ba9\u0bcd)"); ty += lineH;
+
+    lab("\u0b95\u0bc1\u0bb1\u0bbf\u0baa\u0bcd\u0baa\u0bc1:");
+    o += svgT(vx, ty, 6.6, "#5A5A64", "\u0b9a\u0bc2>H11 = \u0bb0\u0bbe\u0b9a\u0bbf \u0b85\u0ba4\u0bbf\u0baa\u0ba4\u0bbf 11\u0bae\u0bcd \u0bb5\u0bc0\u0b9f\u0bcd\u0b9f\u0bbf\u0bb2\u0bcd          \u00b7          \u0bb2\u0b95\u0bcd = \u0bb2\u0b95\u0bcd\u0ba9\u0bae\u0bcd");
+    return o;
+  }
+
   function taPage1SVG(CD, name, dob, tob, place) {
     var W = 595, H = 842, M = 36, y = 46;
     var planets = CD.planets, moon = planets.Moon || {};
@@ -2538,6 +2574,7 @@ const CONSULT_CONFIG = {
     y += 18;
     o += taChartCells(M, y, S, CD.d1.lagnaSign, CD.d1.houses, planets, false);
     o += taChartCells(M + S + gap, y, S, CD.d9.lagnaSign, CD.d9.houses, planets, true);
+    o += taLegendSVG(M, y + S + 14, W);
     o += svgT(M, H - 24, 8, "#969aa0", "Generated " + new Date().toLocaleString() + " · astroindicators.com");
     return wrapSVG(W, H, o);
   }
@@ -2661,6 +2698,50 @@ const CONSULT_CONFIG = {
 
 
   // ── Build the whole PDF ────────────────────────────────────────────────────
+
+  // Legend drawn under the charts on page 1 (English). Aligned label + column grid.
+  function drawLegend(pdf, M, yTop, W) {
+    var pad = 10, w = W - 2 * M, bx = M + pad, lineH = 12;
+    var labelW = 66, vx = bx + labelW, cols = 5, colW = (w - 2 * pad - labelW) / cols;
+    function colX(i) { return vx + i * colW; }
+    var h = pad * 2 + lineH * 6 + 2;
+    pdf.setFillColor(248, 246, 240); pdf.setDrawColor(220, 212, 190); pdf.setLineWidth(0.6);
+    pdf.rect(M, yTop, w, h, "FD");
+    var ty = yTop + pad + 5;
+
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(8.3); pdf.setTextColor(150, 120, 40);
+    pdf.text("Chart Legend", bx, ty); ty += lineH + 2;
+
+    function label(t) { pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(90, 80, 55); pdf.text(t, bx, ty); }
+    function val(t, rgb) { pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); var c = rgb || [55, 55, 72]; pdf.setTextColor(c[0], c[1], c[2]); pdf.text(t, vx, ty); }
+
+    label("Planets:"); val("Su Sun  \u00B7  Mo Moon  \u00B7  Ma Mars  \u00B7  Me Mercury  \u00B7  Ju Jupiter  \u00B7  Ve Venus  \u00B7  Sa Saturn  \u00B7  Ra Rahu  \u00B7  Ke Ketu"); ty += lineH;
+
+    label("Dignity:");
+    var key = [[[26,110,60],"Ex Exalted"],[[143,26,26],"De Debilitated"],[[30,74,143],"Ow Own sign"],[[160,92,0],"Combust (c)"],[[44,50,72],"Neutral"]];
+    key.forEach(function (k, i) {
+      var cx = colX(i);
+      pdf.setFillColor(k[0][0], k[0][1], k[0][2]); pdf.rect(cx, ty - 6.5, 7, 7, "F");
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(k[0][0], k[0][1], k[0][2]); pdf.text(k[1], cx + 10, ty);
+    });
+    ty += lineH;
+
+    label("Flags:");
+    var fl = ["(R) Retrograde", "(c) Combust", "(w) Planetary war"];
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(55, 55, 72);
+    fl.forEach(function (f, i) { pdf.text(f, colX(i), ty); });
+    ty += lineH;
+
+    label("Relation:");
+    var rel = [[[26,110,60],"F Friend"],[[120,120,130],"N Neutral"],[[143,26,26],"E Enemy"]];
+    rel.forEach(function (r, i) { pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(r[0][0], r[0][1], r[0][2]); pdf.text(r[1], colX(i), ty); });
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(6.4); pdf.setTextColor(140, 140, 148); pdf.text("(planet vs sign-lord)", colX(3), ty);
+    ty += lineH;
+
+    label("Notation:"); val("Me>H11 = sign-lord placed in House 11          \u00B7          ASC = Ascendant (Lagna)");
+    return yTop + h;
+  }
+
   function buildPDF() {
     var jsPDFns = window.jspdf || window.jsPDF;
     var JsPDF = jsPDFns && (jsPDFns.jsPDF || jsPDFns);
@@ -2740,6 +2821,8 @@ const CONSULT_CONFIG = {
     drawChart(pdf, M,          y, S, CD.d1.lagnaSign, CD.d1.houses, planets, false);
     drawChart(pdf, M + S + gap, y, S, CD.d9.lagnaSign, CD.d9.houses, planets, true);
     y += S + 18;
+
+    drawLegend(pdf, M, y, W);
 
     // Page-1 footer
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(150, 150, 160);
