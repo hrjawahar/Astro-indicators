@@ -71,6 +71,54 @@
       padding-left: 10px;
       padding-right: 10px;
     }
+  
+  /* ── paid products: gold/navy brand ── */
+  :root { --ai-navy:#0B0E1A; --ai-navy-2:#141B33; --ai-gold:#C9A44C; --ai-gold-soft:#E8D9AE; --ai-ink:#EDEBE4; }
+  .ai-owner-only { display:none !important; }
+  body.ai-owner .ai-owner-only { display:inline-flex !important; }
+  .ai-paid-tab { border:1px solid var(--ai-gold); background:linear-gradient(160deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-gold-soft) !important; }
+  .ai-paid-tab .tab-icon { color:var(--ai-gold); }
+  .ai-gold-dot { font-size:.58rem; letter-spacing:.12em; color:var(--ai-navy); background:var(--ai-gold); border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; }
+  .pp-head h2 { color:var(--ai-navy); } .pp-sub { color:#555; max-width:640px; }
+  .pp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin:16px 0; }
+  .pp-card { background:linear-gradient(170deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-ink); border:1px solid rgba(201,164,76,.45); border-radius:14px; padding:16px 18px; }
+  .pp-band { display:inline-block; font-size:.66rem; letter-spacing:.14em; font-weight:700; padding:3px 10px; border-radius:9px; background:var(--ai-gold); color:var(--ai-navy); margin-bottom:8px; }
+  .pp-band-low { opacity:.75 } .pp-band-severe { background:#E8B84C; }
+  .pp-q { font-weight:600; margin-bottom:6px; color:var(--ai-gold-soft); }
+  .pp-teaser { font-size:.92rem; opacity:.95; margin-bottom:10px; }
+  .pp-blur-wrap { position:relative; }
+  .pp-blurred { filter:blur(6px); user-select:none; pointer-events:none; font-size:.86rem; opacity:.85; line-height:1.5; }
+  .pp-blur-hook { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; font-size:.8rem; color:var(--ai-gold); font-weight:600; padding:0 10px; }
+  .pp-paybar { display:flex; align-items:center; gap:14px; margin:10px 0 22px; flex-wrap:wrap; }
+  .pp-pay { background:var(--ai-gold); color:var(--ai-navy); font-weight:700; border:0; border-radius:10px; padding:12px 22px; font-size:1rem; cursor:pointer; }
+  .pp-pay:disabled { opacity:.55; cursor:default; }
+  .pp-guar { font-size:.8rem; color:#777; }
+  .pp-empty { padding:22px; color:#777; font-style:italic; }
+  .icc-list { display:flex; flex-direction:column; gap:10px; margin:14px 0; max-width:720px; }
+  .icc-pick { display:flex; gap:12px; align-items:flex-start; background:#fff; border:1px solid #e2ddcf; border-radius:12px; padding:12px 14px; cursor:pointer; }
+  .icc-pick:has(input:checked){ border-color:var(--ai-gold); box-shadow:0 0 0 2px rgba(201,164,76,.35); }
+  .icc-num { background:var(--ai-navy); color:var(--ai-gold); border-radius:8px; min-width:26px; text-align:center; font-weight:700; padding:2px 0; }
+  .icc-q { line-height:1.4; } .icc-hint { display:block; font-size:.78rem; color:#8a8a8a; font-style:italic; margin-top:2px; }
+  .icc-answer { max-width:720px; margin-bottom:14px; }
+  .icc-nar { line-height:1.6; margin:8px 0; }
+  .icc-conf { font-size:.82rem; display:flex; align-items:center; gap:8px; color:var(--ai-gold-soft); }
+  .icc-confbar { flex:1; max-width:180px; height:6px; background:rgba(255,255,255,.15); border-radius:4px; overflow:hidden; }
+  .icc-confbar i { display:block; height:100%; background:var(--ai-gold); }
+  .fb-stage { display:flex; justify-content:center; margin-top:14px; }
+  .fb-page { width:min(560px,94vw); min-height:420px; background:linear-gradient(170deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-ink); border:1px solid rgba(201,164,76,.5); border-radius:16px; padding:30px 34px; box-shadow:0 18px 40px rgba(11,14,26,.35); }
+  .fb-kick { font-size:.68rem; letter-spacing:.22em; text-transform:uppercase; color:var(--ai-gold); margin-bottom:10px; }
+  .fb-h { font-size:1.3rem; font-weight:700; color:var(--ai-gold-soft); margin-bottom:10px; }
+  .fb-band { margin-bottom:12px; } .fb-body { line-height:1.7; font-size:.98rem; }
+  .fb-win { margin-top:14px; font-size:.9rem; color:var(--ai-gold-soft); border-top:1px solid rgba(201,164,76,.35); padding-top:10px; }
+  .fb-cover { display:flex; flex-direction:column; justify-content:center; text-align:center; }
+  .fb-title { font-size:1.9rem; font-weight:800; color:var(--ai-gold-soft); margin:8px 0 14px; }
+  .fb-who { font-size:1.05rem; color:var(--ai-gold); }
+  .fb-logo { margin-top:26px; font-weight:700; } .fb-logo span { color:var(--ai-gold); }
+  .fb-section { display:flex; align-items:center; justify-content:center; }
+  .fb-cat { font-size:1.4rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ai-gold); }
+  .fb-controls { display:flex; justify-content:center; gap:16px; align-items:center; margin:14px 0 30px; }
+  .fb-nav { background:var(--ai-navy); color:var(--ai-gold-soft); border:1px solid var(--ai-gold); border-radius:9px; padding:8px 18px; cursor:pointer; }
+  .fb-nav:disabled { opacity:.4; cursor:default; } .fb-count { color:#777; font-size:.85rem; }
   </style>
 </head>
 <body>
@@ -128,14 +176,20 @@
     <button class="nav-tab" data-tab="chartTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">◈</span> <span data-i18n="nav_charts">Charts</span>
     </button>
-    <button class="nav-tab" data-tab="dashaTab" data-requires="chart">
+    <button class="nav-tab ai-owner-only" data-tab="dashaTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">◉</span> <span data-i18n="nav_dasha">Dasa Periods</span>
     </button>
-    <button class="nav-tab" data-tab="domainTab" data-requires="analysis">
+    <button class="nav-tab ai-owner-only" data-tab="domainTab" data-requires="analysis">
       <span class="tab-icon" aria-hidden="true">◈</span> <span data-i18n="nav_domains">Life Domains</span>
     </button>
-    <button class="nav-tab" data-tab="summaryTab" data-requires="analysis">
+    <button class="nav-tab ai-owner-only" data-tab="summaryTab" data-requires="analysis">
       <span class="tab-icon" aria-hidden="true">◎</span> <span data-i18n="nav_summary">Summary</span>
+    </button>
+    <button class="nav-tab ai-paid-tab" data-tab="lifeIndTab" data-requires="chart">
+      <span class="tab-icon" aria-hidden="true">❖</span> <span data-i18n="nav_life_ind">Life Indicators Report</span> <span class="ai-gold-dot">PAID</span>
+    </button>
+    <button class="nav-tab ai-paid-tab" data-tab="iccTab" data-requires="chart">
+      <span class="tab-icon" aria-hidden="true">✦</span> <span data-i18n="nav_icc">Instant Clarity</span> <span class="ai-gold-dot">PAID</span>
     </button>
     <button class="nav-tab" data-tab="planetsTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">⊕</span> <span data-i18n="nav_planets">Planets</span>
@@ -262,6 +316,14 @@
             <div class="form-group">
               <label data-i18n="form_dob">Date of birth</label>
               <input id="inputDOB" type="date"/>
+            </div>
+            <div class="form-group">
+              <label><span data-i18n="form_gender">Gender</span> <span class="form-hint" data-i18n="form_gender_hint">(used for classical spouse-significator rules)</span></label>
+              <select id="inputGender">
+                <option value="unspecified" data-i18n="form_gender_unspec">Prefer not to say</option>
+                <option value="male" data-i18n="form_gender_male">Male</option>
+                <option value="female" data-i18n="form_gender_female">Female</option>
+              </select>
             </div>
             <div class="form-group">
               <label><span data-i18n="form_tob">Time of birth</span> <span class="form-hint" data-i18n="form_tob_hint">(as exact as possible — even ±5 min matters)</span></label>
@@ -478,6 +540,21 @@
     </section>
 
     <!-- ── SCREEN 6: PLANET DETAILS ─────────────────────────────────── -->
+    <section id="lifeIndTab" class="screen">
+      <div class="pp-head"><h2>Life Indicators Report</h2>
+        <p class="pp-sub">Your complete timing book — every life area, its verdict, its window, and what to do about it. Built once from your chart, yours forever.</p></div>
+      <div id="liTeasers" class="pp-grid"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
+      <div class="pp-paybar"><button id="liPayBtn" class="pp-pay">Unlock the full report</button>
+        <span class="pp-guar">One-time · re-open free forever on this chart</span></div>
+      <div id="liBook"></div>
+    </section>
+    <section id="iccTab" class="screen">
+      <div class="pp-head"><h2>Instant Clarity Command</h2>
+        <p class="pp-sub">Ten burning questions. Pick any three. Get direct, dated answers with a confidence score.</p></div>
+      <div id="iccPickerWrap"><div id="iccPicker" class="icc-list"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
+      <div class="pp-paybar"><button id="iccPayBtn" class="pp-pay" disabled>Pick 3 questions</button></div></div>
+      <div id="iccAnswers"></div>
+    </section>
     <section id="planetsTab" class="screen">
       <div class="screen-inner">
         <div class="card">
@@ -725,6 +802,8 @@
 
   <!-- Payment flow -->
   <script src="payments.js"></script>
+
+  <script src="paid-products.js" defer></script>
 
   <!-- PDF report generator (jsPDF) -->
  <script src="/jspdf.umd.min.js"></script>
