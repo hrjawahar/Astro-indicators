@@ -15,6 +15,8 @@ const APP_CONFIG = {
     lifeDomains:  299,   // Life Domains Indicators report
     consult30:    500,   // 30-minute consultation
     consult60:    999,   // 60-minute consultation
+    lifeIndicators: 999, // Life Indicators Report (flipbook) — full engine build
+    icc:          499,   // Instant Clarity Command — 3 of 10 questions
   },
 
   // ── GST ────────────────────────────────────────────────────────────────────
