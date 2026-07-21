@@ -34,6 +34,8 @@ const PRICES = {
   "domains":       299,
   "consult_30min": 500,
   "consult_60min": 999,
+  lifeIndicators: 999,
+  icc: 499,
 };
 
 export async function onRequestPost(context) {
