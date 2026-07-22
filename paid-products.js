@@ -204,6 +204,31 @@
   }
 
   // ── payment wiring (mirrors uiv4 pattern: session unlock → server status → pay) ─
+  // ── pre-checkout gate: mandatory email + no-refund confirm (mirrors ui-v4) ──
+  // Email is MANDATORY for the invoice. Read from the birth form; if empty or
+  // invalid, BLOCK payment, go to the Birth Data tab, cue the field, and explain.
+  function requireEmail() {
+    var email = "";
+    try { email = (document.getElementById("inputEmail") || {}).value || ""; } catch (e) {}
+    email = email.trim();
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return email;
+    var ef = document.getElementById("inputEmail");
+    try { if (window.goToTab) window.goToTab("inputTab"); } catch (e) {}
+    if (ef) {
+      ef.style.border = "2px solid #c9a84c";
+      ef.style.boxShadow = "0 0 0 2px rgba(201,168,76,0.25)";
+      try { ef.focus(); ef.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
+      var clearHi = function () {
+        ef.style.border = ""; ef.style.boxShadow = "";
+        ef.removeEventListener("input", clearHi);
+      };
+      ef.addEventListener("input", clearHi);
+    }
+    alert(window.t ? window.t("email_required")
+      : "Please enter a valid email — your invoice will be sent there.");
+    return null;
+  }
+
   function unlockedHere(item) {
     return window.AI_unlocked && window.AI_unlocked[item] === (window.AI_chartId && window.AI_chartId());
   }
@@ -217,9 +242,20 @@
     if (st && st.paid) { (window.AI_unlocked=window.AI_unlocked||{})[item]=cid; run(); return; }
     let owner=false; try{ owner = (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583"); }catch(e){}
     if (owner) { (window.AI_unlocked=window.AI_unlocked||{})[item]=cid; run(); return; }
-    window.startPayment({ item, amount, label,
-      email: window.currentData?.form?.email || "", chartId: cid })
-      .then(() => { (window.AI_unlocked=window.AI_unlocked||{})[item]=cid; run(); })
+
+    const email = requireEmail();
+    if (!email) return;
+    if (!window.confirm(window.t ? window.t("refund_confirm")
+        : "No refund — please confirm before you proceed to payment.")) return;
+
+    window.startPayment({ item, amount, label, email, chartId: cid })
+      .then(res => {
+        if (!res || !res.paymentId) { alert("Payment not completed."); return; }
+        (window.AI_unlocked=window.AI_unlocked||{})[item]=cid;
+        window.AI_lastPayment = window.AI_lastPayment || {};
+        window.AI_lastPayment[item] = res.paymentId;
+        run();
+      })
       .catch(err => { if (err !== "dismissed") alert("Payment failed: " + err); });
   }
 
