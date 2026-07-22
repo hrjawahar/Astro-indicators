@@ -170,37 +170,315 @@
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
+  // ── flipbook renderer: 3D leaf-turn, ported from the approved POC ──────────
+  let _book = { pages: [], idx: 0, animating: false, target: 0, meta: "" };
+
   function renderFlipbook(host, sections, facts) {
-    const name = esc(window.currentData?.form?.name || "");
-    const pages = [];
-    pages.push(`<div class="fb-pg fb-cover"><div class="fb-kick">Life Indicators Report</div>
-      <div class="fb-title">The Book of<br>Your Timings</div>
-      <div class="fb-who">${name}</div><div class="fb-logo">Astro<span>Indicators</span></div></div>`);
-    let lastCat = "";
-    for (const s of sections) {
-      const f = byId(facts, s.module_id); if (!f) continue;
+    const f0 = (window.currentData && window.currentData.form) || {};
+    const cd = window.currentData || {};
+    const name = esc(f0.name || "");
+    const meta = [f0.dob, f0.tob, f0.place].filter(Boolean).join(" · ");
+    _book.meta = meta;
+    const P = [];
+
+    // ── 1. cover: branding + disclaimer ──────────────────────────────────────
+    P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
+      <div class="seal">◈</div>
+      <div class="logo" style="margin:10px 0 18px">Astro<span>Indicators</span></div>
+      <div class="kick" style="color:var(--ai-gold)">Life Indicators Report</div>
+      <h1>The Book of<br>Your Timings</h1>
+      <div class="who">${name}</div>
+      <div class="disclaim">Indicative astrological insight for reflection and planning — not medical,
+      legal, or financial advice, and not a guarantee of outcomes. Every reading here is computed from
+      your own birth chart (Swiss Ephemeris · Lahiri ayanamsa).</div>
+      </div></div>`);
+
+    // ── 2. birth details ─────────────────────────────────────────────────────
+    const d1 = cd.d1 || {}, d9 = cd.d9 || {}, pl = cd.planets || {};
+    const row = (k, v) => v ? `<li><b>${esc(k)}</b><i>${esc(v)}</i></li>` : "";
+    P.push(`<div class="pg"><div class="kick">Birth Details</div><div class="rule"></div>
+      <ul class="toc bdl">
+        ${row("Name", f0.name)}
+        ${row("Date of birth", f0.dob)}
+        ${row("Time of birth", f0.tob)}
+        ${row("Place", f0.place)}
+        ${row("Ascendant (D1)", d1.lagnaSign ? d1.lagnaSign + " " + (d1.lagnaDegree||0).toFixed(1) + "°" : "")}
+        ${row("Navamsa lagna (D9)", d9.lagnaSign)}
+        ${row("Moon sign", pl.Moon && pl.Moon.sign)}
+        ${row("Nakshatra", pl.Moon ? (pl.Moon.nakshatra || "") + (pl.Moon.pada ? " · pada " + pl.Moon.pada : "") : "")}
+        ${row("Ayanamsa", cd.ayanamsha ? "Lahiri " + (typeof cd.ayanamsha === "number" ? cd.ayanamsha.toFixed(2) + "°" : cd.ayanamsha) : "Lahiri")}
+      </ul><span class="pnum">2</span></div>`);
+
+    // group the domains
+    const groups = [];
+    let cur = null;
+    for (const sec of sections) {
+      const f = byId(facts, sec.module_id); if (!f) continue;
       const cat = CATEGORY_LABEL[f.category] || f.category;
-      if (cat !== lastCat) { lastCat = cat;
-        pages.push(`<div class="fb-pg fb-section"><div class="fb-cat">${esc(cat)}</div></div>`); }
-      const win = f.timing_windows[0];
-      pages.push(`<div class="fb-pg">
-        <div class="fb-kick">${esc(cat)}</div>
-        <div class="fb-h">${esc(s.heading)}</div>
-        <div class="fb-band pp-band pp-band-${esc(f.intensity.toLowerCase())}">${esc(f.band.replace(/_/g," "))} · ${f.confidence}%</div>
-        <div class="fb-body">${esc(s.narrative)}</div>
-        ${win ? `<div class="fb-win">◈ ${esc(win.label)} — <b>${esc(fmtWin(win))}</b></div>` : ""}
-      </div>`);
+      if (!cur || cur.cat !== cat) { cur = { cat, items: [] }; groups.push(cur); }
+      cur.items.push({ sec, f });
     }
-    let i = 0;
-    host.innerHTML = `<div class="fb-stage"><div class="fb-page" id="fbPage"></div></div>
-      <div class="fb-controls"><button class="fb-nav" id="fbPrev">‹ Prev</button>
-      <span class="fb-count" id="fbCount"></span><button class="fb-nav" id="fbNext">Next ›</button></div>`;
-    const show = () => { $("fbPage").innerHTML = pages[i];
-      $("fbCount").textContent = (i+1) + " / " + pages.length;
-      $("fbPrev").disabled = i===0; $("fbNext").disabled = i===pages.length-1; };
-    $("fbPrev").onclick = () => { if (i>0){ i--; show(); } };
-    $("fbNext").onclick = () => { if (i<pages.length-1){ i++; show(); } };
-    show();
+
+    // ── 3. index ─────────────────────────────────────────────────────────────
+    let at = 7;                                     // domains begin on page 7
+    const fixed = [["Your Birth Charts (D1 · D9)", 4], ["Your Life Axis", 6]];
+    const tocRows = fixed.map(([t, n]) => `<li><b>${t}</b><i>${String(n).padStart(2,"0")}</i></li>`)
+      .concat(groups.map(g => { const a = at; at += g.items.length + 1;
+        return `<li><b>${esc(g.cat)}</b><i>${String(a).padStart(2,"0")}</i></li>`; }))
+      .concat([`<li><b>Worth Considering</b><i>${String(at).padStart(2,"0")}</i></li>`]).join("");
+    P.push(`<div class="pg"><div class="kick">Contents</div><div class="rule"></div>
+      <ul class="toc">${tocRows}</ul><span class="pnum">3</span></div>`);
+
+    // ── 4 & 5. D1 and D9 charts (rendered after the page is placed) ──────────
+    P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
+      <h2>Rāśi · D1</h2>
+      <div class="fb-chart" id="fbD1Wrap"></div>
+      <div class="chart-note">The visible life — body, circumstances, and events.
+      Lagna: <b>${esc(d1.lagnaSign || "")}</b></div><span class="pnum">4</span></div>`);
+    P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
+      <h2>Navāṁśa · D9</h2>
+      <div class="fb-chart" id="fbD9Wrap"></div>
+      <div class="chart-note">The inner chart — what endures when the visible is tested.
+      Lagna: <b>${esc(d9.lagnaSign || "")}</b></div><span class="pnum">5</span></div>`);
+
+    // ── 6. life axis ─────────────────────────────────────────────────────────
+    P.push(lifeAxisPage(cd, facts, 6));
+
+    // ── 7+. domains ──────────────────────────────────────────────────────────
+    let n = 7;
+    for (const g of groups) {
+      P.push(`<div class="pg sec-divider"><div class="in">
+        <div class="seal">◈</div><div class="domain">${esc(g.cat)}</div>
+        <div class="rule"></div></div><span class="pnum">${n++}</span></div>`);
+      for (const { sec, f } of g.items) {
+        const win = f.timing_windows[0];
+        P.push(`<div class="pg"><div class="kick">${esc(g.cat)}</div><div class="rule"></div>
+          <h2>${esc(sec.heading)}</h2>
+          <div class="chiprow"><span class="chip">${esc(f.band.replace(/_/g," "))}</span>
+            <span class="chip ghost">${f.confidence}% confidence</span></div>
+          <div class="bd">${esc(sec.narrative)}</div>
+          ${win ? `<div class="ref">◈ ${esc(win.label)}<b>${esc(fmtWin(win))}</b></div>` : ""}
+          <span class="pnum">${n++}</span></div>`);
+      }
+    }
+
+    // ── closing. worth considering ───────────────────────────────────────────
+    P.push(worthConsideringPage(groups, n++));
+    P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
+      <div class="seal">◈</div><div class="who" style="margin-top:14px">Your book is complete.</div>
+      <div class="disclaim">Every verdict here was computed from your own chart, not written for a
+      sun sign. Return any time — this book stays yours.</div>
+      <div class="logo">Astro<span>Indicators</span></div></div></div>`);
+
+    _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
+
+    host.innerHTML = `
+      <div class="pp-paybar" style="justify-content:flex-end">
+        <button id="fbPdf" class="pp-pay">Download PDF</button></div>
+      <div class="stage"><div class="book" id="fbBook">
+        <div class="page" id="fbStatic"></div>
+        <div class="leaf" id="fbLeaf">
+          <div class="leaf-face" id="fbLeafFront"></div>
+          <div class="leaf-face leaf-back" id="fbLeafBack"></div>
+          <div class="shade" id="fbShade"></div>
+        </div></div></div>
+      <div class="controls"><button class="fb-nav" id="fbPrev">‹</button>
+        <div class="dots" id="fbDots"></div>
+        <button class="fb-nav" id="fbNext">›</button></div>
+      <div class="hint">Swipe, use ← → keys, or tap the dots</div>`;
+
+    bindBook();
+    bookRender();
+    $("fbPdf").onclick = () => exportPDF(sections, facts);
+  }
+
+  // Life Axis — the three anchors of the chart plus the period now running.
+  function lifeAxisPage(cd, facts, pnum) {
+    const pl = cd.planets || {}, d1 = cd.d1 || {};
+    const axis = (label, val, note) => val
+      ? `<div class="axis-row"><div class="axis-k">${esc(label)}</div>
+         <div class="axis-v">${esc(val)}</div><div class="axis-n">${esc(note)}</div></div>` : "";
+    // the running mahadasha, if the engine surfaced one
+    let period = "";
+    for (const f of facts) { const w = f.timing_windows[0]; if (w) { period = fmtWin(w); break; } }
+    return `<div class="pg"><div class="kick">Your Life Axis</div><div class="rule"></div>
+      <h2>The three anchors of your chart</h2>
+      ${axis("Lagna — the life you build", d1.lagnaSign || "", "How you meet the world, and the body you do it in.")}
+      ${axis("Moon — the mind you carry", (pl.Moon && pl.Moon.sign) || "", "How you feel, react, and find rest.")}
+      ${axis("Sun — the self you become", (pl.Sun && pl.Sun.sign) || "", "What you are here to stand for.")}
+      <div class="bd" style="margin-top:14px;font-size:.9rem">
+      These three set the frame every domain in this book is read against. Where a domain seems to
+      contradict itself, it is usually because one anchor pulls against another — and that tension is
+      itself the instruction.${period ? " Your nearest active window opens " + esc(period) + "." : ""}</div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
+  // Worth Considering — one honest line per domain, derived from the bands.
+  function worthConsideringPage(groups, pnum) {
+    const HARD = ["CHALLENGING","HIGH","HIGH_CARE","ELEVATED","STRAINED","OBSTRUCTED","WEAK","DIFFICULT","PRESSURED","HEAVY","DELAYED","SUBDUED"];
+    const SOFT = ["MANAGEABLE","MODERATE","ATTENTIVE","WATCHFUL","SENSITIVE","MIXED","FLUCTUATING","BALANCED","CONTESTED","MODEST","HYBRID","STEADY"];
+    const rows = groups.map(g => {
+      const hard = g.items.filter(x => HARD.includes(x.f.band));
+      const soft = g.items.filter(x => SOFT.includes(x.f.band));
+      let line;
+      if (hard.length >= 2)
+        line = "Needs honest attention rather than soft-pedalling — this is the area of your chart that most rewards deliberate effort, early.";
+      else if (hard.length === 1)
+        line = "One part of this area asks for real care: " + hard[0].sec.heading.toLowerCase() +
+               ". Address it consciously and the rest of the domain holds well.";
+      else if (soft.length >= 2)
+        line = "Workable, but it responds to conscious effort and patience rather than drifting — act inside your windows.";
+      else
+        line = "A genuine strength. Use it deliberately rather than assuming it will keep running on its own.";
+      return `<div class="wc-row"><div class="wc-k">${esc(g.cat)}</div><div class="wc-v">${esc(line)}</div></div>`;
+    }).join("");
+    return `<div class="pg"><div class="kick">Worth Considering</div><div class="rule"></div>
+      <h2>What this book is really telling you</h2>
+      <div class="bd wc-wrap">${rows}</div>
+      <div class="ref">◈ Read this page again in six months<b>The chart does not change; your position in its timeline does.</b></div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
+  // charts are re-drawn whenever their page becomes the visible one
+  function paintCharts() {
+    const cd = window.currentData; if (!cd || !cd.d1 || typeof window.renderSIChart !== "function") return;
+    try {
+      const combust = window.buildCombustSet ? window.buildCombustSet(cd.planets) : new Set();
+      const war = window.buildWarSet ? window.buildWarSet(cd.planets) : new Set();
+      if (document.getElementById("fbD1Wrap"))
+        window.renderSIChart("fbD1Wrap", cd.d1.lagnaSign, cd.d1.houses, cd.planets, combust, war, false);
+      if (document.getElementById("fbD9Wrap"))
+        window.renderSIChart("fbD9Wrap", cd.d9.lagnaSign, cd.d9.houses, cd.planets, combust, war, true);
+    } catch (e) {}
+  }
+
+  function bookRender() {
+    const P = _book.pages;
+    $("fbStatic").innerHTML = P[_book.idx];
+    paintCharts();
+    $("fbPrev").disabled = _book.idx === 0;
+    $("fbNext").disabled = _book.idx === P.length - 1;
+    const d = $("fbDots"); d.innerHTML = "";
+    P.forEach((_, i) => {
+      const s = document.createElement("div");
+      s.className = "dot" + (i === _book.idx ? " on" : "");
+      s.onclick = () => bookJump(i);
+      d.appendChild(s);
+    });
+  }
+  function bookFlip(forward) {
+    if (_book.animating) return;
+    _book.animating = true;
+    const to = _book.target, P = _book.pages;
+    const leaf = $("fbLeaf");
+    $("fbStatic").innerHTML = P[to];
+    paintCharts();
+    $("fbLeafFront").innerHTML = forward ? P[_book.idx] : P[to];
+    $("fbLeafBack").innerHTML  = forward ? P[to] : P[_book.idx];
+    leaf.style.transition = "none";
+    leaf.style.transform = "rotateY(" + (forward ? 0 : -180) + "deg)";
+    leaf.style.display = "block";
+    $("fbShade").style.opacity = forward ? 0 : .5;
+    void leaf.offsetWidth;
+    leaf.style.transition = "transform .72s cubic-bezier(.3,.1,.2,1)";
+    leaf.style.transform = "rotateY(" + (forward ? -180 : 0) + "deg)";
+    $("fbShade").style.opacity = forward ? .5 : 0;
+  }
+  function bookJump(i) { if (_book.animating || i === _book.idx) return; _book.target = i; bookFlip(i > _book.idx); }
+  function bookNext() { if (_book.animating || _book.idx >= _book.pages.length-1) return; _book.target = _book.idx+1; bookFlip(true); }
+  function bookPrev() { if (_book.animating || _book.idx <= 0) return; _book.target = _book.idx-1; bookFlip(false); }
+
+  let _bookBound = false;
+  function bindBook() {
+    const leaf = $("fbLeaf");
+    leaf.addEventListener("transitionend", function (e) {
+      if (e.propertyName !== "transform") return;
+      leaf.style.display = "none"; _book.animating = false; _book.idx = _book.target; bookRender();
+    });
+    $("fbNext").onclick = bookNext;
+    $("fbPrev").onclick = bookPrev;
+    let sx = 0;
+    const bk = $("fbBook");
+    bk.addEventListener("touchstart", e => { sx = e.touches[0].clientX; }, { passive:true });
+    bk.addEventListener("touchend", e => {
+      const dx = e.changedTouches[0].clientX - sx;
+      if (Math.abs(dx) < 40) return; dx < 0 ? bookNext() : bookPrev();
+    });
+    if (!_bookBound) {
+      document.addEventListener("keydown", e => {
+        if (!$("fbBook")) return;
+        if (e.key === "ArrowRight") bookNext();
+        if (e.key === "ArrowLeft") bookPrev();
+      });
+      _bookBound = true;
+    }
+  }
+
+  // ── PDF export (jsPDF, already loaded for the dasa report) ──────────────────
+  function exportPDF(sections, facts) {
+    const J = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    if (!J) { alert("PDF library not loaded."); return; }
+    const doc = new J({ unit:"pt", format:"a4" });
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    const M = 56; let y = 0;
+    const NAVY = [11,14,26], GOLD = [201,164,76], INK = [40,40,44];
+    const f0 = (window.currentData && window.currentData.form) || {};
+
+    // cover
+    doc.setFillColor(...NAVY); doc.rect(0,0,W,H,"F");
+    doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.rect(M/2,M/2,W-M,H-M);
+    doc.setTextColor(...GOLD); doc.setFontSize(11);
+    doc.text("LIFE INDICATORS REPORT", W/2, H/2-90, { align:"center" });
+    doc.setTextColor(255,255,255); doc.setFontSize(30);
+    doc.text("The Book of", W/2, H/2-40, { align:"center" });
+    doc.text("Your Timings", W/2, H/2-6, { align:"center" });
+    doc.setFontSize(14); doc.setTextColor(...GOLD);
+    if (f0.name) doc.text(String(f0.name), W/2, H/2+40, { align:"center" });
+    doc.setFontSize(9); doc.setTextColor(220,220,220);
+    if (_book.meta) doc.text(_book.meta, W/2, H/2+62, { align:"center" });
+    doc.setFontSize(8);
+    doc.text("Swiss Ephemeris · Lahiri ayanamsa", W/2, H-70, { align:"center" });
+
+    let page = 1;
+    const newPage = () => { doc.addPage(); page++; y = M;
+      doc.setTextColor(...INK); };
+    newPage();
+    let lastCat = "";
+    for (const sec of sections) {
+      const f = byId(facts, sec.module_id); if (!f) continue;
+      const cat = CATEGORY_LABEL[f.category] || f.category;
+      const win = f.timing_windows[0];
+      const body = doc.splitTextToSize(sec.narrative, W - M*2);
+      const need = 96 + body.length*14 + (win ? 34 : 0);
+      if (y + need > H - M) newPage();
+      if (cat !== lastCat) {
+        lastCat = cat;
+        if (y + need + 40 > H - M) newPage();
+        doc.setFillColor(...NAVY); doc.rect(M, y, W-M*2, 30, "F");
+        doc.setTextColor(...GOLD); doc.setFontSize(10);
+        doc.text(cat.toUpperCase(), M+12, y+20);
+        y += 46;
+      }
+      doc.setTextColor(...INK); doc.setFontSize(14);
+      doc.text(sec.heading, M, y); y += 20;
+      doc.setFontSize(9); doc.setTextColor(...GOLD);
+      doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
+      doc.setFontSize(10.5); doc.setTextColor(...INK);
+      doc.text(body, M, y); y += body.length*14 + 6;
+      if (win) {
+        doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
+        doc.setFontSize(9.5); doc.setTextColor(...GOLD);
+        doc.text(win.label + ": " + fmtWin(win), M, y); y += 22;
+      }
+      y += 14;
+    }
+    const total = doc.internal.getNumberOfPages();
+    for (let i = 2; i <= total; i++) {
+      doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150);
+      doc.text(String(i-1), W/2, H-28, { align:"center" });
+    }
+    const safe = (f0.name || "report").replace(/[^\w-]+/g,"_");
+    doc.save("AstroIndicators_LifeIndicators_" + safe + ".pdf");
   }
 
   // ── product 2: ICC answer cards ─────────────────────────────────────────────
@@ -284,7 +562,7 @@
   }
 
   // ── payment wiring (mirrors uiv4 pattern: session unlock → server status → pay) ─
-  // ── pre-checkout gate: mandatory email + no-refund confirm (mirrors ui-v4) ──
+  // ── pre-checkout gate: mandatory email + No-Refund confirm (mirrors ui-v4) ──
   // Email is MANDATORY for the invoice. Read from the birth form; if empty or
   // invalid, BLOCK payment, go to the Birth Data tab, cue the field, and explain.
   function requireEmail() {
@@ -330,8 +608,8 @@
 
     const email = requireEmail();
     if (!email) return;
-    if (!window.confirm(window.t ? window.t("refund_confirm")
-        : "No refund — please confirm before you proceed to payment.")) return;
+    if (!window.confirm(window.t ? window.t("No Refund_confirm")
+        : "No Refund — please confirm before you proceed to payment.")) return;
 
     window.startPayment({ item, amount, label, email, chartId: cid })
       .then(res => {
