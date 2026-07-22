@@ -468,6 +468,75 @@
     }
   }
 
+  // ── product 2: ICC answer cards ─────────────────────────────────────────────
+  // A purchase = one SET of 3 answers, stored server-side. Re-entry replays the
+  // sets already bought; a new set of questions requires a new payment.
+  let _iccRenderedFor = null;
+
+  async function buildICC(pickedIds, existingSets) {
+    const host = $("iccAnswers"); if (!host) return;
+    host.innerHTML = `<div class="pp-empty">Reading your chart…</div>`;
+    try {
+      const facts = await getFacts();
+      const picked = pickedIds.map(id => byId(facts, id)).filter(Boolean);
+      const out = await narrate("icc_answer", picked);
+      const sets = (existingSets || []).concat([{ answers: out.answers || [] }]);
+      srv({ action:"store", chartId: window.AI_chartId(), item:"icc", lang:"en", sections: sets });
+      renderICC(host, sets, facts);
+    } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
+  }
+
+  function renderICC(host, sets, facts) {
+    let html = "";
+    sets.forEach((set, i) => {
+      if (sets.length > 1) html += `<div class="icc-setlabel">Set ${i+1}</div>`;
+      html += (set.answers || []).map(a => {
+        const f = byId(facts, a.module_id); if (!f) return "";
+        const win = f.timing_windows[0];
+        return `<div class="pp-card icc-answer">
+          <div class="pp-band pp-band-${esc(f.intensity.toLowerCase())}">${esc(f.band.replace(/_/g," "))}</div>
+          <div class="pp-q">${esc(f.question)}</div>
+          <div class="icc-nar">${esc(a.narrative)}</div>
+          ${win ? `<div class="fb-win">◈ ${esc(win.label)} — <b>${esc(fmtWin(win))}</b></div>` : ""}
+          <div class="icc-conf">Confidence: <b>${f.confidence}%</b> <span class="icc-confbar"><i style="width:${f.confidence}%"></i></span></div>
+        </div>`;
+      }).join("");
+    });
+    html += `<div class="pp-paybar"><button id="iccMoreBtn" class="pp-pay">Ask 3 new questions — ₹${price("icc",499)}</button>
+      <span class="pp-guar">Your answered sets stay saved on this chart</span></div>`;
+    host.innerHTML = html;
+    _iccRenderedFor = window.AI_chartId ? window.AI_chartId() : null;
+    const w = $("iccPickerWrap"); if (w) w.style.display = "none";
+    const more = $("iccMoreBtn");
+    if (more) more.onclick = () => {
+      if (w) w.style.display = "";
+      host.innerHTML = ""; _iccRenderedFor = null;
+      document.querySelectorAll("#iccPicker input:checked").forEach(b => b.checked = false);
+      window.AI_iccLimit({ checked:false });
+      window._iccExistingSets = sets;
+      if (w) w.scrollIntoView({ behavior:"smooth", block:"start" });
+    };
+  }
+
+  async function restoreICC() {
+    const host = $("iccAnswers"); if (!host || !window.AI_chartId) return false;
+    const cached = await srv({ action:"fetch", chartId: window.AI_chartId(), item:"icc", lang:"en" });
+    let sets = cached && cached.sections;
+    if (!sets || !sets.length) return false;
+    if (Array.isArray(sets) && sets[0] && sets[0].module_id) sets = [{ answers: sets }];
+    try { renderICC(host, sets, await getFacts()); return true; } catch (e) { return false; }
+  }
+
+  function resetICCIfChartChanged() {
+    const cid = window.AI_chartId ? window.AI_chartId() : null;
+    if (_iccRenderedFor && _iccRenderedFor !== cid) {
+      const host = $("iccAnswers"); if (host) host.innerHTML = "";
+      const w = $("iccPickerWrap"); if (w) w.style.display = "";
+      _iccRenderedFor = null; window._iccExistingSets = null;
+      document.querySelectorAll("#iccPicker input:checked").forEach(b => b.checked = false);
+    }
+  }
+
   // ── PDF export (jsPDF) — mirrors the flipbook structure ────────────────────
   function exportPDF(sections, facts) {
     const J = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
