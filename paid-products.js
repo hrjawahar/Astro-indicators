@@ -99,6 +99,7 @@
     });
   }
   window.AI_renderPaidTeasers = renderTeasers;
+  window.AI_restoreICC = restoreICC;
 
   window.AI_iccLimit = function (box) {
     const checked = document.querySelectorAll("#iccPicker input:checked");
@@ -183,19 +184,37 @@
       const picked = pickedIds.map(id => byId(facts, id)).filter(Boolean);
       const out = await narrate("icc_answer", picked);
       const answers = out.answers || [];
-      host.innerHTML = answers.map(a => {
+      // the purchase IS these 3 answers — store them so re-entry replays the
+      // same set instead of granting a fresh pick on an old payment
+      srv({ action:"store", chartId: window.AI_chartId(), item:"icc", lang:"en", sections: answers });
+      renderICC(host, answers, facts);
         const f = byId(facts, a.module_id); if (!f) return "";
-        const win = f.timing_windows[0];
-        return `<div class="pp-card icc-answer">
-          <div class="pp-band pp-band-${esc(f.intensity.toLowerCase())}">${esc(f.band.replace(/_/g," "))}</div>
-          <div class="pp-q">${esc(f.question)}</div>
-          <div class="icc-nar">${esc(a.narrative)}</div>
-          ${win ? `<div class="fb-win">◈ ${esc(win.label)} — <b>${esc(fmtWin(win))}</b></div>` : ""}
-          <div class="icc-conf">Confidence: <b>${f.confidence}%</b> <span class="icc-confbar"><i style="width:${f.confidence}%"></i></span></div>
-        </div>`;
-      }).join("");
-      $("iccPickerWrap").style.display = "none";
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
+  }
+
+  function renderICC(host, answers, facts) {
+    host.innerHTML = answers.map(a => {
+      const f = byId(facts, a.module_id); if (!f) return "";
+      const win = f.timing_windows[0];
+      return `<div class="pp-card icc-answer">
+        <div class="pp-band pp-band-${esc(f.intensity.toLowerCase())}">${esc(f.band.replace(/_/g," "))}</div>
+        <div class="pp-q">${esc(f.question)}</div>
+        <div class="icc-nar">${esc(a.narrative)}</div>
+        ${win ? `<div class="fb-win">◈ ${esc(win.label)} — <b>${esc(fmtWin(win))}</b></div>` : ""}
+        <div class="icc-conf">Confidence: <b>${f.confidence}%</b> <span class="icc-confbar"><i style="width:${f.confidence}%"></i></span></div>
+      </div>`;
+    }).join("");
+    const w = $("iccPickerWrap"); if (w) w.style.display = "none";
+  }
+
+  // Returning customer: replay the exact 3 answers they paid for.
+  // A new set of questions requires a new purchase.
+  async function restoreICC() {
+    const host = $("iccAnswers"); if (!host || !window.AI_chartId) return false;
+    const cached = await srv({ action:"fetch", chartId: window.AI_chartId(), item:"icc", lang:"en" });
+    const answers = cached && cached.sections;
+    if (!answers || !answers.length) return false;
+    try { renderICC(host, answers, await getFacts()); return true; } catch (e) { return false; }
   }
 
   function srv(payload) {
@@ -271,13 +290,19 @@
       liBtn.onclick = () => payThenRun("lifeIndicators", price("lifeIndicators",999),
         "Life Indicators Report", buildLifeIndicators); }
     const iccBtn = $("iccPayBtn");
-    if (iccBtn) iccBtn.onclick = () => {
+    if (iccBtn) iccBtn.onclick = async () => {
       const ids = [...document.querySelectorAll("#iccPicker input:checked")].map(b => b.dataset.mid);
       if (ids.length !== 3) return;
+      // if this chart already has a paid answer-set, replay it — never grant a
+      // second set of questions on a single payment
+      if (await restoreICC()) return;
       payThenRun("icc", price("icc",499), "Instant Clarity Command (3 answers)", () => buildICC(ids));
     };
     // teasers render when the tabs are first opened
     document.querySelectorAll('.nav-tab[data-tab="lifeIndTab"], .nav-tab[data-tab="iccTab"]')
-      .forEach(b => b.addEventListener("click", renderTeasers));
+      .forEach(b => b.addEventListener("click", function () {
+        renderTeasers();
+        if (b.dataset.tab === "iccTab") restoreICC();
+      }));
   });
 })();
