@@ -264,10 +264,15 @@
 
     // ── closing. worth considering ───────────────────────────────────────────
     P.push(worthConsideringPage(groups, n++));
-    P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
-      <div class="seal">◈</div><div class="who" style="margin-top:14px">Your book is complete.</div>
-      <div class="disclaim">Every verdict here was computed from your own chart, not written for a
-      sun sign. Return any time — this book stays yours.</div>
+    P.push(`<div class="pg cover close"><div class="frame"></div><div class="in">
+      <div class="seal">◈</div>
+      <div class="who" style="margin-top:12px">Best wishes from Team AstroIndicators</div>
+      <div class="closing">We hope you find this useful in getting an indication of how you are
+      navigating and where you are heading${name ? ", " + name : ""}.</div>
+      <div class="closing">If you find it useful, please don't hesitate to share it with all those
+      whom you care about.</div>
+      <div class="closing">If you wish, write a brief review about our work.</div>
+      <button class="fb-review" id="fbReview">Write a review</button>
       <div class="logo">Astro<span>Indicators</span></div></div></div>`);
 
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
@@ -292,70 +297,113 @@
     $("fbPdf").onclick = () => exportPDF(sections, facts);
   }
 
-  // Life Axis — the three anchors of the chart plus the period now running.
+  // Life Axis — the anchors the whole book is read against.
   function lifeAxisPage(cd, facts, pnum) {
-    const pl = cd.planets || {}, d1 = cd.d1 || {};
+    const pl = cd.planets || {}, d1 = cd.d1 || {}, d9 = cd.d9 || {};
+    const moon = pl.Moon || {}, sun = pl.Sun || {};
     const axis = (label, val, note) => val
       ? `<div class="axis-row"><div class="axis-k">${esc(label)}</div>
          <div class="axis-v">${esc(val)}</div><div class="axis-n">${esc(note)}</div></div>` : "";
-    // the running mahadasha, if the engine surfaced one
-    let period = "";
-    for (const f of facts) { const w = f.timing_windows[0]; if (w) { period = fmtWin(w); break; } }
+    // nearest active window across the whole book
+    let soon = null;
+    for (const f of facts) { const w = f.timing_windows[0]; if (!w) continue;
+      if (!soon || w.start_iso < soon.start_iso) soon = w; }
     return `<div class="pg"><div class="kick">Your Life Axis</div><div class="rule"></div>
-      <h2>The three anchors of your chart</h2>
-      ${axis("Lagna — the life you build", d1.lagnaSign || "", "How you meet the world, and the body you do it in.")}
-      ${axis("Moon — the mind you carry", (pl.Moon && pl.Moon.sign) || "", "How you feel, react, and find rest.")}
-      ${axis("Sun — the self you become", (pl.Sun && pl.Sun.sign) || "", "What you are here to stand for.")}
-      <div class="bd" style="margin-top:14px;font-size:.9rem">
-      These three set the frame every domain in this book is read against. Where a domain seems to
+      <h2>The four anchors of your chart</h2>
+      ${axis("Lagna — the life you build", (d1.lagnaSign || "") + (d1.lagnaDegree != null ? "  " + d1.lagnaDegree.toFixed(1) + "°" : ""),
+             "How you meet the world, and the body you do it in.")}
+      ${axis("Moon — the mind you carry", (moon.sign || "") + (moon.nakshatra ? " · " + moon.nakshatra : ""),
+             "How you feel, react, and find rest. Your dasha clock is set from here.")}
+      ${axis("Sun — the self you become", sun.sign || "",
+             "What you are here to stand for, and where you seek recognition.")}
+      ${axis("Navamsa lagna — what endures", d9.lagnaSign || "",
+             "The inner chart. It decides whether what you build in D1 holds when tested.")}
+      <div class="bd axis-note">
+      These four set the frame every domain in this book is read against. Where a domain seems to
       contradict itself, it is usually because one anchor pulls against another — and that tension is
-      itself the instruction.${period ? " Your nearest active window opens " + esc(period) + "." : ""}</div>
+      itself the instruction.${soon ? " Your nearest active window opens " + esc(fmtWin(soon)) + "." : ""}</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
-  // Worth Considering — one honest line per domain, derived from the bands.
+  // Worth Considering — one action-oriented line per domain, derived from bands.
   function worthConsideringPage(groups, pnum) {
     const HARD = ["CHALLENGING","HIGH","HIGH_CARE","ELEVATED","STRAINED","OBSTRUCTED","WEAK","DIFFICULT","PRESSURED","HEAVY","DELAYED","SUBDUED"];
     const SOFT = ["MANAGEABLE","MODERATE","ATTENTIVE","WATCHFUL","SENSITIVE","MIXED","FLUCTUATING","BALANCED","CONTESTED","MODEST","HYBRID","STEADY"];
+    const ACTION = {
+      "Career & Wealth":        ["Keep skills portable and a cash buffer — treat pivots as routing, not failure.",
+                                 "Act inside your activation windows; waiting costs more here than moving does."],
+      "Marriage & Relationship":["Name the recurring friction early and out loud — this area needs honest attention, not soft-pedalling.",
+                                 "Protect the bond with steady, ordinary care rather than grand gestures."],
+      "Mobility & Fortune":     ["Fortune here arrives in waves — start things inside your windows, not between them.",
+                                 "If you want a move abroad, drive it deliberately; it will not arrive on its own tide."],
+      "Crisis, Debt & Legal":   ["Favour negotiation over prolonged conflict, and keep documentation meticulous.",
+                                 "Hold one fixed repayment rhythm and avoid new high-cost borrowing."],
+      "Health & Wellbeing":     ["Guard sleep and routine — your resilience is maintained, not assumed.",
+                                 "Keep check-ups regular and act on small signals early."],
+    };
     const rows = groups.map(g => {
-      const hard = g.items.filter(x => HARD.includes(x.f.band));
-      const soft = g.items.filter(x => SOFT.includes(x.f.band));
-      let line;
-      if (hard.length >= 2)
-        line = "Needs honest attention rather than soft-pedalling — this is the area of your chart that most rewards deliberate effort, early.";
-      else if (hard.length === 1)
-        line = "One part of this area asks for real care: " + hard[0].sec.heading.toLowerCase() +
-               ". Address it consciously and the rest of the domain holds well.";
-      else if (soft.length >= 2)
-        line = "Workable, but it responds to conscious effort and patience rather than drifting — act inside your windows.";
-      else
-        line = "A genuine strength. Use it deliberately rather than assuming it will keep running on its own.";
-      return `<div class="wc-row"><div class="wc-k">${esc(g.cat)}</div><div class="wc-v">${esc(line)}</div></div>`;
+      const hard = g.items.filter(x => HARD.includes(x.f.band)).length;
+      const soft = g.items.filter(x => SOFT.includes(x.f.band)).length;
+      const pool = ACTION[g.cat] || ["Act inside your windows rather than waiting for certainty."];
+      const line = hard >= 1 ? pool[0] : (soft >= 2 ? (pool[1] || pool[0]) : (pool[1] || pool[0]));
+      return `<li><b>${esc(g.cat)}</b>${esc(line)}</li>`;
     }).join("");
     return `<div class="pg"><div class="kick">Worth Considering</div><div class="rule"></div>
-      <h2>What this book is really telling you</h2>
-      <div class="bd wc-wrap">${rows}</div>
+      <h2>What to actually do with this</h2>
+      <ul class="wc-list">${rows}</ul>
       <div class="ref">◈ Read this page again in six months<b>The chart does not change; your position in its timeline does.</b></div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
-  // charts are re-drawn whenever their page becomes the visible one
+  // ── South-Indian chart, drawn self-contained (no dependency on app.js scope) ─
+  const P_ABBR = { Sun:"Su", Moon:"Mo", Mars:"Ma", Mercury:"Me", Jupiter:"Ju",
+                   Venus:"Ve", Saturn:"Sa", Rahu:"Ra", Ketu:"Ke" };
+  const SIGN_ABBR = ["Ari","Tau","Gem","Can","Leo","Vir","Lib","Sco","Sag","Cap","Aqu","Pis"];
+  const SIGNS_FULL = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio",
+                      "Sagittarius","Capricorn","Aquarius","Pisces"];
+  const CELL_HOUSE = { "0,0":11,"0,1":12,"0,2":1,"0,3":2, "1,0":10,"1,3":3,
+                       "2,0":9,"2,3":4, "3,0":8,"3,1":7,"3,2":6,"3,3":5 };
+
+  function chartSVG(lagnaSign, houses) {
+    const li = SIGNS_FULL.indexOf(lagnaSign);
+    if (li < 0) return "";
+    const S = 300, C = S / 4;
+    let out = `<svg viewBox="0 0 ${S} ${S}" xmlns="http://www.w3.org/2000/svg" class="fbchart-svg">`;
+    out += `<rect x="0" y="0" width="${S}" height="${S}" fill="none" stroke="#8A6E2F" stroke-width="1.5"/>`;
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+      const h = CELL_HOUSE[r + "," + c];
+      if (!h) continue;
+      const x = c * C, y = r * C;
+      const signIdx = (li + h - 1) % 12;
+      out += `<rect x="${x}" y="${y}" width="${C}" height="${C}" fill="${h===1?"rgba(201,164,76,.22)":"none"}" stroke="#8A6E2F" stroke-width=".7"/>`;
+      out += `<text x="${x+4}" y="${y+12}" font-size="8.5" fill="#8A6E2F">${SIGN_ABBR[signIdx]}</text>`;
+      if (h === 1) out += `<text x="${x+C-4}" y="${y+12}" font-size="8.5" fill="#8A6E2F" text-anchor="end">Asc</text>`;
+      const occ = (houses && houses[h]) || (houses && houses[String(h)]) || [];
+      occ.forEach((pl, i) => {
+        const col = i % 2, row = Math.floor(i / 2);
+        out += `<text x="${x + 8 + col*32}" y="${y + 32 + row*15}" font-size="11.5" font-weight="600" fill="#23252E">${P_ABBR[pl] || pl.slice(0,2)}</text>`;
+      });
+    }
+    out += `</svg>`;
+    return out;
+  }
   function paintCharts() {
-    const cd = window.currentData; if (!cd || !cd.d1 || typeof window.renderSIChart !== "function") return;
-    try {
-      const combust = window.buildCombustSet ? window.buildCombustSet(cd.planets) : new Set();
-      const war = window.buildWarSet ? window.buildWarSet(cd.planets) : new Set();
-      if (document.getElementById("fbD1Wrap"))
-        window.renderSIChart("fbD1Wrap", cd.d1.lagnaSign, cd.d1.houses, cd.planets, combust, war, false);
-      if (document.getElementById("fbD9Wrap"))
-        window.renderSIChart("fbD9Wrap", cd.d9.lagnaSign, cd.d9.houses, cd.planets, combust, war, true);
-    } catch (e) {}
+    const cd = window.currentData; if (!cd) return;
+    const d1 = cd.d1 || {}, d9 = cd.d9 || {};
+    const w1 = $("fbD1Wrap"), w9 = $("fbD9Wrap");
+    if (w1 && !w1.firstChild) w1.innerHTML = chartSVG(d1.lagnaSign, d1.houses);
+    if (w9 && !w9.firstChild) w9.innerHTML = chartSVG(d9.lagnaSign, d9.houses);
   }
 
   function bookRender() {
     const P = _book.pages;
     $("fbStatic").innerHTML = P[_book.idx];
     paintCharts();
+    const rv = $("fbReview");
+    if (rv) rv.onclick = () => {
+      const t = document.querySelector('.nav-tab[data-tab="reviewTab"], .nav-tab[data-tab="reviewsTab"]');
+      if (t) t.click(); else alert("Thank you! The review section is on the Contact Us tab.");
+    };
     $("fbPrev").disabled = _book.idx === 0;
     $("fbNext").disabled = _book.idx === P.length - 1;
     const d = $("fbDots"); d.innerHTML = "";
@@ -562,7 +610,7 @@
   }
 
   // ── payment wiring (mirrors uiv4 pattern: session unlock → server status → pay) ─
-  // ── pre-checkout gate: mandatory email + No-Refund confirm (mirrors ui-v4) ──
+  // ── pre-checkout gate: mandatory email + no-refund confirm (mirrors ui-v4) ──
   // Email is MANDATORY for the invoice. Read from the birth form; if empty or
   // invalid, BLOCK payment, go to the Birth Data tab, cue the field, and explain.
   function requireEmail() {
@@ -608,8 +656,8 @@
 
     const email = requireEmail();
     if (!email) return;
-    if (!window.confirm(window.t ? window.t("No Refund_confirm")
-        : "No Refund — please confirm before you proceed to payment.")) return;
+    if (!window.confirm(window.t ? window.t("refund_confirm")
+        : "No refund — please confirm before you proceed to payment.")) return;
 
     window.startPayment({ item, amount, label, email, chartId: cid })
       .then(res => {
