@@ -789,11 +789,14 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
   const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
   const lagnaIdx = SIGNS.indexOf(lagnaSign);
 
-  const CELL_HOUSE = {
-    "0,0":11,"0,1":12,"0,2":1,"0,3":2,
-    "1,0":10,                  "1,3":3,
-    "2,0":9,                   "2,3":4,
-    "3,0":8,"3,1":7,"3,2":6,"3,3":5
+  // Standard South-Indian layout: sign positions are FIXED on the grid and the
+  // HOUSE number is counted from the lagna sign (lagna's cell = house 1).
+  // Values are SIGN indices (0 = Aries … 11 = Pisces).
+  const CELL_SIGN = {
+    "0,0":11,"0,1":0,"0,2":1,"0,3":2,      // Pisces, Aries, Taurus, Gemini
+    "1,0":10,                  "1,3":3,     // Aquarius … Cancer
+    "2,0":9,                   "2,3":4,     // Capricorn … Leo
+    "3,0":8,"3,1":7,"3,2":6,"3,3":5         // Sagittarius, Scorpio, Libra, Virgo
   };
 
   // Build planet→house map for lord placement lookup
@@ -832,10 +835,11 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       if ((row===1||row===2)&&(col===1||col===2)) continue;
 
       const key  = `${row},${col}`;
-      const hNum = CELL_HOUSE[key];
-      if (!hNum) continue;
+      if (!(key in CELL_SIGN)) continue;
+      const signIdx = CELL_SIGN[key];
+      const hNum = ((signIdx - lagnaIdx + 12) % 12) + 1;   // house counted from lagna
 
-      const signInHouse = SIGNS[(lagnaIdx + hNum - 1) % 12];
+      const signInHouse = SIGNS[signIdx];
       const isLagna     = hNum === 1;
       const houseLord   = SIGN_LORD[signInHouse];
 
