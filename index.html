@@ -80,6 +80,12 @@
   .ai-paid-tab .tab-icon { color:var(--ai-gold); }
   .ai-gold-dot { font-size:.58rem; letter-spacing:.12em; color:var(--ai-navy); background:var(--ai-gold); border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; }
   .pp-sub { max-width:640px; }
+  .pp-personal { display:flex; align-items:flex-start; gap:10px; max-width:680px; margin:14px 0 18px; padding:11px 14px;
+    background:rgba(201,164,76,.07); border:1px solid rgba(201,164,76,.35); border-left:3px solid var(--ai-gold);
+    border-radius:9px; font-size:.88rem; line-height:1.5; color:var(--ai-gold-soft); }
+  .pp-personal .pp-seal { color:var(--ai-gold); font-size:1rem; line-height:1.4; }
+  .pp-personal b { color:#fff; font-weight:600; }
+  .pp-personal .pp-engine { display:block; margin-top:3px; opacity:.72; font-size:.8rem; }
   .pp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin:16px 0; }
   .pp-card { background:linear-gradient(170deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-ink); border:1px solid rgba(201,164,76,.45); border-radius:14px; padding:16px 18px; }
   .pp-band { display:inline-block; font-size:.66rem; letter-spacing:.14em; font-weight:700; padding:3px 10px; border-radius:9px; background:var(--ai-gold); color:var(--ai-navy); margin-bottom:8px; }
@@ -548,7 +554,8 @@
     <!-- ── SCREEN 6: PLANET DETAILS ─────────────────────────────────── -->
     <section id="lifeIndTab" class="screen">
       <div class="pp-head"><h2>Life Indicators Report</h2>
-        <p class="pp-sub">Your complete timing book — every life area, its verdict, its window, and what to do about it. Built once from your chart, yours forever.</p></div>
+        <p class="pp-sub">Your complete timing book — every life area, its verdict, its window, and what to do about it. Built once from your chart, yours forever.</p>
+        <div id="liPersonal" class="pp-personal"></div></div>
       <div id="liTeasers" class="pp-grid"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
       <div class="pp-paybar"><button id="liPayBtn" class="pp-pay">Unlock the full report</button>
         <span class="pp-guar">One-time · re-open free forever on this chart</span></div>
@@ -556,7 +563,8 @@
     </section>
     <section id="iccTab" class="screen">
       <div class="pp-head"><h2>Instant Clarity Command</h2>
-        <p class="pp-sub">Ten burning questions. Pick any three. Get direct, dated answers with a confidence score.</p></div>
+        <p class="pp-sub">Ten burning questions. Pick any three. Get direct, dated answers with a confidence score.</p>
+        <div id="iccPersonal" class="pp-personal"></div></div>
       <div id="iccPickerWrap"><div id="iccPicker" class="icc-list"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
       <div class="pp-paybar"><button id="iccPayBtn" class="pp-pay" disabled>Pick 3 questions</button></div></div>
       <div id="iccAnswers"></div>
