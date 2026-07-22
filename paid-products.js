@@ -213,7 +213,10 @@
     email = email.trim();
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return email;
     var ef = document.getElementById("inputEmail");
-    try { if (window.goToTab) window.goToTab("inputTab"); } catch (e) {}
+    try {
+      if (window.goToTab) window.goToTab("inputTab");
+      else document.querySelector('.nav-tab[data-tab="inputTab"]')?.click();
+    } catch (e) {}
     if (ef) {
       ef.style.border = "2px solid #c9a84c";
       ef.style.boxShadow = "0 0 0 2px rgba(201,168,76,0.25)";
@@ -245,8 +248,8 @@
 
     const email = requireEmail();
     if (!email) return;
-    if (!window.confirm(window.t ? window.t("No Refund_confirm")
-        : "No Refund — please confirm before you proceed to payment.")) return;
+    if (!window.confirm(window.t ? window.t("refund_confirm")
+        : "No refund — please confirm before you proceed to payment.")) return;
 
     window.startPayment({ item, amount, label, email, chartId: cid })
       .then(res => {
