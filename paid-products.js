@@ -143,7 +143,7 @@
   async function narrate(kind, facts) {
     const res = await fetch("/api/indicate", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, facts, name: window.currentData?.form?.name || "" }),
+      body: JSON.stringify({ kind, facts }),   // no name: books cache per chart, not per person
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || "Narrator unavailable.");
@@ -194,7 +194,8 @@
       </div></div>`);
 
     // ── 2. birth details ─────────────────────────────────────────────────────
-    const d1 = cd.d1 || {}, d9 = cd.d9 || {}, pl = cd.planets || {};
+    const _m = chartModel() || {};
+    const d1 = _m.d1 || {}, d9 = _m.d9 || {}, pl = (chartSource().planets) || {};
     const row = (k, v) => v ? `<li><b>${esc(k)}</b><i>${esc(v)}</i></li>` : "";
     P.push(`<div class="pg"><div class="kick">Birth Details</div><div class="rule"></div>
       <ul class="toc bdl">
@@ -242,7 +243,7 @@
       Lagna: <b>${esc(d9.lagnaSign || "")}</b></div><span class="pnum">5</span></div>`);
 
     // ── 6. life axis ─────────────────────────────────────────────────────────
-    P.push(lifeAxisPage(cd, facts, 6));
+    P.push(lifeAxisPage(_m, facts, 6));
 
     // ── 7+. domains ──────────────────────────────────────────────────────────
     let n = 7;
@@ -271,8 +272,8 @@
       navigating and where you are heading${name ? ", " + name : ""}.</div>
       <div class="closing">If you find it useful, please don't hesitate to share it with all those
       whom you care about.</div>
-      <div class="closing">If you wish, write a brief review about our work.</div>
-      <button class="fb-review" id="fbReview">Write a review</button>
+      <div class="closing">If our work was useful to you, we'd be grateful for a short review —
+      you'll find the <b>Leave a Review</b> button on the Birth Details page.</div>
       <div class="logo">Astro<span>Indicators</span></div></div></div>`);
 
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
@@ -297,9 +298,12 @@
   }
 
   // Life Axis — the anchors the whole book is read against.
-  function lifeAxisPage(cd, facts, pnum) {
-    const pl = cd.planets || {}, d1 = cd.d1 || {}, d9 = cd.d9 || {};
-    const moon = pl.Moon || {}, sun = pl.Sun || {};
+  function lifeAxisPage(m, facts, pnum) {
+    const d1 = (m && m.d1) || {}, d9 = (m && m.d9) || {};
+    const P = chartSource().planets || {};
+    const moon = { sign: (m && m.lons && m.lons.Moon != null) ? m.sign(m.lons.Moon) : (P.Moon && P.Moon.sign),
+                   nakshatra: (P.Moon && P.Moon.nakshatra) || "" };
+    const sun  = { sign: (m && m.lons && m.lons.Sun != null) ? m.sign(m.lons.Sun) : (P.Sun && P.Sun.sign) };
     const axis = (label, val, note) => val
       ? `<div class="axis-row"><div class="axis-k">${esc(label)}</div>
          <div class="axis-v">${esc(val)}</div><div class="axis-n">${esc(note)}</div></div>` : "";
@@ -356,6 +360,48 @@
       <span class="pnum">${pnum}</span></div>`;
   }
 
+  // ── chart data: read from the SAME object we send to /api/facts, and derive
+  // houses from longitudes so we never depend on an assumed `houses` shape ────
+  const SIGNS_FULL2 = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio",
+                       "Sagittarius","Capricorn","Aquarius","Pisces"];
+  function chartSource() {
+    const cd = window.currentData || {};
+    return cd.chart || cd;                     // /api/chart response
+  }
+  function chartModel() {
+    const src = chartSource();
+    const d1 = src.d1 || {}, d9 = src.d9 || {};
+    const deg = d1.degrees || {};
+    let asc = null;
+    if (typeof d1.lagnaSign === "string" && SIGNS_FULL2.indexOf(d1.lagnaSign) >= 0)
+      asc = SIGNS_FULL2.indexOf(d1.lagnaSign) * 30 + (d1.lagnaDegree || 0);
+    else if (typeof src.ascendant === "number") asc = src.ascendant;
+    if (asc == null) return null;
+
+    const norm = x => ((x % 360) + 360) % 360;
+    const si = l => Math.floor(norm(l) / 30);
+    const nav = l => SIGNS_FULL2[Math.floor(norm(l) / (30 / 9)) % 12];
+    const names = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+    const lons = {};
+    for (const n of names) if (typeof deg[n] === "number") lons[n] = deg[n];
+    if (lons.Rahu != null && lons.Ketu == null) lons.Ketu = norm(lons.Rahu + 180);
+    if (!Object.keys(lons).length) return null;
+
+    const h1 = {}, h9 = {};
+    for (let h = 1; h <= 12; h++) { h1[h] = []; h9[h] = []; }
+    const li = si(asc), d9li = SIGNS_FULL2.indexOf(nav(asc));
+    for (const n of names) {
+      if (lons[n] == null) continue;
+      h1[((si(lons[n]) - li + 12) % 12) + 1].push(n);
+      h9[((SIGNS_FULL2.indexOf(nav(lons[n])) - d9li + 12) % 12) + 1].push(n);
+    }
+    return {
+      d1: { lagnaSign: SIGNS_FULL2[li], lagnaDegree: norm(asc) % 30, houses: h1 },
+      d9: { lagnaSign: d9.lagnaSign || SIGNS_FULL2[d9li], houses: h9 },
+      lons, sign: l => SIGNS_FULL2[si(l)], nav,
+    };
+  }
+
   // ── South-Indian chart, drawn self-contained (no dependency on app.js scope) ─
   const P_ABBR = { Sun:"Su", Moon:"Mo", Mars:"Ma", Mercury:"Me", Jupiter:"Ju",
                    Venus:"Ve", Saturn:"Sa", Rahu:"Ra", Ketu:"Ke" };
@@ -389,27 +435,17 @@
     return out;
   }
   function paintCharts() {
-    const cd = window.currentData; if (!cd) return;
-    const d1 = cd.d1 || {}, d9 = cd.d9 || {};
+    const m = chartModel(); if (!m) return;
     const w1 = $("fbD1Wrap"), w9 = $("fbD9Wrap");
-    if (w1 && !w1.firstChild) w1.innerHTML = chartSVG(d1.lagnaSign, d1.houses);
-    if (w9 && !w9.firstChild) w9.innerHTML = chartSVG(d9.lagnaSign, d9.houses);
+    if (w1 && !w1.firstChild) w1.innerHTML = chartSVG(m.d1.lagnaSign, m.d1.houses);
+    if (w9 && !w9.firstChild) w9.innerHTML = chartSVG(m.d9.lagnaSign, m.d9.houses);
   }
 
   function bookRender() {
     const P = _book.pages;
     $("fbStatic").innerHTML = P[_book.idx];
     paintCharts();
-    const rv = $("fbReview");
-    if (rv) rv.onclick = () => {
-      const go = document.querySelector('.nav-tab[data-tab="inputTab"]');
-      if (go) go.click();
-      setTimeout(() => {
-        if (typeof window.AI_openReviewForm === "function") window.AI_openReviewForm();
-        const host = document.getElementById("reviewCards");
-        if (host) host.scrollIntoView({ behavior:"smooth", block:"center" });
-      }, 120);
-    };
+
     $("fbPrev").disabled = _book.idx === 0;
     $("fbNext").disabled = _book.idx === P.length - 1;
     const d = $("fbDots"); d.innerHTML = "";
@@ -546,7 +582,9 @@
     const M = 56; let y = 0;
     const NAVY = [11,14,26], GOLD = [201,164,76], INK = [40,40,44], MUTE = [110,110,120];
     const cd = window.currentData || {};
-    const f0 = cd.form || {}, d1 = cd.d1 || {}, d9 = cd.d9 || {}, pl = cd.planets || {};
+    const _m = chartModel() || {};
+    const f0 = cd.form || {}, d1 = _m.d1 || {}, d9 = _m.d9 || {}, pl = (chartSource().planets) || {};
+    const mSign = (k) => (_m.lons && _m.lons[k] != null) ? _m.sign(_m.lons[k]) : ((pl[k] && pl[k].sign) || "");
     const name = f0.name || "";
 
     // ── cover ────────────────────────────────────────────────────────────────
@@ -574,7 +612,7 @@
       ["Place", f0.place],
       ["Ascendant (D1)", d1.lagnaSign ? d1.lagnaSign + " " + (d1.lagnaDegree||0).toFixed(1) + "°" : ""],
       ["Navamsa lagna (D9)", d9.lagnaSign],
-      ["Moon sign", pl.Moon && pl.Moon.sign],
+      ["Moon sign", mSign("Moon")],
       ["Nakshatra", pl.Moon ? (pl.Moon.nakshatra||"") + (pl.Moon.pada ? " · pada " + pl.Moon.pada : "") : ""]];
     doc.setFontSize(10);
     for (const [k,v] of rows) { if (!v) continue;
@@ -615,7 +653,8 @@
 
     // ── life axis ────────────────────────────────────────────────────────────
     newPage(); heading("Your Life Axis");
-    const moon = pl.Moon||{}, sun = pl.Sun||{};
+    const moon = { sign: mSign("Moon"), nakshatra: (pl.Moon && pl.Moon.nakshatra) || "" };
+    const sun = { sign: mSign("Sun") };
     const axes = [
       ["Lagna — the life you build", (d1.lagnaSign||"") + (d1.lagnaDegree!=null ? "  "+d1.lagnaDegree.toFixed(1)+"°" : ""), "How you meet the world, and the body you do it in."],
       ["Moon — the mind you carry", (moon.sign||"") + (moon.nakshatra ? " · "+moon.nakshatra : ""), "How you feel, react, and find rest. Your dasha clock is set from here."],
@@ -674,7 +713,7 @@
     doc.text("Best wishes from", W/2, H/2-40, { align:"center" });
     doc.text("Team AstroIndicators", W/2, H/2-12, { align:"center" });
     doc.setFontSize(10); doc.setTextColor(225,225,230);
-    const close = doc.splitTextToSize("We hope you find this useful in getting an indication of how you are navigating and where you are heading" + (name ? ", " + name : "") + ". If you find it useful, please don't hesitate to share it with all those whom you care about.", W-M*3);
+    const close = doc.splitTextToSize("We hope you find this useful in getting an indication of how you are navigating and where you are heading" + (name ? ", " + name : "") + ". If you find it useful, please don't hesitate to share it with all those whom you care about. If our work was useful, we'd be grateful for a short review — the Leave a Review button is on the Birth Details page.", W-M*3);
     doc.text(close, W/2, H/2+24, { align:"center" });
 
     const total = doc.internal.getNumberOfPages();
