@@ -626,11 +626,14 @@
         </div>`;
       }).join("");
     });
-    html += `<div class="pp-paybar"><button id="iccMoreBtn" class="pp-pay">Ask 3 new questions — ₹${price("icc",499)}</button>
+    html += `<div class="pp-paybar"><button id="iccPdf" class="pp-pay">Download PDF</button>
+      <button id="iccMoreBtn" class="pp-pay ghost">Ask 3 new questions — ₹${price("icc",499)}</button>
       <span class="pp-guar">Your answered sets stay saved on this chart</span></div>`;
     host.innerHTML = html;
     _iccRenderedFor = window.AI_chartId ? window.AI_chartId() : null;
     const w = $("iccPickerWrap"); if (w) w.style.display = "none";
+    const pdfBtn = $("iccPdf");
+    if (pdfBtn) pdfBtn.onclick = () => exportICCPDF(sets, facts);
     const more = $("iccMoreBtn");
     if (more) more.onclick = () => {
       if (w) w.style.display = "";
@@ -659,6 +662,63 @@
       _iccRenderedFor = null; window._iccExistingSets = null;
       document.querySelectorAll("#iccPicker input:checked").forEach(b => b.checked = false);
     }
+  }
+
+
+  // ── ICC PDF export ─────────────────────────────────────────────────────────
+  function exportICCPDF(sets, facts) {
+    const J = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    if (!J) { alert("PDF library not loaded."); return; }
+    const doc = new J({ unit:"pt", format:"a4" });
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    const M = 56; let y = 0;
+    const NAVY = [11,14,26], GOLD = [201,164,76], INK = [40,40,44], MUTE = [110,110,120];
+    const f0 = (window.currentData && window.currentData.form) || {};
+    const name = f0.name || "";
+
+    doc.setFillColor(...NAVY); doc.rect(0,0,W,H,"F");
+    doc.setDrawColor(...GOLD); doc.rect(M/2,M/2,W-M,H-M);
+    doc.setTextColor(...GOLD); doc.setFontSize(11);
+    doc.text("INSTANT CLARITY COMMAND", W/2, H/2-70, { align:"center" });
+    doc.setTextColor(255,255,255); doc.setFontSize(26);
+    doc.text("Your Questions,", W/2, H/2-28, { align:"center" });
+    doc.text("Answered", W/2, H/2+2, { align:"center" });
+    doc.setFontSize(13); doc.setTextColor(...GOLD);
+    if (name) doc.text(name, W/2, H/2+40, { align:"center" });
+    doc.setFontSize(8); doc.setTextColor(200,200,205);
+    const meta = [f0.dob, f0.tob, f0.place].filter(Boolean).join(" · ");
+    if (meta) doc.text(doc.splitTextToSize(meta, W-M*2), W/2, H/2+64, { align:"center" });
+    doc.text("Swiss Ephemeris · Lahiri ayanamsa", W/2, H-70, { align:"center" });
+
+    doc.addPage(); y = M;
+    sets.forEach((set, si) => {
+      if (sets.length > 1) {
+        if (y + 40 > H - M) { doc.addPage(); y = M; }
+        doc.setFontSize(9); doc.setTextColor(...GOLD);
+        doc.text("SET " + (si+1), M, y); y += 6;
+        doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 20;
+      }
+      (set.answers || []).forEach(a => {
+        const f = byId(facts, a.module_id); if (!f) return;
+        const win = f.timing_windows[0];
+        const q = doc.splitTextToSize(f.question, W-M*2);
+        const body = doc.splitTextToSize(a.narrative, W-M*2);
+        const need = q.length*16 + body.length*14 + (win ? 34 : 0) + 50;
+        if (y + need > H - M) { doc.addPage(); y = M; }
+        doc.setFontSize(13); doc.setTextColor(...INK); doc.text(q, M, y); y += q.length*16 + 6;
+        doc.setFontSize(9); doc.setTextColor(...GOLD);
+        doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
+        doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(body, M, y); y += body.length*14 + 6;
+        if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
+          doc.setFontSize(9.5); doc.setTextColor(...GOLD);
+          doc.text(win.label + ": " + fmtWin(win), M, y); y += 20; }
+        y += 16;
+      });
+    });
+    const total = doc.internal.getNumberOfPages();
+    for (let i = 2; i <= total; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150);
+      doc.text(String(i-1), W/2, H-28, { align:"center" }); }
+    doc.save("AstroIndicators_InstantClarity_" + (name||"report").replace(/[^\w-]+/g,"_") + ".pdf");
   }
 
   // ── PDF export (jsPDF) — mirrors the flipbook structure ────────────────────
