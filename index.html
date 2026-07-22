@@ -117,7 +117,7 @@
   .icc-confbar { flex:1; max-width:180px; height:6px; background:rgba(255,255,255,.15); border-radius:4px; overflow:hidden; }
   .icc-confbar i { display:block; height:100%; background:var(--ai-gold); }
   /* ── flipbook: cream pages + 3D leaf-turn (POC) ── */
-  :root { --ai-cream:#F7E4A8; --ai-cream2:#F0D68C; --ai-pink:#0F1428; }
+  :root { --ai-cream:#FFF0BE; --ai-cream2:#FCE49C; --ai-pink:#0F1428; }
   .stage { width:100%; display:flex; justify-content:center; }
   .book { position:relative; width:min(430px,94vw); height:min(602px,132vw); perspective:2400px;
     filter:drop-shadow(0 24px 40px rgba(0,0,0,.55)); }
@@ -130,7 +130,7 @@
   .leaf .shade { position:absolute; inset:0; background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0) 45%);
     opacity:0; transition:opacity .35s; }
   .pg { position:absolute; inset:0; padding:30px 28px 44px; display:flex; flex-direction:column;
-    background:linear-gradient(168deg,#FBEFC4,var(--ai-cream) 45%,var(--ai-cream2)); color:#23252E; font-size:.95rem;
+    background:linear-gradient(168deg,#FFFAE0,var(--ai-cream) 42%,var(--ai-cream2)); color:#23252E; font-size:.95rem;
     background-image:linear-gradient(90deg,rgba(0,0,0,.10),rgba(0,0,0,0) 6%,rgba(0,0,0,0) 94%,rgba(0,0,0,.05)); }
   .pg h1 { font-size:1.85rem; line-height:1.2; margin:8px 0 14px; color:var(--ai-gold-soft); font-weight:800; }
   .pg h2 { font-size:1.22rem; margin:4px 0 10px; color:#1A1D2B; font-weight:700; line-height:1.3; }
@@ -188,6 +188,8 @@
   .dots { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:60%; }
   .dots .dot { width:7px; height:7px; border-radius:50%; background:rgba(201,164,76,.32); cursor:pointer; }
   .dots .dot.on { background:var(--ai-gold); transform:scale(1.25); }
+  .fb-dlbar { display:flex; justify-content:center; margin:0 0 30px; }
+  .fb-dlbar button { margin-right:calc(50% - min(215px,47vw)); transform:translateX(50%); }
   .hint { text-align:center; font-size:.76rem; color:#7c7c7c; margin-bottom:26px; }
   .fb-nav { background:var(--ai-navy); color:var(--ai-gold-soft); border:1px solid var(--ai-gold);
     border-radius:9px; padding:6px 16px; cursor:pointer; font-size:1.1rem; line-height:1.4; }
