@@ -61,6 +61,33 @@
   }
   const byId = (facts, id) => facts.find(f => f.module_id === id);
 
+
+  // ── personalization strip: proves the reading is keyed to THEIR birth data ──
+  function fmtDOB(dob, tob) {
+    try {
+      const [y,m,d] = dob.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m-1, d));
+      const day = dt.toLocaleDateString("en-IN", { day:"numeric", month:"long", year:"numeric", timeZone:"UTC" });
+      let t = "";
+      if (tob) { const [hh,mm] = tob.split(":").map(Number);
+        const ap = hh >= 12 ? "PM" : "AM"; const h12 = ((hh + 11) % 12) + 1;
+        t = h12 + ":" + String(mm).padStart(2,"0") + " " + ap; }
+      return t ? day + " at " + t : day;
+    } catch (e) { return dob || ""; }
+  }
+  function renderPersonalStrip() {
+    const f = (window.currentData && window.currentData.form) || {};
+    const dob = f.dob || (document.getElementById("inputDOB")||{}).value || "";
+    const tob = f.tob || (document.getElementById("inputTOB")||{}).value || "";
+    const place = f.place || (document.getElementById("inputPlaceDisplay")||{}).value || "";
+    if (!dob) return;
+    const html = `<span class="pp-seal">◈</span><span>This reading is calculated from <b>your</b> birth details —
+      <b>${esc(fmtDOB(dob, tob))}</b>${place ? `, <b>${esc(place)}</b>` : ""} — not from your sun sign.
+      <span class="pp-engine">Every verdict and date below is computed from your chart's own planetary positions
+      (Swiss Ephemeris · Lahiri ayanamsa). Change any birth detail and the results change with it.</span></span>`;
+    ["liPersonal","iccPersonal"].forEach(id => { const el = $(id); if (el) el.innerHTML = html; });
+  }
+
   // ── HOOK & BLUR teaser (free layer on both product tabs) ────────────────────
   function teaserCard(f, hookLine) {
     const win = f.timing_windows[0];
@@ -80,6 +107,7 @@
   }
 
   function renderTeasers() {
+    renderPersonalStrip();
     getFacts().then(facts => {
       const li = $("liTeasers");
       if (li) li.innerHTML = ["MOD-CAREER-BIZEMP","MOD-WEALTH-DHANA","MOD-MARRIAGE-LIFE","MOD-MOBILITY-BHAGYODAYA"]
