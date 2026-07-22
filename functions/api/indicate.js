@@ -28,7 +28,8 @@ ABSOLUTE RULES:
 3. NEVER: diagnose or name an illness; guarantee an outcome; use fear, doom, or alarm; prescribe remedies (gemstones, mantras, poojas, fasting, donations).
 4. Confidence is given — you may express it naturally ("a strong signature", "a moderate indication") but never inflate it.
 5. Timing windows: present month-and-year ranges as favourable/sensitive periods to act within — never as dates when events "will happen".
-6. 3–5 sentences per section unless asked otherwise. Second person ("you", "your chart"). No astrology jargon beyond planet and house names already in the facts.`;
+6. 3–5 sentences per section unless asked otherwise. Second person ("you", "your chart"). No astrology jargon beyond planet and house names already in the facts.
+7. NEVER address the reader by name or invent one — you are not given a name. Use "you" and "your chart" only.`;
 
 const GUARDRAIL_REGISTER = {
   health: `HEALTH REGISTER: caution-not-diagnosis. Frame as "a period to prioritise proactive health attention", check-ups, rest, prevention. Never name a disease, body part, or mortality. Supportive, never alarming.`,
@@ -71,13 +72,15 @@ function factBlock(f) {
 
 function buildPrompt(kind, payload) {
   const facts = payload.facts;
-  const name = typeof payload.name === "string" ? payload.name.slice(0, 60).replace(/[^\p{L}\p{N} .'-]/gu, "") : "";
+  // NOTE: the narrator is deliberately name-blind. Reports are cached per chartId,
+  // and two people with identical birth data share one cached narration — so a name
+  // baked into the prose would leak across customers. The UI personalises instead.
   const registers = [...new Set(facts.map(f => f.guardrail).filter(g => g !== "none"))]
     .map(g => GUARDRAIL_REGISTER[g]).join("\n");
   const system = SYSTEM_BASE + (registers ? "\n\n" + registers : "");
 
   if (kind === "icc_answer") {
-    const user = `Customer${name ? " " + name : ""} asked ${facts.length} question(s) in the Instant Clarity Command.
+    const user = `The customer asked ${facts.length} question(s) in the Instant Clarity Command.
 For EACH fact below, write the answer as JSON: {"answers":[{"module_id":"...","narrative":"3-4 sentences"}]} .
 Respond ONLY with that JSON object, no markdown fences, no preamble.
 
@@ -85,7 +88,7 @@ ${facts.map(factBlock).join("\n\n---\n\n")}`;
     return { system, user };
   }
   // report_section (flipbook) — one consolidated call, all sections at once, cached downstream
-  const user = `Write the Life Indicators Report sections${name ? " for " + name : ""}.
+  const user = `Write the Life Indicators Report sections.
 For EACH fact below, write one flipbook section as JSON:
 {"sections":[{"module_id":"...","heading":"short warm heading, no jargon","narrative":"4-5 sentences"}]}
 Respond ONLY with that JSON object, no markdown fences, no preamble.
@@ -119,7 +122,7 @@ export async function onRequestPost(context) {
     return json({ error: "One or more facts failed validation." }, 400);
   }
 
-  const { system, user } = buildPrompt(kind, { facts, name: body.name });
+  const { system, user } = buildPrompt(kind, { facts });   // name deliberately not forwarded
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
