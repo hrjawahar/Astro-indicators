@@ -47,6 +47,10 @@ const BusinessType = z.object({
   primary:   z.enum(BUSINESS_TYPES),
   secondary: z.enum(BUSINESS_TYPES).optional(),
   driver:    z.object({ primary: z.string(), secondary: z.string().optional() }),
+  // ownership structure read from the 7th (partners) vs 1st/10th (self-driven)
+  structure: z.enum(["PARTNERSHIP","PROPRIETORSHIP","EITHER"]).optional(),
+  structure_reason: z.string().optional(),
+  scale: z.enum(["LOCAL","REGIONAL","LARGE"]).optional(),
 });
 
 export const EngineFactSchema = z.object({
