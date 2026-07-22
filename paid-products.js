@@ -221,8 +221,8 @@
     }
 
     // ── 3. index ─────────────────────────────────────────────────────────────
-    let at = 7;                                     // domains begin on page 7
-    const fixed = [["Your Birth Charts (D1 · D9)", 4], ["Your Life Axis", 6]];
+    let at = 8;                                     // domains begin on page 8
+    const fixed = [["Your Birth Charts (D1 · D9)", 4], ["Your Life Axis", 6], ["Your Life Theme", 7]];
     const tocRows = fixed.map(([t, n]) => `<li><b>${t}</b><i>${String(n).padStart(2,"0")}</i></li>`)
       .concat(groups.map(g => { const a = at; at += g.items.length + 1;
         return `<li><b>${esc(g.cat)}</b><i>${String(a).padStart(2,"0")}</i></li>`; }))
@@ -232,21 +232,27 @@
 
     // ── 4 & 5. D1 and D9 charts (rendered after the page is placed) ──────────
     P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
-      <h2>Rāśi · D1</h2>
+      <h2>Rāśi · D1 — the stage</h2>
       <div class="fb-chart" id="fbD1Wrap"></div>
-      <div class="chart-note">The visible life — body, circumstances, and events.
-      Lagna: <b>${esc(d1.lagnaSign || "")}</b></div><span class="pnum">4</span></div>`);
+      <div class="chart-note"><b>Think of D1 as the play as it is performed.</b> The set, the cast, the
+      entrances and exits — your body, your circumstances, the events people can see. Lagna:
+      <b>${esc(d1.lagnaSign || "")}</b></div>
+      ${chartLegend()}<span class="pnum">4</span></div>`);
     P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
-      <h2>Navāṁśa · D9</h2>
+      <h2>Navāṁśa · D9 — the root system</h2>
       <div class="fb-chart" id="fbD9Wrap"></div>
-      <div class="chart-note">The inner chart — what endures when the visible is tested.
-      Lagna: <b>${esc(d9.lagnaSign || "")}</b></div><span class="pnum">5</span></div>`);
+      <div class="chart-note"><b>If D1 is the tree, D9 is the root.</b> Nobody sees it, and it decides
+      whether the tree survives a storm. A promise strong in D1 but weak here tends to arrive and
+      not stay; strong here, it holds when tested. Lagna: <b>${esc(d9.lagnaSign || "")}</b></div>
+      ${chartLegend()}<span class="pnum">5</span></div>`);
 
     // ── 6. life axis ─────────────────────────────────────────────────────────
     P.push(lifeAxisPage(_m, facts, 6));
 
-    // ── 7+. domains ──────────────────────────────────────────────────────────
-    let n = 7;
+    P.push(lifeThemePage(_m, 7));
+
+    // ── 8+. domains ──────────────────────────────────────────────────────────
+    let n = 8;
     for (const g of groups) {
       P.push(`<div class="pg sec-divider"><div class="in">
         <div class="seal">◈</div><div class="domain">${esc(g.cat)}</div>
@@ -295,6 +301,73 @@
     bindBook();
     bookRender();
     $("fbPdf").onclick = () => exportPDF(sections, facts);
+  }
+
+
+  // ── the dominant life theme: which house-axis carries the most weight ───────
+  const AXES = [
+    { pair:"1 × 7",  name:"Self and Partnership",   houses:[1,7],
+      theme:"Your life is organised around the meeting of self and other. Who you become is worked out through relationship — partnership, marriage, business alliances. Independence and intimacy are the two poles you keep negotiating.",
+      work:"Learning to stay yourself inside a bond, without disappearing into it or defending against it." },
+    { pair:"2 × 8",  name:"Wealth and Transformation", houses:[2,8],
+      theme:"Your life turns on what you accumulate and what you must let go of. Resources, family assets, shared money, and periodic upheaval are the recurring machinery of your story.",
+      work:"Building security while accepting that some of it will be dismantled and rebuilt — more than once." },
+    { pair:"3 × 9",  name:"Effort and Fortune",      houses:[3,9],
+      theme:"Your life is a dialogue between your own initiative and the larger current carrying you. Courage, siblings, communication, teaching, belief, and long journeys keep reappearing.",
+      work:"Knowing when to push with your own hand and when to let the wider current do the work." },
+    { pair:"4 × 10", name:"Roots and Standing",      houses:[4,10],
+      theme:"Your life is built between home and the world — the private ground you stand on and the public position you occupy. Property, mother, inner peace, career, and reputation form your central axis.",
+      work:"Keeping the foundation intact while you climb, so the standing you win still has somewhere to rest." },
+    { pair:"5 × 11", name:"Creation and Gain",       houses:[5,11],
+      theme:"Your life moves through what you create and what it returns to you. Children, intelligence, creative output, networks, and the fruits of your work are the through-line.",
+      work:"Creating for its own sake while still letting the returns arrive — neither pure idealism nor pure calculation." },
+    { pair:"6 × 12", name:"Service and Release",     houses:[6,12],
+      theme:"Your life is shaped by what you overcome and what you surrender. Work, health, obstacles, debts, solitude, foreign lands, and the inner world are its recurring terrain.",
+      work:"Meeting difficulty without being defined by it, and letting go of what no longer needs carrying." },
+  ];
+  function pickTheme(m) {
+    if (!m || !m.d1 || !m.d1.houses) return null;
+    const h = m.d1.houses;
+    const KEY = { Sun:1.2, Moon:1.2, Mars:1, Mercury:1, Jupiter:1.2, Venus:1, Saturn:1.2, Rahu:.9, Ketu:.9 };
+    const scored = AXES.map(a => {
+      let s = 0;
+      for (const hn of a.houses) for (const p of (h[hn] || [])) s += (KEY[p] || 1);
+      return { a, s };
+    }).sort((x,y) => y.s - x.s);
+    const top = scored[0];
+    const occ = top.a.houses.map(hn => (h[hn]||[]).map(p => P_ABBR[p]||p).join(" ")).filter(Boolean);
+    return { a: top.a, second: scored[1], score: top.s,
+      evidence: occ.length ? "Why this axis: your " + top.a.houses.join("th and ") + "th houses carry "
+        + occ.join(" / ") + " — the heaviest concentration in your chart." : "" };
+  }
+
+  function lifeThemePage(m, pnum) {
+    if (!m || !m.d1 || !m.d1.houses) return `<div class="pg"><div class="kick">Your Life Theme</div>
+      <div class="rule"></div><div class="bd">Chart data unavailable.</div><span class="pnum">${pnum}</span></div>`;
+    const h = m.d1.houses;
+    const KEY = { Sun:1.2, Moon:1.2, Mars:1, Mercury:1, Jupiter:1.2, Venus:1, Saturn:1.2, Rahu:.9, Ketu:.9 };
+    const scored = AXES.map(a => {
+      let s = 0;
+      for (const hn of a.houses) for (const p of (h[hn] || [])) s += (KEY[p] || 1);
+      return { a, s };
+    }).sort((x,y) => y.s - x.s);
+    const top = scored[0], second = scored[1];
+    const tenanted = (ax) => ax.houses.map(hn => (h[hn]||[]).map(p => P_ABBR[p]||p).join(" ")).filter(Boolean);
+    const occ = tenanted(top.a);
+    return `<div class="pg"><div class="kick">Your Life Theme</div><div class="rule"></div>
+      <h2>${esc(top.a.pair)} — ${esc(top.a.name)}</h2>
+      <div class="chiprow"><span class="chip">Primary axis</span>
+        ${second && second.s > 0 ? `<span class="chip ghost">then ${esc(second.a.pair)} · ${esc(second.a.name)}</span>` : ""}</div>
+      <div class="bd">
+        <p>${esc(top.a.theme)}</p>
+        <p class="theme-work"><b>The work of this birth:</b> ${esc(top.a.work)}</p>
+        ${occ.length ? `<p class="theme-ev">Why this axis: your ${esc(top.a.houses.join("th and "))}th houses carry
+          ${esc(occ.join(" / "))} — the heaviest concentration in your chart.</p>` : ""}
+        <p class="theme-ev">Every domain that follows is a different window onto this same theme. Where a
+        reading feels unexpectedly heavy or unexpectedly easy, it is usually because it sits on or away
+        from this axis.</p>
+      </div>
+      <span class="pnum">${pnum}</span></div>`;
   }
 
   // Life Axis — the anchors the whole book is read against.
@@ -405,12 +478,24 @@
   // ── South-Indian chart, drawn self-contained (no dependency on app.js scope) ─
   const P_ABBR = { Sun:"Su", Moon:"Mo", Mars:"Ma", Mercury:"Me", Jupiter:"Ju",
                    Venus:"Ve", Saturn:"Sa", Rahu:"Ra", Ketu:"Ke" };
+  const P_TAMIL = { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்",
+                    Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" };
+  function chartLegend() {
+    return `<div class="fb-legend">` + Object.keys(P_ABBR).map(k =>
+      `<span><b>${P_ABBR[k]}</b> = ${P_TAMIL[k]}</span>`).join("") + `</div>`;
+  }
   const SIGN_ABBR = ["Ari","Tau","Gem","Can","Leo","Vir","Lib","Sco","Sag","Cap","Aqu","Pis"];
   const SIGNS_FULL = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio",
                       "Sagittarius","Capricorn","Aquarius","Pisces"];
   const CELL_HOUSE = { "0,0":11,"0,1":12,"0,2":1,"0,3":2, "1,0":10,"1,3":3,
                        "2,0":9,"2,3":4, "3,0":8,"3,1":7,"3,2":6,"3,3":5 };
 
+  // Standard South-Indian layout: sign positions are FIXED; the house number in
+  // each cell is counted from the lagna sign (lagna cell = house 1).
+  const CELL_SIGN = { "0,0":11,"0,1":0,"0,2":1,"0,3":2,   // Pisces, Aries, Taurus, Gemini
+                      "1,0":10,            "1,3":3,        // Aquarius … Cancer
+                      "2,0":9,             "2,3":4,        // Capricorn … Leo
+                      "3,0":8,"3,1":7,"3,2":6,"3,3":5 };   // Sagittarius, Scorpio, Libra, Virgo
   function chartSVG(lagnaSign, houses) {
     const li = SIGNS_FULL.indexOf(lagnaSign);
     if (li < 0) return "";
@@ -418,22 +503,25 @@
     let out = `<svg viewBox="0 0 ${S} ${S}" xmlns="http://www.w3.org/2000/svg" class="fbchart-svg">`;
     out += `<rect x="0" y="0" width="${S}" height="${S}" fill="none" stroke="#8A6E2F" stroke-width="1.5"/>`;
     for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
-      const h = CELL_HOUSE[r + "," + c];
-      if (!h) continue;
+      const key = r + "," + c;
+      if (!(key in CELL_SIGN)) continue;
+      const signIdx = CELL_SIGN[key];
+      const h = ((signIdx - li + 12) % 12) + 1;      // house number from the lagna
       const x = c * C, y = r * C;
-      const signIdx = (li + h - 1) % 12;
       out += `<rect x="${x}" y="${y}" width="${C}" height="${C}" fill="${h===1?"rgba(201,164,76,.22)":"none"}" stroke="#8A6E2F" stroke-width=".7"/>`;
-      out += `<text x="${x+4}" y="${y+12}" font-size="8.5" fill="#8A6E2F">${SIGN_ABBR[signIdx]}</text>`;
-      if (h === 1) out += `<text x="${x+C-4}" y="${y+12}" font-size="8.5" fill="#8A6E2F" text-anchor="end">Asc</text>`;
-      const occ = (houses && houses[h]) || (houses && houses[String(h)]) || [];
+      out += `<text x="${x+4}" y="${y+11}" font-size="8" fill="#8A6E2F">${SIGN_ABBR[signIdx]}</text>`;
+      out += `<text x="${x+C-4}" y="${y+C-5}" font-size="9.5" font-weight="700" fill="${h===1?"#8A6E2F":"#B09A63"}" text-anchor="end">${h}</text>`;
+      if (h === 1) out += `<text x="${x+C-4}" y="${y+11}" font-size="8" fill="#8A6E2F" text-anchor="end">Asc</text>`;
+      const occ = (houses && (houses[h] || houses[String(h)])) || [];
       occ.forEach((pl, i) => {
         const col = i % 2, row = Math.floor(i / 2);
-        out += `<text x="${x + 8 + col*32}" y="${y + 32 + row*15}" font-size="11.5" font-weight="600" fill="#23252E">${P_ABBR[pl] || pl.slice(0,2)}</text>`;
+        out += `<text x="${x + 8 + col*32}" y="${y + 30 + row*15}" font-size="11.5" font-weight="600" fill="#23252E">${P_ABBR[pl] || pl.slice(0,2)}</text>`;
       });
     }
     out += `</svg>`;
     return out;
   }
+
   function paintCharts() {
     const m = chartModel(); if (!m) return;
     const w1 = $("fbD1Wrap"), w9 = $("fbD9Wrap");
@@ -620,7 +708,8 @@
       doc.setTextColor(...INK); doc.text(String(v), M+150, y); y += 17; }
 
     // ── charts (drawn as grids) ──────────────────────────────────────────────
-    const CELLS = { "0,0":11,"0,1":12,"0,2":1,"0,3":2,"1,0":10,"1,3":3,"2,0":9,"2,3":4,"3,0":8,"3,1":7,"3,2":6,"3,3":5 };
+    const CELLS = { "0,0":11,"0,1":0,"0,2":1,"0,3":2, "1,0":10,"1,3":3,
+                    "2,0":9,"2,3":4, "3,0":8,"3,1":7,"3,2":6,"3,3":5 };   // fixed SIGN index per cell
     const SG = ["Ari","Tau","Gem","Can","Leo","Vir","Lib","Sco","Sag","Cap","Aqu","Pis"];
     const SF = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
     const AB = { Sun:"Su",Moon:"Mo",Mars:"Ma",Mercury:"Me",Jupiter:"Ju",Venus:"Ve",Saturn:"Sa",Rahu:"Ra",Ketu:"Ke" };
@@ -631,25 +720,36 @@
       const S = Math.min(300, W - M*2), C = S/4, x0 = M;
       doc.setDrawColor(...GOLD); doc.setLineWidth(.8);
       for (let r=0;r<4;r++) for (let c=0;c<4;c++) {
-        const h = CELLS[r+","+c]; if (!h) continue;
+        const key = r+","+c; if (!(key in CELLS)) continue;
+        const signIdx = CELLS[key];
+        const h = ((signIdx - li + 12) % 12) + 1;      // house counted from the lagna
         const x = x0 + c*C, yy = y + r*C;
         if (h === 1) { doc.setFillColor(201,164,76); doc.setGState && doc.setGState(new doc.GState({opacity:.18}));
           doc.rect(x,yy,C,C,"F"); doc.setGState && doc.setGState(new doc.GState({opacity:1})); }
         doc.rect(x,yy,C,C);
         doc.setFontSize(6.5); doc.setTextColor(...MUTE);
-        doc.text(SG[(li+h-1)%12], x+3, yy+9);
+        doc.text(SG[signIdx], x+3, yy+9);
+        doc.setFontSize(7.5); doc.text(String(h), x+C-3, yy+C-4, { align:"right" });
+        doc.setFontSize(6.5);
         if (h===1) doc.text("Asc", x+C-3, yy+9, { align:"right" });
         const occ = (houses && (houses[h] || houses[String(h)])) || [];
         doc.setFontSize(9); doc.setTextColor(...INK);
         occ.forEach((p,i) => doc.text(AB[p]||String(p).slice(0,2), x+6+(i%2)*28, yy+24+Math.floor(i/2)*11));
       }
-      y += S + 12;
+      y += S + 14;
       doc.setFontSize(8.5); doc.setTextColor(...MUTE);
-      doc.text(doc.splitTextToSize(note, W-M*2), M, y); y += 24;
+      const nt = doc.splitTextToSize(note, W-M*2);
+      doc.text(nt, M, y); y += nt.length*11 + 8;
+      // legend (English — jsPDF core fonts cannot render Tamil glyphs)
+      doc.setFontSize(7); doc.setTextColor(...MUTE);
+      const leg = Object.keys(AB).map(k => AB[k] + " = " + k).join("   ·   ");
+      doc.text(doc.splitTextToSize(leg, W-M*2), M, y); y += 22;
     }
     newPage(); heading("Your Birth Charts");
-    drawChart(d1.lagnaSign, d1.houses, "Rāśi · D1", "The visible life — body, circumstances, and events.");
-    drawChart(d9.lagnaSign, d9.houses, "Navāṁśa · D9", "The inner chart — what endures when the visible is tested.");
+    drawChart(d1.lagnaSign, d1.houses, "Rasi · D1 — the stage",
+      "Think of D1 as the play as it is performed: the set, the cast, the entrances and exits — your body, your circumstances, and the events people can see.");
+    drawChart(d9.lagnaSign, d9.houses, "Navamsa · D9 — the root system",
+      "If D1 is the tree, D9 is the root. Nobody sees it, and it decides whether the tree survives a storm. A promise strong in D1 but weak here tends to arrive and not stay.");
 
     // ── life axis ────────────────────────────────────────────────────────────
     newPage(); heading("Your Life Axis");
@@ -665,6 +765,26 @@
       doc.setFontSize(12); doc.setTextColor(...INK); doc.text(String(v), W-M, y, { align:"right" }); y += 14;
       doc.setFontSize(8.5); doc.setTextColor(...MUTE);
       doc.text(doc.splitTextToSize(n, W-M*2), M, y); y += 22; }
+
+    // ── life theme ───────────────────────────────────────────────────────────
+    const themePick = pickTheme(_m);
+    if (themePick) {
+      newPage(); heading("Your Life Theme");
+      doc.setFontSize(15); doc.setTextColor(...INK);
+      doc.text(themePick.a.pair + " — " + themePick.a.name, M, y); y += 24;
+      doc.setFontSize(10.5);
+      let tx = doc.splitTextToSize(themePick.a.theme, W-M*2); doc.text(tx, M, y); y += tx.length*14 + 12;
+      doc.setFontSize(9); doc.setTextColor(...GOLD); doc.text("THE WORK OF THIS BIRTH", M, y); y += 14;
+      doc.setFontSize(10.5); doc.setTextColor(...INK);
+      tx = doc.splitTextToSize(themePick.a.work, W-M*2); doc.text(tx, M, y); y += tx.length*14 + 14;
+      if (themePick.evidence) {
+        doc.setFontSize(9); doc.setTextColor(...MUTE);
+        tx = doc.splitTextToSize(themePick.evidence, W-M*2); doc.text(tx, M, y); y += tx.length*12 + 10;
+      }
+      doc.setFontSize(9); doc.setTextColor(...MUTE);
+      tx = doc.splitTextToSize("Every domain that follows is a different window onto this same theme. Where a reading feels unexpectedly heavy or unexpectedly easy, it is usually because it sits on or away from this axis.", W-M*2);
+      doc.text(tx, M, y);
+    }
 
     // ── domains ──────────────────────────────────────────────────────────────
     newPage();
