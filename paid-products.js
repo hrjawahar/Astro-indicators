@@ -245,8 +245,8 @@
 
     const email = requireEmail();
     if (!email) return;
-    if (!window.confirm(window.t ? window.t("refund_confirm")
-        : "No refund — please confirm before you proceed to payment.")) return;
+    if (!window.confirm(window.t ? window.t("No Refund_confirm")
+        : "No Refund — please confirm before you proceed to payment.")) return;
 
     window.startPayment({ item, amount, label, email, chartId: cid })
       .then(res => {
