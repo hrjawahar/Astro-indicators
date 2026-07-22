@@ -278,8 +278,6 @@
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
 
     host.innerHTML = `
-      <div class="pp-paybar" style="justify-content:flex-end">
-        <button id="fbPdf" class="pp-pay">Download PDF</button></div>
       <div class="stage"><div class="book" id="fbBook">
         <div class="page" id="fbStatic"></div>
         <div class="leaf" id="fbLeaf">
@@ -290,7 +288,8 @@
       <div class="controls"><button class="fb-nav" id="fbPrev">‹</button>
         <div class="dots" id="fbDots"></div>
         <button class="fb-nav" id="fbNext">›</button></div>
-      <div class="hint">Swipe, use ← → keys, or tap the dots</div>`;
+      <div class="hint">Swipe, use ← → keys, or tap the dots</div>
+      <div class="fb-dlbar"><button id="fbPdf" class="pp-pay">Download PDF</button></div>`;
 
     bindBook();
     bookRender();
@@ -325,29 +324,31 @@
       <span class="pnum">${pnum}</span></div>`;
   }
 
+  const WC_ACTION = {
+    "Career & Wealth":        ["Keep skills portable and a cash buffer — treat pivots as routing, not failure.",
+                               "Act inside your activation windows; waiting costs more here than moving does."],
+    "Marriage & Relationship":["Name the recurring friction early and out loud — this area needs honest attention, not soft-pedalling.",
+                               "Protect the bond with steady, ordinary care rather than grand gestures."],
+    "Mobility & Fortune":     ["Fortune here arrives in waves — start things inside your windows, not between them.",
+                               "If you want a move abroad, drive it deliberately; it will not arrive on its own tide."],
+    "Crisis, Debt & Legal":   ["Favour negotiation over prolonged conflict, and keep documentation meticulous.",
+                               "Hold one fixed repayment rhythm and avoid new high-cost borrowing."],
+    "Health & Wellbeing":     ["Guard sleep and routine — your resilience is maintained, not assumed.",
+                               "Keep check-ups regular and act on small signals early."],
+  };
+  const WC_HARD = ["CHALLENGING","HIGH","HIGH_CARE","ELEVATED","STRAINED","OBSTRUCTED","WEAK","DIFFICULT","PRESSURED","HEAVY","DELAYED","SUBDUED"];
+  function worthConsideringLines(groups) {
+    return groups.map(g => {
+      const hard = g.items.filter(x => WC_HARD.includes(x.f.band)).length;
+      const pool = WC_ACTION[g.cat] || ["Act inside your windows rather than waiting for certainty."];
+      return { cat: g.cat, action: hard >= 1 ? pool[0] : (pool[1] || pool[0]) };
+    });
+  }
+
   // Worth Considering — one action-oriented line per domain, derived from bands.
   function worthConsideringPage(groups, pnum) {
-    const HARD = ["CHALLENGING","HIGH","HIGH_CARE","ELEVATED","STRAINED","OBSTRUCTED","WEAK","DIFFICULT","PRESSURED","HEAVY","DELAYED","SUBDUED"];
-    const SOFT = ["MANAGEABLE","MODERATE","ATTENTIVE","WATCHFUL","SENSITIVE","MIXED","FLUCTUATING","BALANCED","CONTESTED","MODEST","HYBRID","STEADY"];
-    const ACTION = {
-      "Career & Wealth":        ["Keep skills portable and a cash buffer — treat pivots as routing, not failure.",
-                                 "Act inside your activation windows; waiting costs more here than moving does."],
-      "Marriage & Relationship":["Name the recurring friction early and out loud — this area needs honest attention, not soft-pedalling.",
-                                 "Protect the bond with steady, ordinary care rather than grand gestures."],
-      "Mobility & Fortune":     ["Fortune here arrives in waves — start things inside your windows, not between them.",
-                                 "If you want a move abroad, drive it deliberately; it will not arrive on its own tide."],
-      "Crisis, Debt & Legal":   ["Favour negotiation over prolonged conflict, and keep documentation meticulous.",
-                                 "Hold one fixed repayment rhythm and avoid new high-cost borrowing."],
-      "Health & Wellbeing":     ["Guard sleep and routine — your resilience is maintained, not assumed.",
-                                 "Keep check-ups regular and act on small signals early."],
-    };
-    const rows = groups.map(g => {
-      const hard = g.items.filter(x => HARD.includes(x.f.band)).length;
-      const soft = g.items.filter(x => SOFT.includes(x.f.band)).length;
-      const pool = ACTION[g.cat] || ["Act inside your windows rather than waiting for certainty."];
-      const line = hard >= 1 ? pool[0] : (soft >= 2 ? (pool[1] || pool[0]) : (pool[1] || pool[0]));
-      return `<li><b>${esc(g.cat)}</b>${esc(line)}</li>`;
-    }).join("");
+    const rows = worthConsideringLines(groups)
+      .map(r => `<li><b>${esc(r.cat)}</b>${esc(r.action)}</li>`).join("");
     return `<div class="pg"><div class="kick">Worth Considering</div><div class="rule"></div>
       <h2>What to actually do with this</h2>
       <ul class="wc-list">${rows}</ul>
@@ -401,8 +402,13 @@
     paintCharts();
     const rv = $("fbReview");
     if (rv) rv.onclick = () => {
-      const t = document.querySelector('.nav-tab[data-tab="reviewTab"], .nav-tab[data-tab="reviewsTab"]');
-      if (t) t.click(); else alert("Thank you! The review section is on the Contact Us tab.");
+      const go = document.querySelector('.nav-tab[data-tab="inputTab"]');
+      if (go) go.click();
+      setTimeout(() => {
+        if (typeof window.AI_openReviewForm === "function") window.AI_openReviewForm();
+        const host = document.getElementById("reviewCards");
+        if (host) host.scrollIntoView({ behavior:"smooth", block:"center" });
+      }, 120);
     };
     $("fbPrev").disabled = _book.idx === 0;
     $("fbNext").disabled = _book.idx === P.length - 1;
@@ -462,147 +468,151 @@
     }
   }
 
-  // ── PDF export (jsPDF, already loaded for the dasa report) ──────────────────
+  // ── PDF export (jsPDF) — mirrors the flipbook structure ────────────────────
   function exportPDF(sections, facts) {
     const J = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     if (!J) { alert("PDF library not loaded."); return; }
     const doc = new J({ unit:"pt", format:"a4" });
     const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
     const M = 56; let y = 0;
-    const NAVY = [11,14,26], GOLD = [201,164,76], INK = [40,40,44];
-    const f0 = (window.currentData && window.currentData.form) || {};
+    const NAVY = [11,14,26], GOLD = [201,164,76], INK = [40,40,44], MUTE = [110,110,120];
+    const cd = window.currentData || {};
+    const f0 = cd.form || {}, d1 = cd.d1 || {}, d9 = cd.d9 || {}, pl = cd.planets || {};
+    const name = f0.name || "";
 
-    // cover
+    // ── cover ────────────────────────────────────────────────────────────────
     doc.setFillColor(...NAVY); doc.rect(0,0,W,H,"F");
     doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.rect(M/2,M/2,W-M,H-M);
     doc.setTextColor(...GOLD); doc.setFontSize(11);
-    doc.text("LIFE INDICATORS REPORT", W/2, H/2-90, { align:"center" });
+    doc.text("LIFE INDICATORS REPORT", W/2, H/2-110, { align:"center" });
     doc.setTextColor(255,255,255); doc.setFontSize(30);
-    doc.text("The Book of", W/2, H/2-40, { align:"center" });
-    doc.text("Your Timings", W/2, H/2-6, { align:"center" });
+    doc.text("The Book of", W/2, H/2-62, { align:"center" });
+    doc.text("Your Timings", W/2, H/2-28, { align:"center" });
     doc.setFontSize(14); doc.setTextColor(...GOLD);
-    if (f0.name) doc.text(String(f0.name), W/2, H/2+40, { align:"center" });
-    doc.setFontSize(9); doc.setTextColor(220,220,220);
-    if (_book.meta) doc.text(_book.meta, W/2, H/2+62, { align:"center" });
-    doc.setFontSize(8);
-    doc.text("Swiss Ephemeris · Lahiri ayanamsa", W/2, H-70, { align:"center" });
+    if (name) doc.text(String(name), W/2, H/2+16, { align:"center" });
+    doc.setFontSize(8); doc.setTextColor(200,200,205);
+    const disc = doc.splitTextToSize("Indicative astrological insight for reflection and planning — not medical, legal, or financial advice, and not a guarantee of outcomes. Every reading is computed from your own birth chart (Swiss Ephemeris · Lahiri ayanamsa).", W-M*3);
+    doc.text(disc, W/2, H/2+60, { align:"center" });
 
-    let page = 1;
-    const newPage = () => { doc.addPage(); page++; y = M;
-      doc.setTextColor(...INK); };
+    const newPage = () => { doc.addPage(); y = M; doc.setTextColor(...INK); };
+    const heading = (txt) => { doc.setFontSize(9); doc.setTextColor(...GOLD);
+      doc.text(txt.toUpperCase(), M, y); y += 6;
+      doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 20; };
+
+    // ── birth details ────────────────────────────────────────────────────────
+    newPage(); heading("Birth Details");
+    const rows = [["Name", name], ["Date of birth", f0.dob], ["Time of birth", f0.tob],
+      ["Place", f0.place],
+      ["Ascendant (D1)", d1.lagnaSign ? d1.lagnaSign + " " + (d1.lagnaDegree||0).toFixed(1) + "°" : ""],
+      ["Navamsa lagna (D9)", d9.lagnaSign],
+      ["Moon sign", pl.Moon && pl.Moon.sign],
+      ["Nakshatra", pl.Moon ? (pl.Moon.nakshatra||"") + (pl.Moon.pada ? " · pada " + pl.Moon.pada : "") : ""]];
+    doc.setFontSize(10);
+    for (const [k,v] of rows) { if (!v) continue;
+      doc.setTextColor(...MUTE); doc.text(String(k), M, y);
+      doc.setTextColor(...INK); doc.text(String(v), M+150, y); y += 17; }
+
+    // ── charts (drawn as grids) ──────────────────────────────────────────────
+    const CELLS = { "0,0":11,"0,1":12,"0,2":1,"0,3":2,"1,0":10,"1,3":3,"2,0":9,"2,3":4,"3,0":8,"3,1":7,"3,2":6,"3,3":5 };
+    const SG = ["Ari","Tau","Gem","Can","Leo","Vir","Lib","Sco","Sag","Cap","Aqu","Pis"];
+    const SF = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+    const AB = { Sun:"Su",Moon:"Mo",Mars:"Ma",Mercury:"Me",Jupiter:"Ju",Venus:"Ve",Saturn:"Sa",Rahu:"Ra",Ketu:"Ke" };
+    function drawChart(lagnaSign, houses, label, note) {
+      const li = SF.indexOf(lagnaSign); if (li < 0) return;
+      if (y + 300 > H - M) newPage();
+      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(label, M, y); y += 14;
+      const S = Math.min(300, W - M*2), C = S/4, x0 = M;
+      doc.setDrawColor(...GOLD); doc.setLineWidth(.8);
+      for (let r=0;r<4;r++) for (let c=0;c<4;c++) {
+        const h = CELLS[r+","+c]; if (!h) continue;
+        const x = x0 + c*C, yy = y + r*C;
+        if (h === 1) { doc.setFillColor(201,164,76); doc.setGState && doc.setGState(new doc.GState({opacity:.18}));
+          doc.rect(x,yy,C,C,"F"); doc.setGState && doc.setGState(new doc.GState({opacity:1})); }
+        doc.rect(x,yy,C,C);
+        doc.setFontSize(6.5); doc.setTextColor(...MUTE);
+        doc.text(SG[(li+h-1)%12], x+3, yy+9);
+        if (h===1) doc.text("Asc", x+C-3, yy+9, { align:"right" });
+        const occ = (houses && (houses[h] || houses[String(h)])) || [];
+        doc.setFontSize(9); doc.setTextColor(...INK);
+        occ.forEach((p,i) => doc.text(AB[p]||String(p).slice(0,2), x+6+(i%2)*28, yy+24+Math.floor(i/2)*11));
+      }
+      y += S + 12;
+      doc.setFontSize(8.5); doc.setTextColor(...MUTE);
+      doc.text(doc.splitTextToSize(note, W-M*2), M, y); y += 24;
+    }
+    newPage(); heading("Your Birth Charts");
+    drawChart(d1.lagnaSign, d1.houses, "Rāśi · D1", "The visible life — body, circumstances, and events.");
+    drawChart(d9.lagnaSign, d9.houses, "Navāṁśa · D9", "The inner chart — what endures when the visible is tested.");
+
+    // ── life axis ────────────────────────────────────────────────────────────
+    newPage(); heading("Your Life Axis");
+    const moon = pl.Moon||{}, sun = pl.Sun||{};
+    const axes = [
+      ["Lagna — the life you build", (d1.lagnaSign||"") + (d1.lagnaDegree!=null ? "  "+d1.lagnaDegree.toFixed(1)+"°" : ""), "How you meet the world, and the body you do it in."],
+      ["Moon — the mind you carry", (moon.sign||"") + (moon.nakshatra ? " · "+moon.nakshatra : ""), "How you feel, react, and find rest. Your dasha clock is set from here."],
+      ["Sun — the self you become", sun.sign||"", "What you are here to stand for, and where you seek recognition."],
+      ["Navamsa lagna — what endures", d9.lagnaSign||"", "The inner chart. It decides whether what you build holds when tested."]];
+    for (const [k,v,n] of axes) { if (!v) continue;
+      doc.setFontSize(9); doc.setTextColor(...GOLD); doc.text(k, M, y);
+      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(String(v), W-M, y, { align:"right" }); y += 14;
+      doc.setFontSize(8.5); doc.setTextColor(...MUTE);
+      doc.text(doc.splitTextToSize(n, W-M*2), M, y); y += 22; }
+
+    // ── domains ──────────────────────────────────────────────────────────────
     newPage();
     let lastCat = "";
+    const groups = [];
     for (const sec of sections) {
       const f = byId(facts, sec.module_id); if (!f) continue;
       const cat = CATEGORY_LABEL[f.category] || f.category;
+      const g = groups.find(x => x.cat === cat) || (groups.push({cat, items:[]}), groups[groups.length-1]);
+      g.items.push({ sec, f });
       const win = f.timing_windows[0];
       const body = doc.splitTextToSize(sec.narrative, W - M*2);
       const need = 96 + body.length*14 + (win ? 34 : 0);
       if (y + need > H - M) newPage();
-      if (cat !== lastCat) {
-        lastCat = cat;
+      if (cat !== lastCat) { lastCat = cat;
         if (y + need + 40 > H - M) newPage();
         doc.setFillColor(...NAVY); doc.rect(M, y, W-M*2, 30, "F");
-        doc.setTextColor(...GOLD); doc.setFontSize(10);
-        doc.text(cat.toUpperCase(), M+12, y+20);
-        y += 46;
-      }
-      doc.setTextColor(...INK); doc.setFontSize(14);
-      doc.text(sec.heading, M, y); y += 20;
+        doc.setTextColor(...GOLD); doc.setFontSize(10); doc.text(cat.toUpperCase(), M+12, y+20); y += 46; }
+      doc.setTextColor(...INK); doc.setFontSize(14); doc.text(sec.heading, M, y); y += 20;
       doc.setFontSize(9); doc.setTextColor(...GOLD);
       doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-      doc.setFontSize(10.5); doc.setTextColor(...INK);
-      doc.text(body, M, y); y += body.length*14 + 6;
-      if (win) {
-        doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
+      doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(body, M, y); y += body.length*14 + 6;
+      if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
         doc.setFontSize(9.5); doc.setTextColor(...GOLD);
-        doc.text(win.label + ": " + fmtWin(win), M, y); y += 22;
-      }
+        doc.text(win.label + ": " + fmtWin(win), M, y); y += 22; }
       y += 14;
     }
+
+    // ── worth considering ────────────────────────────────────────────────────
+    newPage(); heading("Worth Considering");
+    doc.setFontSize(13); doc.setTextColor(...INK); doc.text("What to actually do with this", M, y); y += 24;
+    for (const line of worthConsideringLines(groups)) {
+      const txt = doc.splitTextToSize(line.action, W - M*2 - 14);
+      if (y + txt.length*13 + 26 > H - M) newPage();
+      doc.setFontSize(8); doc.setTextColor(...GOLD); doc.text(line.cat.toUpperCase(), M+12, y); y += 12;
+      doc.setDrawColor(...GOLD); doc.setLineWidth(1.6);
+      doc.line(M+2, y-16, M+2, y + txt.length*13 - 4); doc.setLineWidth(.8);
+      doc.setFontSize(10); doc.setTextColor(...INK); doc.text(txt, M+12, y); y += txt.length*13 + 16;
+    }
+
+    // ── closing ──────────────────────────────────────────────────────────────
+    doc.addPage();
+    doc.setFillColor(...NAVY); doc.rect(0,0,W,H,"F");
+    doc.setDrawColor(...GOLD); doc.rect(M/2,M/2,W-M,H-M);
+    doc.setTextColor(...GOLD); doc.setFontSize(20);
+    doc.text("Best wishes from", W/2, H/2-40, { align:"center" });
+    doc.text("Team AstroIndicators", W/2, H/2-12, { align:"center" });
+    doc.setFontSize(10); doc.setTextColor(225,225,230);
+    const close = doc.splitTextToSize("We hope you find this useful in getting an indication of how you are navigating and where you are heading" + (name ? ", " + name : "") + ". If you find it useful, please don't hesitate to share it with all those whom you care about.", W-M*3);
+    doc.text(close, W/2, H/2+24, { align:"center" });
+
     const total = doc.internal.getNumberOfPages();
-    for (let i = 2; i <= total; i++) {
-      doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150);
-      doc.text(String(i-1), W/2, H-28, { align:"center" });
-    }
-    const safe = (f0.name || "report").replace(/[^\w-]+/g,"_");
-    doc.save("AstroIndicators_LifeIndicators_" + safe + ".pdf");
+    for (let i = 2; i < total; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150);
+      doc.text(String(i-1), W/2, H-28, { align:"center" }); }
+    doc.save("AstroIndicators_LifeIndicators_" + (name||"report").replace(/[^\w-]+/g,"_") + ".pdf");
   }
-
-  // ── product 2: ICC answer cards ─────────────────────────────────────────────
-  // A purchase = one SET of 3 answers, stored server-side. Re-entry replays the
-  // sets already bought; a new set of questions requires a new payment.
-  let _iccRenderedFor = null;          // chartId the visible answers belong to
-
-  async function buildICC(pickedIds, existingSets) {
-    const host = $("iccAnswers"); if (!host) return;
-    host.innerHTML = `<div class="pp-empty">Reading your chart…</div>`;
-    try {
-      const facts = await getFacts();
-      const picked = pickedIds.map(id => byId(facts, id)).filter(Boolean);
-      const out = await narrate("icc_answer", picked);
-      const sets = (existingSets || []).concat([{ answers: out.answers || [] }]);
-      srv({ action:"store", chartId: window.AI_chartId(), item:"icc", lang:"en", sections: sets });
-      renderICC(host, sets, facts);
-    } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
-  }
-
-  function renderICC(host, sets, facts) {
-    let html = "";
-    sets.forEach((set, i) => {
-      if (sets.length > 1) html += `<div class="icc-setlabel">Set ${i+1}</div>`;
-      html += (set.answers || []).map(a => {
-        const f = byId(facts, a.module_id); if (!f) return "";
-        const win = f.timing_windows[0];
-        return `<div class="pp-card icc-answer">
-          <div class="pp-band pp-band-${esc(f.intensity.toLowerCase())}">${esc(f.band.replace(/_/g," "))}</div>
-          <div class="pp-q">${esc(f.question)}</div>
-          <div class="icc-nar">${esc(a.narrative)}</div>
-          ${win ? `<div class="fb-win">◈ ${esc(win.label)} — <b>${esc(fmtWin(win))}</b></div>` : ""}
-          <div class="icc-conf">Confidence: <b>${f.confidence}%</b> <span class="icc-confbar"><i style="width:${f.confidence}%"></i></span></div>
-        </div>`;
-      }).join("");
-    });
-    // repeat purchase: a genuinely NEW set, charged again
-    html += `<div class="pp-paybar"><button id="iccMoreBtn" class="pp-pay">Ask 3 new questions — ₹${price("icc",499)}</button>
-      <span class="pp-guar">Your answered sets stay saved on this chart</span></div>`;
-    host.innerHTML = html;
-    _iccRenderedFor = window.AI_chartId ? window.AI_chartId() : null;
-    const w = $("iccPickerWrap"); if (w) w.style.display = "none";
-    const more = $("iccMoreBtn");
-    if (more) more.onclick = () => {
-      if (w) w.style.display = "";
-      host.innerHTML = "";
-      _iccRenderedFor = null;
-      document.querySelectorAll("#iccPicker input:checked").forEach(b => b.checked = false);
-      window.AI_iccLimit({ checked:false });
-      window._iccExistingSets = sets;     // next purchase appends to these
-      if (w) w.scrollIntoView({ behavior:"smooth", block:"start" });
-    };
-  }
-
-  // Returning customer on the SAME chart: replay the sets already paid for.
-  async function restoreICC() {
-    const host = $("iccAnswers"); if (!host || !window.AI_chartId) return false;
-    const cid = window.AI_chartId();
-    const cached = await srv({ action:"fetch", chartId: cid, item:"icc", lang:"en" });
-    let sets = cached && cached.sections;
-    if (!sets || !sets.length) return false;
-    if (Array.isArray(sets) && sets[0] && sets[0].module_id) sets = [{ answers: sets }];  // legacy flat format
-    try { renderICC(host, sets, await getFacts()); return true; } catch (e) { return false; }
-  }
-
-  // Birth details changed → clear another chart's answers from the DOM.
-  function resetICCIfChartChanged() {
-    const cid = window.AI_chartId ? window.AI_chartId() : null;
-    if (_iccRenderedFor && _iccRenderedFor !== cid) {
-      const host = $("iccAnswers"); if (host) host.innerHTML = "";
-      const w = $("iccPickerWrap"); if (w) w.style.display = "";
-      _iccRenderedFor = null; window._iccExistingSets = null;
-      document.querySelectorAll("#iccPicker input:checked").forEach(b => b.checked = false);
-    }
-  }
-
 
   function srv(payload) {
     return fetch("/api/report", { method:"POST", headers:{ "Content-Type":"application/json" },
