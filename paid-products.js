@@ -247,14 +247,16 @@
 
     // ── 5 & 6. D1 / D9 charts, with beginner metaphors ───────────────────────
     P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
-      <h2>Rāśi · D1 — the house from the street</h2>
+      <h2>The house from the street</h2>
+      <div class="chart-label">Rāśi chart · D1</div>
       <div class="fb-chart" id="fbD1Wrap"></div>
       <div class="chart-note"><b>New to charts? Picture a house you're about to buy.</b> D1 is what you
       see from the street — the shape, the rooms, the life visibly on offer: your body, circumstances,
       and the events others can see. Lagna: <b>${esc(d1.lagnaSign || "")}</b></div>
       ${chartLegend()}<span class="pnum">5</span></div>`);
     P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
-      <h2>Navāṁśa · D9 — the foundation you walk in to inspect</h2>
+      <h2>The foundation you walk in to inspect</h2>
+      <div class="chart-label">Navāṁśa chart · D9</div>
       <div class="fb-chart" id="fbD9Wrap"></div>
       <div class="chart-note"><b>Now you step inside and check the foundation.</b> D9 is what the house is
       truly built on — what will hold, and what will manifest as you actually live in it. A room that
@@ -298,13 +300,13 @@
     // ── final page ───────────────────────────────────────────────────────────
     P.push(`<div class="pg cover close"><div class="frame"></div><div class="in">
       <div class="seal">◈</div>
-      <div class="who" style="margin-top:12px">Best wishes from Team AstroIndicators</div>
-      <div class="closing">May this book help you see, with a little more clarity, how you are
-      navigating and where you are heading${nameComma}.</div>
+      <div class="closing" style="margin-top:16px">May this book help you see, with a little more clarity,
+      how you are navigating and where you are heading${nameComma}.</div>
       <div class="closing">If it served you, please share it with those you care about. And if our
       work was useful, we'd value a short review — the <b>Leave a Review</b> button is on the
       Birth Details page.</div>
-      <div class="logo">Astro<span>Indicators</span></div></div></div>`);
+      <div class="final-signoff"><div class="who">Best wishes,</div>
+      <div class="logo">Team Astro<span>Indicators</span></div></div></div></div>`);
 
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
 
@@ -320,11 +322,23 @@
         <div class="dots" id="fbDots"></div>
         <button class="fb-nav" id="fbNext">›</button></div>
       <div class="hint">Swipe, use ← → keys, or tap the dots</div>
-      <div class="fb-dlbar"><button id="fbPdf" class="pp-pay">Download PDF</button></div>`;
+      <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
+        <button id="fbPdf" class="pp-pay">Download PDF</button></div>`;
 
     bindBook();
     bookRender();
     $("fbPdf").onclick = () => exportPDF(sections, facts);
+    const fsBtn = $("fbFull");
+    if (fsBtn) fsBtn.onclick = () => {
+      const box = $("liBook");
+      if (!box) return;
+      if (document.fullscreenElement) { document.exitFullscreen(); return; }
+      if (box.requestFullscreen) { box.classList.add("fb-fs"); box.requestFullscreen().catch(()=>{}); }
+      else alert("Full screen isn't supported in this browser.");
+    };
+    document.addEventListener("fullscreenchange", () => {
+      const box = $("liBook"); if (box && !document.fullscreenElement) box.classList.remove("fb-fs");
+    });
   }
 
 
@@ -396,7 +410,7 @@
 
 
   // ── reader letters (name-aware; "Dear reader" when no name) ─────────────────
-  function letterSalutation() { const rn = readerName(); return rn ? "Dear " + esc(rn) + "," : "Dear reader,"; }
+  function letterSalutation() { const rn = readerName(); return rn ? "Dear " + esc(rn) + "," : "Dear friend,"; }
 
   function openingLetterPage(pnum) {
     return `<div class="pg letter"><div class="kick">A Note Before You Begin</div><div class="rule"></div>
@@ -406,8 +420,8 @@
         <p>For most of us, the need to consult astrology arises only when something is
         <i>not going as we hoped</i> — rarely when life is going well. That was true for us too. In
         seeking guidance for our own lives, the answers were often hard to interpret, felt clear in the
-        moment then <i>dissolved once we left</i>, took weeks to obtain, and still left the two questions
-        that mattered most unanswered.</p>
+        moment then <i>dissolved once we left</i>, and an appointment could take <i>weeks to get</i>. And
+        still, the two questions that mattered most were left unanswered.</p>
         <p>So we built <b>AstroIndicators</b> — after much learning, research, and testing against real
         charts — with one goal: to give you not <i>prediction</i>, but <b>clarity</b>. A clarity that
         stays within your reach, so you can answer for yourself:</p>
@@ -439,6 +453,7 @@
         <b>beyond it</b> — where a quiet, hard-won peace begins.</p>
         <p class="letter-q">“God, grant me the serenity to accept the things I cannot change, the courage
         to change the things I can, and the wisdom to know the difference.”</p>
+        <p class="letter-attrib">— the Serenity Prayer, attributed to Dr Reinhold Niebuhr</p>
         <p>That wisdom is well within your reach. Because in the end — <b>awareness and acceptance are
         where suffering ends.</b></p>
       </div>
@@ -562,11 +577,9 @@
   // ── South-Indian chart, drawn self-contained (no dependency on app.js scope) ─
   const P_ABBR = { Sun:"Su", Moon:"Mo", Mars:"Ma", Mercury:"Me", Jupiter:"Ju",
                    Venus:"Ve", Saturn:"Sa", Rahu:"Ra", Ketu:"Ke" };
-  const P_TAMIL = { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்",
-                    Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" };
   function chartLegend() {
     return `<div class="fb-legend">` + Object.keys(P_ABBR).map(k =>
-      `<span><b>${P_ABBR[k]}</b> = ${P_TAMIL[k]}</span>`).join("") + `</div>`;
+      `<span><b>${P_ABBR[k]}</b> = ${k}</span>`).join("") + `</div>`;
   }
   const SIGN_ABBR = ["Ari","Tau","Gem","Can","Leo","Vir","Lib","Sco","Sag","Cap","Aqu","Pis"];
   const SIGNS_FULL = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio",
@@ -912,7 +925,9 @@
     if (strengths.length) {
       newPage(); heading("Your Planetary Strengths");
       doc.setFontSize(10.5); doc.setTextColor(...INK);
-      doc.text("How each planet tends to act for you", M, y); y += 20;
+      doc.text("How each planet tends to act for you", M, y); y += 16;
+      doc.setFontSize(8); doc.setTextColor(...MUTE);
+      doc.text("High = strong influence · Med = moderate · Low = mild. Read across each planet's row.", M, y); y += 18;
       const cw = (W-M*2)/4;
       doc.setFontSize(8.5); doc.setTextColor(...GOLD);
       ["Planet","Favourable","Challenging","Neutral"].forEach((hd,i)=>doc.text(hd, M+cw*i+4, y));
@@ -942,9 +957,9 @@
     const LORD = { Aries:"Mars",Taurus:"Venus",Gemini:"Mercury",Cancer:"Moon",Leo:"Sun",Virgo:"Mercury",Libra:"Venus",Scorpio:"Mars",Sagittarius:"Jupiter",Capricorn:"Saturn",Aquarius:"Saturn",Pisces:"Jupiter" };
     const signOf = (v) => (v||"").split(" ")[0];
     for (const [k,v,n] of axes) { if (!v) continue;
-      doc.setFontSize(9); doc.setTextColor(...GOLD); doc.text(k, M, y);
+      doc.setFontSize(9); doc.setTextColor(...GOLD); doc.text(k, M, y); y += 15;
       const lord = LORD[signOf(v)] ? "  (lord: " + LORD[signOf(v)] + ")" : "";
-      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(String(v)+lord, W-M, y, { align:"right" }); y += 14;
+      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(String(v)+lord, M, y); y += 13;
       doc.setFontSize(8.5); doc.setTextColor(...MUTE);
       doc.text(doc.splitTextToSize(n, W-M*2), M, y); y += 22; }
     y += 4; doc.setFontSize(8); doc.setTextColor(...MUTE);
