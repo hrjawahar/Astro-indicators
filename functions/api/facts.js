@@ -7,7 +7,7 @@
 //  The engine bundle (engine-bundle.js) is generated from engine/ by build-engine.sh
 //  — do not edit the bundle by hand; edit the TypeScript and rebuild.
 // ─────────────────────────────────────────────────────────────────────────────
-import { runEngineFromChartResponse } from "./engine-bundle.js";
+import { runEngineFromChartResponse, bookExtras } from "./engine-bundle.js";
 
 export async function onRequestPost(context) {
   let body;
@@ -24,10 +24,10 @@ export async function onRequestPost(context) {
     // includeOwnerOnly is NOT exposed over HTTP by design — owner analysis is offline.
     const { facts, errors } = runEngineFromChartResponse(chart, gender, {});
     if (errors.length) {
-      // A schema failure here is an engine bug, not user error — fail loudly, never ship a bad card.
       return json({ error: "Engine validation failed.", modules: errors.map(e => e.module) }, 500);
     }
-    return json({ success: true, facts });
+    const extras = bookExtras(chart, gender);   // planet-strength table + guidance
+    return json({ success: true, facts, extras });
   } catch (e) {
     return json({ error: e.message || "Engine failure." }, 500);
   }
