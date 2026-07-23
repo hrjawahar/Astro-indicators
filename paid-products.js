@@ -37,8 +37,12 @@
 
   let _facts = null;          // cached engine facts for the current chart
   let _factsChartId = null;
+  let _extras = null;         // { strengths, guidance } from the engine
 
   function $(id){ return document.getElementById(id); }
+  function ord(n){ return n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:(n%10<4?n%10:0)]); }
+  const SIGN_LORD = { Aries:"Mars",Taurus:"Venus",Gemini:"Mercury",Cancer:"Moon",Leo:"Sun",Virgo:"Mercury",
+    Libra:"Venus",Scorpio:"Mars",Sagittarius:"Jupiter",Capricorn:"Saturn",Aquarius:"Saturn",Pisces:"Jupiter" };
   function esc(s){ const d=document.createElement("div"); d.textContent=String(s??""); return d.innerHTML; }
   function price(key, fallback){ return (window.APP_CONFIG?.prices?.[key]) ?? fallback; }
   function fmtWin(w){ const f=s=>{const d=new Date(s);return d.toLocaleString("en-IN",{month:"short",year:"numeric"});};
@@ -57,6 +61,7 @@
     const data = await res.json();
     if (!data.success) throw new Error(data.error || "Engine unavailable.");
     _facts = data.facts; _factsChartId = cid;
+    _extras = data.extras || null; window._extras = _extras;
     return _facts;
   }
   const byId = (facts, id) => facts.find(f => f.module_id === id);
@@ -74,6 +79,10 @@
         t = h12 + ":" + String(mm).padStart(2,"0") + " " + ap; }
       return t ? day + " at " + t : day;
     } catch (e) { return dob || ""; }
+  }
+  function readerName() {
+    const f = (window.currentData && window.currentData.form) || {};
+    return (f.callName || f.name || "").trim();
   }
   function renderPersonalStrip() {
     const f = (window.currentData && window.currentData.form) || {};
@@ -176,90 +185,98 @@
   function renderFlipbook(host, sections, facts) {
     const f0 = (window.currentData && window.currentData.form) || {};
     const cd = window.currentData || {};
+    const rn = readerName();
     const name = esc(f0.name || "");
+    const nameComma = rn ? ", " + esc(rn) : "";
     const meta = [f0.dob, f0.tob, f0.place].filter(Boolean).join(" · ");
     _book.meta = meta;
     const P = [];
 
-    // ── 1. cover: branding + disclaimer ──────────────────────────────────────
+    // ── 1. cover ─────────────────────────────────────────────────────────────
     P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
       <div class="seal">◈</div>
-      <div class="logo" style="margin:10px 0 18px">Astro<span>Indicators</span></div>
+      <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
       <div class="kick" style="color:var(--ai-gold)">Life Indicators Report</div>
-      <h1>The Book of<br>Your Timings</h1>
+      <h1>The Book of<br>Your Life Indications</h1>
       <div class="who">${name}</div>
-      <div class="disclaim">Indicative astrological insight for reflection and planning — not medical,
-      legal, or financial advice, and not a guarantee of outcomes. Every reading here is computed from
-      your own birth chart (Swiss Ephemeris · Lahiri ayanamsa).</div>
+      <div class="disclaim"><b>Please read:</b> These indications support reflection and planning.
+      They are <b>not a substitute for professional advice</b> — medical, legal, financial, or
+      psychological — and any timing shown is <b>indicative only, never a guarantee of outcome</b>.
+      Every reading is computed from your own birth chart (Swiss Ephemeris · Lahiri ayanamsa).</div>
       </div></div>`);
 
     // ── 2. birth details ─────────────────────────────────────────────────────
-    const _m = chartModel() || {};
-    const d1 = _m.d1 || {}, d9 = _m.d9 || {}, pl = (chartSource().planets) || {};
     const row = (k, v) => v ? `<li><b>${esc(k)}</b><i>${esc(v)}</i></li>` : "";
     P.push(`<div class="pg"><div class="kick">Birth Details</div><div class="rule"></div>
       <ul class="toc bdl">
         ${row("Name", f0.name)}
         ${row("Date of birth", f0.dob)}
-        ${row("Time of birth", f0.tob)}
+        ${row("Time of birth", f0.tob ? f0.tob + " (24-hr)" : "")}
         ${row("Place", f0.place)}
         ${row("Ascendant (D1)", d1.lagnaSign ? d1.lagnaSign + " " + (d1.lagnaDegree||0).toFixed(1) + "°" : "")}
         ${row("Navamsa lagna (D9)", d9.lagnaSign)}
-        ${row("Moon sign", pl.Moon && pl.Moon.sign)}
-        ${row("Nakshatra", pl.Moon ? (pl.Moon.nakshatra || "") + (pl.Moon.pada ? " · pada " + pl.Moon.pada : "") : "")}
-        ${row("Ayanamsa", cd.ayanamsha ? "Lahiri " + (typeof cd.ayanamsha === "number" ? cd.ayanamsha.toFixed(2) + "°" : cd.ayanamsha) : "Lahiri")}
+        ${row("Moon sign", (_m.lons && _m.lons.Moon != null) ? _m.sign(_m.lons.Moon) : (pl.Moon && pl.Moon.sign))}
       </ul><span class="pnum">2</span></div>`);
 
-    // group the domains
+    // ── 3. index ─────────────────────────────────────────────────────────────
     const groups = [];
-    let cur = null;
+    let curg = null;
     for (const sec of sections) {
       const f = byId(facts, sec.module_id); if (!f) continue;
       const cat = CATEGORY_LABEL[f.category] || f.category;
-      if (!cur || cur.cat !== cat) { cur = { cat, items: [] }; groups.push(cur); }
-      cur.items.push({ sec, f });
+      if (!curg || curg.cat !== cat) { curg = { cat, items: [] }; groups.push(curg); }
+      curg.items.push({ sec, f });
     }
-
-    // ── 3. index ─────────────────────────────────────────────────────────────
-    let at = 8;                                     // domains begin on page 8
-    const fixed = [["Your Birth Charts (D1 · D9)", 4], ["Your Life Axis", 6], ["Your Life Theme", 7]];
-    const tocRows = fixed.map(([t, n]) => `<li><b>${t}</b><i>${String(n).padStart(2,"0")}</i></li>`)
-      .concat(groups.map(g => { const a = at; at += g.items.length + 1;
-        return `<li><b>${esc(g.cat)}</b><i>${String(a).padStart(2,"0")}</i></li>`; }))
-      .concat([`<li><b>Worth Considering</b><i>${String(at).padStart(2,"0")}</i></li>`]).join("");
+    let at = 10;                                    // domains begin at page 10
+    const fixed = [["A Note Before You Begin", 4], ["Your Birth Chart · D1", 5],
+                   ["Your Birth Chart · D9", 6], ["Your Planetary Strengths", 7], ["Your Life Axis", 8],
+                   ["Your Life Theme", 9]];
+    const tocRows = fixed.map(([t, n]) => `<li><b>${esc(t)}</b><i>${String(n).padStart(2,"0")}</i></li>`)
+      .concat(groups.map(gp => { const a = at; at += gp.items.length + 1;
+        return `<li><b>${esc(gp.cat)}</b><i>${String(a).padStart(2,"0")}</i></li>`; }))
+      .concat([`<li><b>What To Actually Do With This</b><i>${String(at++).padStart(2,"0")}</i></li>`,
+               `<li><b>A Closing Note</b><i>${String(at).padStart(2,"0")}</i></li>`]).join("");
     P.push(`<div class="pg"><div class="kick">Contents</div><div class="rule"></div>
       <ul class="toc">${tocRows}</ul><span class="pnum">3</span></div>`);
 
-    // ── 4 & 5. D1 and D9 charts (rendered after the page is placed) ──────────
+    // ── 4. opening letter (may run to a second leaf; that's fine) ─────────────
+    P.push(openingLetterPage(4));
+
+    // ── 5 & 6. D1 / D9 charts, with beginner metaphors ───────────────────────
     P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
-      <h2>Rāśi · D1 — the stage</h2>
+      <h2>Rāśi · D1 — the house from the street</h2>
       <div class="fb-chart" id="fbD1Wrap"></div>
-      <div class="chart-note"><b>Think of D1 as the play as it is performed.</b> The set, the cast, the
-      entrances and exits — your body, your circumstances, the events people can see. Lagna:
-      <b>${esc(d1.lagnaSign || "")}</b></div>
-      ${chartLegend()}<span class="pnum">4</span></div>`);
-    P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
-      <h2>Navāṁśa · D9 — the root system</h2>
-      <div class="fb-chart" id="fbD9Wrap"></div>
-      <div class="chart-note"><b>If D1 is the tree, D9 is the root.</b> Nobody sees it, and it decides
-      whether the tree survives a storm. A promise strong in D1 but weak here tends to arrive and
-      not stay; strong here, it holds when tested. Lagna: <b>${esc(d9.lagnaSign || "")}</b></div>
+      <div class="chart-note"><b>New to charts? Picture a house you're about to buy.</b> D1 is what you
+      see from the street — the shape, the rooms, the life visibly on offer: your body, circumstances,
+      and the events others can see. Lagna: <b>${esc(d1.lagnaSign || "")}</b></div>
       ${chartLegend()}<span class="pnum">5</span></div>`);
+    P.push(`<div class="pg"><div class="kick">Your Birth Chart</div><div class="rule"></div>
+      <h2>Navāṁśa · D9 — the foundation you walk in to inspect</h2>
+      <div class="fb-chart" id="fbD9Wrap"></div>
+      <div class="chart-note"><b>Now you step inside and check the foundation.</b> D9 is what the house is
+      truly built on — what will hold, and what will manifest as you actually live in it. A room that
+      looks fine from the street (strong D1) but rests on a weak footing (weak D9) tends to need work;
+      strong here, it lasts. Lagna: <b>${esc(d9.lagnaSign || "")}</b></div>
+      ${chartLegend()}<span class="pnum">6</span></div>`);
 
-    // ── 6. life axis ─────────────────────────────────────────────────────────
-    P.push(lifeAxisPage(_m, facts, 6));
+    // ── 7. planetary strengths table ─────────────────────────────────────────
+    P.push(planetStrengthPage(7));
 
-    P.push(lifeThemePage(_m, 7));
+    // ── 8. life axis (with house lords) ──────────────────────────────────────
+    P.push(lifeAxisPage(_m, facts, 8));
 
-    // ── 8+. domains ──────────────────────────────────────────────────────────
-    let n = 8;
-    for (const g of groups) {
+    // ── 9. life theme ────────────────────────────────────────────────────────
+    P.push(lifeThemePage(_m, 9));
+
+    // ── 10+. domains ─────────────────────────────────────────────────────────
+    let n = 10;
+    for (const gp of groups) {
       P.push(`<div class="pg sec-divider"><div class="in">
-        <div class="seal">◈</div><div class="domain">${esc(g.cat)}</div>
+        <div class="seal">◈</div><div class="domain">${esc(gp.cat)}</div>
         <div class="rule"></div></div><span class="pnum">${n++}</span></div>`);
-      for (const { sec, f } of g.items) {
+      for (const { sec, f } of gp.items) {
         const win = f.timing_windows[0];
-        P.push(`<div class="pg"><div class="kick">${esc(g.cat)}</div><div class="rule"></div>
+        P.push(`<div class="pg"><div class="kick">${esc(gp.cat)}</div><div class="rule"></div>
           <h2>${esc(sec.heading)}</h2>
           <div class="chiprow"><span class="chip">${esc(f.band.replace(/_/g," "))}</span>
             <span class="chip ghost">${f.confidence}% confidence</span></div>
@@ -269,17 +286,21 @@
       }
     }
 
-    // ── closing. worth considering ───────────────────────────────────────────
-    P.push(worthConsideringPage(groups, n++));
+    // ── what to actually do (concrete, behaviour-level) ──────────────────────
+    P.push(guidancePage(n++));
+
+    // ── closing letter ───────────────────────────────────────────────────────
+    P.push(closingLetterPage(n++));
+
+    // ── final page ───────────────────────────────────────────────────────────
     P.push(`<div class="pg cover close"><div class="frame"></div><div class="in">
       <div class="seal">◈</div>
       <div class="who" style="margin-top:12px">Best wishes from Team AstroIndicators</div>
-      <div class="closing">We hope you find this useful in getting an indication of how you are
-      navigating and where you are heading${name ? ", " + name : ""}.</div>
-      <div class="closing">If you find it useful, please don't hesitate to share it with all those
-      whom you care about.</div>
-      <div class="closing">If our work was useful to you, we'd be grateful for a short review —
-      you'll find the <b>Leave a Review</b> button on the Birth Details page.</div>
+      <div class="closing">May this book help you see, with a little more clarity, how you are
+      navigating and where you are heading${nameComma}.</div>
+      <div class="closing">If it served you, please share it with those you care about. And if our
+      work was useful, we'd value a short review — the <b>Leave a Review</b> button is on the
+      Birth Details page.</div>
       <div class="logo">Astro<span>Indicators</span></div></div></div>`);
 
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
@@ -370,59 +391,119 @@
       <span class="pnum">${pnum}</span></div>`;
   }
 
+
+  // ── reader letters (name-aware; "Dear reader" when no name) ─────────────────
+  function letterSalutation() { const rn = readerName(); return rn ? "Dear " + esc(rn) + "," : "Dear reader,"; }
+
+  function openingLetterPage(pnum) {
+    return `<div class="pg letter"><div class="kick">A Note Before You Begin</div><div class="rule"></div>
+      <h2>Why we built this for you</h2>
+      <div class="bd letter-bd">
+        <p>${letterSalutation()}</p>
+        <p>For most of us, the need to consult astrology arises only when something is
+        <i>not going as we hoped</i> — rarely when life is going well. That was true for us too. In
+        seeking guidance for our own lives, the answers were often hard to interpret, felt clear in the
+        moment then <i>dissolved once we left</i>, took weeks to obtain, and still left the two questions
+        that mattered most unanswered.</p>
+        <p>So we built <b>AstroIndicators</b> — after much learning, research, and testing against real
+        charts — with one goal: to give you not <i>prediction</i>, but <b>clarity</b>. A clarity that
+        stays within your reach, so you can answer for yourself:</p>
+        <p class="letter-q">“Why am I going through what I am going through?”<br>
+        “How do I see the road ahead?”</p>
+        <p>To do this, the system reads both your <b>D1</b> — what is <i>promised in your foundation</i> —
+        and your <b>D9</b> — what <i>takes shape as you grow beyond it</i> — and lays out the reasoning so
+        you connect the dots yourself. Our hope is that it helps you <b>relax, reflect, and rejuvenate</b>,
+        and begin to meet your questions with understanding.</p>
+        <p style="text-align:center;font-style:italic">Happy reading. We'll meet you again at the end.</p>
+      </div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
+  function closingLetterPage(pnum) {
+    return `<div class="pg letter"><div class="kick">A Closing Note</div><div class="rule"></div>
+      <h2>Awareness is where it begins</h2>
+      <div class="bd letter-bd">
+        <p>${letterSalutation()}</p>
+        <p>We hope these indications have given you a genuine sense of awareness, and some answers to the
+        questions that may have been quietly weighing on you.</p>
+        <p>If a few don't seem to fit, hold them this way: each indication is a <b>signboard on a road</b> —
+        it tells you, reliably, <i>what lies ahead and how far</i>. But this signboard carries something
+        extra: a <b>weather forecast for the journey</b>. The road is your chart; the weather is your
+        <i>timing</i>. Many people share birth details close to yours and travel much the same road — but
+        each sets out in a <i>different season</i>. The signboard reads the same for all; the weather each
+        meets does not. That is why some indications land squarely and others feel a step away.</p>
+        <p>With that awareness, you can begin to sort what lies <b>within your control</b> from what lies
+        <b>beyond it</b> — where a quiet, hard-won peace begins.</p>
+        <p class="letter-q">“God, grant me the serenity to accept the things I cannot change, the courage
+        to change the things I can, and the wisdom to know the difference.”</p>
+        <p>That wisdom is well within your reach. Because in the end — <b>awareness and acceptance are
+        where suffering ends.</b></p>
+      </div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
+  // ── planetary-strength table ────────────────────────────────────────────────
+  function planetStrengthPage(pnum) {
+    const rows = (_extras && _extras.strengths) || [];
+    const cell = (p, nat) => {
+      if (p.nature !== nat) return "";
+      const g = p.grade === "HIGH" ? "H" : p.grade === "MEDIUM" ? "M" : "L";
+      return `<span class="ps-dot ps-${p.grade.toLowerCase()}">${g}</span>`;
+    };
+    const body = rows.map(p => `<tr>
+      <td class="ps-name">${esc(p.graha)}</td>
+      <td class="ps-fav">${cell(p,"FAVOURABLE")}</td>
+      <td class="ps-cha">${cell(p,"CHALLENGING")}</td>
+      <td class="ps-neu">${cell(p,"NEUTRAL")}</td></tr>`).join("");
+    return `<div class="pg"><div class="kick">Your Planetary Strengths</div><div class="rule"></div>
+      <h2>How each planet tends to act for you</h2>
+      <div class="ps-legend">H = strong · M = moderate · L = mild &nbsp;|&nbsp; read across each planet's row</div>
+      <table class="ps-table"><thead><tr>
+        <th>Planet</th><th class="ps-fav">Favourable</th><th class="ps-cha">Challenging</th><th class="ps-neu">Neutral</th>
+      </tr></thead><tbody>${body}</tbody></table>
+      <div class="foot">Please see the <b>References</b> page on this site to learn what each planet and
+      each house signifies.</div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
+  // ── what to actually do (behaviour-level guidance) ──────────────────────────
+  function guidancePage(pnum) {
+    const lines = (_extras && _extras.guidance) || [];
+    const rows = lines.map(l => `<li><b>${esc(l.actor)} · ${ord(l.house)} house</b>${esc(l.text)}</li>`).join("");
+    return `<div class="pg"><div class="kick">What To Actually Do With This</div><div class="rule"></div>
+      <h2>The few choices that change the most</h2>
+      <ul class="guide-list">${rows || '<li>Your chart carries no single dominant friction — steadiness across the board serves you best.</li>'}</ul>
+      <div class="ref">◈ Read this again in six months<b>The chart does not change; your position in its timeline does.</b></div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
   // Life Axis — the anchors the whole book is read against.
   function lifeAxisPage(m, facts, pnum) {
     const d1 = (m && m.d1) || {}, d9 = (m && m.d9) || {};
-    const P = chartSource().planets || {};
-    const moon = { sign: (m && m.lons && m.lons.Moon != null) ? m.sign(m.lons.Moon) : (P.Moon && P.Moon.sign),
-                   nakshatra: (P.Moon && P.Moon.nakshatra) || "" };
-    const sun  = { sign: (m && m.lons && m.lons.Sun != null) ? m.sign(m.lons.Sun) : (P.Sun && P.Sun.sign) };
-    const axis = (label, val, note) => val
+    const Pl = chartSource().planets || {};
+    const lordOf = (sign) => sign ? SIGN_LORD[sign] : "";
+    const moonSign = (m && m.lons && m.lons.Moon != null) ? m.sign(m.lons.Moon) : (Pl.Moon && Pl.Moon.sign);
+    const sunSign  = (m && m.lons && m.lons.Sun != null) ? m.sign(m.lons.Sun) : (Pl.Sun && Pl.Sun.sign);
+    const moonNak  = (Pl.Moon && Pl.Moon.nakshatra) || "";
+    const axis = (label, sign, extra, note) => sign
       ? `<div class="axis-row"><div class="axis-k">${esc(label)}</div>
-         <div class="axis-v">${esc(val)}</div><div class="axis-n">${esc(note)}</div></div>` : "";
-    // nearest active window across the whole book
+         <div class="axis-v">${esc(sign)}${extra ? " " + esc(extra) : ""} <span class="axis-lord">(lord: ${esc(lordOf(sign))})</span></div>
+         <div class="axis-n">${esc(note)}</div></div>` : "";
     let soon = null;
     for (const f of facts) { const w = f.timing_windows[0]; if (!w) continue;
       if (!soon || w.start_iso < soon.start_iso) soon = w; }
     return `<div class="pg"><div class="kick">Your Life Axis</div><div class="rule"></div>
       <h2>The four anchors of your chart</h2>
-      ${axis("Lagna — the life you build", (d1.lagnaSign || "") + (d1.lagnaDegree != null ? "  " + d1.lagnaDegree.toFixed(1) + "°" : ""),
-             "How you meet the world, and the body you do it in.")}
-      ${axis("Moon — the mind you carry", (moon.sign || "") + (moon.nakshatra ? " · " + moon.nakshatra : ""),
-             "How you feel, react, and find rest. Your dasha clock is set from here.")}
-      ${axis("Sun — the self you become", sun.sign || "",
-             "What you are here to stand for, and where you seek recognition.")}
-      ${axis("Navamsa lagna — what endures", d9.lagnaSign || "",
-             "The inner chart. It decides whether what you build in D1 holds when tested.")}
-      <div class="bd axis-note">
-      These four set the frame every domain in this book is read against. Where a domain seems to
-      contradict itself, it is usually because one anchor pulls against another — and that tension is
-      itself the instruction.${soon ? " Your nearest active window opens " + esc(fmtWin(soon)) + "." : ""}</div>
+      ${axis("Lagna — the life you build", d1.lagnaSign, d1.lagnaDegree != null ? d1.lagnaDegree.toFixed(1)+"°" : "", "How you meet the world, and the body you do it in.")}
+      ${axis("Moon — the mind you carry", moonSign, moonNak ? "· "+moonNak : "", "How you feel and find rest. Your dasha clock is set from here.")}
+      ${axis("Sun — the self you become", sunSign, "", "What you stand for, and where you seek recognition.")}
+      ${axis("Navamsa lagna — what endures", d9.lagnaSign, "", "The inner chart. It decides whether what you build holds when tested.")}
+      <div class="foot">Please see the <b>References</b> page on this site to learn what each sign, house,
+      and planetary lord signifies.</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
-  const WC_ACTION = {
-    "Career & Wealth":        ["Keep skills portable and a cash buffer — treat pivots as routing, not failure.",
-                               "Act inside your activation windows; waiting costs more here than moving does."],
-    "Marriage & Relationship":["Name the recurring friction early and out loud — this area needs honest attention, not soft-pedalling.",
-                               "Protect the bond with steady, ordinary care rather than grand gestures."],
-    "Mobility & Fortune":     ["Fortune here arrives in waves — start things inside your windows, not between them.",
-                               "If you want a move abroad, drive it deliberately; it will not arrive on its own tide."],
-    "Crisis, Debt & Legal":   ["Favour negotiation over prolonged conflict, and keep documentation meticulous.",
-                               "Hold one fixed repayment rhythm and avoid new high-cost borrowing."],
-    "Health & Wellbeing":     ["Guard sleep and routine — your resilience is maintained, not assumed.",
-                               "Keep check-ups regular and act on small signals early."],
-  };
-  const WC_HARD = ["CHALLENGING","HIGH","HIGH_CARE","ELEVATED","STRAINED","OBSTRUCTED","WEAK","DIFFICULT","PRESSURED","HEAVY","DELAYED","SUBDUED"];
-  function worthConsideringLines(groups) {
-    return groups.map(g => {
-      const hard = g.items.filter(x => WC_HARD.includes(x.f.band)).length;
-      const pool = WC_ACTION[g.cat] || ["Act inside your windows rather than waiting for certainty."];
-      return { cat: g.cat, action: hard >= 1 ? pool[0] : (pool[1] || pool[0]) };
-    });
-  }
-
-  // Worth Considering — one action-oriented line per domain, derived from bands.
+  // Worth Considering  // Worth Considering — one action-oriented line per domain, derived from bands.
   function worthConsideringPage(groups, pnum) {
     const rows = worthConsideringLines(groups)
       .map(r => `<li><b>${esc(r.cat)}</b>${esc(r.action)}</li>`).join("");
@@ -741,13 +822,13 @@
     doc.setTextColor(...GOLD); doc.setFontSize(11);
     doc.text("LIFE INDICATORS REPORT", W/2, H/2-110, { align:"center" });
     doc.setTextColor(255,255,255); doc.setFontSize(30);
-    doc.text("The Book of", W/2, H/2-62, { align:"center" });
-    doc.text("Your Timings", W/2, H/2-28, { align:"center" });
+    doc.text("The Book of", W/2, H/2-72, { align:"center" });
+    doc.text("Your Life Indications", W/2, H/2-38, { align:"center" });
     doc.setFontSize(14); doc.setTextColor(...GOLD);
     if (name) doc.text(String(name), W/2, H/2+16, { align:"center" });
     doc.setFontSize(8); doc.setTextColor(200,200,205);
-    const disc = doc.splitTextToSize("Indicative astrological insight for reflection and planning — not medical, legal, or financial advice, and not a guarantee of outcomes. Every reading is computed from your own birth chart (Swiss Ephemeris · Lahiri ayanamsa).", W-M*3);
-    doc.text(disc, W/2, H/2+60, { align:"center" });
+    const disc = doc.splitTextToSize("Please read: These indications support reflection and planning. They are not a substitute for professional advice — medical, legal, financial, or psychological — and any timing shown is indicative only, never a guarantee of outcome. Every reading is computed from your own birth chart (Swiss Ephemeris · Lahiri ayanamsa).", W-M*2.4);
+    doc.text(disc, W/2, H/2+52, { align:"center" });
 
     const newPage = () => { doc.addPage(); y = M; doc.setTextColor(...INK); };
     const heading = (txt) => { doc.setFontSize(9); doc.setTextColor(...GOLD);
@@ -805,11 +886,46 @@
       const leg = Object.keys(AB).map(k => AB[k] + " = " + k).join("   ·   ");
       doc.text(doc.splitTextToSize(leg, W-M*2), M, y); y += 22;
     }
+    // opening letter
+    newPage(); heading("A Note Before You Begin");
+    doc.setFontSize(13); doc.setTextColor(...INK); doc.text("Why we built this for you", M, y); y += 22;
+    const rn = readerName();
+    doc.setFontSize(10.5);
+    const para = (t) => { const tx = doc.splitTextToSize(t, W-M*2); if (y+tx.length*14>H-M) newPage();
+      doc.setTextColor(...INK); doc.text(tx, M, y); y += tx.length*14 + 8; };
+    para((rn ? "Dear " + rn + "," : "Dear reader,"));
+    para("For most of us, the need to consult astrology arises only when something is not going as we hoped — rarely when life is going well. That was true for us too. The guidance we sought was often hard to interpret, felt clear in the moment then dissolved once we left, and still left the two questions that mattered most unanswered.");
+    para("So we built AstroIndicators with one goal: to give you not prediction, but clarity — a clarity that stays within your reach, so you can answer for yourself: Why am I going through what I am going through? And how do I see the road ahead?");
+    para("The system reads both your D1 (what is promised in your foundation) and your D9 (what takes shape as you grow beyond it), and lays out the reasoning so you connect the dots yourself. Our hope is that it helps you relax, reflect, and rejuvenate. Happy reading — we'll meet you again at the end.");
+
     newPage(); heading("Your Birth Charts");
     drawChart(d1.lagnaSign, d1.houses, "Rasi · D1 — the stage",
       "Think of D1 as the play as it is performed: the set, the cast, the entrances and exits — your body, your circumstances, and the events people can see.");
     drawChart(d9.lagnaSign, d9.houses, "Navamsa · D9 — the root system",
       "If D1 is the tree, D9 is the root. Nobody sees it, and it decides whether the tree survives a storm. A promise strong in D1 but weak here tends to arrive and not stay.");
+
+    // ── planetary strengths ──────────────────────────────────────────────────
+    const strengths = (window._extras && window._extras.strengths) || [];
+    if (strengths.length) {
+      newPage(); heading("Your Planetary Strengths");
+      doc.setFontSize(10.5); doc.setTextColor(...INK);
+      doc.text("How each planet tends to act for you", M, y); y += 20;
+      const cw = (W-M*2)/4;
+      doc.setFontSize(8.5); doc.setTextColor(...GOLD);
+      ["Planet","Favourable","Challenging","Neutral"].forEach((hd,i)=>doc.text(hd, M+cw*i+4, y));
+      y += 6; doc.setDrawColor(...GOLD); doc.line(M,y,W-M,y); y += 14;
+      doc.setFontSize(10);
+      const gr = { HIGH:"High", MEDIUM:"Med", LOW:"Low" };
+      for (const p of strengths) {
+        if (y > H-M-16) { newPage(); }
+        doc.setTextColor(...INK); doc.text(p.graha, M+4, y);
+        const col = p.nature==="FAVOURABLE"?1:p.nature==="CHALLENGING"?2:3;
+        doc.setTextColor(...(p.nature==="CHALLENGING"?[154,59,46]:p.nature==="FAVOURABLE"?[46,110,58]:MUTE));
+        doc.text(gr[p.grade], M+cw*col+4, y); y += 16;
+      }
+      y += 4; doc.setFontSize(8); doc.setTextColor(...MUTE);
+      doc.text(doc.splitTextToSize("Please see the References page on this site to learn what each planet and each house signifies.", W-M*2), M, y);
+    }
 
     // ── life axis ────────────────────────────────────────────────────────────
     newPage(); heading("Your Life Axis");
@@ -820,11 +936,16 @@
       ["Moon — the mind you carry", (moon.sign||"") + (moon.nakshatra ? " · "+moon.nakshatra : ""), "How you feel, react, and find rest. Your dasha clock is set from here."],
       ["Sun — the self you become", sun.sign||"", "What you are here to stand for, and where you seek recognition."],
       ["Navamsa lagna — what endures", d9.lagnaSign||"", "The inner chart. It decides whether what you build holds when tested."]];
+    const LORD = { Aries:"Mars",Taurus:"Venus",Gemini:"Mercury",Cancer:"Moon",Leo:"Sun",Virgo:"Mercury",Libra:"Venus",Scorpio:"Mars",Sagittarius:"Jupiter",Capricorn:"Saturn",Aquarius:"Saturn",Pisces:"Jupiter" };
+    const signOf = (v) => (v||"").split(" ")[0];
     for (const [k,v,n] of axes) { if (!v) continue;
       doc.setFontSize(9); doc.setTextColor(...GOLD); doc.text(k, M, y);
-      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(String(v), W-M, y, { align:"right" }); y += 14;
+      const lord = LORD[signOf(v)] ? "  (lord: " + LORD[signOf(v)] + ")" : "";
+      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(String(v)+lord, W-M, y, { align:"right" }); y += 14;
       doc.setFontSize(8.5); doc.setTextColor(...MUTE);
       doc.text(doc.splitTextToSize(n, W-M*2), M, y); y += 22; }
+    y += 4; doc.setFontSize(8); doc.setTextColor(...MUTE);
+    doc.text(doc.splitTextToSize("Please see the References page on this site to learn what each sign, house, and planetary lord signifies.", W-M*2), M, y);
 
     // ── life theme ───────────────────────────────────────────────────────────
     const themePick = pickTheme(_m);
@@ -873,19 +994,30 @@
       y += 14;
     }
 
-    // ── worth considering ────────────────────────────────────────────────────
-    newPage(); heading("Worth Considering");
-    doc.setFontSize(13); doc.setTextColor(...INK); doc.text("What to actually do with this", M, y); y += 24;
-    for (const line of worthConsideringLines(groups)) {
-      const txt = doc.splitTextToSize(line.action, W - M*2 - 14);
-      if (y + txt.length*13 + 26 > H - M) newPage();
-      doc.setFontSize(8); doc.setTextColor(...GOLD); doc.text(line.cat.toUpperCase(), M+12, y); y += 12;
+    // ── what to actually do (concrete guidance) ──────────────────────────────
+    newPage(); heading("What To Actually Do With This");
+    doc.setFontSize(13); doc.setTextColor(...INK); doc.text("The few choices that change the most", M, y); y += 24;
+    const guide = (window._extras && window._extras.guidance) || [];
+    for (const l of guide) {
+      const label = l.actor + " · " + l.house + (l.house===1?"st":l.house===2?"nd":l.house===3?"rd":"th") + " house";
+      const txt = doc.splitTextToSize(l.text, W - M*2 - 14);
+      if (y + txt.length*13 + 30 > H - M) newPage();
+      doc.setFontSize(8); doc.setTextColor(...GOLD); doc.text(label.toUpperCase(), M+12, y); y += 13;
       doc.setDrawColor(...GOLD); doc.setLineWidth(1.6);
-      doc.line(M+2, y-16, M+2, y + txt.length*13 - 4); doc.setLineWidth(.8);
+      doc.line(M+2, y-17, M+2, y + txt.length*13 - 4); doc.setLineWidth(.8);
       doc.setFontSize(10); doc.setTextColor(...INK); doc.text(txt, M+12, y); y += txt.length*13 + 16;
     }
 
-    // ── closing ──────────────────────────────────────────────────────────────
+    // ── closing letter ───────────────────────────────────────────────────────
+    newPage(); heading("A Closing Note");
+    doc.setFontSize(13); doc.setTextColor(...INK); doc.text("Awareness is where it begins", M, y); y += 22;
+    doc.setFontSize(10.5);
+    para((rn ? "Dear " + rn + "," : "Dear reader,"));
+    para("We hope these indications have given you a genuine sense of awareness, and some answers to the questions that may have been quietly weighing on you.");
+    para("If a few don't seem to fit, hold them this way: each indication is a signboard on a road — it tells you, reliably, what lies ahead and how far. But this signboard carries a weather forecast too. The road is your chart; the weather is your timing. Many people share birth details close to yours and travel much the same road, but each sets out in a different season. The signboard reads the same for all; the weather each meets does not — which is why some indications land squarely and others feel a step away.");
+    para("With that awareness, you can begin to sort what lies within your control from what lies beyond it. As the Serenity Prayer asks: grant me the serenity to accept what I cannot change, the courage to change what I can, and the wisdom to know the difference. Because in the end — awareness and acceptance are where suffering ends.");
+
+    // ── final page ─────────────────────────────────────────────────────────────
     doc.addPage();
     doc.setFillColor(...NAVY); doc.rect(0,0,W,H,"F");
     doc.setDrawColor(...GOLD); doc.rect(M/2,M/2,W-M,H-M);
