@@ -576,6 +576,7 @@ function getForm() {
     dob:       document.getElementById("inputDOB").value,
     tob:       document.getElementById("inputTOB").value,
     gender:    document.getElementById("inputGender")?.value || "unspecified",
+    callName:  (document.getElementById("inputCallName")?.value || "").trim(),
     place:     _selectedPlace?.displayName || (placeDisplay ? placeDisplay.value.trim() : ""),
     lat:       _selectedPlace?.lat     || null,
     lng:       _selectedPlace?.lng     || null,
