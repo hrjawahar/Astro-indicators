@@ -190,6 +190,9 @@
     const nameComma = rn ? ", " + esc(rn) : "";
     const meta = [f0.dob, f0.tob, f0.place].filter(Boolean).join(" · ");
     _book.meta = meta;
+    const _m = chartModel() || {};
+    const d1 = _m.d1 || {}, d9 = _m.d9 || {};
+    const pl = (chartSource().planets) || {};
     const P = [];
 
     // ── 1. cover ─────────────────────────────────────────────────────────────
