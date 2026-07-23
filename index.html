@@ -134,7 +134,7 @@
     background:linear-gradient(168deg,#FFFAE0,var(--ai-cream) 42%,var(--ai-cream2)); color:#23252E; font-size:.95rem;
     background-image:linear-gradient(90deg,rgba(0,0,0,.10),rgba(0,0,0,0) 6%,rgba(0,0,0,0) 94%,rgba(0,0,0,.05)); }
   .pg h1 { font-size:1.85rem; line-height:1.2; margin:8px 0 14px; color:var(--ai-gold-soft); font-weight:800; }
-  .pg h2 { font-size:1.15rem; margin:4px 0 9px; flex:0 0 auto; color:#1A1D2B; font-weight:700; line-height:1.3; }
+  .pg h2 { font-size:1.15rem; margin:4px 0 9px; flex:0 0 auto; color:#5A4410; font-weight:800; line-height:1.3; }
   .pg .kick { font-size:.63rem; letter-spacing:.22em; text-transform:uppercase; color:#6E5518; font-weight:600; }
   .pg .rule { height:1px; background:linear-gradient(90deg,var(--ai-gold),rgba(201,164,76,0)); margin:10px 0 14px; }
   .pg .bd { line-height:1.68; font-size:.9rem; color:#2B2E3A; flex:1 1 auto; min-height:0;
@@ -196,6 +196,30 @@
     border-left:2px solid #8A6E2F; border-radius:4px; font-size:.86rem; }
   .theme-ev { margin-top:9px; font-size:.81rem; color:#3A3D4A; line-height:1.55; }
   .pg .bd p { margin:0 0 8px; }
+  .pg .letter-bd p { margin:0 0 9px; font-size:.86rem; line-height:1.62; }
+  .pg .letter-q { text-align:center; font-style:italic; color:#6E5518; font-weight:600;
+    margin:11px 0; padding:9px 12px; border-left:2px solid var(--ai-gold);
+    background:rgba(138,110,47,.09); border-radius:4px; }
+  .pg .foot { flex:0 0 auto; margin-top:12px; padding-top:8px; border-top:1px solid rgba(138,110,47,.3);
+    font-size:.72rem; color:#5A4A22; font-style:italic; line-height:1.5; }
+  .ps-table { width:100%; border-collapse:collapse; margin:6px 0 4px; font-size:.82rem; flex:0 0 auto; }
+  .ps-table th, .ps-table td { padding:6px 4px; text-align:center; border-bottom:1px solid rgba(138,110,47,.22); }
+  .ps-table th { font-size:.64rem; letter-spacing:.08em; text-transform:uppercase; color:#6E5518; }
+  .ps-table th.ps-fav, .ps-table td.ps-fav { color:#2E6E3A; }
+  .ps-table th.ps-cha, .ps-table td.ps-cha { color:#9A3B2E; }
+  .ps-table th.ps-neu, .ps-table td.ps-neu { color:#6E5518; }
+  .ps-name { text-align:left !important; font-weight:700; color:#23252E; }
+  .ps-dot { display:inline-block; min-width:20px; height:20px; line-height:20px; border-radius:50%;
+    font-size:.68rem; font-weight:700; color:#fff; }
+  .ps-high { background:#8A6E2F; } .ps-medium { background:#B39A5E; } .ps-low { background:#CDBE93; color:#3A3D4A; }
+  .ps-legend { font-size:.72rem; color:#5A4A22; margin-bottom:6px; }
+  .axis-lord { color:#6E5518; font-size:.8rem; font-weight:600; }
+  .guide-list { list-style:none; padding:0; margin:4px 0 0; display:flex; flex-direction:column; gap:11px;
+    flex:1 1 auto; min-height:0; overflow-y:auto; }
+  .guide-list li { border-left:2px solid var(--ai-gold); padding-left:12px; font-size:.85rem;
+    line-height:1.56; color:#2B2E3A; }
+  .guide-list li b { display:block; font-size:.66rem; letter-spacing:.1em; text-transform:uppercase;
+    color:#6E5518; margin-bottom:3px; }
   .controls { display:flex; justify-content:center; gap:14px; align-items:center; margin:16px 0 6px; }
   .dots { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:60%; }
   .dots .dot { width:7px; height:7px; border-radius:50%; background:rgba(201,164,76,.32); cursor:pointer; }
@@ -312,6 +336,8 @@
             <div class="form-group">
               <label><span data-i18n="form_name">Full name</span> <span class="form-hint" data-i18n="form_name_hint">(appears in report)</span></label>
               <input id="inputName" type="text" data-i18n-ph="form_name_ph" placeholder="e.g. Ravi Kumar"/>
+              <label style="margin-top:8px"><span>Calling name</span> <span class="form-hint">(preferred; used to address you in the report)</span></label>
+              <input id="inputCallName" type="text" placeholder="e.g. Ravi"/>
             </div>
             <div class="form-group">
               <label><span data-i18n="form_email">Email</span> <span class="form-hint" data-i18n="form_email_hint">(required for sending invoice)</span></label>
