@@ -7,6 +7,8 @@
 import { buildChart, type BirthInput } from "./chart-core";
 import { EngineFactSchema, type EngineFact } from "./schema";
 import { chartResponseToBirthInput, type ChartApiResponse } from "./adapter";
+import { planetStrengths, type PlanetStrength } from "./planet-strength";
+import { lifeGuidance, type GuidanceLine } from "./life-guidance";
 
 import { businessVsEmployment } from "./modules/business-vs-employment";
 import { careerStability } from "./modules/career-stability";
@@ -28,7 +30,8 @@ import { enemies } from "./modules/enemies";
 import { healthLongevity } from "./modules/health-longevity";
 import { mentalPeace } from "./modules/mental-peace";
 
-export { chartResponseToBirthInput };
+export { chartResponseToBirthInput, planetStrengths, lifeGuidance };
+export type { PlanetStrength, GuidanceLine };
 export type { ChartApiResponse, EngineFact };
 
 export interface RunResult {
@@ -68,4 +71,10 @@ export function runEngineFromChartResponse(
   opts: { nowISO?: string; includeOwnerOnly?: boolean } = {},
 ): RunResult {
   return runEngine(chartResponseToBirthInput(chart, gender), opts);
+}
+
+// book extras: planetary-strength table + behavioural guidance, from a chart response
+export function bookExtras(chart: ChartApiResponse, gender: "male"|"female"|"unspecified") {
+  const c = buildChart(chartResponseToBirthInput(chart, gender));
+  return { strengths: planetStrengths(c), guidance: lifeGuidance(c) };
 }
