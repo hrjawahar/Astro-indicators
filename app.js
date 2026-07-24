@@ -554,6 +554,8 @@ function switchTab(tabId) {
 // ── LANGUAGE SELECTOR ─────────────────────────────────────────────────────────
 function initLangSelector() {
   const btns = document.querySelectorAll(".lang-btn");
+  // apply any previously-chosen language on load
+  if (typeof window.applyLanguage === "function") window.applyLanguage(_currentLang);
   btns.forEach(btn => {
     btn.classList.toggle("active", btn.dataset.lang === _currentLang);
     btn.addEventListener("click", () => {
@@ -561,6 +563,7 @@ function initLangSelector() {
       localStorage.setItem("jyotish-lang", _currentLang);
       btns.forEach(b => b.classList.toggle("active", b.dataset.lang === _currentLang));
       // Re-render charts with new language if data is loaded
+      if (typeof window.applyLanguage === "function") window.applyLanguage(_currentLang);
       if (currentData?.chart) renderChartScreen(currentData.chart);
       // Re-render planet screen too
       if (currentData?.chart) renderPlanetScreen(currentData.chart);
@@ -890,8 +893,9 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       const lordTxt     = document.createElementNS("http://www.w3.org/2000/svg","text");
       lordTxt.setAttribute("x", x + PAD + 2);
       lordTxt.setAttribute("y", y + CELL - 5);
-      lordTxt.setAttribute("font-size","7");
-      lordTxt.setAttribute("fill","rgba(100,65,10,0.55)");
+      lordTxt.setAttribute("font-size","9");
+      lordTxt.setAttribute("font-weight","600");
+      lordTxt.setAttribute("fill","rgba(90,60,10,0.95)");
       lordTxt.setAttribute("font-family","Inter,sans-serif");
       lordTxt.textContent = lordDisplay;
       svg.appendChild(lordTxt);
