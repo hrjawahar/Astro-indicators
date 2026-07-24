@@ -17,6 +17,21 @@ const I18N = {
 
   // ─────────────────────────────── ENGLISH ───────────────────────────────
   EN: {
+    tab_free: "Free",
+    tab_paid: "Paid",
+    lagna_rashi: "Rāśi (Moon sign)",
+    lagna_d1: "Lagna (D1)",
+    lagna_d9: "Navāṁśa (D9)",
+    lagna_moonnak: "Nakshatra",
+    lagna_pada: "pada",
+    lagna_ayanamsha: "Ayanāṁśa",
+    lagna_native: "Native",
+    lagna_prefix: "Lagna",
+    chart_d1_label: "Rāśi chart · D1",
+    chart_d9_label: "Navāṁśa chart · D9",
+    form_email: "Email",
+    form_email_hint: "(required for sending invoice)",
+    form_email_ph: "you@example.com",
     // Brand / top bar
     brand_name:        "AstroIndicators",
     brand_sub:         "Horoscope & Dasa Period Indicators · Swiss Ephemeris · Lahiri Ayanamsha",
@@ -179,6 +194,21 @@ const I18N = {
 
   // ─────────────────────────────── TAMIL ───────────────────────────────
   TA: {
+    tab_free: "இலவசம்",
+    tab_paid: "கட்டணம்",
+    lagna_rashi: "ராசி (சந்திரன்)",
+    lagna_d1: "லக்னம் (D1)",
+    lagna_d9: "நவாம்சம் (D9)",
+    lagna_moonnak: "நட்சத்திரம்",
+    lagna_pada: "பாதம்",
+    lagna_ayanamsha: "அயனாம்சம்",
+    lagna_native: "ஜாதகர்",
+    lagna_prefix: "லக்னம்",
+    chart_d1_label: "ராசி கட்டம் · D1",
+    chart_d9_label: "நவாம்ச கட்டம் · D9",
+    form_email: "மின்னஞ்சல்",
+    form_email_hint: "(ரசீது அனுப்ப தேவை)",
+    form_email_ph: "you@example.com",
     brand_name:        "ஆஸ்ட்ரோஇண்டிகேட்டர்ஸ்",
     brand_sub:         "ஜாதகம் & தசா கால அறிகுறிகள் · ஸ்விஸ் எபிமெரிஸ் · லகிரி அயனாம்சம்",
     btn_save:          "சேமி",
@@ -329,6 +359,21 @@ const I18N = {
 
   // ─────────────────────────────── TELUGU ───────────────────────────────
   TE: {
+    tab_free: "ఉచితం",
+    tab_paid: "చెల్లింపు",
+    lagna_rashi: "రాశి (చంద్రుడు)",
+    lagna_d1: "లగ్నం (D1)",
+    lagna_d9: "నవాంశ (D9)",
+    lagna_moonnak: "నక్షత్రం",
+    lagna_pada: "పాద",
+    lagna_ayanamsha: "అయనాంశ",
+    lagna_native: "జాతకుడు",
+    lagna_prefix: "లగ్నం",
+    chart_d1_label: "రాశి చక్రం · D1",
+    chart_d9_label: "నవాంశ చక్రం · D9",
+    form_email: "ఇమెయిల్",
+    form_email_hint: "(రసీదు పంపడానికి అవసరం)",
+    form_email_ph: "you@example.com",
     brand_name:        "ఆస్ట్రోఇండికేటర్స్",
     brand_sub:         "జాతకం & దశా కాల సూచికలు · స్విస్ ఎఫిమెరిస్ · లహిరి అయనాంశం",
     btn_save:          "సేవ్",
@@ -479,6 +524,21 @@ const I18N = {
 
   // ─────────────────────────────── HINDI ───────────────────────────────
   HI: {
+    tab_free: "नि:शुल्क",
+    tab_paid: "सशुल्क",
+    lagna_rashi: "राशि (चंद्र)",
+    lagna_d1: "लग्न (D1)",
+    lagna_d9: "नवांश (D9)",
+    lagna_moonnak: "नक्षत्र",
+    lagna_pada: "पाद",
+    lagna_ayanamsha: "अयनांश",
+    lagna_native: "जातक",
+    lagna_prefix: "लग्न",
+    chart_d1_label: "राशि चक्र · D1",
+    chart_d9_label: "नवांश चक्र · D9",
+    form_email: "ईमेल",
+    form_email_hint: "(रसीद भेजने हेतु आवश्यक)",
+    form_email_ph: "you@example.com",
     brand_name:        "एस्ट्रोइंडिकेटर्स",
     brand_sub:         "कुंडली और दशा काल संकेतक · स्विस एफेमेरिस · लाहिड़ी अयनांश",
     btn_save:          "सहेजें",
@@ -629,6 +689,21 @@ const I18N = {
 
   // ─────────────────────────────── KANNADA ───────────────────────────────
   KA: {
+    tab_free: "ಉಚಿತ",
+    tab_paid: "ಪಾವತಿ",
+    lagna_rashi: "ರಾಶಿ (ಚಂದ್ರ)",
+    lagna_d1: "ಲಗ್ನ (D1)",
+    lagna_d9: "ನವಾಂಶ (D9)",
+    lagna_moonnak: "ನಕ್ಷತ್ರ",
+    lagna_pada: "ಪಾದ",
+    lagna_ayanamsha: "ಅಯನಾಂಶ",
+    lagna_native: "ಜಾತಕ",
+    lagna_prefix: "ಲಗ್ನ",
+    chart_d1_label: "ರಾಶಿ ಚಕ್ರ · D1",
+    chart_d9_label: "ನವಾಂಶ ಚಕ್ರ · D9",
+    form_email: "ಇಮೇಲ್",
+    form_email_hint: "(ರಸೀದಿ ಕಳುಹಿಸಲು ಅಗತ್ಯ)",
+    form_email_ph: "you@example.com",
     brand_name:        "ಆಸ್ಟ್ರೋಇಂಡಿಕೇಟರ್ಸ್",
     brand_sub:         "ಜಾತಕ & ದಶಾ ಕಾಲ ಸೂಚಕಗಳು · ಸ್ವಿಸ್ ಎಫಿಮೆರಿಸ್ · ಲಹಿರಿ ಅಯನಾಂಶ",
     btn_save:          "ಉಳಿಸಿ",
@@ -779,6 +854,21 @@ const I18N = {
 
   // ─────────────────────────────── MALAYALAM ───────────────────────────────
   ML: {
+    tab_free: "സൗജന്യം",
+    tab_paid: "പണം",
+    lagna_rashi: "രാശി (ചന്ദ്രൻ)",
+    lagna_d1: "ലഗ്നം (D1)",
+    lagna_d9: "നവാംശം (D9)",
+    lagna_moonnak: "നക്ഷത്രം",
+    lagna_pada: "പാദം",
+    lagna_ayanamsha: "അയനാംശം",
+    lagna_native: "ജാതകൻ",
+    lagna_prefix: "ലഗ്നം",
+    chart_d1_label: "രാശി ചക്രം · D1",
+    chart_d9_label: "നവാംശ ചക്രം · D9",
+    form_email: "ഇമെയിൽ",
+    form_email_hint: "(രസീത് അയയ്ക്കാൻ ആവശ്യം)",
+    form_email_ph: "you@example.com",
     brand_name:        "ആസ്ട്രോഇൻഡിക്കേറ്റേഴ്സ്",
     brand_sub:         "ജാതകം & ദശാ കാല സൂചകങ്ങൾ · സ്വിസ് എഫിമെരിസ് · ലഹിരി അയനാംശം",
     btn_save:          "സേവ് ചെയ്യുക",
@@ -954,6 +1044,11 @@ function t(key) {
   const dict = I18N[lang] || I18N.EN;
   return (dict[key] !== undefined) ? dict[key] : (I18N.EN[key] !== undefined ? I18N.EN[key] : key);
 }
+function hasKey(key) {
+  const lang = (typeof _currentLang !== "undefined" && _currentLang) ? _currentLang : "EN";
+  const dict = I18N[lang] || I18N.EN;
+  return (dict[key] !== undefined) || (I18N.EN[key] !== undefined);
+}
 
 // ── Core: apply the active language to the whole page ──────────────────────────
 //   Walks every element with data-i18n / data-i18n-ph / data-i18n-html and swaps text.
@@ -965,22 +1060,22 @@ function applyLanguage(lang) {
   // Text content
   document.querySelectorAll("[data-i18n]").forEach(el => {
     const key = el.getAttribute("data-i18n");
-    const val = t(key);
-    if (val !== undefined) el.textContent = val;
+    if (!hasKey(key)) return;
+    el.textContent = t(key);
   });
 
   // Placeholder attributes (for inputs)
   document.querySelectorAll("[data-i18n-ph]").forEach(el => {
     const key = el.getAttribute("data-i18n-ph");
-    const val = t(key);
-    if (val !== undefined) el.setAttribute("placeholder", val);
+    if (!hasKey(key)) return;
+    el.setAttribute("placeholder", t(key));
   });
 
   // HTML content (for strings that contain a <strong> label etc.)
   document.querySelectorAll("[data-i18n-html]").forEach(el => {
     const key = el.getAttribute("data-i18n-html");
-    const val = t(key);
-    if (val !== undefined) el.innerHTML = val;
+    if (!hasKey(key)) return;
+    el.innerHTML = t(key);
   });
 
   // Update the <html lang="..."> attribute for accessibility / SEO
@@ -1000,4 +1095,6 @@ if (typeof window !== "undefined") {
   window.LANG_AI_NAME = LANG_AI_NAME;
   window.t = t;
   window.applyLanguage = applyLanguage;
+  window.hasKeyI18n = hasKey;
+  window.hasKeyI18n = hasKey;
 }
