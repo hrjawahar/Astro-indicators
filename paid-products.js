@@ -306,15 +306,6 @@
       <div class="closing">If it served you, please share it with those you care about. And if our
       work was useful, we'd value a short review — the <b>Leave a Review</b> button is on the
       Birth Details page.</div>
-      <div class="fb-share">
-        <div class="fb-share-label">Share AstroIndicators</div>
-        <div class="fb-share-icons">
-          <a href="https://wa.me/?text=${encodeURIComponent("I discovered my LAMP report on AstroIndicators — a thoughtful, personalized astrology reading. Try yours: https://astroindicators.com")}" target="_blank" rel="noopener" title="Share on WhatsApp" aria-label="WhatsApp">WA</a>
-          <a href="https://twitter.com/intent/tweet?text=${encodeURIComponent("My LAMP report on AstroIndicators was genuinely worth reading.")}&url=${encodeURIComponent("https://astroindicators.com")}" target="_blank" rel="noopener" title="Share on X / Twitter" aria-label="X">X</a>
-          <a href="https://www.instagram.com/astroindicators" target="_blank" rel="noopener" title="Follow us on Instagram" aria-label="Instagram">IG</a>
-        </div>
-        <div class="fb-share-note">Instagram doesn't allow prefilled web shares — the icon opens our page; screenshot a page you like to share it there.</div>
-      </div>
       <div class="final-signoff"><div class="who">Best wishes,</div>
       <div class="logo">Team Astro<span>Indicators</span></div></div></div></div>`);
 
@@ -812,14 +803,14 @@
       (set.answers || []).forEach(a => {
         const f = byId(facts, a.module_id); if (!f) return;
         const win = f.timing_windows[0];
-        const q = doc.splitTextToSize(f.question, W-M*2);
-        const body = doc.splitTextToSize(a.narrative, W-M*2);
-        const need = q.length*16 + body.length*14 + (win ? 34 : 0) + 50;
+        doc.setFontSize(13); const q = doc.splitTextToSize(f.question, W-M*2);
+        doc.setFontSize(11); const body = doc.splitTextToSize(a.narrative, W-M*2-4);
+        const need = q.length*16 + body.length*16 + (win ? 34 : 0) + 50;
         if (y + need > H - M) { doc.addPage(); y = M; }
         doc.setFontSize(13); doc.setTextColor(...INK); doc.text(q, M, y); y += q.length*16 + 6;
         doc.setFontSize(9); doc.setTextColor(...GOLD);
         doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-        doc.setFontSize(11); doc.setTextColor(...INK); doc.text(body, M, y, { lineHeightFactor:1.45 }); y += body.length*16 + 8;
+        doc.setFontSize(11); doc.setLineHeightFactor(1.45); doc.setTextColor(...INK); doc.text(body, M, y); doc.setLineHeightFactor(1.15); y += body.length*16 + 8;
         if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
           doc.setFontSize(9.5); doc.setTextColor(...GOLD);
           doc.text(win.label + ": " + fmtWin(win), M, y); y += 20; }
@@ -867,7 +858,7 @@
     if (_book.meta) { doc.setFontSize(9); doc.setTextColor(210,210,215);
       doc.text(_book.meta, W/2, H/2+24, { align:"center" }); }
     // hardened disclaimer, larger + readable
-    doc.setFontSize(9); doc.setTextColor(215,215,220);
+    doc.setTextColor(215,215,220); doc.setFontSize(9);
     const disc = doc.splitTextToSize("DISCLAIMER: This report provides astrological analysis (Swiss Ephemeris / Lahiri Ayanamsa) strictly for educational, entertainment, and self-reflective purposes. All timings and interpretations are indicative only and guarantee no outcomes. THIS IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL, LEGAL, OR FINANCIAL ADVICE. Use is at your own risk.", W-M*2.2);
     doc.text(disc, W/2, H/2+58, { align:"center" });
 
@@ -940,7 +931,7 @@
     doc.setFontSize(13); doc.setTextColor(...INK); doc.text("Why we built this for you", M, y); y += 22;
     const rn = readerName();
     doc.setFontSize(10.5);
-    const para = (t) => { const tx = doc.splitTextToSize(t, W-M*2); if (y+tx.length*14>H-M) newPage();
+    const para = (t) => { doc.setFontSize(10.5); const tx = doc.splitTextToSize(t, W-M*2); if (y+tx.length*15>H-M) newPage();
       doc.setTextColor(...INK); doc.text(tx, M, y); y += tx.length*14 + 8; };
     para((rn ? "Dear " + rn + "," : "Dear reader,"));
     para("For most of us, the need to consult astrology arises only when something is not going as we hoped — rarely when life is going well. That was true for us too. The guidance we sought was often hard to interpret, felt clear in the moment then dissolved once we left, and still left the two questions that mattered most unanswered.");
@@ -1028,8 +1019,9 @@
       const g = groups.find(x => x.cat === cat) || (groups.push({cat, items:[]}), groups[groups.length-1]);
       g.items.push({ sec, f });
       const win = f.timing_windows[0];
-      const body = doc.splitTextToSize(sec.narrative, W - M*2);
-      const need = 96 + body.length*14 + (win ? 34 : 0);
+      doc.setFontSize(11);                          // set BEFORE splitting so wrap width matches render
+      const body = doc.splitTextToSize(sec.narrative, W - M*2 - 4);
+      const need = 96 + body.length*16 + (win ? 34 : 0);
       if (y + need > H - M) newPage();
       if (cat !== lastCat) { lastCat = cat;
         if (y + need + 40 > H - M) newPage();
@@ -1038,7 +1030,7 @@
       doc.setTextColor(...INK); doc.setFontSize(15); doc.text(sec.heading, M, y); y += 22;
       doc.setFontSize(9); doc.setTextColor(...GOLD);
       doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-      doc.setFontSize(11); doc.setTextColor(...INK); doc.text(body, M, y, { lineHeightFactor:1.45 }); y += body.length*16 + 8;
+      doc.setFontSize(11); doc.setLineHeightFactor(1.45); doc.setTextColor(...INK); doc.text(body, M, y); doc.setLineHeightFactor(1.15); y += body.length*16 + 8;
       if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
         doc.setFontSize(9.5); doc.setTextColor(...GOLD);
         doc.text(win.label + ": " + fmtWin(win), M, y); y += 22; }
