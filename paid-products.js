@@ -818,7 +818,7 @@
         doc.setFontSize(13); doc.setTextColor(...INK); doc.text(q, M, y); y += q.length*16 + 6;
         doc.setFontSize(9); doc.setTextColor(...GOLD);
         doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-        doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(body, M, y, { align:"justify", maxWidth:W-M*2 }); y += body.length*14 + 6;
+        doc.setFontSize(11); doc.setTextColor(...INK); doc.text(body, M, y, { align:"justify", maxWidth:W-M*2, lineHeightFactor:1.5 }); y += body.length*15 + 8;
         if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
           doc.setFontSize(9.5); doc.setTextColor(...GOLD);
           doc.text(win.label + ": " + fmtWin(win), M, y); y += 20; }
@@ -848,19 +848,24 @@
     // ── cover ────────────────────────────────────────────────────────────────
     doc.setFillColor(...NAVY); doc.rect(0,0,W,H,"F");
     doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.rect(M/2,M/2,W-M,H-M);
-    doc.setTextColor(...GOLD); doc.setFontSize(11);
-    doc.text("LIFE INDICATORS REPORT", W/2, H/2-110, { align:"center" });
-    doc.setTextColor(255,255,255); doc.setFontSize(30);
-    doc.text("The Book of", W/2, H/2-72, { align:"center" });
-    doc.text("Your Life Indications", W/2, H/2-38, { align:"center" });
-    doc.setFontSize(14); doc.setTextColor(...GOLD);
-    if (name) doc.text(String(name), W/2, H/2+16, { align:"center" });
-    doc.setFontSize(8); doc.setTextColor(200,200,205);
-    const disc = doc.splitTextToSize("Please read: These indications support reflection and planning. They are not a substitute for professional advice — medical, legal, financial, or psychological — and any timing shown is indicative only, never a guarantee of outcome. Every reading is computed from your own birth chart (Swiss Ephemeris · Lahiri ayanamsa).", W-M*2.4);
-    doc.text(disc, W/2, H/2+52, { align:"center" });
+    doc.setTextColor(...GOLD); doc.setFontSize(12);
+    doc.text("LAMP REPORT", W/2, H/2-140, { align:"center" });
+    doc.setTextColor(255,255,255); doc.setFontSize(28);
+    doc.text("Life Analysis &", W/2, H/2-98, { align:"center" });
+    doc.text("Mapping Profile", W/2, H/2-66, { align:"center" });
+    doc.setFontSize(11); doc.setTextColor(...GOLD);
+    doc.text("Your personalized blueprint for conscious self-reflection", W/2, H/2-38, { align:"center" });
+    doc.setFontSize(15); doc.setTextColor(255,255,255);
+    if (name) doc.text(String(name), W/2, H/2+6, { align:"center" });
+    if (_book.meta) { doc.setFontSize(9); doc.setTextColor(210,210,215);
+      doc.text(_book.meta, W/2, H/2+24, { align:"center" }); }
+    // hardened disclaimer, larger + readable
+    doc.setFontSize(9); doc.setTextColor(215,215,220);
+    const disc = doc.splitTextToSize("DISCLAIMER: This report provides astrological analysis (Swiss Ephemeris / Lahiri Ayanamsa) strictly for educational, entertainment, and self-reflective purposes. All timings and interpretations are indicative only and guarantee no outcomes. THIS IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL, LEGAL, OR FINANCIAL ADVICE. Use is at your own risk.", W-M*2.2);
+    doc.text(disc, W/2, H/2+58, { align:"center", lineHeightFactor:1.5 });
 
     const newPage = () => { doc.addPage(); y = M; doc.setTextColor(...INK); };
-    const heading = (txt) => { doc.setFontSize(9); doc.setTextColor(...GOLD);
+    const heading = (txt) => { doc.setFontSize(11); doc.setTextColor(...GOLD);
       doc.text(txt.toUpperCase(), M, y); y += 6;
       doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 20; };
 
@@ -1015,10 +1020,10 @@
         if (y + need + 40 > H - M) newPage();
         doc.setFillColor(...NAVY); doc.rect(M, y, W-M*2, 30, "F");
         doc.setTextColor(...GOLD); doc.setFontSize(10); doc.text(cat.toUpperCase(), M+12, y+20); y += 46; }
-      doc.setTextColor(...INK); doc.setFontSize(14); doc.text(sec.heading, M, y); y += 20;
+      doc.setTextColor(...INK); doc.setFontSize(15); doc.text(sec.heading, M, y); y += 22;
       doc.setFontSize(9); doc.setTextColor(...GOLD);
       doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-      doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(body, M, y, { align:"justify", maxWidth:W-M*2 }); y += body.length*14 + 6;
+      doc.setFontSize(11); doc.setTextColor(...INK); doc.text(body, M, y, { align:"justify", maxWidth:W-M*2, lineHeightFactor:1.5 }); y += body.length*15 + 8;
       if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
         doc.setFontSize(9.5); doc.setTextColor(...GOLD);
         doc.text(win.label + ": " + fmtWin(win), M, y); y += 22; }
