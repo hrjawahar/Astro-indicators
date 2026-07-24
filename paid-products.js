@@ -91,7 +91,7 @@
     const place = f.place || (document.getElementById("inputPlaceDisplay")||{}).value || "";
     if (!dob) return;
     const html = `<span class="pp-seal">◈</span><span>This reading is calculated from <b>your</b> birth details —
-      <b>${esc(fmtDOB(dob, tob))}</b>${place ? `, <b>${esc(place)}</b>` : ""} — not from your sun sign.
+      <b>${esc(fmtDOB(dob, tob))}</b>${place ? `, <b>${esc(place)}</b>` : ""}.
       <span class="pp-engine">Every verdict and date below is computed from your chart's own planetary positions
       (Swiss Ephemeris · Lahiri ayanamsa). Change any birth detail and the results change with it.</span></span>`;
     ["liPersonal","iccPersonal"].forEach(id => { const el = $(id); if (el) el.innerHTML = html; });
@@ -200,7 +200,8 @@
       <div class="seal">◈</div>
       <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
       <div class="kick" style="color:var(--ai-gold)">Life Indicators Report</div>
-      <h1>The Book of<br>Your Life Indications</h1>
+      <h1>Life Analysis &amp;<br>Mapping Profile</h1>
+      <div class="cover-sub">LAMP · Your personalized blueprint for conscious self-reflection</div>
       <div class="who">${name}</div>
       <div class="disclaim"><b>Please read:</b> These indications support reflection and planning.
       They are <b>not a substitute for professional advice</b> — medical, legal, financial, or
@@ -305,6 +306,15 @@
       <div class="closing">If it served you, please share it with those you care about. And if our
       work was useful, we'd value a short review — the <b>Leave a Review</b> button is on the
       Birth Details page.</div>
+      <div class="fb-share">
+        <div class="fb-share-label">Share AstroIndicators</div>
+        <div class="fb-share-icons">
+          <a href="https://wa.me/?text=${encodeURIComponent("I just discovered my LAMP report on AstroIndicators — a genuinely thoughtful astrology reading. https://astroindicators.com")}" target="_blank" rel="noopener" title="WhatsApp">✆</a>
+          <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://astroindicators.com")}" target="_blank" rel="noopener" title="Facebook">f</a>
+          <a href="https://twitter.com/intent/tweet?text=${encodeURIComponent("My LAMP report on AstroIndicators was worth reading.")}&url=${encodeURIComponent("https://astroindicators.com")}" target="_blank" rel="noopener" title="X">𝕏</a>
+          <a href="https://t.me/share/url?url=${encodeURIComponent("https://astroindicators.com")}&text=${encodeURIComponent("My LAMP report on AstroIndicators")}" target="_blank" rel="noopener" title="Telegram">✈</a>
+        </div>
+      </div>
       <div class="final-signoff"><div class="who">Best wishes,</div>
       <div class="logo">Team Astro<span>Indicators</span></div></div></div></div>`);
 
@@ -606,8 +616,11 @@
       const h = ((signIdx - li + 12) % 12) + 1;      // house number from the lagna
       const x = c * C, y = r * C;
       out += `<rect x="${x}" y="${y}" width="${C}" height="${C}" fill="${h===1?"rgba(201,164,76,.22)":"none"}" stroke="#8A6E2F" stroke-width=".7"/>`;
-      out += `<text x="${x+4}" y="${y+11}" font-size="8" fill="#8A6E2F">${SIGN_ABBR[signIdx]}</text>`;
-      out += `<text x="${x+C-4}" y="${y+C-5}" font-size="9.5" font-weight="700" fill="${h===1?"#8A6E2F":"#B09A63"}" text-anchor="end">${h}</text>`;
+      const lord = SIGN_LORD[SIGNS_FULL[signIdx]] || "";
+      const lordAb = P_ABBR[lord] || "";
+      out += `<text x="${x+4}" y="${y+11}" font-size="8.5" font-weight="600" fill="#5A4410">${SIGN_ABBR[signIdx]}</text>`;
+      out += `<text x="${x+4}" y="${y+C-5}" font-size="7.5" fill="#7A5E1E">${lordAb}</text>`;
+      out += `<text x="${x+C-4}" y="${y+C-5}" font-size="10" font-weight="700" fill="${h===1?"#5A4410":"#8A6E2F"}" text-anchor="end">${h}</text>`;
       if (h === 1) out += `<text x="${x+C-4}" y="${y+11}" font-size="8" fill="#8A6E2F" text-anchor="end">Asc</text>`;
       const occ = (houses && (houses[h] || houses[String(h)])) || [];
       occ.forEach((pl, i) => {
@@ -805,7 +818,7 @@
         doc.setFontSize(13); doc.setTextColor(...INK); doc.text(q, M, y); y += q.length*16 + 6;
         doc.setFontSize(9); doc.setTextColor(...GOLD);
         doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-        doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(body, M, y); y += body.length*14 + 6;
+        doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(body, M, y, { align:"justify", maxWidth:W-M*2 }); y += body.length*14 + 6;
         if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
           doc.setFontSize(9.5); doc.setTextColor(...GOLD);
           doc.text(win.label + ": " + fmtWin(win), M, y); y += 20; }
@@ -1005,7 +1018,7 @@
       doc.setTextColor(...INK); doc.setFontSize(14); doc.text(sec.heading, M, y); y += 20;
       doc.setFontSize(9); doc.setTextColor(...GOLD);
       doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-      doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(body, M, y); y += body.length*14 + 6;
+      doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(body, M, y, { align:"justify", maxWidth:W-M*2 }); y += body.length*14 + 6;
       if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
         doc.setFontSize(9.5); doc.setTextColor(...GOLD);
         doc.text(win.label + ": " + fmtWin(win), M, y); y += 22; }
@@ -1061,11 +1074,27 @@
   // ── pre-checkout gate: mandatory email + no-refund confirm (mirrors ui-v4) ──
   // Email is MANDATORY for the invoice. Read from the birth form; if empty or
   // invalid, BLOCK payment, go to the Birth Data tab, cue the field, and explain.
-  function requireEmail() {
+  function requireEmail(resumeItem, resumeAmount, resumeLabel, resumeRun) {
     var email = "";
     try { email = (document.getElementById("inputEmail") || {}).value || ""; } catch (e) {}
     email = email.trim();
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return email;
+    // arrange a one-shot return to the paid tab + payment once a valid email is typed
+    if (resumeItem) {
+      var ef2 = document.getElementById("inputEmail");
+      if (ef2) {
+        var resume = function () {
+          var v = (ef2.value || "").trim();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return;
+          ef2.removeEventListener("blur", resume); ef2.removeEventListener("change", resume);
+          var backTab = resumeItem === "icc" ? "iccTab" : "lifeIndTab";
+          document.querySelector('.nav-tab[data-tab="'+backTab+'"]')?.click();
+          setTimeout(function(){ payThenRun(resumeItem, resumeAmount, resumeLabel, resumeRun); }, 200);
+        };
+        ef2.addEventListener("blur", resume);
+        ef2.addEventListener("change", resume);
+      }
+    }
     var ef = document.getElementById("inputEmail");
     try {
       if (window.goToTab) window.goToTab("inputTab");
@@ -1102,12 +1131,12 @@
     let owner=false; try{ owner = (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583"); }catch(e){}
     if (owner) { (window.AI_unlocked=window.AI_unlocked||{})[item]=cid; run(); return; }
 
-    const email = requireEmail();
+    const email = requireEmail(item, amount, label, run);
     if (!email) return;
     if (!window.confirm(window.t ? window.t("refund_confirm")
         : "No refund — please confirm before you proceed to payment.")) return;
 
-    window.startPayment({ item, amount, label, email, chartId: cid })
+    window.startPayment({ item, amount, label: label + " — pay once & download", email, chartId: cid })
       .then(res => {
         if (!res || !res.paymentId) { alert("Payment not completed."); return; }
         (window.AI_unlocked=window.AI_unlocked||{})[item]=cid;
