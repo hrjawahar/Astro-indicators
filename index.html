@@ -80,14 +80,16 @@
   .ai-paid-tab .tab-icon { color:var(--ai-gold); }
   .ai-gold-dot { font-size:.58rem; letter-spacing:.12em; color:var(--ai-navy); background:var(--ai-gold); border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; }
   .pp-sub { max-width:640px; }
+  .pp-full { font-size:.62em; color:var(--ai-gold); font-weight:500; }
+  .pp-legal { font-size:.72rem; letter-spacing:.04em; color:#B08A3C; font-weight:600; max-width:680px; margin-top:8px; text-transform:uppercase; line-height:1.5; }
   .pp-personal { display:flex; align-items:flex-start; gap:10px; max-width:680px; margin:14px 0 18px; padding:11px 14px;
     background:rgba(201,164,76,.07); border:1px solid rgba(201,164,76,.35); border-left:3px solid var(--ai-gold);
     border-radius:9px; font-size:.88rem; line-height:1.5; color:var(--ai-gold-soft); }
   .pp-personal .pp-seal { color:var(--ai-gold); font-size:1rem; line-height:1.4; }
   .pp-personal b { color:#fff; font-weight:600; }
   .pp-personal .pp-engine { display:block; margin-top:3px; opacity:.72; font-size:.8rem; }
-  .pp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin:16px 0; }
-  .pp-card { background:linear-gradient(170deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-ink); border:1px solid rgba(201,164,76,.45); border-radius:14px; padding:16px 18px; }
+  .pp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin:14px 0; }
+  .pp-card { background:linear-gradient(170deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-ink); border:1px solid rgba(201,164,76,.45); border-radius:12px; padding:14px 16px; font-size:.92rem; }
   .pp-band { display:inline-block; font-size:.66rem; letter-spacing:.14em; font-weight:700; padding:3px 10px; border-radius:9px; background:var(--ai-gold); color:var(--ai-navy); margin-bottom:8px; }
   .pp-band-low { opacity:.75 } .pp-band-severe { background:#E8B84C; }
   .pp-q { font-weight:600; margin-bottom:6px; color:var(--ai-gold-soft); }
@@ -100,6 +102,7 @@
   .pp-pay:disabled { opacity:.55; cursor:default; }
   .pp-pay.ghost { background:transparent; color:var(--ai-gold); border:1px solid var(--ai-gold); }
   .pp-guar { font-size:.8rem; color:#777; }
+  .pp-price { font-size:.95rem; color:#ddd; } .pp-price s { color:#888; } .pp-price b { color:var(--ai-gold); font-size:1.1rem; } .pp-price em { font-size:.72rem; color:#B08A3C; font-style:normal; letter-spacing:.06em; text-transform:uppercase; }
   .pp-empty { padding:22px; color:#777; font-style:italic; }
   .icc-list { display:flex; flex-direction:column; gap:10px; margin:14px 0; max-width:720px; }
   .icc-pick { display:flex; gap:12px; align-items:flex-start; background:linear-gradient(170deg,var(--ai-navy),var(--ai-navy-2)); border:1px solid rgba(201,164,76,.30); border-radius:12px; padding:14px 16px; cursor:pointer; transition:border-color .15s, box-shadow .15s; }
@@ -110,7 +113,7 @@
   .icc-q { line-height:1.45; color:var(--ai-ink); font-size:1rem; font-weight:600; }
   .icc-hint { display:block; font-size:.84rem; color:var(--ai-gold-soft); opacity:.78; font-style:italic; font-weight:400; margin-top:4px; line-height:1.45; }
   .pp-sub { color:var(--ai-gold-soft); opacity:.85; }
-  .pp-head h2 { color:var(--ai-gold-soft); }
+  .pp-head h2 { color:var(--ai-gold-soft); font-size:1.35rem; }
   .icc-answer { max-width:720px; margin-bottom:14px; }
   .icc-setlabel { font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--ai-gold); margin:18px 0 8px; }
   .icc-nar { line-height:1.6; margin:8px 0; }
@@ -120,7 +123,7 @@
   /* ── flipbook: cream pages + 3D leaf-turn (POC) ── */
   :root { --ai-cream:#FFF0BE; --ai-cream2:#FCE49C; --ai-pink:#0F1428; }
   .stage { width:100%; display:flex; justify-content:center; }
-  .book { position:relative; width:min(430px,94vw); height:min(602px,132vw); perspective:2400px;
+  .book { position:relative; width:min(400px,92vw); height:min(560px,128vw); perspective:2400px;
     filter:drop-shadow(0 24px 40px rgba(0,0,0,.55)); }
   .page, .leaf { position:absolute; inset:0; border-radius:4px 10px 10px 4px; overflow:hidden; }
   .page { background:var(--ai-cream); }
@@ -133,11 +136,11 @@
   .pg { position:absolute; inset:0; padding:26px 26px 40px; display:flex; flex-direction:column;
     background:linear-gradient(168deg,#FFFAE0,var(--ai-cream) 42%,var(--ai-cream2)); color:#23252E; font-size:.95rem;
     background-image:linear-gradient(90deg,rgba(0,0,0,.10),rgba(0,0,0,0) 6%,rgba(0,0,0,0) 94%,rgba(0,0,0,.05)); }
-  .pg h1 { font-size:1.85rem; line-height:1.2; margin:8px 0 14px; color:var(--ai-gold-soft); font-weight:800; }
-  .pg h2 { font-size:1.15rem; margin:4px 0 9px; flex:0 0 auto; color:#5A4410; font-weight:800; line-height:1.3; }
+  .pg h1 { font-size:1.6rem; line-height:1.2; margin:8px 0 14px; color:var(--ai-gold-soft); font-weight:800; }
+  .pg h2 { font-size:1.08rem; margin:4px 0 9px; flex:0 0 auto; color:#5A4410; font-weight:800; line-height:1.3; }
   .pg .kick { font-size:.64rem; letter-spacing:.2em; text-transform:uppercase; color:#5A4410; font-weight:700; }
   .pg .rule { height:1px; background:linear-gradient(90deg,var(--ai-gold),rgba(201,164,76,0)); margin:10px 0 14px; }
-  .pg .bd { line-height:1.68; font-size:.9rem; color:#2B2E3A; flex:1 1 auto; min-height:0;
+  .pg .bd { line-height:1.62; font-size:.85rem; color:#2B2E3A; flex:1 1 auto; min-height:0;
     overflow-y:auto; overscroll-behavior:contain; padding-right:2px; }
   .pg .bd::-webkit-scrollbar { width:4px; }
   .pg .bd::-webkit-scrollbar-thumb { background:rgba(138,110,47,.35); border-radius:4px; }
@@ -230,9 +233,23 @@
   #liBook.fb-fs { background:radial-gradient(circle at 50% 30%, #141B33, #05060C);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     padding:2vh 0; overflow:auto; }
-  #liBook.fb-fs .book { width:min(70vh,94vw); height:min(98vh,132vw); }
+  #liBook.fb-fs .book { width:min(64vh,96vw); height:min(94vh,128vw); }
+  #liBook.fb-fs .pg { padding:40px 44px 54px; font-size:1.05rem; }
+  #liBook.fb-fs .pg h1 { font-size:2.4rem; } #liBook.fb-fs .pg h2 { font-size:1.5rem; }
+  #liBook.fb-fs .pg .bd { font-size:1.08rem; line-height:1.8; }
+  #liBook.fb-fs .pg .chart-note { font-size:1rem; }
+  #liBook.fb-fs .fbchart-svg { max-width:360px; }
   #liBook.fb-fs .fb-dlbar { display:none; }
   #liBook.fb-fs .hint { color:#9a9; }
+  .fb-share { margin-top:20px; text-align:center; }
+  .fb-share-label { font-size:.66rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ai-gold); margin-bottom:8px; }
+  .fb-share-icons { display:flex; gap:12px; justify-content:center; }
+  .fb-share-icons a { width:34px; height:34px; line-height:34px; border-radius:50%; text-decoration:none;
+    background:var(--ai-gold); color:var(--ai-navy); font-weight:700; font-size:1rem; display:inline-block; }
+  .fb-share-icons a:hover { opacity:.85; }
+  .ai-soon { font-size:.55rem; letter-spacing:.1em; color:#0B0E1A; background:#B39A5E; border-radius:8px; padding:1px 6px; margin-left:5px; font-weight:700; }
+  .coming-soon-banner { margin:14px 0 18px; padding:14px 18px; border:1px solid rgba(201,164,76,.5);
+    border-radius:10px; background:rgba(201,164,76,.08); color:var(--ai-gold-soft); font-size:.95rem; }
   .controls { display:flex; justify-content:center; gap:14px; align-items:center; margin:16px 0 6px; }
   .dots { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:60%; }
   .dots .dot { width:7px; height:7px; border-radius:50%; background:rgba(201,164,76,.32); cursor:pointer; }
@@ -246,6 +263,31 @@
   </style>
 </head>
 <body>
+
+  <!-- ── ONBOARDING CLICK-WRAP (first-open consent) ── -->
+  <div id="onboardGate" class="onboard-gate" role="dialog" aria-modal="true" aria-labelledby="obTitle">
+    <div class="onboard-card">
+      <div class="onboard-seal">◈</div>
+      <div class="onboard-kick">Welcome &amp; Setup</div>
+      <h2 id="obTitle" class="onboard-title">Important Disclaimer</h2>
+      <p class="onboard-lead">Before we calculate your birth chart, please read and accept our terms of use.</p>
+      <div class="onboard-body">
+        <p>This application provides astrological analysis using the Swiss Ephemeris (Lahiri Ayanamsa)
+        strictly for educational, entertainment, and self-reflective purposes. All interpretations and
+        timings are <b>indicative only and guarantee no outcomes</b>.</p>
+        <p class="onboard-caps">THIS CONTENT IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL,
+        LEGAL, OR FINANCIAL ADVICE.</p>
+        <p>Do not use these insights as the sole basis for critical life decisions. Reports are generated
+        for a one-time fee and are final. By proceeding, you agree that you use this app at your own risk
+        and that the developers assume no liability for actions taken based on this data.</p>
+      </div>
+      <label class="onboard-check">
+        <input type="checkbox" id="onboardAgree">
+        <span>I have read, understood, and accept the Disclaimer and Terms of Use.</span>
+      </label>
+      <button id="onboardContinue" class="onboard-btn" disabled>Continue to report</button>
+    </div>
+  </div>
 
   <!-- ── TOPBAR ─────────────────────────────────────────────────────────── -->
   <header class="topbar">
@@ -309,11 +351,11 @@
     <button class="nav-tab ai-owner-only" data-tab="summaryTab" data-requires="analysis">
       <span class="tab-icon" aria-hidden="true">◎</span> <span data-i18n="nav_summary">Summary</span>
     </button>
-    <button class="nav-tab ai-paid-tab" data-tab="lifeIndTab" data-requires="chart">
+    <button class="nav-tab ai-paid-tab" data-tab="lifeIndTab" data-requires="chart" title="Unlock your personalized LAMP (Life Analysis and Mapping Profile) report instantly. This comprehensive download maps your chart&#39;s unique meaning for deeper self-reflection.">
       <span class="tab-icon" aria-hidden="true">❖</span> <span>Life Indicators Report</span> <span class="ai-gold-dot">PAID</span>
     </button>
     <button class="nav-tab ai-paid-tab" data-tab="iccTab" data-requires="chart">
-      <span class="tab-icon" aria-hidden="true">✦</span> <span>Instant Clarity</span> <span class="ai-gold-dot">PAID</span>
+      <span class="tab-icon" aria-hidden="true">✦</span> <span>Instant Clarity Command</span> <span class="ai-gold-dot">PAID</span>
     </button>
     <button class="nav-tab" data-tab="planetsTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">⊕</span> <span data-i18n="nav_planets">Planets</span>
@@ -322,7 +364,7 @@
       <span class="tab-icon" aria-hidden="true">▤</span> <span data-i18n="nav_references">References</span>
     </button>
     <button class="nav-tab" data-tab="consultTab">
-      <span class="tab-icon" aria-hidden="true">☏</span> <span data-i18n="nav_consult">Personal Consultation</span>
+      <span class="tab-icon" aria-hidden="true">☏</span> <span data-i18n="nav_consult">Personal Consultation</span> <span class="ai-soon">SOON</span>
     </button>
     <button class="nav-tab" data-tab="contactTab">
       <span class="tab-icon" aria-hidden="true">✉</span> <span data-i18n="nav_contact">Contact Us</span>
@@ -347,7 +389,7 @@
           <div class="card">
             <h3 class="card-title" data-i18n="form_birth_title">Birth Details</h3>
             <div class="form-group">
-              <label><span data-i18n="form_name">Full name</span> <span class="form-hint" data-i18n="form_name_hint">(appears in report)</span></label>
+              <label><span data-i18n="form_name">Full name</span></label>
               <input id="inputName" type="text" data-i18n-ph="form_name_ph" placeholder="e.g. Ravi Kumar"/>
               <label style="margin-top:8px"><span>Calling name</span> <span class="form-hint">(preferred; used to address you in the report)</span></label>
               <input id="inputCallName" type="text" placeholder="e.g. Ravi"/>
@@ -363,9 +405,9 @@
             <div class="form-group">
               <label><span>Gender</span> <span class="form-hint">(used for classical spouse-significator rules)</span></label>
               <select id="inputGender">
-                <option value="unspecified">Prefer not to say</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
+                <option value="unspecified" selected>Prefer not to say</option>
               </select>
             </div>
             <div class="form-group">
@@ -584,17 +626,20 @@
 
     <!-- ── SCREEN 6: PLANET DETAILS ─────────────────────────────────── -->
     <section id="lifeIndTab" class="screen">
-      <div class="pp-head"><h2>Life Indicators Report</h2>
-        <p class="pp-sub">Your complete timing book — every life area, its verdict, its window, and what to do about it. Built once from your chart, yours forever.</p>
+      <div class="pp-head"><h2>LAMP Report <span class="pp-full">· Life Analysis &amp; Mapping Profile</span></h2>
+        <p class="pp-sub">Your personalized blueprint for conscious self-reflection — every life area, its indication, its window, and what to do about it. Built once from your chart, yours forever.</p>
+        <p class="pp-legal">The LAMP report is not a substitute for professional medical, psychological, legal, or financial advice.</p>
         <div id="liPersonal" class="pp-personal"></div></div>
       <div id="liTeasers" class="pp-grid"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
-      <div class="pp-paybar"><button id="liPayBtn" class="pp-pay">Unlock the full report</button>
+      <div class="pp-paybar"><button id="liPayBtn" class="pp-pay">Discover Your Cosmic Blueprint</button>
+        <span class="pp-price"><s>₹2,499</s> <b>₹999</b> <em>launch price</em></span>
         <span class="pp-guar">One-time · re-open free forever on this chart</span></div>
       <div id="liBook"></div>
     </section>
     <section id="iccTab" class="screen">
-      <div class="pp-head"><h2>Instant Clarity Command</h2>
+      <div class="pp-head"><h2>Instant Clarity Command <span class="pp-full">· ICC</span></h2>
         <p class="pp-sub">Ten burning questions. Pick any three. Get direct, dated answers with a confidence score.</p>
+        <p class="pp-legal">The ICC answers are not a substitute for professional medical, psychological, legal, or financial advice.</p>
         <div id="iccPersonal" class="pp-personal"></div></div>
       <div id="iccPickerWrap"><div id="iccPicker" class="icc-list"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
       <div class="pp-paybar"><button id="iccPayBtn" class="pp-pay" disabled>Pick 3 questions</button></div></div>
@@ -678,6 +723,7 @@
 
     <!-- ── SCREEN 8: PERSONAL CONSULTATION ──────────────────────────── -->
     <section id="consultTab" class="screen">
+      <div class="coming-soon-banner">Personal Consultation — <b>Coming soon</b>. We're putting this together with care; check back shortly.</div>
       <div class="screen-inner">
 
         <div class="card intro-card">
@@ -832,7 +878,7 @@
   <footer class="app-footer">
     <div class="footer-disclaimer">
       <strong data-i18n="footer_disclaimer_label">Disclaimer:</strong>
-      <span data-i18n="footer_disclaimer">This application provides astrological analysis for educational and self-reflective purposes only. It is not a substitute for medical, psychological, legal, or financial advice. All interpretations are indicative in nature and should not be used as the sole basis for critical life decisions.</span>
+      <span data-i18n="footer_disclaimer">This app provides astrological analysis (Swiss Ephemeris / Lahiri Ayanamsa) strictly for educational, entertainment, and self-reflective purposes. All timings and interpretations are indicative only and guarantee no outcomes. THIS IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL, LEGAL, OR FINANCIAL ADVICE. BY USING THIS APP, YOU AGREE THAT ALL CONTENT IS PROVIDED "AS IS" AND YOUR USE IS AT YOUR OWN RISK. THE DEVELOPERS EXPLICITLY DISCLAIM ALL WARRANTIES AND ASSUME NO LIABILITY OR RESPONSIBILITY FOR ANY LOSS, DAMAGE, OR ACTIONS TAKEN BASED ON THIS DATA.</span>
     </div>
     <div class="footer-copy" data-i18n="footer_copy">
       © 2026 AstroIndicators · Swiss Ephemeris · Lahiri Ayanamsha · Whole Sign Houses · Parashari Jyotish · All rights reserved.
@@ -869,5 +915,45 @@
 
   <!-- Original engine -->
   <script src="app.js" defer></script>
+
+  <style>
+  .onboard-gate { position:fixed; inset:0; z-index:99999; background:rgba(5,6,12,.92);
+    display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(3px); }
+  .onboard-gate.hidden { display:none; }
+  .onboard-card { max-width:520px; width:100%; max-height:92vh; overflow-y:auto;
+    background:linear-gradient(168deg,#141B33,#0B0E1A); border:1px solid rgba(201,164,76,.5);
+    border-radius:16px; padding:28px 30px; color:#EDEBE4; box-shadow:0 24px 60px rgba(0,0,0,.6); }
+  .onboard-seal { text-align:center; font-size:1.8rem; color:#C9A44C; }
+  .onboard-kick { text-align:center; font-size:.66rem; letter-spacing:.22em; text-transform:uppercase; color:#C9A44C; margin-top:4px; }
+  .onboard-title { text-align:center; font-size:1.5rem; color:#E8D9AE; margin:6px 0 4px; }
+  .onboard-lead { text-align:center; font-size:.9rem; color:rgba(237,235,228,.85); margin-bottom:16px; }
+  .onboard-body { font-size:.85rem; line-height:1.62; color:rgba(237,235,228,.9); max-height:34vh;
+    overflow-y:auto; padding:14px 16px; background:rgba(0,0,0,.25); border-radius:9px;
+    border:1px solid rgba(201,164,76,.2); }
+  .onboard-body p { margin:0 0 10px; } .onboard-body p:last-child { margin-bottom:0; }
+  .onboard-caps { color:#E8D9AE; font-weight:700; }
+  .onboard-check { display:flex; gap:11px; align-items:flex-start; margin:18px 0; cursor:pointer; font-size:.88rem; }
+  .onboard-check input { margin-top:3px; width:18px; height:18px; accent-color:#C9A44C; flex:0 0 auto; cursor:pointer; }
+  .onboard-btn { width:100%; padding:13px; border:0; border-radius:10px; background:#C9A44C; color:#0B0E1A;
+    font-weight:700; font-size:1rem; cursor:pointer; transition:opacity .15s; }
+  .onboard-btn:disabled { opacity:.4; cursor:not-allowed; }
+  </style>
+  <script>
+  (function () {
+    var gate = document.getElementById("onboardGate");
+    var box = document.getElementById("onboardAgree");
+    var btn = document.getElementById("onboardContinue");
+    if (!gate) return;
+    try { if (sessionStorage.getItem("ai_disclaimer_ok") === "1") { gate.classList.add("hidden"); return; } } catch (e) {}
+    if (box && btn) {
+      box.addEventListener("change", function () { btn.disabled = !box.checked; });
+      btn.addEventListener("click", function () {
+        if (!box.checked) return;
+        try { sessionStorage.setItem("ai_disclaimer_ok", "1"); } catch (e) {}
+        gate.classList.add("hidden");
+      });
+    }
+  })();
+  </script>
 </body>
 </html>
