@@ -254,8 +254,8 @@
   .dots { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:60%; }
   .dots .dot { width:7px; height:7px; border-radius:50%; background:rgba(201,164,76,.32); cursor:pointer; }
   .dots .dot.on { background:var(--ai-gold); transform:scale(1.25); }
-  .fb-dlbar { display:flex; justify-content:center; margin:0 0 30px; }
-  .fb-dlbar button { margin-right:calc(50% - min(215px,47vw)); transform:translateX(50%); }
+  .fb-dlbar { display:flex; justify-content:center; gap:14px; margin:14px 0 30px; flex-wrap:wrap; }
+  
   .hint { text-align:center; font-size:.76rem; color:#7c7c7c; margin-bottom:26px; }
   .fb-nav { background:var(--ai-navy); color:var(--ai-gold-soft); border:1px solid var(--ai-gold);
     border-radius:9px; padding:6px 16px; cursor:pointer; font-size:1.1rem; line-height:1.4; }
@@ -391,7 +391,7 @@
             <div class="form-group">
               <label><span data-i18n="form_name">Full name</span></label>
               <input id="inputName" type="text" data-i18n-ph="form_name_ph" placeholder="e.g. Ravi Kumar"/>
-              <label style="margin-top:8px"><span>Calling name</span> <span class="form-hint">(preferred; used to address you in the report)</span></label>
+              <label style="margin-top:8px"><span>Calling name</span> <span class="form-hint">(optional)</span></label>
               <input id="inputCallName" type="text" placeholder="e.g. Ravi"/>
             </div>
             <div class="form-group">
@@ -407,7 +407,7 @@
               <select id="inputGender">
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-                <option value="unspecified" selected>Prefer not to say</option>
+                <option value="unspecified">Prefer not to say</option>
               </select>
             </div>
             <div class="form-group">
@@ -722,84 +722,17 @@
     </section>
 
     <!-- ── SCREEN 8: PERSONAL CONSULTATION ──────────────────────────── -->
+    <!-- ── SCREEN 8: PERSONAL CONSULTATION (coming soon) ──────────── -->
     <section id="consultTab" class="screen">
-      <div class="coming-soon-banner">Personal Consultation — <b>Coming soon</b>. We're putting this together with care; check back shortly.</div>
       <div class="screen-inner">
-
-        <div class="card intro-card">
-          <h2 class="intro-title" data-i18n="consult_title">Personal Consultation</h2>
-          <p class="intro-body" data-i18n="consult_intro">Book a one-on-one audio consultation. You will receive a call within 24 hours of payment.</p>
+        <div class="card intro-card" style="text-align:center; padding:44px 28px;">
+          <div style="font-size:2rem; color:var(--ai-gold);">☏</div>
+          <h2 class="intro-title" style="margin-top:10px;">Personal Consultation</h2>
+          <p style="font-size:1.15rem; color:var(--ai-gold); font-weight:600; margin:10px 0;">Coming soon</p>
+          <p class="intro-body" style="max-width:520px; margin:0 auto;">We're putting together one-on-one
+          audio consultations with real care. Please check back shortly — in the meantime, your LAMP and
+          Instant Clarity Command reports are ready whenever you are.</p>
         </div>
-
-        <!-- Consultant profile -->
-        <div class="card consultant-card">
-          <h3 class="card-title" data-i18n="consult_about">About the Consultant</h3>
-          <div class="consultant-profile">
-            <div class="consultant-photo">
-              <img id="consultantPhoto" src="consultant.jpg" alt="Consultant"
-                   onerror="this.style.display='none';this.parentNode.classList.add('no-photo');this.parentNode.setAttribute('data-initials','★');"/>
-            </div>
-            <div class="consultant-info">
-              <div class="consultant-name" id="consultantName">[ Consultant name ]</div>
-              <div class="consultant-title" id="consultantTitle">[ Credentials / title ]</div>
-              <div class="consultant-bio" id="consultantBio">[ Short bio — to be provided ]</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Booking form -->
-        <div class="card">
-          <h3 class="card-title" data-i18n="consult_book_title">Book Your Consultation</h3>
-
-          <div class="form-group">
-            <label data-i18n="consult_select_type">Select consultation type</label>
-            <div class="consult-types" id="consultTypes">
-              <!-- Filled by inline script from CONSULT_TYPES config -->
-            </div>
-          </div>
-
-          <div class="grid-2col">
-            <div class="form-group">
-              <label data-i18n="consult_your_name">Your name</label>
-              <input id="consultName" type="text"/>
-            </div>
-            <div class="form-group">
-              <label><span data-i18n="form_email">Email</span> <span class="form-hint" data-i18n="form_email_hint">(required for sending invoice)</span></label>
-              <input id="consultEmail" type="email" placeholder="you@example.com"/>
-            </div>
-            <div class="form-group">
-              <label data-i18n="consult_your_phone">Your mobile number</label>
-              <input id="consultPhone" type="tel" data-i18n-ph="consult_your_phone_ph" placeholder="Include country code, e.g. +91..."/>
-            </div>
-          </div>
-
-          <div class="grid-2col">
-            <div class="form-group">
-              <label data-i18n="consult_your_dob">Your date of birth</label>
-              <input id="consultDOB" type="date"/>
-            </div>
-            <div class="form-group">
-              <label data-i18n="consult_select_date">Preferred date</label>
-              <input id="consultDate" type="date"/>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label data-i18n="consult_query">Your question (optional)</label>
-            <textarea id="consultQuery" rows="3" data-i18n-ph="consult_query_ph" placeholder="Briefly describe what you'd like guidance on..."></textarea>
-          </div>
-
-          <div class="generate-row">
-            <button id="consultPayBtn" class="btn-primary" data-i18n="consult_pay">Pay &amp; Book Consultation</button>
-            <div id="consultStatus" class="status-msg"></div>
-          </div>
-          <div class="no-refund-note" data-i18n="no_refund_note">All payments are final. No refunds once the consultation is booked or the report is generated.</div>
-
-          <div id="consultConfirmed" class="consult-confirmed hidden" data-i18n="consult_confirmed">
-            Your consultation is booked. You will receive a call within 24 hours on the mobile number provided.
-          </div>
-        </div>
-
       </div>
     </section>
 
