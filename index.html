@@ -250,6 +250,12 @@
   .ai-soon { font-size:.55rem; letter-spacing:.1em; color:#0B0E1A; background:#B39A5E; border-radius:8px; padding:1px 6px; margin-left:5px; font-weight:700; }
   .coming-soon-banner { margin:14px 0 18px; padding:14px 18px; border:1px solid rgba(201,164,76,.5);
     border-radius:10px; background:rgba(201,164,76,.08); color:var(--ai-gold-soft); font-size:.95rem; }
+  /* ensure all six language buttons are visible and wrap on narrow screens */
+  .lang-selector { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .lang-btns { display:flex; flex-wrap:wrap; gap:6px; }
+  .lang-btns .lang-btn { flex:0 0 auto; padding:5px 12px; border-radius:8px; border:1px solid rgba(201,164,76,.5);
+    background:transparent; color:var(--ai-gold-soft,#E8D9AE); cursor:pointer; font-size:.85rem; white-space:nowrap; }
+  .lang-btns .lang-btn.active { background:var(--ai-gold,#C9A44C); color:var(--ai-navy,#0B0E1A); font-weight:700; }
   .controls { display:flex; justify-content:center; gap:14px; align-items:center; margin:16px 0 6px; }
   .dots { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:60%; }
   .dots .dot { width:7px; height:7px; border-radius:50%; background:rgba(201,164,76,.32); cursor:pointer; }
