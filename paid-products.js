@@ -309,11 +309,11 @@
       <div class="fb-share">
         <div class="fb-share-label">Share AstroIndicators</div>
         <div class="fb-share-icons">
-          <a href="https://wa.me/?text=${encodeURIComponent("I just discovered my LAMP report on AstroIndicators — a genuinely thoughtful astrology reading. https://astroindicators.com")}" target="_blank" rel="noopener" title="WhatsApp">✆</a>
-          <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://astroindicators.com")}" target="_blank" rel="noopener" title="Facebook">f</a>
-          <a href="https://twitter.com/intent/tweet?text=${encodeURIComponent("My LAMP report on AstroIndicators was worth reading.")}&url=${encodeURIComponent("https://astroindicators.com")}" target="_blank" rel="noopener" title="X">𝕏</a>
-          <a href="https://t.me/share/url?url=${encodeURIComponent("https://astroindicators.com")}&text=${encodeURIComponent("My LAMP report on AstroIndicators")}" target="_blank" rel="noopener" title="Telegram">✈</a>
+          <a href="https://wa.me/?text=${encodeURIComponent("I discovered my LAMP report on AstroIndicators — a thoughtful, personalized astrology reading. Try yours: https://astroindicators.com")}" target="_blank" rel="noopener" title="Share on WhatsApp" aria-label="WhatsApp">WA</a>
+          <a href="https://twitter.com/intent/tweet?text=${encodeURIComponent("My LAMP report on AstroIndicators was genuinely worth reading.")}&url=${encodeURIComponent("https://astroindicators.com")}" target="_blank" rel="noopener" title="Share on X / Twitter" aria-label="X">X</a>
+          <a href="https://www.instagram.com/astroindicators" target="_blank" rel="noopener" title="Follow us on Instagram" aria-label="Instagram">IG</a>
         </div>
+        <div class="fb-share-note">Instagram doesn't allow prefilled web shares — the icon opens our page; screenshot a page you like to share it there.</div>
       </div>
       <div class="final-signoff"><div class="who">Best wishes,</div>
       <div class="logo">Team Astro<span>Indicators</span></div></div></div></div>`);
@@ -777,6 +777,7 @@
 
   // ── ICC PDF export ─────────────────────────────────────────────────────────
   function exportICCPDF(sets, facts) {
+    try {
     const J = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     if (!J) { alert("PDF library not loaded."); return; }
     const doc = new J({ unit:"pt", format:"a4" });
@@ -818,7 +819,7 @@
         doc.setFontSize(13); doc.setTextColor(...INK); doc.text(q, M, y); y += q.length*16 + 6;
         doc.setFontSize(9); doc.setTextColor(...GOLD);
         doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-        doc.setFontSize(11); doc.setTextColor(...INK); doc.text(body, M, y, { align:"justify", maxWidth:W-M*2, lineHeightFactor:1.5 }); y += body.length*15 + 8;
+        doc.setFontSize(11); doc.setTextColor(...INK); doc.text(body, M, y, { lineHeightFactor:1.45 }); y += body.length*16 + 8;
         if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
           doc.setFontSize(9.5); doc.setTextColor(...GOLD);
           doc.text(win.label + ": " + fmtWin(win), M, y); y += 20; }
@@ -828,11 +829,17 @@
     const total = doc.internal.getNumberOfPages();
     for (let i = 2; i <= total; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150);
       doc.text(String(i-1), W/2, H-28, { align:"center" }); }
-    doc.save("AstroIndicators_InstantClarity_" + (name||"report").replace(/[^\w-]+/g,"_") + ".pdf");
+      doc.save("AstroIndicators_InstantClarity_" + (name||"report").replace(/[^\w-]+/g,"_") + ".pdf");
+    } catch (err) {
+      console.error("ICC PDF build error:", err);
+      try { doc.save("AstroIndicators_InstantClarity.pdf"); }
+      catch (e2) { alert("Sorry — the PDF could not be generated. Please try again."); }
+    }
   }
 
   // ── PDF export (jsPDF) — mirrors the flipbook structure ────────────────────
   function exportPDF(sections, facts) {
+    try {
     const J = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     if (!J) { alert("PDF library not loaded."); return; }
     const doc = new J({ unit:"pt", format:"a4" });
@@ -862,7 +869,7 @@
     // hardened disclaimer, larger + readable
     doc.setFontSize(9); doc.setTextColor(215,215,220);
     const disc = doc.splitTextToSize("DISCLAIMER: This report provides astrological analysis (Swiss Ephemeris / Lahiri Ayanamsa) strictly for educational, entertainment, and self-reflective purposes. All timings and interpretations are indicative only and guarantee no outcomes. THIS IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL, LEGAL, OR FINANCIAL ADVICE. Use is at your own risk.", W-M*2.2);
-    doc.text(disc, W/2, H/2+58, { align:"center", lineHeightFactor:1.5 });
+    doc.text(disc, W/2, H/2+58, { align:"center" });
 
     const newPage = () => { doc.addPage(); y = M; doc.setTextColor(...INK); };
     const heading = (txt) => { doc.setFontSize(11); doc.setTextColor(...GOLD);
@@ -899,8 +906,16 @@
         const signIdx = CELLS[key];
         const h = ((signIdx - li + 12) % 12) + 1;      // house counted from the lagna
         const x = x0 + c*C, yy = y + r*C;
-        if (h === 1) { doc.setFillColor(201,164,76); doc.setGState && doc.setGState(new doc.GState({opacity:.18}));
-          doc.rect(x,yy,C,C,"F"); doc.setGState && doc.setGState(new doc.GState({opacity:1})); }
+        if (h === 1) {
+          // ascendant cell tint — GState is unavailable in the UMD build, so
+          // fall back to a light solid gold fill instead of opacity.
+          if (typeof doc.GState === "function" && doc.setGState) {
+            doc.setFillColor(201,164,76); doc.setGState(new doc.GState({opacity:.18}));
+            doc.rect(x,yy,C,C,"F"); doc.setGState(new doc.GState({opacity:1}));
+          } else {
+            doc.setFillColor(245,225,170); doc.rect(x,yy,C,C,"F");
+          }
+        }
         doc.rect(x,yy,C,C);
         doc.setFontSize(6.5); doc.setTextColor(...MUTE);
         doc.text(SG[signIdx], x+3, yy+9);
@@ -1023,7 +1038,7 @@
       doc.setTextColor(...INK); doc.setFontSize(15); doc.text(sec.heading, M, y); y += 22;
       doc.setFontSize(9); doc.setTextColor(...GOLD);
       doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-      doc.setFontSize(11); doc.setTextColor(...INK); doc.text(body, M, y, { align:"justify", maxWidth:W-M*2, lineHeightFactor:1.5 }); y += body.length*15 + 8;
+      doc.setFontSize(11); doc.setTextColor(...INK); doc.text(body, M, y, { lineHeightFactor:1.45 }); y += body.length*16 + 8;
       if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
         doc.setFontSize(9.5); doc.setTextColor(...GOLD);
         doc.text(win.label + ": " + fmtWin(win), M, y); y += 22; }
@@ -1067,7 +1082,12 @@
     const total = doc.internal.getNumberOfPages();
     for (let i = 2; i < total; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150);
       doc.text(String(i-1), W/2, H-28, { align:"center" }); }
-    doc.save("AstroIndicators_LifeIndicators_" + (name||"report").replace(/[^\w-]+/g,"_") + ".pdf");
+      doc.save("AstroIndicators_LifeIndicators_" + (name||"report").replace(/[^\w-]+/g,"_") + ".pdf");
+    } catch (err) {
+      console.error("PDF build error:", err);
+      try { doc.save("AstroIndicators_LifeIndicators.pdf"); }
+      catch (e2) { alert("Sorry — the PDF could not be generated. Please try again or use the on-screen book."); }
+    }
   }
 
   function srv(payload) {
