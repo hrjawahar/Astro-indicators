@@ -2759,7 +2759,11 @@ initLangSelector();
 // Dasa & Domain = Paid; Charts, Summary, Planets, References = Free. Both translate.
   (function addTabBadges() {
     var T = function (k, fallback) {
-      return (typeof window !== "undefined" && window.t) ? window.t(k) : fallback;
+      if (typeof window !== "undefined" && window.t) {
+        var v = window.t(k);
+        return (v && v !== k) ? v : fallback;   // ignore raw-key echo
+      }
+      return fallback;
     };
     function apply() {
       var map = {
