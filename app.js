@@ -41,6 +41,15 @@ const PLANET_NAMES = {
   ML: { Sun:"സൂ", Moon:"ചന്ദ്ര", Mars:"കുജ", Mercury:"ബുധ", Jupiter:"ഗുരു", Venus:"ശുക്", Saturn:"ശനി", Rahu:"രാ", Ketu:"കേ" },
 };
 
+// ── Sign / abbreviation / nakshatra / ascendant names per language (chart) ────
+// EN is intentionally omitted — the tx* helpers fall back to the raw English value.
+const SIGN_NAMES = {"TA":{"Aries":"மேஷம்","Taurus":"ரிஷபம்","Gemini":"மிதுனம்","Cancer":"கடகம்","Leo":"சிம்மம்","Virgo":"கன்னி","Libra":"துலாம்","Scorpio":"விருச்சிகம்","Sagittarius":"தனுசு","Capricorn":"மகரம்","Aquarius":"கும்பம்","Pisces":"மீனம்"},"TE":{"Aries":"మేషం","Taurus":"వృషభం","Gemini":"మిథునం","Cancer":"కర్కాటకం","Leo":"సింహం","Virgo":"కన్య","Libra":"తుల","Scorpio":"వృశ్చికం","Sagittarius":"ధనుస్సు","Capricorn":"మకరం","Aquarius":"కుంభం","Pisces":"మీనం"},"HI":{"Aries":"मेष","Taurus":"वृषभ","Gemini":"मिथुन","Cancer":"कर्क","Leo":"सिंह","Virgo":"कन्या","Libra":"तुला","Scorpio":"वृश्चिक","Sagittarius":"धनु","Capricorn":"मकर","Aquarius":"कुंभ","Pisces":"मीन"},"KA":{"Aries":"ಮೇಷ","Taurus":"ವೃಷಭ","Gemini":"ಮಿಥುನ","Cancer":"ಕರ್ಕಾಟಕ","Leo":"ಸಿಂಹ","Virgo":"ಕನ್ಯಾ","Libra":"ತುಲಾ","Scorpio":"ವೃಶ್ಚಿಕ","Sagittarius":"ಧನು","Capricorn":"ಮಕರ","Aquarius":"ಕುಂಭ","Pisces":"ಮೀನ"},"ML":{"Aries":"മേടം","Taurus":"ഇടവം","Gemini":"മിഥുനം","Cancer":"കർക്കടകം","Leo":"ചിങ്ങം","Virgo":"കന്നി","Libra":"തുലാം","Scorpio":"വൃശ്ചികം","Sagittarius":"ധനു","Capricorn":"മകരം","Aquarius":"കുംഭം","Pisces":"മീനം"}};
+const SIGN_ABBRS = {"TA":{"Aries":"மேஷ","Taurus":"ரிஷ","Gemini":"மிது","Cancer":"கடக","Leo":"சிம்","Virgo":"கன்","Libra":"துலா","Scorpio":"விரு","Sagittarius":"தனு","Capricorn":"மகர","Aquarius":"கும்","Pisces":"மீன"},"TE":{"Aries":"మేష","Taurus":"వృష","Gemini":"మిథు","Cancer":"కర్క","Leo":"సిం","Virgo":"కన్య","Libra":"తుల","Scorpio":"వృశ్చి","Sagittarius":"ధను","Capricorn":"మకర","Aquarius":"కుం","Pisces":"మీన"},"HI":{"Aries":"मेष","Taurus":"वृष","Gemini":"मिथु","Cancer":"कर्क","Leo":"सिं","Virgo":"कन्या","Libra":"तुला","Scorpio":"वृश्चि","Sagittarius":"धनु","Capricorn":"मकर","Aquarius":"कुं","Pisces":"मीन"},"KA":{"Aries":"ಮೇಷ","Taurus":"ವೃಷ","Gemini":"ಮಿಥು","Cancer":"ಕರ್ಕ","Leo":"ಸಿಂ","Virgo":"ಕನ್ಯಾ","Libra":"ತುಲಾ","Scorpio":"ವೃಶ್ಚಿ","Sagittarius":"ಧನು","Capricorn":"ಮಕರ","Aquarius":"ಕುಂ","Pisces":"ಮೀನ"},"ML":{"Aries":"മേട","Taurus":"ഇട","Gemini":"മിഥു","Cancer":"കർക്ക","Leo":"ചിങ്ങ","Virgo":"കന്നി","Libra":"തുലാ","Scorpio":"വൃശ്ചി","Sagittarius":"ധനു","Capricorn":"മകര","Aquarius":"കും","Pisces":"മീന"}};
+const NAK_NAMES  = {"TA":{"Ashwini":"அசுவினி","Bharani":"பரணி","Krittika":"கார்த்திகை","Rohini":"ரோகிணி","Mrigashira":"மிருகசீரிடம்","Ardra":"திருவாதிரை","Punarvasu":"புனர்பூசம்","Pushya":"பூசம்","Ashlesha":"ஆயில்யம்","Magha":"மகம்","Purva Phalguni":"பூரம்","Uttara Phalguni":"உத்திரம்","Hasta":"அஸ்தம்","Chitra":"சித்திரை","Swati":"சுவாதி","Vishakha":"விசாகம்","Anuradha":"அனுஷம்","Jyeshtha":"கேட்டை","Mula":"மூலம்","Purva Ashadha":"பூராடம்","Uttara Ashadha":"உத்திராடம்","Shravana":"திருவோணம்","Dhanishta":"அவிட்டம்","Shatabhisha":"சதயம்","Purva Bhadrapada":"பூரட்டாதி","Uttara Bhadrapada":"உத்திரட்டாதி","Revati":"ரேவதி","Mrigashirsha":"மிருகசீரிடம்","Moola":"மூலம்"},"TE":{"Ashwini":"అశ్విని","Bharani":"భరణి","Krittika":"కృత్తిక","Rohini":"రోహిణి","Mrigashira":"మృగశిర","Ardra":"ఆర్ద్ర","Punarvasu":"పునర్వసు","Pushya":"పుష్యమి","Ashlesha":"ఆశ్లేష","Magha":"మఖ","Purva Phalguni":"పుబ్బ","Uttara Phalguni":"ఉత్తర","Hasta":"హస్త","Chitra":"చిత్త","Swati":"స్వాతి","Vishakha":"విశాఖ","Anuradha":"అనూరాధ","Jyeshtha":"జ్యేష్ఠ","Mula":"మూల","Purva Ashadha":"పూర్వాషాఢ","Uttara Ashadha":"ఉత్తరాషాఢ","Shravana":"శ్రవణం","Dhanishta":"ధనిష్ఠ","Shatabhisha":"శతభిష","Purva Bhadrapada":"పూర్వాభాద్ర","Uttara Bhadrapada":"ఉత్తరాభాద్ర","Revati":"రేవతి","Mrigashirsha":"మృగశిర","Moola":"మూల"},"HI":{"Ashwini":"अश्विनी","Bharani":"भरणी","Krittika":"कृत्तिका","Rohini":"रोहिणी","Mrigashira":"मृगशिरा","Ardra":"आर्द्रा","Punarvasu":"पुनर्वसु","Pushya":"पुष्य","Ashlesha":"आश्लेषा","Magha":"मघा","Purva Phalguni":"पूर्वा फाल्गुनी","Uttara Phalguni":"उत्तरा फाल्गुनी","Hasta":"हस्त","Chitra":"चित्रा","Swati":"स्वाति","Vishakha":"विशाखा","Anuradha":"अनुराधा","Jyeshtha":"ज्येष्ठा","Mula":"मूल","Purva Ashadha":"पूर्वाषाढा","Uttara Ashadha":"उत्तराषाढा","Shravana":"श्रवण","Dhanishta":"धनिष्ठा","Shatabhisha":"शतभिषा","Purva Bhadrapada":"पूर्वाभाद्रपद","Uttara Bhadrapada":"उत्तराभाद्रपद","Revati":"रेवती","Mrigashirsha":"मृगशिरा","Moola":"मूल"},"KA":{"Ashwini":"ಅಶ್ವಿನಿ","Bharani":"ಭರಣಿ","Krittika":"ಕೃತ್ತಿಕಾ","Rohini":"ರೋಹಿಣಿ","Mrigashira":"ಮೃಗಶಿರ","Ardra":"ಆರ್ದ್ರಾ","Punarvasu":"ಪುನರ್ವಸು","Pushya":"ಪುಷ್ಯ","Ashlesha":"ಆಶ್ಲೇಷ","Magha":"ಮಘ","Purva Phalguni":"ಪೂರ್ವ ಫಲ್ಗುಣಿ","Uttara Phalguni":"ಉತ್ತರ ಫಲ್ಗುಣಿ","Hasta":"ಹಸ್ತ","Chitra":"ಚಿತ್ರಾ","Swati":"ಸ್ವಾತಿ","Vishakha":"ವಿಶಾಖಾ","Anuradha":"ಅನುರಾಧಾ","Jyeshtha":"ಜ್ಯೇಷ್ಠಾ","Mula":"ಮೂಲ","Purva Ashadha":"ಪೂರ್ವಾಷಾಢ","Uttara Ashadha":"ಉತ್ತರಾಷಾಢ","Shravana":"ಶ್ರವಣ","Dhanishta":"ಧನಿಷ್ಠ","Shatabhisha":"ಶತಭಿಷ","Purva Bhadrapada":"ಪೂರ್ವಾಭಾದ್ರ","Uttara Bhadrapada":"ಉತ್ತರಾಭಾದ್ರ","Revati":"ರೇವತಿ","Mrigashirsha":"ಮೃಗಶಿರ","Moola":"ಮೂಲ"},"ML":{"Ashwini":"അശ്വതി","Bharani":"ഭരണി","Krittika":"കാർത്തിക","Rohini":"രോഹിണി","Mrigashira":"മകയിരം","Ardra":"തിരുവാതിര","Punarvasu":"പുണർതം","Pushya":"പൂയം","Ashlesha":"ആയില്യം","Magha":"മകം","Purva Phalguni":"പൂരം","Uttara Phalguni":"ഉത്രം","Hasta":"അത്തം","Chitra":"ചിത്തിര","Swati":"ചോതി","Vishakha":"വിശാഖം","Anuradha":"അനിഴം","Jyeshtha":"തൃക്കേട്ട","Mula":"മൂലം","Purva Ashadha":"പൂരാടം","Uttara Ashadha":"ഉത്രാടം","Shravana":"തിരുവോണം","Dhanishta":"അവിട്ടം","Shatabhisha":"ചതയം","Purva Bhadrapada":"പൂരുരുട്ടാതി","Uttara Bhadrapada":"ഉത്രട്ടാതി","Revati":"രേവതി","Mrigashirsha":"മകയിരം","Moola":"മൂലം"}};
+const LAGNA_ABBR = {"EN":"ASC","TA":"லக்","TE":"లగ్న","HI":"लग्न","KA":"ಲಗ್ನ","ML":"ലഗ്നം"};
+// Active chart language (persisted), defaulting to EN.
+function _chartLang(){ try { return localStorage.getItem("jyotish-lang") || _currentLang || "EN"; } catch(e){ return (typeof _currentLang!=="undefined" && _currentLang) || "EN"; } }
+
 // Current language — persisted in localStorage
 let _currentLang = localStorage.getItem("jyotish-lang") || "EN";
 
@@ -708,11 +717,8 @@ function renderChartScreen(data) {
   // Tamil display maps for sign + nakshatra VALUES. Applied only for display when
   // Tamil is active; the underlying English values are untouched (calculations
   // and reports still use English). Falls back to the English value if unmapped.
-  const _isTA = () => { try { return localStorage.getItem("jyotish-lang") === "TA"; } catch(e){ return false; } };
-  const SIGN_TA = { Aries:"மேஷம்", Taurus:"ரிஷபம்", Gemini:"மிதுனம்", Cancer:"கடகம்", Leo:"சிம்மம்", Virgo:"கன்னி", Libra:"துலாம்", Scorpio:"விருச்சிகம்", Sagittarius:"தனுசு", Capricorn:"மகரம்", Aquarius:"கும்பம்", Pisces:"மீனம்" };
-  const NAK_TA = { Ashwini:"அசுவினி", Bharani:"பரணி", Krittika:"கார்த்திகை", Rohini:"ரோகிணி", Mrigashira:"மிருகசீரிடம்", Mrigashirsha:"மிருகசீரிடம்", Ardra:"திருவாதிரை", Punarvasu:"புனர்பூசம்", Pushya:"பூசம்", Ashlesha:"ஆயில்யம்", Magha:"மகம்", "Purva Phalguni":"பூரம்", "Uttara Phalguni":"உத்திரம்", Hasta:"அஸ்தம்", Chitra:"சித்திரை", Swati:"சுவாதி", Vishakha:"விசாகம்", Anuradha:"அனுஷம்", Jyeshtha:"கேட்டை", Mula:"மூலம்", Moola:"மூலம்", "Purva Ashadha":"பூராடம்", "Uttara Ashadha":"உத்திராடம்", Shravana:"திருவோணம்", Dhanishta:"அவிட்டம்", Shatabhisha:"சதயம்", "Purva Bhadrapada":"பூரட்டாதி", "Uttara Bhadrapada":"உத்திரட்டாதி", Revati:"ரேவதி" };
-  const txSign = (s) => (_isTA() && SIGN_TA[s]) ? SIGN_TA[s] : s;
-  const txNak  = (n) => (_isTA() && NAK_TA[n]) ? NAK_TA[n] : n;
+  const txSign = (s) => { const m = SIGN_NAMES[_chartLang()]; return (m && m[s]) || s; };
+  const txNak  = (n) => { const m = NAK_NAMES[_chartLang()];  return (m && m[n]) || n; };
 
   const moonNak  = planets.Moon?.nakshatra || "";
   const moonPada = planets.Moon?.pada || "";
@@ -861,16 +867,18 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
       rect.setAttribute("stroke-width","0.5");
       svg.appendChild(rect);
 
-      // Sign abbreviation (English 3-letter, or short Tamil form when Tamil active)
-      const _isTAcell = (() => { try { return localStorage.getItem("jyotish-lang") === "TA"; } catch(e){ return false; } })();
-      const SIGN_ABBR_TA = { Aries:"மேஷ", Taurus:"ரிஷ", Gemini:"மிது", Cancer:"கடக", Leo:"சிம்", Virgo:"கன்", Libra:"துலா", Scorpio:"விரு", Sagittarius:"தனு", Capricorn:"மகர", Aquarius:"கும்", Pisces:"மீன" };
-      const signAbbr = (_isTAcell && SIGN_ABBR_TA[signInHouse]) ? SIGN_ABBR_TA[signInHouse] : signInHouse.substring(0,3).toUpperCase();
+      // Sign abbreviation (English 3-letter, or short regional form when a
+      // non-English language is active).
+      const _cellLang  = _chartLang();
+      const _nonEnCell = _cellLang !== "EN";
+      const _abbrMap   = SIGN_ABBRS[_cellLang];
+      const signAbbr = (_abbrMap && _abbrMap[signInHouse]) ? _abbrMap[signInHouse] : signInHouse.substring(0,3).toUpperCase();
       const signTxt  = document.createElementNS("http://www.w3.org/2000/svg","text");
       signTxt.setAttribute("x", x + PAD + 2);
       signTxt.setAttribute("y", y + 11);
-      signTxt.setAttribute("font-size", _isTAcell ? "9" : "8");
+      signTxt.setAttribute("font-size", _nonEnCell ? "9" : "8");
       signTxt.setAttribute("fill","rgba(100,65,10,0.85)");
-      signTxt.setAttribute("font-family", _isTAcell ? "Inter,sans-serif" : "Cinzel,serif");
+      signTxt.setAttribute("font-family", _nonEnCell ? "Inter,sans-serif" : "Cinzel,serif");
       signTxt.textContent = signAbbr;
       svg.appendChild(signTxt);
 
@@ -908,7 +916,7 @@ function renderSIChart(containerId, lagnaSign, houses, planets, combustSet, warL
         lTxt.setAttribute("font-size","7");
         lTxt.setAttribute("fill","rgba(140,85,15,0.65)");
         lTxt.setAttribute("text-anchor","end");
-        lTxt.textContent = _isTAcell ? "லக்" : "ASC";
+        lTxt.textContent = LAGNA_ABBR[_cellLang] || "ASC";
         svg.appendChild(lTxt);
       }
 
@@ -2755,6 +2763,11 @@ restoreInputs();
 renderHistory();
 initCitySearch();
 initLangSelector();
+// Expose the chart/planet renderers so the top i18n toggle (in ui-v4.js) can
+// redraw the SVG chart cells + lagna bar when the language changes — otherwise
+// only the data-i18n text would translate while the chart kept the old script.
+window.renderChartScreen  = renderChartScreen;
+window.renderPlanetScreen = renderPlanetScreen;
 // Always-on "Paid" / "Free" badges on the nav tabs (a standard cue for users).
 // Dasa & Domain = Paid; Charts, Summary, Planets, References = Free. Both translate.
   (function addTabBadges() {
