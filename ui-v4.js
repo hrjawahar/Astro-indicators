@@ -1686,23 +1686,10 @@ const CONSULT_CONFIG = {
 //  references "Translate" menu. Self-contained: its own interval + DOM hooks.
 // ─────────────────────────────────────────────────────────────────────────────
 (function () {
-  var KEEP = ["EN", "TA"];
-  var DROP = /telugu|hindi|kannada|malayalam|తెలుగు|हिन्दी|हिंदी|ಕನ್ನಡ|മലയാളം/i;
-  function prune() {
-    try {
-      var nodes = document.querySelectorAll("button, a, [role='option'], li");
-      for (var i = 0; i < nodes.length; i++) {
-        var el = nodes[i];
-        if (el.children && el.children.length > 2) continue;
-        var dl = el.getAttribute && el.getAttribute("data-lang");
-        if (dl && KEEP.indexOf(dl.toUpperCase()) === -1) { el.style.display = "none"; continue; }
-        if (!dl) {
-          var txt = (el.textContent || "").trim();
-          if (txt.length < 40 && DROP.test(txt)) el.style.display = "none";
-        }
-      }
-    } catch (e) {}
-  }
+  // Go-live language cap lifted — all six languages (EN/TA/TE/HI/KA/ML) are now
+  // shown in the top i18n toggle and the references menu. Kept as a no-op so the
+  // interval/hook below stay valid without hiding anything.
+  function prune() { /* no-op: all languages enabled */ }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", prune);
   } else {
@@ -1798,18 +1785,14 @@ const CONSULT_CONFIG = {
   }
   window.AI_openQA = openQA;
 
-  // Inject a Q&A button onto the input (Birth Data) screen.
+  // Q&A card removed from the landing screen (its content is now covered by the
+  // navigation flowchart + References). This keeps openQA/AI_openQA available in
+  // case anything calls it, but no button is injected. Also cleans up any button
+  // left in the DOM from a cached page.
   function ensureButton() {
     try {
-      var input = document.getElementById("inputTab");
-      if (!input || input.querySelector("#qaOpenBtn")) return;
-      var btn = document.createElement("button");
-      btn.id = "qaOpenBtn";
-      btn.textContent = "❓ Q&A · கேள்வி-பதில்கள்";
-      btn.style.cssText = "display:block;margin:14px auto 0;background:transparent;color:#c9a84c;border:1px solid #c9a84c;border-radius:8px;padding:9px 20px;font-size:14px;font-weight:600;cursor:pointer";
-      btn.addEventListener("click", openQA);
-      var card = input.querySelector("[class*='card'], .input-card") || input.firstElementChild || input;
-      card.appendChild(btn);
+      var old = document.getElementById("qaOpenBtn");
+      if (old) old.remove();
     } catch (e) {}
   }
   if (document.readyState === "loading") {
@@ -1946,9 +1929,11 @@ const CONSULT_CONFIG = {
       if (input && !document.getElementById("reviewCards")) {
         var cards = document.createElement("div");
         cards.id = "reviewCards";
-        cards.style.cssText = "margin:22px auto 0;max-width:900px";
-        var card = input.querySelector("[class*='card'], .input-card") || input;
-        card.appendChild(cards);
+        cards.style.cssText = "margin:8px auto 0;max-width:900px";
+        // Append to the BOTTOM of the screen (after Saved Charts) — not into the
+        // top intro card — so the birth-data fields are fully visible on landing.
+        var host = input.querySelector(".screen-inner") || input;
+        host.appendChild(cards);
         renderCards();
       }
       // "Leave a Review" button near the Contact tab.
