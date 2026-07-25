@@ -39,6 +39,10 @@
   let _factsChartId = null;
   let _extras = null;         // { strengths, guidance } from the engine
 
+  // Canonical disclaimer — identical wording used on the site footer, the flipbook
+  // cover, and every generated PDF, so the legal text never drifts between places.
+  const CANON_DISCLAIMER = "This app provides astrological analysis (Swiss Ephemeris / Lahiri Ayanamsa) strictly for educational, entertainment, and self-reflective purposes. All timings and interpretations are indicative only and guarantee no outcomes. THIS IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL, LEGAL, OR FINANCIAL ADVICE. BY USING THIS APP, YOU AGREE THAT ALL CONTENT IS PROVIDED \"AS IS\" AND YOUR USE IS AT YOUR OWN RISK. THE DEVELOPERS EXPLICITLY DISCLAIM ALL WARRANTIES AND ASSUME NO LIABILITY OR RESPONSIBILITY FOR ANY LOSS, DAMAGE, OR ACTIONS TAKEN BASED ON THIS DATA.";
+
   function $(id){ return document.getElementById(id); }
   function ord(n){ return n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:(n%10<4?n%10:0)]); }
   const SIGN_LORD = { Aries:"Mars",Taurus:"Venus",Gemini:"Mercury",Cancer:"Moon",Leo:"Sun",Virgo:"Mercury",
@@ -90,10 +94,9 @@
     const tob = f.tob || (document.getElementById("inputTOB")||{}).value || "";
     const place = f.place || (document.getElementById("inputPlaceDisplay")||{}).value || "";
     if (!dob) return;
-    const html = `<span class="pp-seal">◈</span><span>This reading is calculated from <b>your</b> birth details —
-      <b>${esc(fmtDOB(dob, tob))}</b>${place ? `, <b>${esc(place)}</b>` : ""}.
-      <span class="pp-engine">Every verdict and date below is computed from your chart's own planetary positions
-      (Swiss Ephemeris · Lahiri ayanamsa). Change any birth detail and the results change with it.</span></span>`;
+    const html = `<div class="pp-personal-lead">This reading is calculated from your birth details:</div>
+      <div class="pp-personal-line"><b>${esc(fmtDOB(dob, tob))}</b></div>` +
+      (place ? `<div class="pp-personal-line"><b>${esc(place)}</b></div>` : "");
     ["liPersonal","iccPersonal"].forEach(id => { const el = $(id); if (el) el.innerHTML = html; });
   }
 
@@ -162,7 +165,9 @@
   // ── product 1: Life Indicators flipbook ─────────────────────────────────────
   async function buildLifeIndicators() {
     const host = $("liBook"); if (!host) return;
-    host.innerHTML = `<div class="pp-empty">Preparing your book… (one-time build, then cached)</div>`;
+    host.innerHTML = `<div class="pp-empty">Reading your chart and writing your report.<br>
+      <span style="display:inline-block;margin:10px 0;padding:5px 16px;background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.6);border-radius:999px;color:#c9a84c;font-weight:700;font-size:1.03em">⏱ This usually takes 1–2 minutes</span><br>
+      Please keep this page open — it is built once, then saved so it re-opens instantly.</div>`;
     try {
       const facts = await getFacts();
       const cid = window.AI_chartId();
@@ -203,10 +208,7 @@
       <h1>Life Analysis &amp;<br>Mapping Profile</h1>
       <div class="cover-sub">LAMP · Your personalized blueprint for conscious self-reflection</div>
       <div class="who">${name}</div>
-      <div class="disclaim"><b>Please read:</b> These indications support reflection and planning.
-      They are <b>not a substitute for professional advice</b> — medical, legal, financial, or
-      psychological — and any timing shown is <b>indicative only, never a guarantee of outcome</b>.
-      Every reading is computed from your own birth chart (Swiss Ephemeris · Lahiri ayanamsa).</div>
+      <div class="disclaim"><b>Disclaimer:</b> ${esc(CANON_DISCLAIMER)}</div>
       </div></div>`);
 
     // ── 2. birth details ─────────────────────────────────────────────────────
@@ -464,6 +466,25 @@
   // ── planetary-strength table ────────────────────────────────────────────────
   function planetStrengthPage(pnum) {
     const rows = (_extras && _extras.strengths) || [];
+    const Pl = (chartSource().planets) || {};
+    // Navamsha (D9) dignity — computed from each planet's D9 sign, so we can show
+    // whether the D1 strength deepens or softens over time. Classical exaltation
+    // signs; own sign via SIGN_LORD; everything else neutral.
+    const G2E = { Surya:"Sun",Ravi:"Sun",Chandra:"Moon",Soma:"Moon",Mangala:"Mars",Mangal:"Mars",Kuja:"Mars",Budha:"Mercury",Guru:"Jupiter",Brihaspati:"Jupiter",Shukra:"Venus",Shani:"Saturn",Rahu:"Rahu",Ketu:"Ketu" };
+    const EXALT = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra" };
+    const DEBIL = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries" };
+    const dignOf = (planet, sign) => { if(!sign) return ""; if(EXALT[planet]===sign) return "ex"; if(DEBIL[planet]===sign) return "de"; if(SIGN_LORD[sign]===planet) return "own"; return "neu"; };
+    const tierOf = d => d==="ex"?3:d==="own"?2:d==="neu"?1:d==="de"?0:1;
+    const digLbl = d => d==="ex"?"Exalted":d==="de"?"Debilitated":d==="own"?"Own sign":d==="neu"?"Neutral":"—";
+    const d9Cell = (graha) => {
+      const gp = Pl[graha] ? graha : (G2E[graha] || graha);
+      const pl = Pl[gp];
+      if(!pl || !pl.d9sign) return `<span style="color:#9a9a9a">—</span>`;
+      const d9 = dignOf(gp, pl.d9sign), dt = tierOf(d9) - tierOf(dignOf(gp, pl.sign));
+      const arrow = dt>0?"▲":dt<0?"▼":"▬";
+      const col = dt>0?"#2e6e3a":dt<0?"#9a3b2e":"#8a7a45";
+      return `<span style="color:${col};font-weight:700;white-space:nowrap">${digLbl(d9)} <span style="font-size:.82em">${arrow}</span></span>`;
+    };
     const cell = (p, nat) => {
       if (p.nature !== nat) return "";
       const g = p.grade === "HIGH" ? "H" : p.grade === "MEDIUM" ? "M" : "L";
@@ -473,15 +494,15 @@
       <td class="ps-name">${esc(p.graha)}</td>
       <td class="ps-fav">${cell(p,"FAVOURABLE")}</td>
       <td class="ps-cha">${cell(p,"CHALLENGING")}</td>
-      <td class="ps-neu">${cell(p,"NEUTRAL")}</td></tr>`).join("");
+      <td class="ps-neu">${cell(p,"NEUTRAL")}</td>
+      <td class="ps-d9" style="text-align:center">${d9Cell(p.graha)}</td></tr>`).join("");
     return `<div class="pg"><div class="kick">Your Planetary Strengths</div><div class="rule"></div>
       <h2>How each planet tends to act for you</h2>
-      <div class="ps-legend">H = strong · M = moderate · L = mild &nbsp;|&nbsp; read across each planet's row</div>
+      <div class="ps-legend">H = strong · M = moderate · L = mild &nbsp;|&nbsp; the <b>In D9</b> column shows each planet's Navamsha standing — <b style="color:#2e6e3a">▲</b> strengthens, ▬ holds, <b style="color:#9a3b2e">▼</b> softens from D1</div>
       <table class="ps-table"><thead><tr>
-        <th>Planet</th><th class="ps-fav">Favourable</th><th class="ps-cha">Challenging</th><th class="ps-neu">Neutral</th>
+        <th>Planet</th><th class="ps-fav">Favourable</th><th class="ps-cha">Challenging</th><th class="ps-neu">Neutral</th><th class="ps-d9" style="text-align:center">In D9</th>
       </tr></thead><tbody>${body}</tbody></table>
-      <div class="foot">Please see the <b>References</b> page on this site to learn what each planet and
-      each house signifies.</div>
+      <div class="foot">D1 shows how a planet tends to act now; D9 (Navamsha) shows whether that strength deepens or softens over time. See the <b>References</b> page to learn what each planet signifies.</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
@@ -700,7 +721,9 @@
 
   async function buildICC(pickedIds, existingSets) {
     const host = $("iccAnswers"); if (!host) return;
-    host.innerHTML = `<div class="pp-empty">Reading your chart…</div>`;
+    host.innerHTML = `<div class="pp-empty">Reading your chart and preparing your answers.<br>
+      <span style="display:inline-block;margin:10px 0;padding:5px 16px;background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.6);border-radius:999px;color:#c9a84c;font-weight:700;font-size:1.03em">⏱ This usually takes 1–2 minutes</span><br>
+      Please keep this page open.</div>`;
     try {
       const facts = await getFacts();
       const picked = pickedIds.map(id => byId(facts, id)).filter(Boolean);
@@ -790,6 +813,10 @@
     doc.setFontSize(8); doc.setTextColor(200,200,205);
     const meta = [f0.dob, f0.tob, f0.place].filter(Boolean).join(" · ");
     if (meta) doc.text(doc.splitTextToSize(meta, W-M*2), W/2, H/2+64, { align:"center" });
+    doc.setFontSize(7.5); doc.setTextColor(180,180,188);
+    const iccDisc = doc.splitTextToSize("DISCLAIMER: " + CANON_DISCLAIMER, W-M*2.2);
+    doc.text(iccDisc, W/2, H-84 - iccDisc.length*9, { align:"center" });
+    doc.setFontSize(8); doc.setTextColor(200,200,205);
     doc.text("Swiss Ephemeris · Lahiri ayanamsa", W/2, H-70, { align:"center" });
 
     doc.addPage(); y = M;
@@ -859,7 +886,7 @@
       doc.text(_book.meta, W/2, H/2+24, { align:"center" }); }
     // hardened disclaimer, larger + readable
     doc.setTextColor(215,215,220); doc.setFontSize(9);
-    const disc = doc.splitTextToSize("DISCLAIMER: This report provides astrological analysis (Swiss Ephemeris / Lahiri Ayanamsa) strictly for educational, entertainment, and self-reflective purposes. All timings and interpretations are indicative only and guarantee no outcomes. THIS IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL, LEGAL, OR FINANCIAL ADVICE. Use is at your own risk.", W-M*2.2);
+    const disc = doc.splitTextToSize("DISCLAIMER: " + CANON_DISCLAIMER, W-M*2.2);
     doc.text(disc, W/2, H/2+58, { align:"center" });
 
     const newPage = () => { doc.addPage(); y = M; doc.setTextColor(...INK); };
@@ -948,13 +975,20 @@
     const strengths = (window._extras && window._extras.strengths) || [];
     if (strengths.length) {
       newPage(); heading("Your Planetary Strengths");
+      const Pl9 = (chartSource().planets) || {};
+      const G2E = { Surya:"Sun",Ravi:"Sun",Chandra:"Moon",Soma:"Moon",Mangala:"Mars",Mangal:"Mars",Kuja:"Mars",Budha:"Mercury",Guru:"Jupiter",Brihaspati:"Jupiter",Shukra:"Venus",Shani:"Saturn",Rahu:"Rahu",Ketu:"Ketu" };
+      const EX = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra" };
+      const DE = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries" };
+      const dg = (pn,sg) => { if(!sg) return ""; if(EX[pn]===sg) return "ex"; if(DE[pn]===sg) return "de"; if(SIGN_LORD[sg]===pn) return "own"; return "neu"; };
+      const trk = d => d==="ex"?3:d==="own"?2:d==="neu"?1:d==="de"?0:1;
+      const dl = d => d==="ex"?"Exalted":d==="de"?"Debilit.":d==="own"?"Own":d==="neu"?"Neutral":"-";
       doc.setFontSize(10.5); doc.setTextColor(...INK);
       doc.text("How each planet tends to act for you", M, y); y += 16;
       doc.setFontSize(8); doc.setTextColor(...MUTE);
-      doc.text("High = strong influence · Med = moderate · Low = mild. Read across each planet's row.", M, y); y += 18;
-      const cw = (W-M*2)/4;
+      doc.text("High/Med/Low = D1 influence.   In D9 = Navamsha standing (^ strengthens, - holds, v softens from D1).", M, y); y += 18;
+      const cw = (W-M*2)/5;
       doc.setFontSize(8.5); doc.setTextColor(...GOLD);
-      ["Planet","Favourable","Challenging","Neutral"].forEach((hd,i)=>doc.text(hd, M+cw*i+4, y));
+      ["Planet","Favourable","Challenging","Neutral","In D9"].forEach((hd,i)=>doc.text(hd, M+cw*i+4, y));
       y += 6; doc.setDrawColor(...GOLD); doc.line(M,y,W-M,y); y += 14;
       doc.setFontSize(10);
       const gr = { HIGH:"High", MEDIUM:"Med", LOW:"Low" };
@@ -963,10 +997,18 @@
         doc.setTextColor(...INK); doc.text(p.graha, M+4, y);
         const col = p.nature==="FAVOURABLE"?1:p.nature==="CHALLENGING"?2:3;
         doc.setTextColor(...(p.nature==="CHALLENGING"?[154,59,46]:p.nature==="FAVOURABLE"?[46,110,58]:MUTE));
-        doc.text(gr[p.grade], M+cw*col+4, y); y += 16;
+        doc.text(gr[p.grade], M+cw*col+4, y);
+        const gp9 = Pl9[p.graha] ? p.graha : (G2E[p.graha] || p.graha);
+        const pl9 = Pl9[gp9];
+        if (pl9 && pl9.d9sign) {
+          const d9 = dg(gp9, pl9.d9sign), dt = trk(d9) - trk(dg(gp9, pl9.sign));
+          doc.setTextColor(...(dt>0?[46,110,58]:dt<0?[154,59,46]:MUTE));
+          doc.text(dl(d9) + (dt>0?" ^":dt<0?" v":" -"), M+cw*4+4, y);
+        } else { doc.setTextColor(...MUTE); doc.text("-", M+cw*4+4, y); }
+        y += 16;
       }
       y += 4; doc.setFontSize(8); doc.setTextColor(...MUTE);
-      doc.text(doc.splitTextToSize("Please see the References page on this site to learn what each planet and each house signifies.", W-M*2), M, y);
+      doc.text(doc.splitTextToSize("D1 shows how a planet acts now; D9 (Navamsha) shows whether that strength deepens or softens over time. See the References page to learn what each planet signifies.", W-M*2), M, y);
     }
 
     // ── life axis ────────────────────────────────────────────────────────────
@@ -1150,8 +1192,8 @@
 
     const email = requireEmail(item, amount, label, run);
     if (!email) return;
-    if (!window.confirm(window.t ? window.t("refund_confirm")
-        : "No refund — please confirm before you proceed to payment.")) return;
+    // No-refund confirmation removed here — it is covered by the onboarding
+    // click-wrap terms the user must accept before using the app.
 
     window.startPayment({ item, amount, label: label + " — pay once & download", email, chartId: cid })
       .then(res => {
