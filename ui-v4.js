@@ -1598,6 +1598,19 @@ const CONSULT_CONFIG = {
     function renderRef(key, lang) {
       const entry = (window.REFERENCES || {})[key];
       if (!entry || !refArticle) return;
+      // Keep the reader's own chrome (Back button, Translate label + note) in the
+      // same language as the guide being shown. The guide-level Translate menu
+      // switches only the article, so these would otherwise stay in whatever the
+      // app language was (e.g. left in Tamil while reading an English guide).
+      try {
+        const D = (window.I18N && (window.I18N[lang] || window.I18N.EN)) || {};
+        const bk = document.querySelector('#refBackBtn [data-i18n="ref_back"]');
+        if (bk && D.ref_back) bk.textContent = D.ref_back;
+        const tl = document.querySelector('#refTranslateBtn [data-i18n="btn_translate"]');
+        if (tl && D.btn_translate) tl.textContent = D.btn_translate;
+        const nt = document.querySelector('[data-i18n="ref_translate_note"]');
+        if (nt && D.ref_translate_note) nt.textContent = D.ref_translate_note;
+      } catch (e) {}
       const data = getRefData(key, lang);
       if (!data) {
         // Translation not ready for this language — show English + a notice.
