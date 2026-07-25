@@ -42,6 +42,9 @@
   // Canonical disclaimer — identical wording used on the site footer, the flipbook
   // cover, and every generated PDF, so the legal text never drifts between places.
   const CANON_DISCLAIMER = "This app provides astrological analysis (Swiss Ephemeris / Lahiri Ayanamsa) strictly for educational, entertainment, and self-reflective purposes. All timings and interpretations are indicative only and guarantee no outcomes. THIS IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL, LEGAL, OR FINANCIAL ADVICE. BY USING THIS APP, YOU AGREE THAT ALL CONTENT IS PROVIDED \"AS IS\" AND YOUR USE IS AT YOUR OWN RISK. THE DEVELOPERS EXPLICITLY DISCLAIM ALL WARRANTIES AND ASSUME NO LIABILITY OR RESPONSIBILITY FOR ANY LOSS, DAMAGE, OR ACTIONS TAKEN BASED ON THIS DATA.";
+  // Short, plain-language disclaimer for the flipbook COVER (the full CANON_DISCLAIMER
+  // still appears on the downloadable PDF covers where the complete legal text belongs).
+  const COVER_DISCLAIMER = "For educational and self-reflective purposes only — not a substitute for professional medical, psychological, legal, or financial advice. All interpretations are indicative and guarantee no outcomes.";
 
   function $(id){ return document.getElementById(id); }
   function ord(n){ return n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:(n%10<4?n%10:0)]); }
@@ -207,9 +210,10 @@
       <div class="kick" style="color:var(--ai-gold)">Life Indicators Report</div>
       <h1>Life Analysis &amp;<br>Mapping Profile</h1>
       <div class="cover-sub">LAMP · Your personalized blueprint for conscious self-reflection</div>
-      <div class="who">${name}</div>
-      <div class="disclaim"><b>Disclaimer:</b> ${esc(CANON_DISCLAIMER)}</div>
-      </div></div>`);
+      <div class="who">${name || "&nbsp;"}</div>
+      </div>
+      <div class="disclaim cover-disc"><b>Disclaimer:</b> ${esc(COVER_DISCLAIMER)}</div>
+      </div>`);
 
     // ── 2. birth details ─────────────────────────────────────────────────────
     const row = (k, v) => v ? `<li><b>${esc(k)}</b><i>${esc(v)}</i></li>` : "";
@@ -475,7 +479,7 @@
     const DEBIL = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries" };
     const dignOf = (planet, sign) => { if(!sign) return ""; if(EXALT[planet]===sign) return "ex"; if(DEBIL[planet]===sign) return "de"; if(SIGN_LORD[sign]===planet) return "own"; return "neu"; };
     const tierOf = d => d==="ex"?3:d==="own"?2:d==="neu"?1:d==="de"?0:1;
-    const digLbl = d => d==="ex"?"Exalted":d==="de"?"Debilitated":d==="own"?"Own sign":d==="neu"?"Neutral":"—";
+    const digLbl = d => d==="ex"?"Exalt":d==="de"?"Debil":d==="own"?"Own":d==="neu"?"Neutral":"—";
     const d9Cell = (graha) => {
       const gp = Pl[graha] ? graha : (G2E[graha] || graha);
       const pl = Pl[gp];
@@ -498,11 +502,11 @@
       <td class="ps-d9" style="text-align:center">${d9Cell(p.graha)}</td></tr>`).join("");
     return `<div class="pg"><div class="kick">Your Planetary Strengths</div><div class="rule"></div>
       <h2>How each planet tends to act for you</h2>
-      <div class="ps-legend">H = strong · M = moderate · L = mild &nbsp;|&nbsp; the <b>In D9</b> column shows each planet's Navamsha standing — <b style="color:#2e6e3a">▲</b> strengthens, ▬ holds, <b style="color:#9a3b2e">▼</b> softens from D1</div>
+      <div class="ps-legend">H strong · M moderate · L mild &nbsp;|&nbsp; <b>In D9</b> = Navamsha standing (<b style="color:#2e6e3a">▲</b> stronger · ▬ holds · <b style="color:#9a3b2e">▼</b> softer)</div>
       <table class="ps-table"><thead><tr>
         <th>Planet</th><th class="ps-fav">Favourable</th><th class="ps-cha">Challenging</th><th class="ps-neu">Neutral</th><th class="ps-d9" style="text-align:center">In D9</th>
       </tr></thead><tbody>${body}</tbody></table>
-      <div class="foot">D1 shows how a planet tends to act now; D9 (Navamsha) shows whether that strength deepens or softens over time. See the <b>References</b> page to learn what each planet signifies.</div>
+      <div class="foot">D1 = how a planet acts now; D9 shows whether that strength deepens or softens over time. See the <b>References</b> page for what each planet signifies.</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
