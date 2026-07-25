@@ -740,6 +740,18 @@ function renderChartScreen(data) {
 
   renderSIChart("d1ChartWrap", d1.lagnaSign, d1.houses, planets, combust, warLosers, false);
   renderSIChart("d9ChartWrap", d9.lagnaSign, d9.houses, planets, combust, warLosers, true);
+
+  // Ensure the static chart legend matches the active language whenever the chart
+  // (re)renders — a safety net so a language switch always carries the legend with
+  // it, independent of applyLanguage's timing over the (initially hidden) tab.
+  try {
+    const _lg = (typeof window !== "undefined" && window.I18N)
+      ? (window.I18N[_chartLang()] || window.I18N.EN) : null;
+    if (_lg) document.querySelectorAll('#chartLegend [data-i18n]').forEach(el => {
+      const k = el.getAttribute("data-i18n");
+      if (_lg[k]) el.textContent = _lg[k];
+    });
+  } catch (e) {}
 }
 
 function buildCombustSet(planets) {
