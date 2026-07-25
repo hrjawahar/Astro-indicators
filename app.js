@@ -711,6 +711,8 @@ async function generate() {
 //  CHART SCREEN
 // ══════════════════════════════════════════════════════════════════════════════
 
+const LEG_I18N = {"EN":{"leg_exalted":"Exalted — planet at peak strength","leg_debilitated":"Debilitated — planet at reduced strength","leg_own":"Own sign — planet in home territory","leg_retro":"Retrograde — planet moves backward","leg_combust":"Combust — too close to Sun","leg_war":"War — defeated in planetary war","leg_friend":"Friend of house lord — supportive placement","leg_neutral":"Neutral to house lord — mixed","leg_enemy":"Enemy of house lord — friction","leg_footer":"Bottom of each cell shows the house lord and its placement — e.g. Ma→H7 means Mars lords this house and sits in H7"},"TA":{"leg_exalted":"உச்சம் — கிரகம் உச்ச பலத்தில்","leg_debilitated":"நீசம் — கிரகம் குறைந்த பலத்தில்","leg_own":"சொந்த வீடு — கிரகம் சொந்த இடத்தில்","leg_retro":"வக்ரம் — கிரகம் பின்நோக்கி நகர்கிறது","leg_combust":"அஸ்தமனம் — சூரியனுக்கு மிக அருகில்","leg_war":"கிரகப் போர் — போரில் தோற்றது","leg_friend":"வீட்டதிபதியின் நண்பன் — ஆதரவான அமைவு","leg_neutral":"வீட்டதிபதிக்கு நடுநிலை — கலப்பு","leg_enemy":"வீட்டதிபதியின் எதிரி — உராய்வு","leg_footer":"ஒவ்வொரு கட்டத்தின் அடியில் வீட்டதிபதியும் அதன் இடமும் காட்டப்படும் — எ.கா. செவ்→H7 என்றால் செவ்வாய் இந்த வீட்டை ஆண்டு H7-இல் அமர்ந்துள்ளது"},"TE":{"leg_exalted":"ఉచ్చం — గ్రహం గరిష్ఠ బలంలో","leg_debilitated":"నీచం — గ్రహం తగ్గిన బలంలో","leg_own":"స్వగృహం — గ్రహం సొంత స్థానంలో","leg_retro":"వక్రం — గ్రహం వెనుకకు కదులుతుంది","leg_combust":"అస్తంగతం — సూర్యునికి చాలా దగ్గరగా","leg_war":"గ్రహ యుద్ధం — యుద్ధంలో ఓడింది","leg_friend":"గృహాధిపతికి మిత్రుడు — అనుకూల స్థానం","leg_neutral":"గృహాధిపతికి తటస్థం — మిశ్రమం","leg_enemy":"గృహాధిపతికి శత్రువు — ఘర్షణ","leg_footer":"ప్రతి గడి దిగువన గృహాధిపతి, అతని స్థానం చూపబడతాయి — ఉదా. కుజ→H7 అంటే కుజుడు ఈ ఇంటిని ఏలి H7లో ఉన్నాడు"},"HI":{"leg_exalted":"उच्च — ग्रह अपने चरम बल में","leg_debilitated":"नीच — ग्रह घटे हुए बल में","leg_own":"स्वगृह — ग्रह अपने घर में","leg_retro":"वक्री — ग्रह पीछे की ओर चलता है","leg_combust":"अस्त — सूर्य के बहुत निकट","leg_war":"ग्रह युद्ध — युद्ध में पराजित","leg_friend":"भावेश का मित्र — सहायक स्थिति","leg_neutral":"भावेश के प्रति तटस्थ — मिश्रित","leg_enemy":"भावेश का शत्रु — टकराव","leg_footer":"प्रत्येक खाने के नीचे भावेश और उसकी स्थिति दिखती है — जैसे मं→H7 का अर्थ मंगल इस भाव का स्वामी है और H7 में बैठा है"},"KA":{"leg_exalted":"ಉಚ್ಚ — ಗ್ರಹ ಗರಿಷ್ಠ ಬಲದಲ್ಲಿ","leg_debilitated":"ನೀಚ — ಗ್ರಹ ಕಡಿಮೆ ಬಲದಲ್ಲಿ","leg_own":"ಸ್ವಗೃಹ — ಗ್ರಹ ಸ್ವಂತ ಸ್ಥಾನದಲ್ಲಿ","leg_retro":"ವಕ್ರ — ಗ್ರಹ ಹಿಂದಕ್ಕೆ ಚಲಿಸುತ್ತದೆ","leg_combust":"ಅಸ್ತಂಗತ — ಸೂರ್ಯನಿಗೆ ಬಹಳ ಹತ್ತಿರ","leg_war":"ಗ್ರಹ ಯುದ್ಧ — ಯುದ್ಧದಲ್ಲಿ ಸೋತಿದೆ","leg_friend":"ಮನೆಯ ಅಧಿಪತಿಯ ಮಿತ್ರ — ಬೆಂಬಲದ ಸ್ಥಾನ","leg_neutral":"ಮನೆಯ ಅಧಿಪತಿಗೆ ತಟಸ್ಥ — ಮಿಶ್ರ","leg_enemy":"ಮನೆಯ ಅಧಿಪತಿಯ ಶತ್ರು — ಘರ್ಷಣೆ","leg_footer":"ಪ್ರತಿ ಕೋಶದ ಕೆಳಗೆ ಮನೆಯ ಅಧಿಪತಿ ಮತ್ತು ಅದರ ಸ್ಥಾನ ತೋರಿಸಲಾಗುತ್ತದೆ — ಉದಾ. ಮಂ→H7 ಎಂದರೆ ಮಂಗಳ ಈ ಮನೆಯ ಒಡೆಯ ಮತ್ತು H7ರಲ್ಲಿ ಇದೆ"},"ML":{"leg_exalted":"ഉച്ചം — ഗ്രഹം ഏറ്റവും ബലത്തിൽ","leg_debilitated":"നീചം — ഗ്രഹം കുറഞ്ഞ ബലത്തിൽ","leg_own":"സ്വഗൃഹം — ഗ്രഹം സ്വന്തം സ്ഥാനത്ത്","leg_retro":"വക്രം — ഗ്രഹം പിന്നോട്ട് നീങ്ങുന്നു","leg_combust":"അസ്തംഗതം — സൂര്യന് വളരെ അടുത്ത്","leg_war":"ഗ്രഹയുദ്ധം — യുദ്ധത്തിൽ തോറ്റു","leg_friend":"ഭവനാധിപന്റെ മിത്രം — അനുകൂല സ്ഥാനം","leg_neutral":"ഭവനാധിപന് നിഷ്പക്ഷം — സമ്മിശ്രം","leg_enemy":"ഭവനാധിപന്റെ ശത്രു — സംഘർഷം","leg_footer":"ഓരോ കളത്തിന്റെയും താഴെ ഭവനാധിപനും അതിന്റെ സ്ഥാനവും കാണിക്കുന്നു — ഉദാ. കുജ→H7 എന്നാൽ കുജൻ ഈ ഭവനത്തിന്റെ അധിപനും H7ൽ സ്ഥിതി ചെയ്യുന്നു"}};
+
 function renderChartScreen(data) {
   const { d1, d9, planets, ayanamsha } = data;
   const T = (k) => (typeof window!=="undefined" && window.t) ? window.t(k) : k;
@@ -742,12 +744,14 @@ function renderChartScreen(data) {
   renderSIChart("d9ChartWrap", d9.lagnaSign, d9.houses, planets, combust, warLosers, true);
 
   // Ensure the static chart legend matches the active language whenever the chart
-  // (re)renders — a safety net so a language switch always carries the legend with
-  // it, independent of applyLanguage's timing over the (initially hidden) tab.
+  // (re)renders. Uses the embedded LEG_I18N as the base so the legend translates even
+  // when the deployed i18n.js is missing the leg_* keys; window.I18N overrides it.
   try {
-    const _lg = (typeof window !== "undefined" && window.I18N)
-      ? (window.I18N[_chartLang()] || window.I18N.EN) : null;
-    if (_lg) document.querySelectorAll('#chartLegend [data-i18n]').forEach(el => {
+    const _L = _chartLang();
+    const _base = LEG_I18N[_L] || LEG_I18N.EN;
+    const _over = (typeof window !== "undefined" && window.I18N && window.I18N[_L]) || {};
+    const _lg = Object.assign({}, _base, _over);
+    document.querySelectorAll('#chartLegend [data-i18n]').forEach(el => {
       const k = el.getAttribute("data-i18n");
       if (_lg[k]) el.textContent = _lg[k];
     });
