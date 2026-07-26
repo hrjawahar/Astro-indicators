@@ -60,7 +60,7 @@
     const cd = window.currentData;
     if (!cd || !cd.chart) throw new Error("Generate your chart first.");
     const cid = window.AI_chartId ? window.AI_chartId() : "";
-    if (_facts && _factsChartId === cid) return _facts;
+    if (_facts && _factsChartId === cid) { window._extras = _extras; return _facts; }
     const res = await fetch("/api/facts", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chart: cd.chart, gender: cd.form?.gender || "unspecified" }),
@@ -189,10 +189,16 @@
 
   // ── flipbook renderer: 3D leaf-turn, ported from the approved POC ──────────
   let _book = { pages: [], idx: 0, animating: false, target: 0, meta: "" };
+  let _bookChartId = null;   // which chart the currently rendered book belongs to
 
   function renderFlipbook(host, sections, facts) {
     const f0 = (window.currentData && window.currentData.form) || {};
     const cd = window.currentData || {};
+    // Snapshot the engine extras for THIS chart now, and pass it explicitly into
+    // the pages that use it — so the strengths/guidance pages can never paint a
+    // stale module-level _extras left over from a previously viewed chart.
+    const extras = _extras;
+    _bookChartId = window.AI_chartId ? window.AI_chartId() : null;
     const rn = readerName();
     const name = esc(f0.name || "");
     const nameComma = rn ? ", " + esc(rn) : "";
@@ -272,7 +278,7 @@
       ${chartLegend()}<span class="pnum">6</span></div>`);
 
     // ── 7. planetary strengths table ─────────────────────────────────────────
-    P.push(planetStrengthPage(7));
+    P.push(planetStrengthPage(7, extras));
 
     // ── 8. life axis (with house lords) ──────────────────────────────────────
     P.push(lifeAxisPage(_m, facts, 8));
@@ -299,7 +305,7 @@
     }
 
     // ── what to actually do (concrete, behaviour-level) ──────────────────────
-    P.push(guidancePage(n++));
+    P.push(guidancePage(n++, extras));
 
     // ── closing letter ───────────────────────────────────────────────────────
     P.push(closingLetterPage(n++));
@@ -468,8 +474,9 @@
   }
 
   // ── planetary-strength table ────────────────────────────────────────────────
-  function planetStrengthPage(pnum) {
-    const rows = (_extras && _extras.strengths) || [];
+  function planetStrengthPage(pnum, extras) {
+    const ex = extras || _extras;
+    const rows = (ex && ex.strengths) || [];
     const Pl = (chartSource().planets) || {};
     // Navamsha (D9) dignity — computed from each planet's D9 sign, so we can show
     // whether the D1 strength deepens or softens over time. Classical exaltation
@@ -511,8 +518,8 @@
   }
 
   // ── what to actually do (behaviour-level guidance) ──────────────────────────
-  function guidancePage(pnum) {
-    const lines = (_extras && _extras.guidance) || [];
+  function guidancePage(pnum, extras) {
+    const lines = ((extras || _extras) && (extras || _extras).guidance) || [];
     const rows = lines.map(l => `<li><b>${esc(l.actor)} · ${ord(l.house)} house</b>${esc(l.text)}</li>`).join("");
     return `<div class="pg"><div class="kick">What To Actually Do With This</div><div class="rule"></div>
       <h2>The few choices that change the most</h2>
@@ -780,6 +787,22 @@
     if (!sets || !sets.length) return false;
     if (Array.isArray(sets) && sets[0] && sets[0].module_id) sets = [{ answers: sets }];
     try { renderICC(host, sets, await getFacts()); return true; } catch (e) { return false; }
+  }
+
+  // If the birth chart has changed since the flipbook / facts were built, drop the
+  // cached facts + extras and clear the rendered book, so it rebuilds from scratch
+  // for the new chart. Without this, switching charts left the previous chart's
+  // strengths/guidance (and rendered pages) on screen.
+  function resetLifeIndicatorsIfChartChanged() {
+    const cid = window.AI_chartId ? window.AI_chartId() : null;
+    if (_factsChartId && _factsChartId !== cid) {
+      _facts = null; _extras = null; _factsChartId = null; window._extras = null;
+    }
+    if (_bookChartId && _bookChartId !== cid) {
+      const host = $("liBook"); if (host) host.innerHTML = "";
+      _book = { pages: [], idx: 0, animating: false, target: 0, meta: "" };
+      _bookChartId = null;
+    }
   }
 
   function resetICCIfChartChanged() {
@@ -1234,6 +1257,7 @@
     // teasers render when the tabs are first opened
     document.querySelectorAll('.nav-tab[data-tab="lifeIndTab"], .nav-tab[data-tab="iccTab"]')
       .forEach(b => b.addEventListener("click", function () {
+        resetLifeIndicatorsIfChartChanged();
         renderTeasers();
         if (b.dataset.tab === "iccTab") { resetICCIfChartChanged(); restoreICC(); }
       }));
