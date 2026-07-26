@@ -201,6 +201,7 @@
     _bookChartId = window.AI_chartId ? window.AI_chartId() : null;
     const rn = readerName();
     const name = esc(f0.name || "");
+    const coverName = esc(readerName() || f0.name || "");   // same source the letter greets
     const nameComma = rn ? ", " + esc(rn) : "";
     const meta = [f0.dob, f0.tob, f0.place].filter(Boolean).join(" · ");
     _book.meta = meta;
@@ -214,9 +215,9 @@
       <div class="seal">◈</div>
       <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
       <div class="kick" style="color:var(--ai-gold)">Life Indicators Report</div>
-      <h1>Life Analysis &amp;<br>Mapping Profile</h1>
-      <div class="cover-sub">LAMP · Your personalized blueprint for conscious self-reflection</div>
-      <div class="who">${name || "&nbsp;"}</div>
+      <h1>Life Analysis &amp;<br>Mapping Profile — LAMP</h1>
+      <div class="cover-sub">Your personalized blueprint for conscious self-reflection</div>
+      <div class="who">${coverName || "&nbsp;"}</div>
       </div>
       <div class="disclaim cover-disc"><b>Disclaimer:</b> ${esc(COVER_DISCLAIMER)}</div>
       </div>`);
@@ -553,7 +554,7 @@
       <td class="ps-d9" style="text-align:center">${d9Cell(p.graha)}</td></tr>`).join("");
     return `<div class="pg"><div class="kick">Your Planetary Strengths</div><div class="rule"></div>
       <h2>How each planet tends to act for you</h2>
-      <div class="ps-legend"><span>H strong · M moderate · L mild</span><span class="ps-legend-d9"><b>In D9:</b> <b style="color:#2e6e3a">▲</b> stronger · ▬ holds · <b style="color:#9a3b2e">▼</b> softer</span></div>
+      <div class="ps-legend"><span>H strong · M moderate · L mild</span><span class="ps-legend-d9"><b>In D9:</b> Stronger <b style="color:#2e6e3a">▲</b> · Holds ▬ · Softer <b style="color:#9a3b2e">▼</b></span></div>
       <table class="ps-table"><thead><tr>
         <th>Planet</th><th class="ps-fav">Favourable</th><th class="ps-cha">Challenging</th><th class="ps-neu">Neutral</th><th class="ps-d9" style="text-align:center">In D9</th>
       </tr></thead><tbody>${body}</tbody></table>
@@ -939,7 +940,7 @@
     const _m = chartModel() || {};
     const f0 = cd.form || {}, d1 = _m.d1 || {}, d9 = _m.d9 || {}, pl = (chartSource().planets) || {};
     const mSign = (k) => (_m.lons && _m.lons[k] != null) ? _m.sign(_m.lons[k]) : ((pl[k] && pl[k].sign) || "");
-    const name = f0.name || "";
+    const name = readerName() || f0.name || "";
 
     // ── cover ────────────────────────────────────────────────────────────────
     doc.setFillColor(...NAVY); doc.rect(0,0,W,H,"F");
@@ -948,7 +949,7 @@
     doc.text("LAMP REPORT", W/2, H/2-140, { align:"center" });
     doc.setTextColor(255,255,255); doc.setFontSize(28);
     doc.text("Life Analysis &", W/2, H/2-98, { align:"center" });
-    doc.text("Mapping Profile", W/2, H/2-66, { align:"center" });
+    doc.text("Mapping Profile — LAMP", W/2, H/2-66, { align:"center" });
     doc.setFontSize(11); doc.setTextColor(...GOLD);
     doc.text("Your personalized blueprint for conscious self-reflection", W/2, H/2-38, { align:"center" });
     doc.setFontSize(15); doc.setTextColor(255,255,255);
