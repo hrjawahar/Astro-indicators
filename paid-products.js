@@ -474,9 +474,53 @@
   }
 
   // ── planetary-strength table ────────────────────────────────────────────────
+  // ── Functional-status nudge (display-layer) ─────────────────────────────────
+  // Mirrors the domain engine's per-lagna benefic/malefic map. The engine's
+  // planetStrengths() scores on dignity + house + D9 only; this adds a modest
+  // per-lagna functional weight (Y+2, B+1, M-1) at display time, so a yogakaraka
+  // or benefic no longer reads identically to a functional malefic in the same
+  // dignity/house. It re-derives nature/grade from the adjusted score using the
+  // SAME thresholds as the engine. Falls back to the engine's values if the lagna
+  // is unknown or a row lacks a numeric score — so it can never blank the table.
+  const FS_MAP = {
+    Aries:{Sun:"N",Moon:"B",Mars:"Y",Mercury:"N",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Taurus:{Sun:"M",Moon:"N",Mars:"M",Mercury:"N",Jupiter:"N",Venus:"B",Saturn:"Y",Rahu:"N",Ketu:"N"},
+    Gemini:{Sun:"M",Moon:"M",Mars:"M",Mercury:"Y",Jupiter:"B",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+    Cancer:{Sun:"B",Moon:"N",Mars:"Y",Mercury:"M",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Leo:{Sun:"N",Moon:"M",Mars:"Y",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Virgo:{Sun:"M",Moon:"M",Mars:"M",Mercury:"N",Jupiter:"B",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+    Libra:{Sun:"M",Moon:"M",Mars:"M",Mercury:"B",Jupiter:"N",Venus:"N",Saturn:"Y",Rahu:"N",Ketu:"N"},
+    Scorpio:{Sun:"M",Moon:"B",Mars:"Y",Mercury:"N",Jupiter:"M",Venus:"M",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Sagittarius:{Sun:"N",Moon:"M",Mars:"M",Mercury:"M",Jupiter:"N",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"},
+    Capricorn:{Sun:"M",Moon:"M",Mars:"Y",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+    Aquarius:{Sun:"M",Moon:"M",Mars:"N",Mercury:"B",Jupiter:"N",Venus:"M",Saturn:"N",Rahu:"N",Ketu:"N"},
+    Pisces:{Sun:"M",Moon:"N",Mars:"M",Mercury:"N",Jupiter:"B",Venus:"N",Saturn:"M",Rahu:"N",Ketu:"N"}
+  };
+  const FS_W = { Y:2, B:1, N:0, M:-1 };
+  const FS_G2E = { Surya:"Sun",Ravi:"Sun",Chandra:"Moon",Soma:"Moon",Mangala:"Mars",Mangal:"Mars",Kuja:"Mars",Budha:"Mercury",Guru:"Jupiter",Brihaspati:"Jupiter",Shukra:"Venus",Shani:"Saturn",Rahu:"Rahu",Ketu:"Ketu" };
+  function fsAdjustRows(rows) {
+    try {
+      const src = chartSource() || {};
+      const lagna = (src.d1 && src.d1.lagnaSign) || "";
+      const row = FS_MAP[lagna];
+      if (!row || !Array.isArray(rows)) return rows;
+      return rows.map(p => {
+        if (!p || typeof p.score !== "number") return p;
+        const gk = row[p.graha] ? p.graha : (FS_G2E[p.graha] || p.graha);
+        const w = FS_W[row[gk] || "N"] || 0;
+        if (!w) return p;
+        const s = p.score + w;
+        const nature = s >= 2 ? "FAVOURABLE" : s <= -2 ? "CHALLENGING" : "NEUTRAL";
+        const mag = Math.abs(s);
+        const grade = mag >= 4 ? "HIGH" : mag >= 2 ? "MEDIUM" : "LOW";
+        return Object.assign({}, p, { score: s, nature, grade });
+      });
+    } catch (e) { return rows; }
+  }
+
   function planetStrengthPage(pnum, extras) {
     const ex = extras || _extras;
-    const rows = (ex && ex.strengths) || [];
+    const rows = fsAdjustRows((ex && ex.strengths) || []);
     const Pl = (chartSource().planets) || {};
     // Navamsha (D9) dignity — computed from each planet's D9 sign, so we can show
     // whether the D1 strength deepens or softens over time. Classical exaltation
@@ -999,7 +1043,7 @@
       "If D1 is the tree, D9 is the root. Nobody sees it, and it decides whether the tree survives a storm. A promise strong in D1 but weak here tends to arrive and not stay.");
 
     // ── planetary strengths ──────────────────────────────────────────────────
-    const strengths = (window._extras && window._extras.strengths) || [];
+    const strengths = fsAdjustRows((window._extras && window._extras.strengths) || []);
     if (strengths.length) {
       newPage(); heading("Your Planetary Strengths");
       const Pl9 = (chartSource().planets) || {};
