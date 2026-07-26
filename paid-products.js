@@ -553,7 +553,7 @@
       <td class="ps-d9" style="text-align:center">${d9Cell(p.graha)}</td></tr>`).join("");
     return `<div class="pg"><div class="kick">Your Planetary Strengths</div><div class="rule"></div>
       <h2>How each planet tends to act for you</h2>
-      <div class="ps-legend">H strong · M moderate · L mild &nbsp;|&nbsp; <b>In D9</b> = Navamsha standing (<b style="color:#2e6e3a">▲</b> stronger · ▬ holds · <b style="color:#9a3b2e">▼</b> softer)</div>
+      <div class="ps-legend"><span>H strong · M moderate · L mild</span><span class="ps-legend-d9"><b>In D9:</b> <b style="color:#2e6e3a">▲</b> stronger · ▬ holds · <b style="color:#9a3b2e">▼</b> softer</span></div>
       <table class="ps-table"><thead><tr>
         <th>Planet</th><th class="ps-fav">Favourable</th><th class="ps-cha">Challenging</th><th class="ps-neu">Neutral</th><th class="ps-d9" style="text-align:center">In D9</th>
       </tr></thead><tbody>${body}</tbody></table>
