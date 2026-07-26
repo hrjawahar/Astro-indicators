@@ -71,9 +71,256 @@
       padding-left: 10px;
       padding-right: 10px;
     }
+  
+  /* ── paid products: gold/navy brand ── */
+  :root { --ai-navy:#0B0E1A; --ai-navy-2:#141B33; --ai-gold:#C9A44C; --ai-gold-soft:#E8D9AE; --ai-ink:#EDEBE4; }
+  .ai-owner-only { display:none !important; }
+  body.ai-owner .ai-owner-only { display:inline-flex !important; }
+  .ai-paid-tab { border:1px solid var(--ai-gold); background:linear-gradient(160deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-gold-soft) !important; }
+  .ai-paid-tab .tab-icon { color:var(--ai-gold); }
+  .ai-gold-dot { font-size:.58rem; letter-spacing:.12em; color:var(--ai-navy); background:var(--ai-gold); border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; }
+  .pp-sub { max-width:640px; }
+  .pp-full { font-size:.62em; color:var(--ai-gold); font-weight:500; }
+  .pp-legal { font-size:.72rem; letter-spacing:.04em; color:#B08A3C; font-weight:600; max-width:680px; margin-top:8px; text-transform:uppercase; line-height:1.5; }
+  /* birth-details echo — plain, no box, softer colour, spaced lines */
+  .pp-personal { max-width:680px; margin:12px 0 22px; font-size:.92rem; line-height:1.7; color:#C7CBD4; }
+  .pp-personal .pp-personal-lead { color:var(--ai-gold-soft); font-weight:600; margin-bottom:10px; }
+  .pp-personal .pp-personal-line { padding:4px 0 4px 14px; border-left:2px solid rgba(201,164,76,.40);
+    margin-bottom:7px; color:#C7CBD4; }
+  .pp-personal .pp-personal-line b { color:var(--ai-gold-soft); font-weight:600; }
+  /* landing navigation flowchart (replaces the old Settings card) */
+  .nav-guide-card .card-title { margin-bottom:6px; }
+  .nav-flow { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; }
+  .nav-flow li { position:relative; display:flex; gap:14px; padding:0 0 20px; }
+  .nav-flow li:last-child { padding-bottom:2px; }
+  .nav-flow li:not(:last-child)::before { content:""; position:absolute; left:15px; top:34px; bottom:2px;
+    width:2px; background:linear-gradient(var(--gold-dim), rgba(138,108,40,.10)); }
+  .nav-flow .nf-num { flex:0 0 auto; width:32px; height:32px; border-radius:50%; background:var(--gold-glow);
+    color:var(--gold); border:1px solid var(--gold-dim); display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:14px; z-index:1; }
+  .nav-flow .nf-body { display:flex; flex-direction:column; gap:5px; padding-top:5px; }
+  .nav-flow .nf-body > b { color:var(--text); font-size:14px; font-weight:600; }
+  .nav-flow .nf-body > span { color:var(--text-dim); font-size:13px; line-height:1.65; }
+  .nav-flow .nf-body > span b { color:var(--gold); font-weight:600; }
+  .nav-flow-note { margin-top:8px; padding:11px 14px; border-radius:var(--radius-sm); background:var(--gold-glow);
+    border:1px solid var(--gold-dim); color:var(--ai-gold-soft,#E8D9AE); font-size:12.5px; line-height:1.6; }
+  .nav-flow-note b { color:#fff; font-weight:600; }
+  .nav-flow-tip { margin-top:10px; font-size:12px; color:var(--text-dim); line-height:1.6; font-style:italic; }
+  .pp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin:14px 0; }
+  .pp-card { background:linear-gradient(170deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-ink); border:1px solid rgba(201,164,76,.45); border-radius:12px; padding:14px 16px; font-size:.92rem; }
+  .pp-band { display:inline-block; font-size:.66rem; letter-spacing:.14em; font-weight:700; padding:3px 10px; border-radius:9px; background:var(--ai-gold); color:var(--ai-navy); margin-bottom:8px; }
+  .pp-band-low { opacity:.75 } .pp-band-severe { background:#E8B84C; }
+  .pp-q { font-weight:600; margin-bottom:6px; color:var(--ai-gold-soft); }
+  .pp-teaser { font-size:.92rem; opacity:.95; margin-bottom:10px; }
+  .pp-blur-wrap { position:relative; }
+  .pp-blurred { filter:blur(6px); user-select:none; pointer-events:none; font-size:.86rem; opacity:.85; line-height:1.5; }
+  .pp-blur-hook { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; font-size:.8rem; color:var(--ai-gold); font-weight:600; padding:0 10px; }
+  .pp-paybar { display:flex; align-items:center; gap:14px; margin:10px 0 22px; flex-wrap:wrap; }
+  .pp-pay { background:var(--ai-gold); color:var(--ai-navy); font-weight:700; border:0; border-radius:10px; padding:12px 22px; font-size:1rem; cursor:pointer; }
+  .pp-pay:disabled { opacity:.55; cursor:default; }
+  .pp-pay.ghost { background:transparent; color:var(--ai-gold); border:1px solid var(--ai-gold); }
+  .pp-guar { font-size:.8rem; color:#777; }
+  .pp-price { font-size:.95rem; color:#ddd; } .pp-price s { color:#888; } .pp-price b { color:var(--ai-gold); font-size:1.1rem; } .pp-price em { font-size:.72rem; color:#B08A3C; font-style:normal; letter-spacing:.06em; text-transform:uppercase; }
+  .pp-empty { padding:22px; color:#777; font-style:italic; }
+  .icc-list { display:flex; flex-direction:column; gap:10px; margin:14px 0; max-width:720px; }
+  .icc-pick { display:flex; gap:12px; align-items:flex-start; background:linear-gradient(170deg,var(--ai-navy),var(--ai-navy-2)); border:1px solid rgba(201,164,76,.30); border-radius:12px; padding:14px 16px; cursor:pointer; transition:border-color .15s, box-shadow .15s; }
+  .icc-pick:hover { border-color:rgba(201,164,76,.65); }
+  .icc-pick:has(input:checked){ border-color:var(--ai-gold); box-shadow:0 0 0 2px rgba(201,164,76,.30); }
+  .icc-pick input { margin-top:4px; accent-color:var(--ai-gold); width:17px; height:17px; flex:0 0 auto; cursor:pointer; }
+  .icc-num { background:var(--ai-gold); color:var(--ai-navy); border-radius:8px; min-width:26px; height:26px; line-height:26px; text-align:center; font-weight:700; flex:0 0 auto; font-size:.85rem; }
+  .icc-q { line-height:1.45; color:var(--ai-ink); font-size:1rem; font-weight:600; }
+  .icc-hint { display:block; font-size:.84rem; color:var(--ai-gold-soft); opacity:.78; font-style:italic; font-weight:400; margin-top:4px; line-height:1.45; }
+  .pp-sub { color:var(--ai-gold-soft); opacity:.85; }
+  .pp-head h2 { color:var(--ai-gold-soft); font-size:1.35rem; }
+  .icc-answer { max-width:720px; margin-bottom:14px; }
+  .icc-setlabel { font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--ai-gold); margin:18px 0 8px; }
+  .icc-nar { line-height:1.6; margin:8px 0; }
+  .icc-conf { font-size:.82rem; display:flex; align-items:center; gap:8px; color:var(--ai-gold-soft); }
+  .icc-confbar { flex:1; max-width:180px; height:6px; background:rgba(255,255,255,.15); border-radius:4px; overflow:hidden; }
+  .icc-confbar i { display:block; height:100%; background:var(--ai-gold); }
+  /* ── flipbook: cream pages + 3D leaf-turn (POC) ── */
+  :root { --ai-cream:#FFF0BE; --ai-cream2:#FCE49C; --ai-pink:#0F1428; }
+  .stage { width:100%; display:flex; justify-content:center; }
+  .book { position:relative; width:min(400px,92vw); height:min(560px,128vw); perspective:2400px;
+    filter:drop-shadow(0 24px 40px rgba(0,0,0,.55)); }
+  .page, .leaf { position:absolute; inset:0; border-radius:4px 10px 10px 4px; overflow:hidden; }
+  .page { background:var(--ai-cream); }
+  .leaf { transform-origin:left center; transform-style:preserve-3d; will-change:transform; display:none; }
+  .leaf-face { position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    border-radius:4px 10px 10px 4px; overflow:hidden; background:var(--ai-cream); }
+  .leaf-back { transform:rotateY(180deg); }
+  .leaf .shade { position:absolute; inset:0; background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0) 45%);
+    opacity:0; transition:opacity .35s; }
+  .pg { position:absolute; inset:0; padding:26px 26px 40px; display:flex; flex-direction:column;
+    background:linear-gradient(168deg,#FFFAE0,var(--ai-cream) 42%,var(--ai-cream2)); color:#23252E; font-size:.95rem;
+    background-image:linear-gradient(90deg,rgba(0,0,0,.10),rgba(0,0,0,0) 6%,rgba(0,0,0,0) 94%,rgba(0,0,0,.05)); }
+  .pg h1 { font-size:1.6rem; line-height:1.2; margin:8px 0 14px; color:var(--ai-gold-soft); font-weight:800; }
+  .pg h2 { font-size:1.08rem; margin:4px 0 9px; flex:0 0 auto; color:#5A4410; font-weight:800; line-height:1.3; }
+  .pg .kick { font-size:.64rem; letter-spacing:.2em; text-transform:uppercase; color:#5A4410; font-weight:700; }
+  .pg .rule { height:1px; background:linear-gradient(90deg,var(--ai-gold),rgba(201,164,76,0)); margin:10px 0 14px; }
+  .pg .bd { line-height:1.62; font-size:.85rem; color:#2B2E3A; flex:1 1 auto; min-height:0;
+    overflow-y:auto; overscroll-behavior:contain; padding-right:2px; }
+  .pg .bd::-webkit-scrollbar { width:4px; }
+  .pg .bd::-webkit-scrollbar-thumb { background:rgba(138,110,47,.35); border-radius:4px; }
+  .pg .chiprow { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:11px; flex:0 0 auto; }
+  .pg .chip { font-size:.62rem; letter-spacing:.12em; font-weight:700; text-transform:uppercase;
+    background:var(--ai-navy); color:var(--ai-gold); padding:4px 10px; border-radius:20px; }
+  .pg .chip.ghost { background:transparent; color:#4A3A0E; border:1px solid rgba(138,110,47,.7); font-weight:700; }
+  .pg .ref { flex:0 0 auto; margin-top:12px; border-top:1px solid rgba(138,110,47,.6); padding-top:9px;
+    font-size:.82rem; color:#4A3A0E; font-weight:500; } .pg .ref b { display:block; color:#23252E; margin-top:2px; font-weight:700; }
+  .pg .pnum { position:absolute; bottom:13px; left:0; right:0; text-align:center; font-size:.7rem; color:#9A9382; }
+  .pg.cover, .pg.sec-divider { background:linear-gradient(165deg,var(--ai-pink),var(--ai-navy)); color:var(--ai-ink);
+    align-items:center; justify-content:center; text-align:center; }
+  .pg.cover .in, .pg.sec-divider .in { display:flex; flex-direction:column; align-items:center; }
+  .pg .frame { position:absolute; inset:14px; border:1px solid rgba(201,164,76,.55); border-radius:4px; }
+  .pg .who { font-size:1.05rem; color:var(--ai-gold); margin-top:6px; }
+  .pg .meta { font-size:.78rem; color:rgba(237,235,228,.72); margin-top:6px; }
+  .pg .logo { margin-top:30px; font-weight:700; font-size:.9rem; color:var(--ai-ink); }
+  .pg .logo span { color:var(--ai-gold); }
+  .pg .seal { font-size:1.7rem; color:var(--ai-gold); }
+  .pg .domain { font-size:1.25rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ai-gold-soft); margin-top:10px; }
+  .pg.sec-divider .rule { width:90px; margin-top:14px; }
+  .pg .toc { list-style:none; padding:0; margin:0; }
+  .pg .toc li { display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+    padding:6px 0; border-bottom:1px dotted rgba(0,0,0,.18); }
+  .pg .toc b { font-weight:600; color:#23252E; } .pg .toc i { font-style:normal; color:#8A6E2F; font-size:.85rem; }
+  .pg .disclaim { font-size:.56rem; line-height:1.5; color:rgba(237,235,228,.62); margin-top:12px;
+    max-width:300px; text-align:center;
+    border-top:1px solid rgba(201,164,76,.3); padding-top:10px; }
+  .pg.cover .cover-disc { position:absolute; left:24px; right:24px; bottom:20px; margin-top:0;
+    max-width:none; }
+  .pg .disclaim b { color:rgba(237,235,228,.85); }
+  .pg .toc.bdl li i { font-style:normal; color:#23252E; font-weight:600; }
+  .pg .toc.bdl li b { color:#8A6E2F; font-weight:500; font-size:.86rem; }
+  .fb-chart { width:100%; display:flex; justify-content:center; margin:2px 0 6px; }
+  .fb-chart svg, .fb-chart canvas { width:100% !important; height:auto !important; max-width:242px; }
+  .chart-note { font-size:.75rem; color:#3A3D4A; line-height:1.45; text-align:center; }
+  .chart-note b { color:#23252E; }
+  .axis-row { display:grid; grid-template-columns:1fr; gap:3px 10px; padding:10px 0;
+    border-bottom:1px dotted rgba(0,0,0,.16); }
+  .axis-k { font-size:.8rem; color:#6E5518; font-weight:700; }
+  .axis-v { font-size:.98rem; color:#23252E; font-weight:700; text-align:left; }
+  .axis-n { grid-column:1/-1; font-size:.79rem; color:#3A3D4A; line-height:1.45; }
+  .wc-row { border-left:2px solid var(--ai-gold); padding-left:11px; }
+  .wc-k { font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:#8A6E2F; font-weight:700; }
+  .wc-v { font-size:.84rem; line-height:1.55; color:#2B2E3A; margin-top:2px; }
+  .fbchart-svg { width:100%; max-width:280px; height:auto; }
+  .axis-note { flex:none; margin-top:14px; font-size:.86rem; line-height:1.6; }
+  .wc-list { list-style:none; padding:0; margin:4px 0 0; display:flex; flex-direction:column; gap:11px;
+    flex:1 1 auto; min-height:0; overflow-y:auto; }
+  .wc-list li { border-left:2px solid #8A6E2F; padding-left:12px; font-size:.86rem; line-height:1.55; color:#2B2E3A; }
+  .wc-list li b { display:block; font-size:.67rem; letter-spacing:.14em; text-transform:uppercase;
+    color:#6E5518; margin-bottom:3px; }
+  .pg .closing { font-size:.84rem; line-height:1.6; color:rgba(237,235,228,.9); margin-top:12px; max-width:280px; }
+  .fb-review { margin-top:18px; background:var(--ai-gold); color:var(--ai-navy); border:0; border-radius:9px;
+    padding:9px 20px; font-weight:700; cursor:pointer; font-size:.85rem; }
+  .fb-legend { display:grid; grid-template-columns:repeat(3,1fr); gap:2px 8px; margin-top:5px;
+    font-size:.63rem; color:#3A3D4A; line-height:1.4; flex:0 0 auto; }
+  .fb-legend b { color:#8A6E2F; font-weight:700; }
+  .theme-work { margin-top:10px; padding:9px 11px; background:rgba(138,110,47,.10);
+    border-left:2px solid #8A6E2F; border-radius:4px; font-size:.86rem; }
+  .theme-ev { margin-top:9px; font-size:.81rem; color:#3A3D4A; line-height:1.55; }
+  .pg .bd p { margin:0 0 8px; }
+  .pg .letter-bd p { margin:0 0 9px; font-size:.86rem; line-height:1.62; }
+  .pg .letter-q { text-align:center; font-style:italic; color:#6E5518; font-weight:600;
+    margin:11px 0; padding:9px 12px; border-left:2px solid var(--ai-gold);
+    background:rgba(138,110,47,.09); border-radius:4px; }
+  .pg .foot { flex:0 0 auto; margin-top:12px; padding-top:8px; border-top:1px solid rgba(138,110,47,.3);
+    font-size:.72rem; color:#5A4A22; font-style:italic; line-height:1.5; }
+  .ps-table { width:100%; border-collapse:collapse; margin:4px 0 3px; font-size:.75rem; flex:0 0 auto;
+    table-layout:fixed; }
+  .ps-table th, .ps-table td { padding:5px 2px; text-align:center; border-bottom:1px solid rgba(138,110,47,.22);
+    overflow:hidden; }
+  .ps-table th { font-size:.58rem; letter-spacing:.04em; text-transform:uppercase; color:#6E5518; }
+  .ps-table .ps-d9 { font-size:.7rem; }
+  .ps-table th.ps-fav, .ps-table td.ps-fav { color:#2E6E3A; }
+  .ps-table th.ps-cha, .ps-table td.ps-cha { color:#9A3B2E; }
+  .ps-table th.ps-neu, .ps-table td.ps-neu { color:#6E5518; }
+  .ps-name { text-align:left !important; font-weight:700; color:#23252E; }
+  .ps-dot { display:inline-block; min-width:20px; height:20px; line-height:20px; border-radius:50%;
+    font-size:.68rem; font-weight:700; color:#fff; }
+  .ps-high { background:#8A6E2F; } .ps-medium { background:#B39A5E; } .ps-low { background:#CDBE93; color:#3A3D4A; }
+  .ps-legend { font-size:.72rem; color:#5A4A22; margin-bottom:6px;
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:2px 14px; }
+  .ps-legend .ps-legend-d9 { text-align:right; }
+  .axis-lord { color:#6E5518; font-size:.8rem; font-weight:600; }
+  .guide-list { list-style:none; padding:0; margin:4px 0 0; display:flex; flex-direction:column; gap:11px;
+    flex:1 1 auto; min-height:0; overflow-y:auto; }
+  .guide-list li { border-left:2px solid var(--ai-gold); padding-left:12px; font-size:.85rem;
+    line-height:1.56; color:#2B2E3A; }
+  .guide-list li b { display:block; font-size:.66rem; letter-spacing:.1em; text-transform:uppercase;
+    color:#6E5518; margin-bottom:3px; }
+  .pg .chart-label { text-align:center; font-size:.74rem; letter-spacing:.12em; text-transform:uppercase;
+    color:#5A4410; font-weight:700; margin:2px 0 6px; }
+  .pg .letter-attrib { text-align:center; font-size:.76rem; color:#5A4A22; font-style:italic;
+    margin:-4px 0 10px; }
+  .pg .final-signoff { margin-top:26px; }
+  .pg .final-signoff .who { font-size:1rem; color:var(--ai-gold); margin-bottom:4px; }
+  .fb-legend b { color:#5A4410; font-weight:700; }
+  #liBook.fb-fs { background:radial-gradient(circle at 50% 30%, #141B33, #05060C);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:2vh 0; overflow:auto; }
+  #liBook.fb-fs .book { width:min(64vh,96vw); height:min(94vh,128vw); }
+  #liBook.fb-fs .pg { padding:40px 44px 54px; font-size:1.05rem; }
+  #liBook.fb-fs .pg h1 { font-size:2.4rem; } #liBook.fb-fs .pg h2 { font-size:1.5rem; }
+  #liBook.fb-fs .pg .bd { font-size:1.08rem; line-height:1.8; }
+  #liBook.fb-fs .pg .chart-note { font-size:1rem; }
+  #liBook.fb-fs .fbchart-svg { max-width:360px; }
+  #liBook.fb-fs .fb-dlbar { display:none; }
+  #liBook.fb-fs .hint { color:#9a9; }
+  .fb-share { margin-top:20px; text-align:center; }
+  .fb-share-label { font-size:.66rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ai-gold); margin-bottom:8px; }
+  .fb-share-icons { display:flex; gap:12px; justify-content:center; }
+  .fb-share-icons a { width:34px; height:34px; line-height:34px; border-radius:50%; text-decoration:none;
+    background:var(--ai-gold); color:var(--ai-navy); font-weight:700; font-size:1rem; display:inline-block; }
+  .fb-share-icons a:hover { opacity:.85; }
+  .ai-soon { font-size:.55rem; letter-spacing:.1em; color:#0B0E1A; background:#B39A5E; border-radius:8px; padding:1px 6px; margin-left:5px; font-weight:700; }
+  .coming-soon-banner { margin:14px 0 18px; padding:14px 18px; border:1px solid rgba(201,164,76,.5);
+    border-radius:10px; background:rgba(201,164,76,.08); color:var(--ai-gold-soft); font-size:.95rem; }
+  /* ensure all six language buttons are visible and wrap on narrow screens */
+  .lang-selector { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .lang-btns { display:flex; flex-wrap:wrap; gap:6px; }
+  .lang-btns .lang-btn { flex:0 0 auto; padding:5px 12px; border-radius:8px; border:1px solid rgba(201,164,76,.5);
+    background:transparent; color:var(--ai-gold-soft,#E8D9AE); cursor:pointer; font-size:.85rem; white-space:nowrap; }
+  .lang-btns .lang-btn.active { background:var(--ai-gold,#C9A44C); color:var(--ai-navy,#0B0E1A); font-weight:700; }
+  .controls { display:flex; justify-content:center; gap:14px; align-items:center; margin:16px 0 6px; }
+  .dots { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:60%; }
+  .dots .dot { width:7px; height:7px; border-radius:50%; background:rgba(201,164,76,.32); cursor:pointer; }
+  .dots .dot.on { background:var(--ai-gold); transform:scale(1.25); }
+  .fb-dlbar { display:flex; justify-content:center; gap:14px; margin:14px 0 30px; flex-wrap:wrap; }
+  
+  .hint { text-align:center; font-size:.76rem; color:#7c7c7c; margin-bottom:26px; }
+  .fb-nav { background:var(--ai-navy); color:var(--ai-gold-soft); border:1px solid var(--ai-gold);
+    border-radius:9px; padding:6px 16px; cursor:pointer; font-size:1.1rem; line-height:1.4; }
+  .fb-nav:disabled { opacity:.4; cursor:default; } .fb-count { color:#777; font-size:.85rem; }
   </style>
 </head>
 <body>
+
+  <!-- ── ONBOARDING CLICK-WRAP (first-open consent) ── -->
+  <div id="onboardGate" class="onboard-gate" role="dialog" aria-modal="true" aria-labelledby="obTitle">
+    <div class="onboard-card">
+      <div class="onboard-seal">◈</div>
+      <div class="onboard-kick">Welcome &amp; Setup</div>
+      <h2 id="obTitle" class="onboard-title">Important Disclaimer</h2>
+      <p class="onboard-lead">Before we calculate your birth chart, please read and accept our terms of use.</p>
+      <div class="onboard-body">
+        <p>This application provides astrological analysis using the Swiss Ephemeris (Lahiri Ayanamsa)
+        strictly for educational, entertainment, and self-reflective purposes. All interpretations and
+        timings are <b>indicative only and guarantee no outcomes</b>.</p>
+        <p class="onboard-caps">THIS CONTENT IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL,
+        LEGAL, OR FINANCIAL ADVICE.</p>
+        <p>Do not use these insights as the sole basis for critical life decisions. Reports are generated
+        for a one-time fee and are final. By proceeding, you agree that you use this app at your own risk
+        and that the developers assume no liability for actions taken based on this data.</p>
+      </div>
+      <label class="onboard-check">
+        <input type="checkbox" id="onboardAgree">
+        <span>I have read, understood, and accept the Disclaimer and Terms of Use.</span>
+      </label>
+      <button id="onboardContinue" class="onboard-btn" disabled>Continue to report</button>
+    </div>
+  </div>
 
   <!-- ── TOPBAR ─────────────────────────────────────────────────────────── -->
   <header class="topbar">
@@ -128,14 +375,20 @@
     <button class="nav-tab" data-tab="chartTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">◈</span> <span data-i18n="nav_charts">Charts</span>
     </button>
-    <button class="nav-tab" data-tab="dashaTab" data-requires="chart">
+    <button class="nav-tab ai-owner-only" data-tab="dashaTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">◉</span> <span data-i18n="nav_dasha">Dasa Periods</span>
     </button>
-    <button class="nav-tab" data-tab="domainTab" data-requires="analysis">
+    <button class="nav-tab ai-owner-only" data-tab="domainTab" data-requires="analysis">
       <span class="tab-icon" aria-hidden="true">◈</span> <span data-i18n="nav_domains">Life Domains</span>
     </button>
-    <button class="nav-tab" data-tab="summaryTab" data-requires="analysis">
+    <button class="nav-tab ai-owner-only" data-tab="summaryTab" data-requires="analysis">
       <span class="tab-icon" aria-hidden="true">◎</span> <span data-i18n="nav_summary">Summary</span>
+    </button>
+    <button class="nav-tab ai-paid-tab" data-tab="lifeIndTab" data-requires="chart" title="Unlock your personalized LAMP (Life Analysis and Mapping Profile) report instantly. This comprehensive download maps your chart&#39;s unique meaning for deeper self-reflection.">
+      <span class="tab-icon" aria-hidden="true">❖</span> <span>Life Indicators Report</span> <span class="ai-gold-dot">PAID</span>
+    </button>
+    <button class="nav-tab ai-paid-tab" data-tab="iccTab" data-requires="chart">
+      <span class="tab-icon" aria-hidden="true">✦</span> <span>Instant Clarity Command</span> <span class="ai-gold-dot">PAID</span>
     </button>
     <button class="nav-tab" data-tab="planetsTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">⊕</span> <span data-i18n="nav_planets">Planets</span>
@@ -144,7 +397,7 @@
       <span class="tab-icon" aria-hidden="true">▤</span> <span data-i18n="nav_references">References</span>
     </button>
     <button class="nav-tab" data-tab="consultTab">
-      <span class="tab-icon" aria-hidden="true">☏</span> <span data-i18n="nav_consult">Personal Consultation</span>
+      <span class="tab-icon" aria-hidden="true">☏</span> <span data-i18n="nav_consult">Personal Consultation</span> <span class="ai-soon">SOON</span>
     </button>
     <button class="nav-tab" data-tab="contactTab">
       <span class="tab-icon" aria-hidden="true">✉</span> <span data-i18n="nav_contact">Contact Us</span>
@@ -165,95 +418,14 @@
           <p class="intro-body" data-i18n="intro_body_2">Every interpretation is generated from your specific chart, not generic zodiac text. The calculation uses the Swiss Ephemeris engine — the same precision standard used by NASA and professional Jyotish astrologers worldwide.</p>
         </div>
 
-        <!-- ── PRICING / FEATURE CARDS (clickable) ─────────────────────── -->
-        <div class="feature-cards-grid">
-
-          <div class="feature-card" data-goto="chartTab" data-requires="chart">
-            <span class="fc-badge fc-badge-free" data-i18n="badge_free">Free</span>
-            <div class="fc-icon" aria-hidden="true">◈</div>
-            <div class="fc-title" data-i18n="tile_charts_title">Horoscope Chart (D1 &amp; D9)</div>
-            <div class="fc-price">
-              <span class="fc-price-old" data-i18n="tile_charts_old">₹199</span>
-              <span class="fc-price-now" data-i18n="tile_charts_price">Free for now</span>
-            </div>
-            <div class="fc-actions">
-              <button class="fc-btn fc-btn-go" data-goto="chartTab" data-i18n="btn_get_it">Get It</button>
-            </div>
-          </div>
-
-          <div class="feature-card fc-featured" data-goto="dashaTab" data-requires="chart">
-            <div class="fc-icon" aria-hidden="true">◉</div>
-            <div class="fc-title" data-i18n="tile_dasha_title">Dasa Bhukti Periods — MD &amp; AD Indicators</div>
-            <div class="fc-price">
-              <span class="fc-price-old">₹999</span>
-              <span class="fc-price-now fc-price-paid" data-i18n="tile_dasha_price">₹499</span>
-            </div>
-            <div class="fc-actions">
-              <button class="fc-btn fc-btn-sample" data-sample="dasha" data-i18n="btn_view_sample">View Sample Report</button>
-              <button class="fc-btn fc-btn-pay" data-pay="dasha" data-amount="499" data-i18n="btn_get_it">Get It</button>
-            </div>
-            <div class="fc-norefund" data-i18n="no_refund_short">No refund after purchase</div>
-          </div>
-
-          <div class="feature-card" data-goto="domainTab" data-requires="analysis">
-            <span class="fc-badge fc-badge-premium" data-i18n="badge_premium">Premium</span>
-            <div class="fc-icon" aria-hidden="true">◈</div>
-            <div class="fc-title" data-i18n="tile_domains_title">Life Domains Indicators</div>
-            <div class="fc-price">
-              <span class="fc-price-old">₹599</span>
-              <span class="fc-price-now fc-price-paid" data-i18n="tile_domains_price">₹299</span>
-            </div>
-            <div class="fc-actions">
-              <button class="fc-btn fc-btn-sample" data-sample="domains" data-i18n="btn_view_sample">View Sample Report</button>
-              <button class="fc-btn fc-btn-pay" data-pay="domains" data-amount="299" data-i18n="btn_get_it">Get It</button>
-            </div>
-            <div class="fc-norefund" data-i18n="no_refund_short">No refund after purchase</div>
-          </div>
-
-          <div class="feature-card" data-goto="summaryTab" data-requires="analysis">
-            <span class="fc-badge fc-badge-free" data-i18n="badge_view_only">View only · no download</span>
-            <div class="fc-icon" aria-hidden="true">◎</div>
-            <div class="fc-title" data-i18n="tile_summary_title">Summary Report</div>
-            <div class="fc-price">
-              <span class="fc-price-now" data-i18n="tile_summary_price">Free · view only</span>
-            </div>
-            <div class="fc-actions">
-              <button class="fc-btn fc-btn-go" data-goto="summaryTab" data-i18n="btn_get_it">Get It</button>
-            </div>
-          </div>
-
-          <div class="feature-card" data-goto="planetsTab" data-requires="chart">
-            <span class="fc-badge fc-badge-free" data-i18n="badge_view_only">View only · no download</span>
-            <div class="fc-icon" aria-hidden="true">⊕</div>
-            <div class="fc-title" data-i18n="tile_planets_title">Planet Details</div>
-            <div class="fc-price">
-              <span class="fc-price-now" data-i18n="tile_planets_price">Free · view only</span>
-            </div>
-            <div class="fc-actions">
-              <button class="fc-btn fc-btn-go" data-goto="planetsTab" data-i18n="btn_get_it">Get It</button>
-            </div>
-          </div>
-
-          <div class="feature-card" data-goto="referencesTab">
-            <div class="fc-icon" aria-hidden="true">▤</div>
-            <div class="fc-title" data-i18n="tile_ref_title">References</div>
-            <div class="fc-price">
-              <span class="fc-price-old" data-i18n="tile_ref_old">₹99</span>
-              <span class="fc-price-now" data-i18n="tile_ref_price">Free for now</span>
-            </div>
-            <div class="fc-actions">
-              <button class="fc-btn fc-btn-go" data-goto="referencesTab" data-i18n="btn_get_it">Get It</button>
-            </div>
-          </div>
-
-        </div>
-
         <div class="grid-2col">
           <div class="card">
             <h3 class="card-title" data-i18n="form_birth_title">Birth Details</h3>
             <div class="form-group">
-              <label><span data-i18n="form_name">Full name</span> <span class="form-hint" data-i18n="form_name_hint">(appears in report)</span></label>
+              <label><span data-i18n="form_name">Full name</span></label>
               <input id="inputName" type="text" data-i18n-ph="form_name_ph" placeholder="e.g. Ravi Kumar"/>
+              <label style="margin-top:8px"><span data-i18n="form_callname">Calling name</span> <span class="form-hint" data-i18n="form_optional">(optional)</span></label>
+              <input id="inputCallName" type="text" placeholder="e.g. Ravi"/>
             </div>
             <div class="form-group">
               <label><span data-i18n="form_email">Email</span> <span class="form-hint" data-i18n="form_email_hint">(required for sending invoice)</span></label>
@@ -264,7 +436,15 @@
               <input id="inputDOB" type="date"/>
             </div>
             <div class="form-group">
-              <label><span data-i18n="form_tob">Time of birth</span> <span class="form-hint" data-i18n="form_tob_hint">(as exact as possible — even ±5 min matters)</span></label>
+              <label><span data-i18n="form_gender">Gender</span> <span class="form-hint" data-i18n="form_gender_hint">(used for classical spouse-significator rules)</span></label>
+              <select id="inputGender">
+                <option value="male" data-i18n="gender_male">Male</option>
+                <option value="female" data-i18n="gender_female">Female</option>
+                <option value="unspecified" data-i18n="gender_unspecified">Prefer not to say</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label><span data-i18n="form_tob">Time of birth</span> <span class="form-hint" data-i18n="form_tob_hint">(as exact as possible — even ±5 min matters)</span> <span class="form-hint" data-i18n="form_tob_24h">(24-hour format, e.g. 14:35)</span></label>
               <input id="inputTOB" type="time"/>
             </div>
             <div class="form-group">
@@ -282,27 +462,32 @@
             </div>
           </div>
 
-          <div class="card">
-            <h3 class="card-title" data-i18n="form_settings">Settings</h3>
-            <div class="form-group">
-              <label data-i18n="form_ayanamsha">Ayanamsha</label>
-              <select id="inputAyanamsha">
-                <option value="lahiri" selected>Lahiri (Chitrapaksha) — Government of India standard</option>
-              </select>
-              <span class="form-hint">Ayanamsha corrects for the slow drift of the equinox against the fixed stars. Lahiri is the standard for Parashari Jyotish — do not change unless you know why.</span>
-            </div>
-            <div class="form-group">
-              <label data-i18n="form_house">House system</label>
-              <select id="inputHouseSystem">
-                <option value="whole" selected>Whole Sign — standard for Parashari Jyotish</option>
-              </select>
-              <span class="form-hint">Whole Sign houses mean each zodiac sign occupies exactly one house. This is the system used in classical Indian astrology.</span>
-            </div>
-
-            <div class="precision-note">
-              <div class="pn-title" data-i18n="pn_title">Why birth time matters</div>
-              <div class="pn-body" data-i18n="pn_body">A 4-minute error in birth time shifts the Lagna by 1°. That can move it into a different sign entirely, changing your entire chart. Use hospital records or birth certificates wherever possible.</div>
-            </div>
+          <div class="card nav-guide-card">
+            <h3 class="card-title" data-i18n="nav_guide_title">How to use this site</h3>
+            <ol class="nav-flow">
+              <li>
+                <span class="nf-num">1</span>
+                <div class="nf-body"><b data-i18n="nav_step1_h">Enter your birth details</b>
+                <span data-i18n="nav_step1_b">Fill in the form on the left and press the button to generate your chart.</span></div>
+              </li>
+              <li>
+                <span class="nf-num">2</span>
+                <div class="nf-body"><b data-i18n="nav_step2_h">See your Charts &amp; References — free</b>
+                <span data-i18n="nav_step2_b">Your D1 and D9 charts open straight away. The References guides explain every house, planet and term.</span></div>
+              </li>
+              <li>
+                <span class="nf-num">3</span>
+                <div class="nf-body"><b><span data-i18n="nav_step3_h">Choose a report</span> — Paid</b>
+                <span data-i18n-html="nav_step3_b"><b>Life Indicators Report</b> — a full flipbook covering every area of your life. <b>Instant Clarity Command</b> — pick any 3 of 10 questions.</span></div>
+              </li>
+              <li>
+                <span class="nf-num">4</span>
+                <div class="nf-body"><b data-i18n="nav_step4_h">Unlock &amp; read</b>
+                <span data-i18n="nav_step4_b">Pay once, then read on screen or download the PDF. Re-open it free any time on the same chart.</span></div>
+              </li>
+            </ol>
+            <div class="nav-flow-note" data-i18n-html="nav_guide_note">All paid reports are in <b>English</b>. Charts and References are available in regional languages.</div>
+            <div class="nav-flow-tip" data-i18n="nav_guide_tip">Tip: the more exact your birth time, the more accurate your chart — even ±5 minutes matters.</div>
           </div>
         </div>
 
@@ -478,6 +663,28 @@
     </section>
 
     <!-- ── SCREEN 6: PLANET DETAILS ─────────────────────────────────── -->
+    <section id="lifeIndTab" class="screen">
+      <div class="screen-inner">
+      <div class="pp-head"><h2>LAMP Report <span class="pp-full">· Life Analysis &amp; Mapping Profile</span></h2>
+        <p class="pp-sub">Your personalized blueprint for conscious self-reflection — every life area, its indication, its window, and what to do about it. Built once from your chart, yours forever.</p>
+        <div id="liPersonal" class="pp-personal"></div></div>
+      <div id="liTeasers" class="pp-grid"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
+      <div class="pp-paybar"><button id="liPayBtn" class="pp-pay">Discover Your Cosmic Blueprint</button>
+        <span class="pp-price"><s>₹2,499</s> <b>₹999</b> <em>launch price</em></span>
+        <span class="pp-guar">One-time · re-open free forever on this chart</span></div>
+      <div id="liBook"></div>
+      </div>
+    </section>
+    <section id="iccTab" class="screen">
+      <div class="screen-inner">
+      <div class="pp-head"><h2>Instant Clarity Command <span class="pp-full">· ICC</span></h2>
+        <p class="pp-sub">Ten burning questions. Pick any three. Get direct, dated answers with a confidence score.</p>
+        <div id="iccPersonal" class="pp-personal"></div></div>
+      <div id="iccPickerWrap"><div id="iccPicker" class="icc-list"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
+      <div class="pp-paybar"><button id="iccPayBtn" class="pp-pay" disabled>Pick 3 questions</button></div></div>
+      <div id="iccAnswers"></div>
+      </div>
+    </section>
     <section id="planetsTab" class="screen">
       <div class="screen-inner">
         <div class="card">
@@ -540,98 +747,32 @@
               <div id="refTranslateMenu" class="ref-translate-menu" style="display:none">
                 <button class="ref-tr-opt" data-trlang="en">English</button>
                 <button class="ref-tr-opt" data-trlang="ta">தமிழ் · Tamil</button>
-                <button class="ref-tr-opt ref-tr-soon" data-trlang="te">తెలుగు · Telugu (soon)</button>
-                <button class="ref-tr-opt ref-tr-soon" data-trlang="hi">हिंदी · Hindi (soon)</button>
-                <button class="ref-tr-opt ref-tr-soon" data-trlang="kn">ಕನ್ನಡ · Kannada (soon)</button>
-                <button class="ref-tr-opt ref-tr-soon" data-trlang="ml">മലയാളം · Malayalam (soon)</button>
+                <button class="ref-tr-opt" data-trlang="te">తెలుగు · Telugu</button>
+                <button class="ref-tr-opt" data-trlang="hi">हिंदी · Hindi</button>
+                <button class="ref-tr-opt" data-trlang="kn">ಕನ್ನಡ · Kannada</button>
+                <button class="ref-tr-opt" data-trlang="ml">മലയാളം · Malayalam</button>
               </div>
             </div>
           </div>
           <article id="refArticle" class="ref-article"></article>
-          <div class="ref-translate-note" data-i18n="ref_translate_note">Opens this guide in Google Translate in your chosen language.</div>
+          <div class="ref-translate-note" data-i18n="ref_translate_note">Switches this guide to your chosen language.</div>
         </div>
 
       </div>
     </section>
 
     <!-- ── SCREEN 8: PERSONAL CONSULTATION ──────────────────────────── -->
+    <!-- ── SCREEN 8: PERSONAL CONSULTATION (coming soon) ──────────── -->
     <section id="consultTab" class="screen">
       <div class="screen-inner">
-
-        <div class="card intro-card">
-          <h2 class="intro-title" data-i18n="consult_title">Personal Consultation</h2>
-          <p class="intro-body" data-i18n="consult_intro">Book a one-on-one audio consultation. You will receive a call within 24 hours of payment.</p>
+        <div class="card intro-card" style="text-align:center; padding:44px 28px;">
+          <div style="font-size:2rem; color:var(--ai-gold);">☏</div>
+          <h2 class="intro-title" style="margin-top:10px;">Personal Consultation</h2>
+          <p style="font-size:1.15rem; color:var(--ai-gold); font-weight:600; margin:10px 0;">Coming soon</p>
+          <p class="intro-body" style="max-width:520px; margin:0 auto;">We're putting together one-on-one
+          audio consultations with real care. Please check back shortly — in the meantime, your LAMP and
+          Instant Clarity Command reports are ready whenever you are.</p>
         </div>
-
-        <!-- Consultant profile -->
-        <div class="card consultant-card">
-          <h3 class="card-title" data-i18n="consult_about">About the Consultant</h3>
-          <div class="consultant-profile">
-            <div class="consultant-photo">
-              <img id="consultantPhoto" src="consultant.jpg" alt="Consultant"
-                   onerror="this.style.display='none';this.parentNode.classList.add('no-photo');this.parentNode.setAttribute('data-initials','★');"/>
-            </div>
-            <div class="consultant-info">
-              <div class="consultant-name" id="consultantName">[ Consultant name ]</div>
-              <div class="consultant-title" id="consultantTitle">[ Credentials / title ]</div>
-              <div class="consultant-bio" id="consultantBio">[ Short bio — to be provided ]</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Booking form -->
-        <div class="card">
-          <h3 class="card-title" data-i18n="consult_book_title">Book Your Consultation</h3>
-
-          <div class="form-group">
-            <label data-i18n="consult_select_type">Select consultation type</label>
-            <div class="consult-types" id="consultTypes">
-              <!-- Filled by inline script from CONSULT_TYPES config -->
-            </div>
-          </div>
-
-          <div class="grid-2col">
-            <div class="form-group">
-              <label data-i18n="consult_your_name">Your name</label>
-              <input id="consultName" type="text"/>
-            </div>
-            <div class="form-group">
-              <label><span data-i18n="form_email">Email</span> <span class="form-hint" data-i18n="form_email_hint">(required for sending invoice)</span></label>
-              <input id="consultEmail" type="email" placeholder="you@example.com"/>
-            </div>
-            <div class="form-group">
-              <label data-i18n="consult_your_phone">Your mobile number</label>
-              <input id="consultPhone" type="tel" data-i18n-ph="consult_your_phone_ph" placeholder="Include country code, e.g. +91..."/>
-            </div>
-          </div>
-
-          <div class="grid-2col">
-            <div class="form-group">
-              <label data-i18n="consult_your_dob">Your date of birth</label>
-              <input id="consultDOB" type="date"/>
-            </div>
-            <div class="form-group">
-              <label data-i18n="consult_select_date">Preferred date</label>
-              <input id="consultDate" type="date"/>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label data-i18n="consult_query">Your question (optional)</label>
-            <textarea id="consultQuery" rows="3" data-i18n-ph="consult_query_ph" placeholder="Briefly describe what you'd like guidance on..."></textarea>
-          </div>
-
-          <div class="generate-row">
-            <button id="consultPayBtn" class="btn-primary" data-i18n="consult_pay">Pay &amp; Book Consultation</button>
-            <div id="consultStatus" class="status-msg"></div>
-          </div>
-          <div class="no-refund-note" data-i18n="no_refund_note">All payments are final. No refunds once the consultation is booked or the report is generated.</div>
-
-          <div id="consultConfirmed" class="consult-confirmed hidden" data-i18n="consult_confirmed">
-            Your consultation is booked. You will receive a call within 24 hours on the mobile number provided.
-          </div>
-        </div>
-
       </div>
     </section>
 
@@ -710,7 +851,7 @@
   <footer class="app-footer">
     <div class="footer-disclaimer">
       <strong data-i18n="footer_disclaimer_label">Disclaimer:</strong>
-      <span data-i18n="footer_disclaimer">This application provides astrological analysis for educational and self-reflective purposes only. It is not a substitute for medical, psychological, legal, or financial advice. All interpretations are indicative in nature and should not be used as the sole basis for critical life decisions.</span>
+      <span data-i18n="footer_disclaimer">This app provides astrological analysis (Swiss Ephemeris / Lahiri Ayanamsa) strictly for educational, entertainment, and self-reflective purposes. All timings and interpretations are indicative only and guarantee no outcomes. THIS IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL, LEGAL, OR FINANCIAL ADVICE. BY USING THIS APP, YOU AGREE THAT ALL CONTENT IS PROVIDED "AS IS" AND YOUR USE IS AT YOUR OWN RISK. THE DEVELOPERS EXPLICITLY DISCLAIM ALL WARRANTIES AND ASSUME NO LIABILITY OR RESPONSIBILITY FOR ANY LOSS, DAMAGE, OR ACTIONS TAKEN BASED ON THIS DATA.</span>
     </div>
     <div class="footer-copy" data-i18n="footer_copy">
       © 2026 AstroIndicators · Swiss Ephemeris · Lahiri Ayanamsha · Whole Sign Houses · Parashari Jyotish · All rights reserved.
@@ -725,6 +866,8 @@
 
   <!-- Payment flow -->
   <script src="payments.js"></script>
+
+  <script src="paid-products.js" defer></script>
 
   <!-- PDF report generator (jsPDF) -->
  <script src="/jspdf.umd.min.js"></script>
@@ -745,5 +888,45 @@
 
   <!-- Original engine -->
   <script src="app.js" defer></script>
+
+  <style>
+  .onboard-gate { position:fixed; inset:0; z-index:99999; background:rgba(5,6,12,.92);
+    display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(3px); }
+  .onboard-gate.hidden { display:none; }
+  .onboard-card { max-width:520px; width:100%; max-height:92vh; overflow-y:auto;
+    background:linear-gradient(168deg,#141B33,#0B0E1A); border:1px solid rgba(201,164,76,.5);
+    border-radius:16px; padding:28px 30px; color:#EDEBE4; box-shadow:0 24px 60px rgba(0,0,0,.6); }
+  .onboard-seal { text-align:center; font-size:1.8rem; color:#C9A44C; }
+  .onboard-kick { text-align:center; font-size:.66rem; letter-spacing:.22em; text-transform:uppercase; color:#C9A44C; margin-top:4px; }
+  .onboard-title { text-align:center; font-size:1.5rem; color:#E8D9AE; margin:6px 0 4px; }
+  .onboard-lead { text-align:center; font-size:.9rem; color:rgba(237,235,228,.85); margin-bottom:16px; }
+  .onboard-body { font-size:.85rem; line-height:1.62; color:rgba(237,235,228,.9); max-height:34vh;
+    overflow-y:auto; padding:14px 16px; background:rgba(0,0,0,.25); border-radius:9px;
+    border:1px solid rgba(201,164,76,.2); }
+  .onboard-body p { margin:0 0 10px; } .onboard-body p:last-child { margin-bottom:0; }
+  .onboard-caps { color:#E8D9AE; font-weight:700; }
+  .onboard-check { display:flex; gap:11px; align-items:flex-start; margin:18px 0; cursor:pointer; font-size:.88rem; }
+  .onboard-check input { margin-top:3px; width:18px; height:18px; accent-color:#C9A44C; flex:0 0 auto; cursor:pointer; }
+  .onboard-btn { width:100%; padding:13px; border:0; border-radius:10px; background:#C9A44C; color:#0B0E1A;
+    font-weight:700; font-size:1rem; cursor:pointer; transition:opacity .15s; }
+  .onboard-btn:disabled { opacity:.4; cursor:not-allowed; }
+  </style>
+  <script>
+  (function () {
+    var gate = document.getElementById("onboardGate");
+    var box = document.getElementById("onboardAgree");
+    var btn = document.getElementById("onboardContinue");
+    if (!gate) return;
+    try { if (sessionStorage.getItem("ai_disclaimer_ok") === "1") { gate.classList.add("hidden"); return; } } catch (e) {}
+    if (box && btn) {
+      box.addEventListener("change", function () { btn.disabled = !box.checked; });
+      btn.addEventListener("click", function () {
+        if (!box.checked) return;
+        try { sessionStorage.setItem("ai_disclaimer_ok", "1"); } catch (e) {}
+        gate.classList.add("hidden");
+      });
+    }
+  })();
+  </script>
 </body>
 </html>
