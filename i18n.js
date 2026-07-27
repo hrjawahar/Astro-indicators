@@ -20,7 +20,7 @@ const I18N = {
     // ── chart centre + payment/lock messages ──
     center_d1: "D1 — Birth Chart",
     center_d9: "D9 — Navamsha Chart",
-    email_required: "Please enter a valid email — your invoice will be sent there.",
+    email_required: "Please enter a valid email — your invoice will be sent there. Then press Enter to continue to payment.",
     already_paid: "You already own this report — opening it.",
     pay_cancelled: "Payment cancelled.",
     pay_checking: "Checking your purchase…",
@@ -240,7 +240,7 @@ const I18N = {
     // ── chart centre + payment/lock messages ──
     center_d1: "D1 — பிறப்பு ஜாதகம்",
     center_d9: "D9 — நவாம்ச ஜாதகம்",
-    email_required: "சரியான மின்னஞ்சலை உள்ளிடவும் — உங்கள் ரசீது அங்கு அனுப்பப்படும்.",
+    email_required: "சரியான மின்னஞ்சலை உள்ளிடவும் — உங்கள் ரசீது அங்கு அனுப்பப்படும். பின்னர் கட்டணத்திற்குச் செல்ல Enter அழுத்தவும்.",
     already_paid: "இந்த அறிக்கை ஏற்கனவே உங்களுடையது — திறக்கிறோம்.",
     pay_cancelled: "கட்டணம் ரத்து செய்யப்பட்டது.",
     pay_checking: "உங்கள் கொள்முதலை சரிபார்க்கிறோம்…",
@@ -448,7 +448,7 @@ const I18N = {
     // ── chart centre + payment/lock messages ──
     center_d1: "D1 — జనన జాతకం",
     center_d9: "D9 — నవాంశ జాతకం",
-    email_required: "సరైన ఇమెయిల్‌ను నమోదు చేయండి — మీ ఇన్‌వాయిస్ అక్కడికి పంపబడుతుంది.",
+    email_required: "సరైన ఇమెయిల్‌ను నమోదు చేయండి — మీ ఇన్‌వాయిస్ అక్కడికి పంపబడుతుంది. తర్వాత చెల్లింపునకు వెళ్లడానికి Enter నొక్కండి.",
     already_paid: "ఈ నివేదిక ఇప్పటికే మీది — తెరుస్తున్నాము.",
     pay_cancelled: "చెల్లింపు రద్దు చేయబడింది.",
     pay_checking: "మీ కొనుగోలును తనిఖీ చేస్తున్నాము…",
@@ -656,7 +656,7 @@ const I18N = {
     // ── chart centre + payment/lock messages ──
     center_d1: "D1 — जन्म कुंडली",
     center_d9: "D9 — नवांश कुंडली",
-    email_required: "कृपया एक मान्य ईमेल दर्ज करें — आपका इनवॉइस वहीं भेजा जाएगा।",
+    email_required: "कृपया एक मान्य ईमेल दर्ज करें — आपका इनवॉइस वहीं भेजा जाएगा। फिर भुगतान के लिए Enter दबाएँ।",
     already_paid: "यह रिपोर्ट पहले से आपकी है — इसे खोल रहे हैं।",
     pay_cancelled: "भुगतान रद्द कर दिया गया।",
     pay_checking: "आपकी खरीद की जाँच हो रही है…",
@@ -864,7 +864,7 @@ const I18N = {
     // ── chart centre + payment/lock messages ──
     center_d1: "D1 — ಜನ್ಮ ಜಾತಕ",
     center_d9: "D9 — ನವಾಂಶ ಜಾತಕ",
-    email_required: "ದಯವಿಟ್ಟು ಸರಿಯಾದ ಇಮೇಲ್ ನಮೂದಿಸಿ — ನಿಮ್ಮ ಇನ್‌ವಾಯ್ಸ್ ಅಲ್ಲಿಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ.",
+    email_required: "ದಯವಿಟ್ಟು ಸರಿಯಾದ ಇಮೇಲ್ ನಮೂದಿಸಿ — ನಿಮ್ಮ ಇನ್‌ವಾಯ್ಸ್ ಅಲ್ಲಿಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ. ನಂತರ ಪಾವತಿಗೆ ಮುಂದುವರಿಯಲು Enter ಒತ್ತಿರಿ.",
     already_paid: "ಈ ವರದಿ ಈಗಾಗಲೇ ನಿಮ್ಮದು — ತೆರೆಯಲಾಗುತ್ತಿದೆ.",
     pay_cancelled: "ಪಾವತಿ ರದ್ದುಗೊಂಡಿದೆ.",
     pay_checking: "ನಿಮ್ಮ ಖರೀದಿಯನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…",
@@ -1072,7 +1072,7 @@ const I18N = {
     // ── chart centre + payment/lock messages ──
     center_d1: "D1 — ജനന ജാതകം",
     center_d9: "D9 — നവാംശ ജാതകം",
-    email_required: "സാധുവായ ഇമെയിൽ നൽകുക — നിങ്ങളുടെ ഇൻവോയ്സ് അവിടേക്ക് അയയ്ക്കും.",
+    email_required: "സാധുവായ ഇമെയിൽ നൽകുക — നിങ്ങളുടെ ഇൻവോയ്സ് അവിടേക്ക് അയയ്ക്കും. തുടർന്ന് പേയ്‌മെന്റിലേക്ക് പോകാൻ Enter അമർത്തുക.",
     already_paid: "ഈ റിപ്പോർട്ട് ഇതിനകം നിങ്ങളുടേതാണ് — തുറക്കുന്നു.",
     pay_cancelled: "പണമടയ്ക്കൽ റദ്ദാക്കി.",
     pay_checking: "നിങ്ങളുടെ വാങ്ങൽ പരിശോധിക്കുന്നു…",
