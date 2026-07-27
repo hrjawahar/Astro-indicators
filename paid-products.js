@@ -903,13 +903,13 @@
         const f = byId(facts, a.module_id); if (!f) return;
         const win = f.timing_windows[0];
         doc.setFontSize(13); const q = doc.splitTextToSize(f.question, W-M*2);
-        doc.setFontSize(11); const body = doc.splitTextToSize(a.narrative, W-M*2-4);
+        doc.setFontSize(12.5); const body = doc.splitTextToSize(a.narrative, W-M*2-4);
         const need = q.length*16 + body.length*16 + (win ? 34 : 0) + 50;
         if (y + need > H - M) { doc.addPage(); y = M; }
         doc.setFontSize(13); doc.setTextColor(...INK); doc.text(q, M, y); y += q.length*16 + 6;
         doc.setFontSize(9); doc.setTextColor(...GOLD);
         doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-        doc.setFontSize(11); doc.setLineHeightFactor(1.45); doc.setTextColor(...INK); doc.text(body, M, y); doc.setLineHeightFactor(1.15); y += body.length*16 + 8;
+        doc.setFontSize(12.5); doc.setLineHeightFactor(1.5); doc.setTextColor(...INK); doc.text(body, M, y); doc.setLineHeightFactor(1.15); y += body.length*18 + 8;
         if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
           doc.setFontSize(9.5); doc.setTextColor(...GOLD);
           doc.text(win.label + ": " + fmtWin(win), M, y); y += 20; }
@@ -959,7 +959,7 @@
     // hardened disclaimer, larger + readable
     doc.setTextColor(215,215,220); doc.setFontSize(9);
     const disc = doc.splitTextToSize("DISCLAIMER: " + CANON_DISCLAIMER, W-M*2.2);
-    doc.text(disc, W/2, H/2+58, { align:"center" });
+    doc.text(disc, W/2, H - M - disc.length*11 - 4, { align:"center" });
 
     const newPage = () => { doc.addPage(); y = M; doc.setTextColor(...INK); };
     const heading = (txt) => { doc.setFontSize(11); doc.setTextColor(...GOLD);
@@ -1133,18 +1133,18 @@
       const g = groups.find(x => x.cat === cat) || (groups.push({cat, items:[]}), groups[groups.length-1]);
       g.items.push({ sec, f });
       const win = f.timing_windows[0];
-      doc.setFontSize(11);                          // set BEFORE splitting so wrap width matches render
+      doc.setFontSize(12.5);                        // set BEFORE splitting so wrap width matches render
       const body = doc.splitTextToSize(sec.narrative, W - M*2 - 4);
-      const need = 96 + body.length*16 + (win ? 34 : 0);
+      const need = 96 + body.length*18 + (win ? 34 : 0);
       if (y + need > H - M) newPage();
       if (cat !== lastCat) { lastCat = cat;
         if (y + need + 40 > H - M) newPage();
         doc.setFillColor(...NAVY); doc.rect(M, y, W-M*2, 30, "F");
         doc.setTextColor(...GOLD); doc.setFontSize(10); doc.text(cat.toUpperCase(), M+12, y+20); y += 46; }
-      doc.setTextColor(...INK); doc.setFontSize(15); doc.text(sec.heading, M, y); y += 22;
+      doc.setTextColor(...INK); doc.setFontSize(16); doc.text(sec.heading, M, y); y += 24;
       doc.setFontSize(9); doc.setTextColor(...GOLD);
       doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
-      doc.setFontSize(11); doc.setLineHeightFactor(1.45); doc.setTextColor(...INK); doc.text(body, M, y); doc.setLineHeightFactor(1.15); y += body.length*16 + 8;
+      doc.setFontSize(12.5); doc.setLineHeightFactor(1.5); doc.setTextColor(...INK); doc.text(body, M, y); doc.setLineHeightFactor(1.15); y += body.length*18 + 8;
       if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
         doc.setFontSize(9.5); doc.setTextColor(...GOLD);
         doc.text(win.label + ": " + fmtWin(win), M, y); y += 22; }
