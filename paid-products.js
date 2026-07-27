@@ -962,9 +962,9 @@
     doc.text(disc, W/2, H - M - disc.length*11 - 4, { align:"center" });
 
     const newPage = () => { doc.addPage(); y = M; doc.setTextColor(...INK); };
-    const heading = (txt) => { doc.setFontSize(11); doc.setTextColor(...GOLD);
-      doc.text(txt.toUpperCase(), M, y); y += 6;
-      doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 20; };
+    const heading = (txt) => { doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(176,130,38);
+      doc.text(txt.toUpperCase(), M, y); doc.setFont("helvetica","normal"); y += 7;
+      doc.setDrawColor(176,130,38); doc.setLineWidth(1); doc.line(M, y, W-M, y); doc.setLineWidth(.8); y += 20; };
 
     // ── birth details ────────────────────────────────────────────────────────
     newPage(); heading("Birth Details");
@@ -1029,7 +1029,7 @@
     }
     // opening letter
     newPage(); heading("A Note Before You Begin");
-    doc.setFontSize(13); doc.setTextColor(...INK); doc.text("Why we built this for you", M, y); y += 22;
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(176,130,38); doc.text("Why we built this for you", M, y); doc.setFont("helvetica","normal"); y += 24;
     const rn = readerName();
     doc.setFontSize(12);
     const para = (t) => { doc.setFontSize(12); const tx = doc.splitTextToSize(t, W-M*2); if (y+tx.length*17>H-M) newPage();
@@ -1041,7 +1041,7 @@
     y += 6;
     doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.setTextColor(...GOLD);
     doc.text("Why am I going through what I am going through?", M+18, y); y += 20;
-    doc.text("And how do I see the road ahead?", M+18, y); y += 14;
+    doc.text("And how do I see the road ahead?", M+18, y); y += 28;
     doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
     para("The system reads both your D1 (what is promised in your foundation) and your D9 (what takes shape as you grow beyond it), and lays out the reasoning so you connect the dots yourself. Our hope is that it helps you relax, reflect, and rejuvenate. Happy reading — we'll meet you again at the end.");
 
@@ -1163,7 +1163,7 @@
 
     // ── what to actually do (concrete guidance) ──────────────────────────────
     newPage(); heading("What To Actually Do With This");
-    doc.setFontSize(13); doc.setTextColor(...INK); doc.text("The few choices that change the most", M, y); y += 24;
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(176,130,38); doc.text("The few choices that change the most", M, y); doc.setFont("helvetica","normal"); y += 26;
     const guide = (window._extras && window._extras.guidance) || [];
     for (const l of guide) {
       const label = l.actor + " · " + l.house + (l.house===1?"st":l.house===2?"nd":l.house===3?"rd":"th") + " house";
@@ -1177,7 +1177,7 @@
 
     // ── closing letter ───────────────────────────────────────────────────────
     newPage(); heading("A Closing Note");
-    doc.setFontSize(13); doc.setTextColor(...INK); doc.text("Awareness is where it begins", M, y); y += 22;
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(176,130,38); doc.text("Awareness is where it begins", M, y); doc.setFont("helvetica","normal"); y += 24;
     doc.setFontSize(10.5);
     para((rn ? "Dear " + rn + "," : "Dear reader,"));
     para("We hope these indications have given you a genuine sense of awareness, and some answers to the questions that may have been quietly weighing on you.");
@@ -1185,9 +1185,11 @@
     para("With that awareness, you can begin to sort what lies within your control from what lies beyond it. As the Serenity Prayer asks:");
     if (y + 80 > H - M) newPage();
     y += 6;
-    doc.setFont("helvetica","bolditalic"); doc.setFontSize(12); doc.setTextColor(...GOLD);
+    doc.setFont("helvetica","bolditalic"); doc.setFontSize(12.5); doc.setTextColor(176,130,38);
     var _spr = doc.splitTextToSize("\u201Cgrant me the serenity to accept what I cannot change, the courage to change what I can, and the wisdom to know the difference.\u201D", W-M*2-36);
-    doc.setLineHeightFactor(1.5); doc.text(_spr, M+18, y); doc.setLineHeightFactor(1.15); y += _spr.length*18 + 14;
+    doc.setLineHeightFactor(1.5); doc.text(_spr, M+18, y); doc.setLineHeightFactor(1.15); y += _spr.length*18 + 6;
+    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...MUTE);
+    doc.text("\u2014 Reinhold Niebuhr", M+18, y); y += 18;
     doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
     para("Because in the end — awareness and acceptance are where suffering ends.");
 
