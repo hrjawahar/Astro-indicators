@@ -988,7 +988,9 @@
     function drawChart(lagnaSign, houses, label, note) {
       const li = SF.indexOf(lagnaSign); if (li < 0) return;
       if (y + 300 > H - M) newPage();
-      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(label, M, y); y += 14;
+      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(label, M, y); y += 15;
+      doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(...GOLD);
+      doc.text("Lagna: " + lagnaSign, M, y); doc.setFont("helvetica","normal"); y += 16;
       const S = Math.min(300, W - M*2), C = S/4, x0 = M;
       doc.setDrawColor(...GOLD); doc.setLineWidth(.8);
       for (let r=0;r<4;r++) for (let c=0;c<4;c++) {
@@ -1034,7 +1036,13 @@
       doc.setTextColor(...INK); doc.setLineHeightFactor(1.5); doc.text(tx, M, y); doc.setLineHeightFactor(1.15); y += tx.length*17 + 8; };
     para((rn ? "Dear " + rn + "," : "Dear reader,"));
     para("For most of us, the need to consult astrology arises only when something is not going as we hoped — rarely when life is going well. That was true for us too. The guidance we sought was often hard to interpret, felt clear in the moment then dissolved once we left, and still left the two questions that mattered most unanswered.");
-    para("So we built AstroIndicators with one goal: to give you not prediction, but clarity — a clarity that stays within your reach, so you can answer for yourself: Why am I going through what I am going through? And how do I see the road ahead?");
+    para("So we built AstroIndicators with one goal: to give you not prediction, but clarity — a clarity that stays within your reach, so you can answer for yourself:");
+    if (y + 70 > H - M) newPage();
+    y += 6;
+    doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.setTextColor(...GOLD);
+    doc.text("Why am I going through what I am going through?", M+18, y); y += 20;
+    doc.text("And how do I see the road ahead?", M+18, y); y += 14;
+    doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
     para("The system reads both your D1 (what is promised in your foundation) and your D9 (what takes shape as you grow beyond it), and lays out the reasoning so you connect the dots yourself. Our hope is that it helps you relax, reflect, and rejuvenate. Happy reading — we'll meet you again at the end.");
 
     newPage(); heading("Your Birth Charts");
@@ -1142,12 +1150,14 @@
         doc.setFillColor(...NAVY); doc.rect(M, y, W-M*2, 30, "F");
         doc.setTextColor(...GOLD); doc.setFontSize(10); doc.text(cat.toUpperCase(), M+12, y+20); y += 46; }
       doc.setTextColor(...INK); doc.setFontSize(16); doc.text(sec.heading, M, y); y += 24;
-      doc.setFontSize(9); doc.setTextColor(...GOLD);
-      doc.text(f.band.replace(/_/g," ") + "  ·  " + f.confidence + "% confidence", M, y); y += 18;
+      doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(170,128,40);
+      doc.text(f.band.replace(/_/g," ").toUpperCase() + "   ·   " + f.confidence + "% confidence", M, y);
+      doc.setFont("helvetica","normal"); y += 19;
       doc.setFontSize(12.5); doc.setLineHeightFactor(1.5); doc.setTextColor(...INK); doc.text(body, M, y); doc.setLineHeightFactor(1.15); y += body.length*18 + 8;
-      if (win) { doc.setDrawColor(...GOLD); doc.line(M, y, W-M, y); y += 14;
-        doc.setFontSize(9.5); doc.setTextColor(...GOLD);
-        doc.text(win.label + ": " + fmtWin(win), M, y); y += 22; }
+      if (win) { doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M, y, W-M, y); doc.setLineWidth(.8); y += 15;
+        doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(170,128,40);
+        doc.text(win.label + ":  ", M, y); const _lw = doc.getTextWidth(win.label + ":  ");
+        doc.setTextColor(...INK); doc.text(fmtWin(win), M + _lw, y); doc.setFont("helvetica","normal"); y += 22; }
       y += 14;
     }
 
@@ -1172,7 +1182,14 @@
     para((rn ? "Dear " + rn + "," : "Dear reader,"));
     para("We hope these indications have given you a genuine sense of awareness, and some answers to the questions that may have been quietly weighing on you.");
     para("If a few don't seem to fit, hold them this way: each indication is a signboard on a road — it tells you, reliably, what lies ahead and how far. But this signboard carries a weather forecast too. The road is your chart; the weather is your timing. Many people share birth details close to yours and travel much the same road, but each sets out in a different season. The signboard reads the same for all; the weather each meets does not — which is why some indications land squarely and others feel a step away.");
-    para("With that awareness, you can begin to sort what lies within your control from what lies beyond it. As the Serenity Prayer asks: grant me the serenity to accept what I cannot change, the courage to change what I can, and the wisdom to know the difference. Because in the end — awareness and acceptance are where suffering ends.");
+    para("With that awareness, you can begin to sort what lies within your control from what lies beyond it. As the Serenity Prayer asks:");
+    if (y + 80 > H - M) newPage();
+    y += 6;
+    doc.setFont("helvetica","bolditalic"); doc.setFontSize(12); doc.setTextColor(...GOLD);
+    var _spr = doc.splitTextToSize("\u201Cgrant me the serenity to accept what I cannot change, the courage to change what I can, and the wisdom to know the difference.\u201D", W-M*2-36);
+    doc.setLineHeightFactor(1.5); doc.text(_spr, M+18, y); doc.setLineHeightFactor(1.15); y += _spr.length*18 + 14;
+    doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
+    para("Because in the end — awareness and acceptance are where suffering ends.");
 
     // ── final page ─────────────────────────────────────────────────────────────
     doc.addPage();
