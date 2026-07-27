@@ -114,7 +114,7 @@
       <div class="pp-blur-wrap">
         <div class="pp-blurred">
           ${win ? `<div>◈ ${esc(win.label)}: <b>${esc(fmtWin(win))}</b></div>` : ""}
-          <div>◈ ${esc(f.proactive_step.slice(0, 140))}…</div>
+          <div>◈ ${esc(f.proactive_step.slice(0, 55))}…</div>
         </div>
         <div class="pp-blur-hook">${esc(hookLine)}</div>
       </div>
