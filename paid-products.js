@@ -974,10 +974,10 @@
       ["Navamsa lagna (D9)", d9.lagnaSign],
       ["Moon sign", mSign("Moon")],
       ["Nakshatra", pl.Moon ? (pl.Moon.nakshatra||"") + (pl.Moon.pada ? " · pada " + pl.Moon.pada : "") : ""]];
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     for (const [k,v] of rows) { if (!v) continue;
       doc.setTextColor(...MUTE); doc.text(String(k), M, y);
-      doc.setTextColor(...INK); doc.text(String(v), M+150, y); y += 17; }
+      doc.setTextColor(...INK); doc.text(String(v), M+150, y); y += 20; }
 
     // ── charts (drawn as grids) ──────────────────────────────────────────────
     const CELLS = { "0,0":11,"0,1":0,"0,2":1,"0,3":2, "1,0":10,"1,3":3,
@@ -1029,9 +1029,9 @@
     newPage(); heading("A Note Before You Begin");
     doc.setFontSize(13); doc.setTextColor(...INK); doc.text("Why we built this for you", M, y); y += 22;
     const rn = readerName();
-    doc.setFontSize(10.5);
-    const para = (t) => { doc.setFontSize(10.5); const tx = doc.splitTextToSize(t, W-M*2); if (y+tx.length*15>H-M) newPage();
-      doc.setTextColor(...INK); doc.text(tx, M, y); y += tx.length*14 + 8; };
+    doc.setFontSize(12);
+    const para = (t) => { doc.setFontSize(12); const tx = doc.splitTextToSize(t, W-M*2); if (y+tx.length*17>H-M) newPage();
+      doc.setTextColor(...INK); doc.setLineHeightFactor(1.5); doc.text(tx, M, y); doc.setLineHeightFactor(1.15); y += tx.length*17 + 8; };
     para((rn ? "Dear " + rn + "," : "Dear reader,"));
     para("For most of us, the need to consult astrology arises only when something is not going as we hoped — rarely when life is going well. That was true for us too. The guidance we sought was often hard to interpret, felt clear in the moment then dissolved once we left, and still left the two questions that mattered most unanswered.");
     para("So we built AstroIndicators with one goal: to give you not prediction, but clarity — a clarity that stays within your reach, so you can answer for yourself: Why am I going through what I am going through? And how do I see the road ahead?");
@@ -1097,10 +1097,10 @@
     for (const [k,v,n] of axes) { if (!v) continue;
       doc.setFontSize(9); doc.setTextColor(...GOLD); doc.text(k, M, y); y += 15;
       const lord = LORD[signOf(v)] ? "  (lord: " + LORD[signOf(v)] + ")" : "";
-      doc.setFontSize(12); doc.setTextColor(...INK); doc.text(String(v)+lord, M, y); y += 13;
-      doc.setFontSize(8.5); doc.setTextColor(...MUTE);
-      doc.text(doc.splitTextToSize(n, W-M*2), M, y); y += 22; }
-    y += 4; doc.setFontSize(8); doc.setTextColor(...MUTE);
+      doc.setFontSize(12.5); doc.setTextColor(...INK); doc.text(String(v)+lord, M, y); y += 15;
+      doc.setFontSize(10.5); doc.setTextColor(...MUTE);
+      doc.text(doc.splitTextToSize(n, W-M*2), M, y); y += 26; }
+    y += 6; doc.setFontSize(10); doc.setTextColor(...MUTE);
     doc.text(doc.splitTextToSize("Please see the References page on this site to learn what each sign, house, and planetary lord signifies.", W-M*2), M, y);
 
     // ── life theme ───────────────────────────────────────────────────────────
@@ -1108,17 +1108,17 @@
     if (themePick) {
       newPage(); heading("Your Life Theme");
       doc.setFontSize(15); doc.setTextColor(...INK);
-      doc.text(themePick.a.pair + " — " + themePick.a.name, M, y); y += 24;
-      doc.setFontSize(10.5);
-      let tx = doc.splitTextToSize(themePick.a.theme, W-M*2); doc.text(tx, M, y); y += tx.length*14 + 12;
+      doc.text(themePick.a.pair + " — " + themePick.a.name, M, y); y += 26;
+      doc.setFontSize(12);
+      let tx = doc.splitTextToSize(themePick.a.theme, W-M*2); doc.text(tx, M, y); y += tx.length*16 + 12;
       doc.setFontSize(9); doc.setTextColor(...GOLD); doc.text("THE WORK OF THIS BIRTH", M, y); y += 14;
-      doc.setFontSize(10.5); doc.setTextColor(...INK);
-      tx = doc.splitTextToSize(themePick.a.work, W-M*2); doc.text(tx, M, y); y += tx.length*14 + 14;
+      doc.setFontSize(12); doc.setTextColor(...INK);
+      tx = doc.splitTextToSize(themePick.a.work, W-M*2); doc.text(tx, M, y); y += tx.length*16 + 14;
       if (themePick.evidence) {
-        doc.setFontSize(9); doc.setTextColor(...MUTE);
-        tx = doc.splitTextToSize(themePick.evidence, W-M*2); doc.text(tx, M, y); y += tx.length*12 + 10;
+        doc.setFontSize(10.5); doc.setTextColor(...MUTE);
+        tx = doc.splitTextToSize(themePick.evidence, W-M*2); doc.text(tx, M, y); y += tx.length*14 + 10;
       }
-      doc.setFontSize(9); doc.setTextColor(...MUTE);
+      doc.setFontSize(10.5); doc.setTextColor(...MUTE);
       tx = doc.splitTextToSize("Every domain that follows is a different window onto this same theme. Where a reading feels unexpectedly heavy or unexpectedly easy, it is usually because it sits on or away from this axis.", W-M*2);
       doc.text(tx, M, y);
     }
@@ -1157,12 +1157,12 @@
     const guide = (window._extras && window._extras.guidance) || [];
     for (const l of guide) {
       const label = l.actor + " · " + l.house + (l.house===1?"st":l.house===2?"nd":l.house===3?"rd":"th") + " house";
-      const txt = doc.splitTextToSize(l.text, W - M*2 - 14);
-      if (y + txt.length*13 + 30 > H - M) newPage();
-      doc.setFontSize(8); doc.setTextColor(...GOLD); doc.text(label.toUpperCase(), M+12, y); y += 13;
+      doc.setFontSize(12); const txt = doc.splitTextToSize(l.text, W - M*2 - 14);
+      if (y + txt.length*16 + 30 > H - M) newPage();
+      doc.setFontSize(9); doc.setTextColor(...GOLD); doc.text(label.toUpperCase(), M+12, y); y += 14;
       doc.setDrawColor(...GOLD); doc.setLineWidth(1.6);
-      doc.line(M+2, y-17, M+2, y + txt.length*13 - 4); doc.setLineWidth(.8);
-      doc.setFontSize(10); doc.setTextColor(...INK); doc.text(txt, M+12, y); y += txt.length*13 + 16;
+      doc.line(M+2, y-17, M+2, y + txt.length*16 - 4); doc.setLineWidth(.8);
+      doc.setFontSize(12); doc.setTextColor(...INK); doc.setLineHeightFactor(1.5); doc.text(txt, M+12, y); doc.setLineHeightFactor(1.15); y += txt.length*16 + 16;
     }
 
     // ── closing letter ───────────────────────────────────────────────────────
@@ -1178,12 +1178,12 @@
     doc.addPage();
     doc.setFillColor(...NAVY); doc.rect(0,0,W,H,"F");
     doc.setDrawColor(...GOLD); doc.rect(M/2,M/2,W-M,H-M);
-    doc.setTextColor(...GOLD); doc.setFontSize(20);
-    doc.text("Best wishes from", W/2, H/2-40, { align:"center" });
-    doc.text("Team AstroIndicators", W/2, H/2-12, { align:"center" });
-    doc.setFontSize(10); doc.setTextColor(225,225,230);
+    doc.setTextColor(...GOLD); doc.setFontSize(24);
+    doc.text("Best wishes from", W/2, H/2-44, { align:"center" });
+    doc.text("Team AstroIndicators", W/2, H/2-14, { align:"center" });
+    doc.setFontSize(12.5); doc.setTextColor(225,225,230); doc.setLineHeightFactor(1.5);
     const close = doc.splitTextToSize("We hope you find this useful in getting an indication of how you are navigating and where you are heading" + (name ? ", " + name : "") + ". If you find it useful, please don't hesitate to share it with all those whom you care about. If our work was useful, we'd be grateful for a short review — the Leave a Review button is on the Birth Details page.", W-M*3);
-    doc.text(close, W/2, H/2+24, { align:"center" });
+    doc.text(close, W/2, H/2+30, { align:"center" }); doc.setLineHeightFactor(1.15);
 
     const total = doc.internal.getNumberOfPages();
     for (let i = 2; i < total; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150);
