@@ -52,6 +52,22 @@
     Libra:"Venus",Scorpio:"Mars",Sagittarius:"Jupiter",Capricorn:"Saturn",Aquarius:"Saturn",Pisces:"Jupiter" };
   function esc(s){ const d=document.createElement("div"); d.textContent=String(s??""); return d.innerHTML; }
   function price(key, fallback){ return (window.APP_CONFIG?.prices?.[key]) ?? fallback; }
+  // Referral & Reward: the buyer's friendly Client ID (from referral-ui.js).
+  // Falls back to deriving it from AI_chartId directly, so it works even if
+  // onChartGenerated was never called; returns "" if the module is absent —
+  // every caller below renders nothing in that case.
+  function clientCode(){
+    try {
+      if (window.AIref) {
+        const got = AIref.getClientCode();
+        if (got) return got;
+        // AI_chartId is a FUNCTION in this codebase (see _bookChartId) — resolve it.
+        const cid = (typeof window.AI_chartId === "function") ? window.AI_chartId() : window.AI_chartId;
+        return cid ? AIref.friendlyCode(cid) : "";
+      }
+    } catch (e) {}
+    return "";
+  }
   function fmtWin(w){ const f=s=>{const d=new Date(s);return d.toLocaleString("en-IN",{month:"short",year:"numeric"});};
     return f(w.start_iso)+" – "+f(w.end_iso); }
 
@@ -230,6 +246,7 @@
         ${row("Date of birth", f0.dob)}
         ${row("Time of birth", f0.tob ? f0.tob + " (24-hr)" : "")}
         ${row("Place", f0.place)}
+        ${row("Client ID", clientCode())}
         ${row("Ascendant (D1)", d1.lagnaSign ? d1.lagnaSign + " " + (d1.lagnaDegree||0).toFixed(1) + "°" : "")}
         ${row("Navamsa lagna (D9)", d9.lagnaSign)}
         ${row("Moon sign", (_m.lons && _m.lons.Moon != null) ? _m.sign(_m.lons.Moon) : (pl.Moon && pl.Moon.sign))}
@@ -319,6 +336,9 @@
       <div class="closing">If it served you, please share it with those you care about. And if our
       work was useful, we'd value a short review — the <b>Leave a Review</b> button is on the
       Birth Details page.</div>
+      ${(function(){ const _cc = clientCode(); return _cc ? `<div class="closing" style="margin-top:14px">Your Client ID<br>
+      <b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br>
+      <span style="opacity:.85">astroindicators.com</span></div>` : ""; })()}
       <div class="final-signoff"><div class="who">Best wishes,</div>
       <div class="logo">Team Astro<span>Indicators</span></div></div></div></div>`);
 
@@ -451,6 +471,10 @@
   }
 
   function closingLetterPage(pnum) {
+    const _cc = clientCode();
+    const _refPara = _cc ? `<p>If this reading brought you clarity, pass it on. Share this with someone
+        who may need it — and mention your Client ID, <b>${esc(_cc)}</b>, when they get their own
+        report, so we can send you a small gift of thanks.</p>` : "";
     return `<div class="pg letter"><div class="kick">A Closing Note</div><div class="rule"></div>
       <h2>Awareness is where it begins</h2>
       <div class="bd letter-bd">
@@ -470,6 +494,7 @@
         <p class="letter-attrib">— the Serenity Prayer, attributed to Dr Reinhold Niebuhr</p>
         <p>That wisdom is well within your reach. Because in the end — <b>awareness and acceptance are
         where suffering ends.</b></p>
+        ${_refPara}
       </div>
       <span class="pnum">${pnum}</span></div>`;
   }
@@ -883,7 +908,8 @@
     doc.setFontSize(13); doc.setTextColor(...GOLD);
     if (name) doc.text(name, W/2, H/2+40, { align:"center" });
     doc.setFontSize(8); doc.setTextColor(200,200,205);
-    const meta = [f0.dob, f0.tob, f0.place].filter(Boolean).join(" · ");
+    const _cc = clientCode();
+    const meta = [f0.dob, f0.tob, f0.place, _cc ? "Client ID " + _cc : ""].filter(Boolean).join(" · ");
     if (meta) doc.text(doc.splitTextToSize(meta, W-M*2), W/2, H/2+64, { align:"center" });
     doc.setFontSize(7.5); doc.setTextColor(180,180,188);
     const iccDisc = doc.splitTextToSize("DISCLAIMER: " + CANON_DISCLAIMER, W-M*2.2);
@@ -970,6 +996,7 @@
     newPage(); heading("Birth Details");
     const rows = [["Name", name], ["Date of birth", f0.dob], ["Time of birth", f0.tob],
       ["Place", f0.place],
+      ["Client ID", clientCode()],
       ["Ascendant (D1)", d1.lagnaSign ? d1.lagnaSign + " " + (d1.lagnaDegree||0).toFixed(1) + "°" : ""],
       ["Navamsa lagna (D9)", d9.lagnaSign],
       ["Moon sign", mSign("Moon")],
@@ -1192,6 +1219,8 @@
     doc.text("\u2014 Reinhold Niebuhr", M+18, y); y += 18;
     doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
     para("Because in the end — awareness and acceptance are where suffering ends.");
+    { const _cc = clientCode();
+      if (_cc) para("If this reading brought you clarity, pass it on. Share this with someone who may need it — and mention your Client ID, " + _cc + ", when they get their own report, so we can send you a small gift of thanks."); }
 
     // ── final page ─────────────────────────────────────────────────────────────
     doc.addPage();
@@ -1203,6 +1232,14 @@
     doc.setFontSize(12.5); doc.setTextColor(225,225,230); doc.setLineHeightFactor(1.5);
     const close = doc.splitTextToSize("We hope you find this useful in getting an indication of how you are navigating and where you are heading" + (name ? ", " + name : "") + ". If you find it useful, please don't hesitate to share it with all those whom you care about. If our work was useful, we'd be grateful for a short review — the Leave a Review button is on the Birth Details page.", W-M*3);
     doc.text(close, W/2, H/2+30, { align:"center" }); doc.setLineHeightFactor(1.15);
+    { const _cc = clientCode();
+      if (_cc) {
+        const _cy = H/2 + 30 + close.length*19 + 34;
+        doc.setFontSize(15); doc.setTextColor(...GOLD);
+        doc.text("Client ID  " + _cc, W/2, _cy, { align:"center" });
+        doc.setFontSize(10.5); doc.setTextColor(200,200,205);
+        doc.text("astroindicators.com", W/2, _cy + 20, { align:"center" });
+      } }
 
     const total = doc.internal.getNumberOfPages();
     for (let i = 2; i < total; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150);
