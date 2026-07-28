@@ -40,7 +40,10 @@
       if (!cfg) { reject("config missing"); return; }
       if (typeof Razorpay === "undefined") { reject("Razorpay not loaded"); return; }
 
-      const chartId      = opts.chartId || (window.AI_chartId || null);
+      // window.AI_chartId is a FUNCTION in this codebase — resolve either form.
+      let chartId = opts.chartId || window.AI_chartId || null;
+      if (typeof chartId === "function") { try { chartId = chartId(); } catch (e) { chartId = null; } }
+      chartId = chartId ? String(chartId) : null;
       const referralCode = fromRefUI(opts.referralCode, "getReferralCode");
       const mobile       = fromRefUI(opts.mobile, "getMobile");
 
