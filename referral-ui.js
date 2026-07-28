@@ -110,8 +110,12 @@
     ".ai-ref-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);" +
       "background:#1d1d1d;color:#ffd76a;padding:12px 18px;border-radius:10px;font-size:14px;" +
       "box-shadow:0 6px 24px rgba(0,0,0,.35);z-index:99999;max-width:92vw;text-align:center}" +
-    ".ai-ref-program h3{margin:0 0 6px}.ai-ref-program .ai-ref-lt{font-size:.75em;opacity:.7;font-weight:500}" +
-    ".ai-ref-program .ai-ref-note{font-size:.9em;opacity:.8}";
+    ".ai-ref-program{font-size:12.5px;line-height:1.5;opacity:.9;margin-top:14px;" +
+      "padding-top:12px;border-top:1px solid rgba(128,128,128,.18)}" +
+    ".ai-ref-program h3{margin:0 0 6px;font-size:13.5px;letter-spacing:.01em}" +
+    ".ai-ref-program p{margin:0 0 6px}" +
+    ".ai-ref-program .ai-ref-lt{font-size:.85em;opacity:.7;font-weight:500}" +
+    ".ai-ref-program .ai-ref-note{font-size:.92em;opacity:.75}";
 
   var COPY_ICON =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
@@ -245,27 +249,37 @@
     // Resolve the current chartId at check time — don't depend on onChartGenerated
     // having already set state.chartId. This makes the self-referral guard robust
     // even if the user types their own code before/while the chart is generating.
-    // ── Self-referral guard, robust to timing ────────────────────────────────
-    // Resolve the chartId every way we can: live state, window.AI_chartId (which
-    // in this codebase returns a value even before the user presses Generate),
-    // and — as a final cross-check — the code already shown in the Client ID
-    // field. If ANY of these says the typed code is the user's own, reject it.
-    var cid = state.chartId || resolveChartId();
-    var ownFromChart = cid ? friendlyCode(cid) : null;
+    // ── Self-referral guard + trustworthy validity ───────────────────────────
+    // The ONLY fully reliable "own code" is state.code, set at generation. Before
+    // that, window.AI_chartId() may be stale (freshly re-entered details not yet
+    // recomputed), so we must NOT show a confident green "valid" — a stale id
+    // could let the user's own code slip through as valid. Policy:
+    //   • If we can PROVE self (any resolved id derives to the typed code) → reject.
+    //   • Else if the chart is generated (state.code set) → trust server result.
+    //   • Else (pre-generate) → neutral "generate to confirm", never green.
+    var provenSelf = false;
+    var candidates = [];
+    if (state.chartId) candidates.push(state.chartId);
+    var live = resolveChartId(); if (live) candidates.push(live);
+    for (var ci = 0; ci < candidates.length; ci++) {
+      if (friendlyCode(candidates[ci]) === norm) { provenSelf = true; break; }
+    }
     var shownEl = document.getElementById("aiClientIdVal");
-    var ownFromField = (shownEl && !shownEl.classList.contains("ai-pending"))
-      ? normalizeCode(shownEl.textContent) : null;
-    if ((ownFromChart && ownFromChart === norm) ||
-        (ownFromField && ownFromField === norm)) {
+    if (!provenSelf && shownEl && !shownEl.classList.contains("ai-pending")) {
+      if (normalizeCode(shownEl.textContent) === norm) provenSelf = true;
+    }
+    if (provenSelf) {
       status.textContent = copy.refSelf; status.className = "ai-ref-status bad"; return;
     }
-    // If we still have no chartId at all (AI_chartId not ready and no code shown),
-    // we cannot rule out self — ask them to generate rather than show a false
-    // green "valid".
-    if (!cid) {
+    // Not proven self. If the chart isn't generated yet, we can't trust a green
+    // tick — stay neutral and ask them to generate.
+    if (!state.code) {
       status.textContent = copy.refPending; status.className = "ai-ref-status";
       return;
     }
+    // Chart generated → state.code is authoritative; the server check is safe to
+    // trust (and it also re-checks self against the real chartId we pass).
+    var cid = state.chartId;
     fetch("/api/referral", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
