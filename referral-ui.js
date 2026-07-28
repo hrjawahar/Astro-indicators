@@ -241,10 +241,19 @@
     var norm = normalizeCode(input.value);
     if (!input.value.trim()) { status.textContent = ""; status.className = "ai-ref-status"; return; }
     if (!norm) { status.textContent = copy.refInvalid; status.className = "ai-ref-status bad"; return; }
+    // Resolve the current chartId at check time — don't depend on onChartGenerated
+    // having already set state.chartId. This makes the self-referral guard robust
+    // even if the user types their own code before/while the chart is generating.
+    var cid = state.chartId || resolveChartId();
+    // Client-side self-check first: if we can see the chartId and it derives to
+    // this same code, reject immediately without even asking the server.
+    if (cid && friendlyCode(cid) === norm) {
+      status.textContent = copy.refSelf; status.className = "ai-ref-status bad"; return;
+    }
     fetch("/api/referral", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "check", code: norm, chartId: state.chartId }),
+      body: JSON.stringify({ action: "check", code: norm, chartId: cid || "" }),
     })
     .then(function (r) { return r.json(); })
     .then(function (v) {
