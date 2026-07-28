@@ -74,9 +74,11 @@ export async function onRequestPost(context) {
       const now = Date.now();
       // INSERT if new; if the row already exists (e.g. a paid customer), only
       // fill client_code when it is still NULL — never disturb other columns.
+      // email is '' (not NULL) because the live schema declares email NOT NULL;
+      // verify.js later replaces '' with the real email at purchase time.
       await env.DB.prepare(
-        "INSERT INTO customers (chart_id, client_code, created_at, updated_at) " +
-        "VALUES (?, ?, ?, ?) " +
+        "INSERT INTO customers (chart_id, email, client_code, created_at, updated_at) " +
+        "VALUES (?, '', ?, ?, ?) " +
         "ON CONFLICT(chart_id) DO UPDATE SET " +
         "  client_code = COALESCE(customers.client_code, excluded.client_code), " +
         "  updated_at  = excluded.updated_at"
