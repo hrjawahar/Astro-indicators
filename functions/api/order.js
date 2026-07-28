@@ -104,9 +104,12 @@ export async function onRequestPost(context) {
   const chartId = String(body.chartId || "");
   let refCode = "";
   const typed = normalizeCode(body.referralCode);
-  if (typed && env.DB) {
+  // A referral is credited ONLY when we can identify the buyer (chartId present)
+  // and prove the code is not their own. No chartId → we cannot rule out self-
+  // referral, so we decline to credit rather than risk a fraudulent voucher.
+  if (typed && chartId && env.DB) {
     try {
-      const isSelf = chartId && friendlyCode(chartId) === typed;
+      const isSelf = friendlyCode(chartId) === typed;
       if (!isSelf) {
         const row = await env.DB
           .prepare("SELECT chart_id FROM customers WHERE client_code = ?")
