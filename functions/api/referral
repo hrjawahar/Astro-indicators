@@ -1,0 +1,111 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  FILE: functions/api/referral.js
+//  Cloudflare Pages Function — Referral & Reward Program support.
+//
+//  Actions (POST { action, ... }):
+//    "register" { chartId }        → { clientCode }
+//        Called by the frontend right after a chart is generated. Computes the
+//        friendly Client ID SERVER-SIDE from the chartId and upserts
+//        (chart_id, client_code) into `customers` — no email/name needed. This
+//        is what makes every visitor's code validatable as a referral later,
+//        including free (chart-only) users.
+//    "check"    { code, chartId? } → { valid, self, clientCode? }
+//        Live validation for the Referral ID field on the birth form.
+//        valid = the code exists in customers.client_code.
+//        self  = the code is the caller's OWN code (self-referral) → not valid.
+//        This endpoint is advisory (green tick / red cross UX only); the
+//        AUTHORITATIVE check happens again in order.js at order creation.
+//
+//  SETUP: same D1 binding as report.js/verify.js →  DB = astro_paid
+//         Run functions/referral-migration.sql once before deploying.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ⚠️ KEEP IN SYNC — friendlyCode() exists in FOUR places (no build step, so it
+//    is duplicated by design, like PRICES ↔ config.js):
+//      site/referral-ui.js          (browser display)
+//      functions/api/referral.js    (this file — register/check)
+//      functions/api/order.js       (self-referral guard)
+//      functions/api/verify.js      (writes buyer's client_code)
+//    All four copies MUST be byte-identical or codes will mismatch.
+function friendlyCode(chartId) {
+  var s = String(chartId || "");
+  function fnv(seed) {
+    var h = seed >>> 0;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      // h = (h * 16777619) mod 2^32, without Math.imul for max compatibility
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h >>> 0;
+  }
+  var A = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // Crockford-style: no 0/O/1/I
+  var h1 = fnv(0x811c9dc5), h2 = fnv(0x9747b28c), out = "", i;
+  for (i = 0; i < 4; i++) { out += A[h1 & 31]; h1 >>>= 5; }
+  for (i = 0; i < 4; i++) { out += A[h2 & 31]; h2 >>>= 5; }
+  return "AI-" + out.slice(0, 4) + "-" + out.slice(4);
+}
+
+// Accepts "ai 7kq4 m9xt", "7KQ4-M9XT", "AI-7KQ4-M9XT" … → canonical "AI-7KQ4-M9XT".
+// Returns null if it cannot be a code.
+function normalizeCode(raw) {
+  var s = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (s.slice(0, 2) === "AI") s = s.slice(2);
+  if (s.length !== 8) return null;
+  if (/[01IO]/.test(s)) return null; // alphabet never contains these
+  return "AI-" + s.slice(0, 4) + "-" + s.slice(4);
+}
+
+export async function onRequestPost(context) {
+  const { request, env } = context;
+  if (!env.DB) return json({ error: "Database not configured (bind D1 as 'DB')." }, 500);
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ error: "Invalid request body." }, 400); }
+
+  const action = String(body.action || "");
+
+  try {
+    // ── Register: chart generated → make this chart's code exist in the DB ──
+    if (action === "register") {
+      const chartId = String(body.chartId || "");
+      if (!chartId) return json({ error: "Missing chartId." }, 400);
+      const code = friendlyCode(chartId);
+      const now = Date.now();
+      // INSERT if new; if the row already exists (e.g. a paid customer), only
+      // fill client_code when it is still NULL — never disturb other columns.
+      await env.DB.prepare(
+        "INSERT INTO customers (chart_id, client_code, created_at, updated_at) " +
+        "VALUES (?, ?, ?, ?) " +
+        "ON CONFLICT(chart_id) DO UPDATE SET " +
+        "  client_code = COALESCE(customers.client_code, excluded.client_code), " +
+        "  updated_at  = excluded.updated_at"
+      ).bind(chartId, code, now, now).run();
+      return json({ clientCode: code });
+    }
+
+    // ── Check: live validation of a typed Referral ID ────────────────────────
+    if (action === "check") {
+      const code = normalizeCode(body.code);
+      if (!code) return json({ valid: false, self: false });
+      const ownChartId = String(body.chartId || "");
+      if (ownChartId && friendlyCode(ownChartId) === code) {
+        return json({ valid: false, self: true }); // you can't refer yourself
+      }
+      const row = await env.DB
+        .prepare("SELECT chart_id FROM customers WHERE client_code = ?")
+        .bind(code).first();
+      return json({ valid: !!row, self: false, clientCode: code });
+    }
+
+    return json({ error: "Unknown action." }, 400);
+  } catch (e) {
+    return json({ error: "DB error: " + (e && e.message ? e.message : String(e)) }, 500);
+  }
+}
+
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status, headers: { "Content-Type": "application/json" },
+  });
+}
