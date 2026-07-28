@@ -8,6 +8,17 @@
 //  successful payment; only the SECRET can verify that signature. So we verify
 //  here, server-side, before unlocking anything, recording payment, or emailing.
 //
+//  REFERRAL & REWARD (added):
+//  On a verified report payment this function now also writes into `customers`:
+//    client_code  — the buyer's own friendly Client ID (computed from chartId)
+//    referred_by  — the referrer's code, read from the ORDER's notes.ref (which
+//                   order.js validated & stamped at creation — the browser is
+//                   never trusted for this). First referral wins: an existing
+//                   referred_by is never overwritten.
+//    mobile       — form value wins; if the form was blank we fetch the payment
+//                   from Razorpay and use the contact typed at checkout.
+//  Rewards therefore only ever attach to REAL verified payments.
+//
 //  SETUP (Cloudflare → Settings → Environment variables):
 //    RAZORPAY_KEY_ID       = your key id (already set for order.js — now also
 //                            used here to look the order up at verify time)
@@ -15,8 +26,31 @@
 //    OWNER_EMAIL           = where consultation bookings are emailed to you
 //    RESEND_API_KEY        = (optional) for email sending
 //  SETUP (Cloudflare → Settings → Functions → D1 bindings):
-//    DB = your D1 database (astro_paid)  — see functions/schema.sql
+//    DB = your D1 database (astro_paid)  — see functions/schema.sql and
+//         functions/referral-migration.sql (run once)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ⚠️ KEEP IN SYNC — friendlyCode() exists in FOUR places (no build step,
+//    duplicated by design): site/referral-ui.js, functions/api/referral.js,
+//    functions/api/order.js, functions/api/verify.js (this file).
+//    All copies MUST be byte-identical.
+function friendlyCode(chartId) {
+  var s = String(chartId || "");
+  function fnv(seed) {
+    var h = seed >>> 0;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      // h = (h * 16777619) mod 2^32, without Math.imul for max compatibility
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h >>> 0;
+  }
+  var A = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // Crockford-style: no 0/O/1/I
+  var h1 = fnv(0x811c9dc5), h2 = fnv(0x9747b28c), out = "", i;
+  for (i = 0; i < 4; i++) { out += A[h1 & 31]; h1 >>>= 5; }
+  for (i = 0; i < 4; i++) { out += A[h2 & 31]; h2 >>>= 5; }
+  return "AI-" + out.slice(0, 4) + "-" + out.slice(4);
+}
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -29,7 +63,7 @@ export async function onRequestPost(context) {
 
   const {
     razorpay_order_id, razorpay_payment_id, razorpay_signature,
-    booking, chartId, item, email,
+    booking, chartId, item, email, mobile,
   } = body;
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     return json({ error: "Missing payment fields." }, 400);
@@ -42,17 +76,20 @@ export async function onRequestPost(context) {
   }
 
   // Payment is genuine.
-  // ── Determine WHAT was paid for from the ORDER, not the browser ────────────
-  // order.js stamps the item into the order's `notes` at creation time, using a
-  // server-side price. We read it back from Razorpay here so a client cannot pay
-  // for a cheap item (e.g. "domains" ₹299) and then claim a more expensive one
-  // (e.g. "dasha" ₹499) at verify time. The client-sent `item` is used only as a
-  // fallback if the order lookup is briefly unavailable (an attacker cannot force
-  // that lookup to fail, since it is a server-to-server call).
+  // ── Determine WHAT was paid for (and WHO referred) from the ORDER ──────────
+  // order.js stamps { item, ref } into the order's `notes` at creation time,
+  // after server-side validation. We read them back from Razorpay here so a
+  // client can neither claim a more expensive item nor forge a referral at
+  // verify time. The client-sent `item` is used only as a fallback if the order
+  // lookup is briefly unavailable (an attacker cannot force that lookup to
+  // fail, since it is a server-to-server call). There is NO client fallback for
+  // the referral — no notes, no referral.
   let paidItem = item;
+  let refCode  = "";
   if (chartId) {
-    const orderItem = await fetchOrderItem(env, razorpay_order_id);
-    if (orderItem) paidItem = orderItem;
+    const notes = await fetchOrderNotes(env, razorpay_order_id);
+    if (notes && notes.item) paidItem = notes.item;
+    if (notes && notes.ref)  refCode  = notes.ref;
   }
 
   // ── Record the paid report in D1 (so it persists across sessions) ──────────
@@ -71,17 +108,39 @@ export async function onRequestPost(context) {
     }
   }
 
-  // ── Store the customer's email (for invoicing), keyed by chart_id ──────────
-  if (env.DB && chartId && email) {
+  // ── Upsert the customer row: email, name, client_code, referred_by, mobile ──
+  // Runs for every verified report payment (even with no email), because the
+  // buyer's client_code and mobile matter for the reward program.
+  if (env.DB && chartId) {
     try {
+      // Mobile: the birth-form value wins; if blank, use the contact number the
+      // buyer typed inside Razorpay checkout (fetched from the payment entity).
+      let mob = mobile ? String(mobile).trim() : "";
+      if (!mob) {
+        mob = (await fetchPaymentContact(env, razorpay_payment_id)) || "";
+      }
       const now = Date.now();
       await env.DB.prepare(
-        "INSERT INTO customers (chart_id, email, name, created_at, updated_at) " +
-        "VALUES (?, ?, ?, ?, ?) " +
-        "ON CONFLICT(chart_id) DO UPDATE SET email = excluded.email, name = excluded.name, updated_at = excluded.updated_at"
-      ).bind(String(chartId), String(email), (body.name ? String(body.name) : null), now, now).run();
+        "INSERT INTO customers (chart_id, email, name, client_code, referred_by, mobile, created_at, updated_at) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+        "ON CONFLICT(chart_id) DO UPDATE SET " +
+        "  email       = COALESCE(NULLIF(excluded.email, ''), customers.email), " +
+        "  name        = COALESCE(NULLIF(excluded.name,  ''), customers.name), " +
+        "  client_code = COALESCE(customers.client_code, excluded.client_code), " +
+        "  referred_by = COALESCE(customers.referred_by, NULLIF(excluded.referred_by, '')), " + // first referral wins
+        "  mobile      = COALESCE(NULLIF(excluded.mobile, ''), customers.mobile), " +           // form wins, gaps filled
+        "  updated_at  = excluded.updated_at"
+      ).bind(
+        String(chartId),
+        email ? String(email) : "",
+        body.name ? String(body.name) : "",
+        friendlyCode(String(chartId)),
+        refCode || "",
+        mob,
+        now, now
+      ).run();
     } catch (e) {
-      // Email storage is best-effort; never block a verified payment over it.
+      // Customer storage is best-effort; never block a verified payment over it.
     }
   }
 
@@ -90,7 +149,13 @@ export async function onRequestPost(context) {
     await notifyOwner(env, booking, razorpay_payment_id).catch(() => {});
   }
 
-  return json({ verified: true, paymentId: razorpay_payment_id });
+  // clientCode returned so the success UI can show the activation message:
+  // "✓ Your Client ID AI-XXXX-XXXX is now active for referrals — share it!"
+  return json({
+    verified: true,
+    paymentId: razorpay_payment_id,
+    clientCode: chartId ? friendlyCode(String(chartId)) : null,
+  });
 }
 
 // ── Email the booking to the owner (uses Resend, a simple email API) ──────────
@@ -128,11 +193,11 @@ async function notifyOwner(env, booking, paymentId) {
   });
 }
 
-// ── Read the item the order was actually created for (from Razorpay) ──────────
-// order.js stores { notes: { item } } when it creates the order. We fetch the
-// order and return that item, so verify trusts the order — not the browser.
-// Returns the item string, or null if it cannot be determined.
-async function fetchOrderItem(env, orderId) {
+// ── Read the notes the order was actually created with (from Razorpay) ────────
+// order.js stores { notes: { item, ref } } when it creates the order. We fetch
+// the order and return those notes, so verify trusts the order — not the
+// browser. Returns { item, ref } (either may be empty), or null on failure.
+async function fetchOrderNotes(env, orderId) {
   const keyId  = env.RAZORPAY_KEY_ID;
   const secret = env.RAZORPAY_KEY_SECRET;
   if (!keyId || !secret) return null;
@@ -143,8 +208,32 @@ async function fetchOrderItem(env, orderId) {
     });
     if (!res.ok) return null;
     const order = await res.json();
-    const it = order && order.notes && order.notes.item;
-    return it ? String(it) : null;
+    const n = (order && order.notes) || {};
+    return {
+      item: n.item ? String(n.item) : "",
+      ref:  n.ref  ? String(n.ref)  : "",
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// ── Read the contact number typed inside Razorpay checkout ────────────────────
+// The checkout handler response only carries ids, so the number the buyer typed
+// at checkout lives on the payment entity. Fetched only when the birth form's
+// mobile field was left blank. Returns the contact string, or null.
+async function fetchPaymentContact(env, paymentId) {
+  const keyId  = env.RAZORPAY_KEY_ID;
+  const secret = env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !secret) return null;
+  try {
+    const auth = btoa(keyId + ":" + secret);
+    const res = await fetch("https://api.razorpay.com/v1/payments/" + encodeURIComponent(paymentId), {
+      headers: { "Authorization": "Basic " + auth },
+    });
+    if (!res.ok) return null;
+    const pay = await res.json();
+    return pay && pay.contact ? String(pay.contact) : null;
   } catch (e) {
     return null;
   }
