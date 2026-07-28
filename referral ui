@@ -1,0 +1,325 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  FILE: referral-ui.js
+//  AstroIndicators — Client ID display + Referral & Reward Program (frontend).
+//
+//  What it does, all self-contained:
+//    • Injects three rows under the Place field on the birth form:
+//        CLIENT ID   (read-only line, "—" until a chart is generated, tap-to-copy)
+//        Mobile number (optional)  — "No promotional or follow-up messages — ever."
+//        Referral ID  (optional)   — "if referred by an existing user" + live ✓/✗
+//    • After chart generation: computes the code, registers it via /api/referral
+//      (action:"register") so it becomes a valid referral code, updates the form
+//      line, and can add a matching line to the chart page's lagna bar.
+//    • Exposes getters payments.js reads automatically (no caller changes).
+//    • Holds every piece of program copy in ONE place (AIref.copy) so the home
+//      page block, flipbook letter paragraph, PDF final page and the payment
+//      activation message all stay consistent.
+//
+//  Wiring (2 lines total — see INTEGRATION-NOTES.md):
+//    index.html : <script src="referral-ui.js"></script>   (BEFORE payments.js)
+//    app.js     : AIref.onChartGenerated(chartId);          (after chart succeeds)
+// ─────────────────────────────────────────────────────────────────────────────
+
+(function () {
+  "use strict";
+
+  // ⚠️ KEEP IN SYNC — friendlyCode()/normalizeCode() exist in FOUR places (no
+  //    build step, duplicated by design): site/referral-ui.js (this file),
+  //    functions/api/referral.js, functions/api/order.js, functions/api/verify.js.
+  //    All copies MUST be byte-identical or codes will mismatch.
+  function friendlyCode(chartId) {
+    var s = String(chartId || "");
+    function fnv(seed) {
+      var h = seed >>> 0;
+      for (var i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        // h = (h * 16777619) mod 2^32, without Math.imul for max compatibility
+        h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+      }
+      return h >>> 0;
+    }
+    var A = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // Crockford-style: no 0/O/1/I
+    var h1 = fnv(0x811c9dc5), h2 = fnv(0x9747b28c), out = "", i;
+    for (i = 0; i < 4; i++) { out += A[h1 & 31]; h1 >>>= 5; }
+    for (i = 0; i < 4; i++) { out += A[h2 & 31]; h2 >>>= 5; }
+    return "AI-" + out.slice(0, 4) + "-" + out.slice(4);
+  }
+
+  function normalizeCode(raw) {
+    var s = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (s.slice(0, 2) === "AI") s = s.slice(2);
+    if (s.length !== 8) return null;
+    if (/[01IO]/.test(s)) return null; // alphabet never contains these
+    return "AI-" + s.slice(0, 4) + "-" + s.slice(4);
+  }
+
+  // ── All program copy, one authoritative place ──────────────────────────────
+  var copy = {
+    clientIdLabel: "Client ID",
+    clientIdTip: "Your permanent ID for this chart — share it so friends can name you as referrer.",
+    mobileLabel: "Mobile number (optional)",
+    mobileTip: "No promotional or follow-up messages — ever.",
+    referralLabel: "Referral ID (optional)",
+    referralTip: "if referred by an existing user",
+    refValid: "\u2713 Valid referral",
+    refInvalid: "\u2717 Referral ID not found",
+    refSelf: "That's your own Client ID",
+    copied: "Copied!",
+    invite: "Sharing is caring \uD83D\uDC9B \u2014 share your Client ID with friends. " +
+            "When they name it as referrer, we'll thank you with a reward.",
+    activation: function (code) {
+      return "\u2713 Your Client ID " + code + " is now active for referrals \u2014 share it!";
+    },
+    letterParagraph: function (code) {
+      return "If this reading brought you clarity, pass it on. Share this with someone " +
+             "who may need it \u2014 and mention your Client ID, " + code + ", when they " +
+             "get their own report, so we can send you a small gift of thanks.";
+    },
+    homepageHTML:
+      '<div class="ai-ref-program">' +
+      '<h3>Referral &amp; Reward Program <span class="ai-ref-lt">(Limited time)</span></h3>' +
+      '<p><em>For our paid report members.</em> Your unique <strong>Client ID</strong> doubles as your ' +
+      'referral code. Share it with friends and family \u2014 when they enter it while purchasing ' +
+      'their own report, you earn an Amazon gift voucher for every successful referral: ' +
+      '<strong>\u20B9250</strong> for a LAMP report, <strong>\u20B9150</strong> for a Q&amp;A report. ' +
+      'Vouchers are sent by SMS to your registered mobile number within a week of your friend\u2019s purchase.</p>' +
+      '<p>This is a limited-period launch offer \u2014 start sharing today.</p>' +
+      '<p class="ai-ref-note"><em>Please note:</em> Your Client ID is generated from your birth details. ' +
+      'Changing any detail creates a new chart with a new Client ID, so always share the ID printed on your report.</p>' +
+      '</div>',
+  };
+
+  // ── Minimal styling; inherits the site's fonts/colors everywhere possible ──
+  var CSS =
+    ".ai-ref-row{margin:10px 0}" +
+    ".ai-ref-key{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;margin-bottom:2px}" +
+    ".ai-ref-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:16px;" +
+      "font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:all}" +
+    ".ai-ref-code svg{width:14px;height:14px;opacity:.55}" +
+    ".ai-ref-tip{font-size:11.5px;opacity:.6;margin-top:2px}" +
+    ".ai-ref-input{width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;" +
+      "border:1px solid rgba(128,128,128,.4);border-radius:6px;background:transparent;color:inherit}" +
+    ".ai-ref-input.ai-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;" +
+      "text-transform:uppercase;letter-spacing:.05em}" +
+    ".ai-ref-status{font-size:12px;margin-top:3px;min-height:15px}" +
+    ".ai-ref-status.ok{color:#2e9e5b}.ai-ref-status.bad{color:#c0392b}" +
+    ".ai-ref-flash{color:#2e9e5b;font-size:11px;margin-left:6px}" +
+    ".ai-ref-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);" +
+      "background:#1d1d1d;color:#ffd76a;padding:12px 18px;border-radius:10px;font-size:14px;" +
+      "box-shadow:0 6px 24px rgba(0,0,0,.35);z-index:99999;max-width:92vw;text-align:center}" +
+    ".ai-ref-program h3{margin:0 0 6px}.ai-ref-program .ai-ref-lt{font-size:.75em;opacity:.7;font-weight:500}" +
+    ".ai-ref-program .ai-ref-note{font-size:.9em;opacity:.8}";
+
+  var COPY_ICON =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+    '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+
+  var state = { chartId: null, code: null, registered: false };
+
+  function el(html) {
+    var d = document.createElement("div");
+    d.innerHTML = html.trim();
+    return d.firstChild;
+  }
+
+  function injectCSS() {
+    if (document.getElementById("ai-ref-css")) return;
+    var s = document.createElement("style");
+    s.id = "ai-ref-css";
+    s.textContent = CSS;
+    document.head.appendChild(s);
+  }
+
+  // Find the form row that contains the Place input, to insert after it.
+  function findPlaceRow() {
+    var sels = ["#place", "#placeInput", "#birthPlace", "#pob",
+                'input[name="place"]', 'input[name="birthPlace"]',
+                'input[placeholder*="lace" i]'];
+    for (var i = 0; i < sels.length; i++) {
+      var inp = document.querySelector(sels[i]);
+      if (inp) {
+        // climb to the row wrapper (label+input group) but stay inside the form
+        var row = inp.closest(".form-row, .form-group, .field, .input-group, label") || inp;
+        return row.parentElement === null ? inp : row;
+      }
+    }
+    return null;
+  }
+
+  // ── Build the three rows on the birth form ─────────────────────────────────
+  function injectFormFields(afterEl) {
+    injectCSS();
+    var anchor = afterEl || findPlaceRow();
+    if (!anchor || document.getElementById("aiRefBlock")) return;
+
+    var block = el(
+      '<div id="aiRefBlock">' +
+        '<div class="ai-ref-row" id="aiClientIdRow">' +
+          '<div class="ai-ref-key">' + copy.clientIdLabel + "</div>" +
+          '<span class="ai-ref-code" id="aiClientIdVal" title="Tap to copy">\u2014</span>' +
+          '<span class="ai-ref-flash" id="aiCopyFlash"></span>' +
+          '<div class="ai-ref-tip">' + copy.clientIdTip + "</div>" +
+          '<div class="ai-ref-tip" id="aiInviteLine" style="display:none">' + copy.invite + "</div>" +
+        "</div>" +
+        '<div class="ai-ref-row">' +
+          '<div class="ai-ref-key">' + copy.mobileLabel + "</div>" +
+          '<input class="ai-ref-input" id="aiMobile" type="tel" inputmode="tel" ' +
+                 'autocomplete="tel" maxlength="16" placeholder="+91\u2026">' +
+          '<div class="ai-ref-tip">' + copy.mobileTip + "</div>" +
+        "</div>" +
+        '<div class="ai-ref-row">' +
+          '<div class="ai-ref-key">' + copy.referralLabel + "</div>" +
+          '<input class="ai-ref-input ai-code" id="aiReferral" type="text" ' +
+                 'autocomplete="off" spellcheck="false" maxlength="14" placeholder="AI-XXXX-XXXX">' +
+          '<div class="ai-ref-tip">' + copy.referralTip + "</div>" +
+          '<div class="ai-ref-status" id="aiRefStatus"></div>' +
+        "</div>" +
+      "</div>"
+    );
+    anchor.insertAdjacentElement("afterend", block);
+
+    document.getElementById("aiClientIdVal").addEventListener("click", copyCode);
+
+    var refInput = document.getElementById("aiReferral");
+    var t = null;
+    refInput.addEventListener("input", function () {
+      if (t) clearTimeout(t);
+      t = setTimeout(liveCheck, 500);
+    });
+  }
+
+  function copyCode() {
+    if (!state.code) return;
+    var flash = document.getElementById("aiCopyFlash");
+    function done() {
+      if (!flash) return;
+      flash.textContent = copy.copied;
+      setTimeout(function () { flash.textContent = ""; }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(state.code).then(done).catch(done);
+    } else {
+      var ta = document.createElement("textarea");
+      ta.value = state.code;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      done();
+    }
+  }
+
+  // ── Live ✓/✗ on the Referral ID field (advisory only) ─────────────────────
+  function liveCheck() {
+    var input = document.getElementById("aiReferral");
+    var status = document.getElementById("aiRefStatus");
+    if (!input || !status) return;
+    var norm = normalizeCode(input.value);
+    if (!input.value.trim()) { status.textContent = ""; status.className = "ai-ref-status"; return; }
+    if (!norm) { status.textContent = copy.refInvalid; status.className = "ai-ref-status bad"; return; }
+    fetch("/api/referral", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "check", code: norm, chartId: state.chartId }),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (v) {
+      if (v.self)       { status.textContent = copy.refSelf;    status.className = "ai-ref-status bad"; }
+      else if (v.valid) { status.textContent = copy.refValid;   status.className = "ai-ref-status ok";  }
+      else              { status.textContent = copy.refInvalid; status.className = "ai-ref-status bad"; }
+    })
+    .catch(function () { status.textContent = ""; }); // network blip → stay quiet
+  }
+
+  // ── Called by app.js once a chart has been generated ───────────────────────
+  function onChartGenerated(chartId) {
+    if (!chartId) return null;
+    state.chartId = String(chartId);
+    state.code = friendlyCode(state.chartId);
+
+    // Update the form line + reveal the invite line.
+    var val = document.getElementById("aiClientIdVal");
+    if (val) val.innerHTML = state.code + " " + COPY_ICON;
+    var inv = document.getElementById("aiInviteLine");
+    if (inv) inv.style.display = "";
+
+    // Register server-side so this code is validatable as a referral
+    // (free users included). Fire-and-forget; retried on next generation.
+    if (!state.registered) {
+      fetch("/api/referral", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "register", chartId: state.chartId }),
+      }).then(function () { state.registered = true; }).catch(function () {});
+    }
+
+    // Re-check any referral already typed (self-guard now knows our chartId).
+    liveCheck();
+    return state.code;
+  }
+
+  // ── Chart page: a lagna-bar item matching the existing key/value style ─────
+  // Call after renderChartScreen(), e.g. AIref.appendLagnaItem("#lagnaBar")
+  function appendLagnaItem(sel) {
+    injectCSS();
+    var bar = typeof sel === "string" ? document.querySelector(sel || "#lagnaBar") : sel;
+    if (!bar || !state.code) return;
+    var old = document.getElementById("aiLagnaClientId");
+    if (old) old.remove();
+    bar.insertAdjacentHTML("beforeend",
+      '<div class="lagna-item" id="aiLagnaClientId"><div class="lagna-key">' +
+      copy.clientIdLabel + '</div><div class="lagna-val ai-ref-code" title="Tap to copy">' +
+      state.code + "</div></div>");
+    var v = bar.querySelector("#aiLagnaClientId .lagna-val");
+    if (v) v.addEventListener("click", copyCode);
+  }
+
+  // ── Payment success: activation toast (called by payments.js) ──────────────
+  function showActivation(code) {
+    injectCSS();
+    var toast = el('<div class="ai-ref-toast">' + copy.activation(code || state.code || "") + "</div>");
+    document.body.appendChild(toast);
+    setTimeout(function () { toast.remove(); }, 7000);
+  }
+
+  // ── Home page: inject the program block (call with a container selector) ───
+  function renderHomepageBlock(sel) {
+    injectCSS();
+    var host = document.querySelector(sel);
+    if (host && !host.querySelector(".ai-ref-program")) host.insertAdjacentHTML("beforeend", copy.homepageHTML);
+  }
+
+  // ── Getters payments.js pulls automatically ────────────────────────────────
+  function getMobile() {
+    var m = document.getElementById("aiMobile");
+    return m ? m.value.trim() : "";
+  }
+  function getReferralCode() {
+    var r = document.getElementById("aiReferral");
+    return r ? (normalizeCode(r.value) || "") : "";
+  }
+  function getClientCode() { return state.code || ""; }
+
+  // ── Public API ─────────────────────────────────────────────────────────────
+  window.AIref = {
+    friendlyCode: friendlyCode,
+    normalizeCode: normalizeCode,
+    injectFormFields: injectFormFields,
+    onChartGenerated: onChartGenerated,
+    appendLagnaItem: appendLagnaItem,
+    showActivation: showActivation,
+    renderHomepageBlock: renderHomepageBlock,
+    getMobile: getMobile,
+    getReferralCode: getReferralCode,
+    getClientCode: getClientCode,
+    copy: copy,
+  };
+
+  // Auto-inject on load if the birth form is on the page.
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () { injectFormFields(); });
+  } else {
+    injectFormFields();
+  }
+
+})();
