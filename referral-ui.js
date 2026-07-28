@@ -245,18 +245,23 @@
     // Resolve the current chartId at check time — don't depend on onChartGenerated
     // having already set state.chartId. This makes the self-referral guard robust
     // even if the user types their own code before/while the chart is generating.
+    // ── Self-referral guard, robust to timing ────────────────────────────────
+    // Resolve the chartId every way we can: live state, window.AI_chartId (which
+    // in this codebase returns a value even before the user presses Generate),
+    // and — as a final cross-check — the code already shown in the Client ID
+    // field. If ANY of these says the typed code is the user's own, reject it.
     var cid = state.chartId || resolveChartId();
-    // Client-side self-check first: if we can see the chartId and it derives to
-    // this same code, reject immediately without even asking the server.
-    if (cid && friendlyCode(cid) === norm) {
+    var ownFromChart = cid ? friendlyCode(cid) : null;
+    var shownEl = document.getElementById("aiClientIdVal");
+    var ownFromField = (shownEl && !shownEl.classList.contains("ai-pending"))
+      ? normalizeCode(shownEl.textContent) : null;
+    if ((ownFromChart && ownFromChart === norm) ||
+        (ownFromField && ownFromField === norm)) {
       status.textContent = copy.refSelf; status.className = "ai-ref-status bad"; return;
     }
-    // No chart yet → we cannot rule out that this is the user's OWN code (a
-    // returning customer often types their code before generating). Never show a
-    // green "valid" here, or it would wrongly approve a self-referral. Ask them
-    // to generate first; the real check runs the instant the chart appears
-    // (onChartGenerated re-invokes liveCheck) and again authoritatively at
-    // payment in order.js.
+    // If we still have no chartId at all (AI_chartId not ready and no code shown),
+    // we cannot rule out self — ask them to generate rather than show a false
+    // green "valid".
     if (!cid) {
       status.textContent = copy.refPending; status.className = "ai-ref-status";
       return;
