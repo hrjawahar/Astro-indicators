@@ -742,7 +742,6 @@ function renderChartScreen(data) {
 
   renderSIChart("d1ChartWrap", d1.lagnaSign, d1.houses, planets, combust, warLosers, false);
   renderSIChart("d9ChartWrap", d9.lagnaSign, d9.houses, planets, combust, warLosers, true);
-
   // Ensure the static chart legend matches the active language whenever the chart
   // (re)renders. Uses the embedded LEG_I18N as the base so the legend translates even
   // when the deployed i18n.js is missing the leg_* keys; window.I18N overrides it.
@@ -756,8 +755,15 @@ function renderChartScreen(data) {
       if (_lg[k]) el.textContent = _lg[k];
     });
   } catch (e) {}
-}
 
+  // ── Client ID + Referral & Reward: show/register the friendly code ──
+  try {
+    if (window.AIref && window.AI_chartId) {
+      AIref.onChartGenerated(window.AI_chartId);   // fills form line + registers code in D1
+      AIref.appendLagnaItem("#lagnaBar");          // adds the CLIENT ID item to the lagna bar
+    }
+  } catch (e) {}
+}
 function buildCombustSet(planets) {
   const orbs = { Moon:7, Mars:17, Mercury:14, Jupiter:11, Venus:10, Saturn:15 };
   const combust = new Set();
@@ -771,7 +777,6 @@ function buildCombustSet(planets) {
   }
   return combust;
 }
-
 function buildWarSet(planets) {
   const warPlanets = ["Mars","Mercury","Jupiter","Venus","Saturn"];
   const losers = new Set();
