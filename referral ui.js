@@ -232,9 +232,18 @@
   }
 
   // ── Called by app.js once a chart has been generated ───────────────────────
+  // Accepts a chartId string, a function returning one (window.AI_chartId is a
+  // FUNCTION in this codebase), or nothing (falls back to window.AI_chartId).
+  function resolveChartId(x) {
+    var v = (x === undefined || x === null) ? (typeof window !== "undefined" ? window.AI_chartId : null) : x;
+    if (typeof v === "function") { try { v = v(); } catch (e) { v = null; } }
+    return v ? String(v) : null;
+  }
   function onChartGenerated(chartId) {
-    if (!chartId) return null;
-    state.chartId = String(chartId);
+    var cid = resolveChartId(chartId);
+    if (!cid) return null;
+    if (state.chartId !== cid) state.registered = false;  // new chart → re-register
+    state.chartId = cid;
     state.code = friendlyCode(state.chartId);
 
     // Update the form line + reveal the invite line.
@@ -312,6 +321,7 @@
     getMobile: getMobile,
     getReferralCode: getReferralCode,
     getClientCode: getClientCode,
+    getChartId: function () { return state.chartId || resolveChartId(); },
     copy: copy,
   };
 
