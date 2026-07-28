@@ -13,6 +13,13 @@
 //  pay ₹1 for a ₹499 report. Now the price is looked up HERE, server-side, from
 //  the `item` only. Any `amount` in the request body is ignored.
 //
+//  REFERRAL & REWARD (added):
+//  The browser may send { referralCode, chartId }. The code is validated HERE
+//  (exists in customers.client_code, and is not the buyer's own code). If valid
+//  it is stamped into the order's `notes.ref`, exactly like `notes.item` — so
+//  verify.js later trusts the ORDER, not the browser. An invalid, self, or blank
+//  code NEVER blocks the purchase; it is simply not recorded.
+//
 //  ⚠️ KEEP IN SYNC WITH config.js: these are the GST-INCLUSIVE rupee prices the
 //  customer is actually charged. config.js holds the SAME numbers for on-screen
 //  display. If you change a price, change it in BOTH places (config.js for the
@@ -21,6 +28,7 @@
 //  SETUP REQUIRED (one-time, in Cloudflare Pages → Settings → Environment variables):
 //    RAZORPAY_KEY_ID      = rzp_test_xxx   (or rzp_live_xxx when live)
 //    RAZORPAY_KEY_SECRET  = your secret    (NEVER put this in any file)
+//  Plus (for referral validation): D1 binding  DB = astro_paid  (same as report.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Authoritative price list (GST-inclusive rupees), keyed by the EXACT `item`
@@ -37,6 +45,36 @@ const PRICES = {
   lifeIndicators: 999,
   icc: 499,
 };
+
+// ⚠️ KEEP IN SYNC — friendlyCode()/normalizeCode() exist in FOUR places (no
+//    build step, duplicated by design): site/referral-ui.js,
+//    functions/api/referral.js, functions/api/order.js (this file),
+//    functions/api/verify.js. All copies MUST be byte-identical.
+function friendlyCode(chartId) {
+  var s = String(chartId || "");
+  function fnv(seed) {
+    var h = seed >>> 0;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      // h = (h * 16777619) mod 2^32, without Math.imul for max compatibility
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h >>> 0;
+  }
+  var A = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // Crockford-style: no 0/O/1/I
+  var h1 = fnv(0x811c9dc5), h2 = fnv(0x9747b28c), out = "", i;
+  for (i = 0; i < 4; i++) { out += A[h1 & 31]; h1 >>>= 5; }
+  for (i = 0; i < 4; i++) { out += A[h2 & 31]; h2 >>>= 5; }
+  return "AI-" + out.slice(0, 4) + "-" + out.slice(4);
+}
+
+function normalizeCode(raw) {
+  var s = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (s.slice(0, 2) === "AI") s = s.slice(2);
+  if (s.length !== 8) return null;
+  if (/[01IO]/.test(s)) return null; // alphabet never contains these
+  return "AI-" + s.slice(0, 4) + "-" + s.slice(4);
+}
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -60,6 +98,27 @@ export async function onRequestPost(context) {
     return json({ error: "Unknown item." }, 400);
   }
 
+  // ── Referral validation (authoritative; best-effort, never blocks) ─────────
+  // Valid = code exists in customers.client_code AND is not the buyer's own.
+  // Free users' codes count too (they were registered at chart generation).
+  const chartId = String(body.chartId || "");
+  let refCode = "";
+  const typed = normalizeCode(body.referralCode);
+  if (typed && env.DB) {
+    try {
+      const isSelf = chartId && friendlyCode(chartId) === typed;
+      if (!isSelf) {
+        const row = await env.DB
+          .prepare("SELECT chart_id FROM customers WHERE client_code = ?")
+          .bind(typed).first();
+        // Belt & braces: even if codes differ, never credit the buyer's own row.
+        if (row && String(row.chart_id) !== chartId) refCode = typed;
+      }
+    } catch (e) {
+      // DB hiccup → treat as "no referral". A purchase must never fail here.
+    }
+  }
+
   // Razorpay expects the amount in paise (smallest unit): ₹499 → 49900
   const amountPaise = Math.round(amount * 100);
 
@@ -76,7 +135,9 @@ export async function onRequestPost(context) {
       amount: amountPaise,
       currency: "INR",
       receipt: "rcpt_" + item + "_" + Date.now(),
-      notes: { item: item },
+      // notes are the server-authoritative facts verify.js reads back later:
+      //   item = what was actually bought, ref = validated referrer code.
+      notes: { item: item, ref: refCode },
     }),
   });
 
