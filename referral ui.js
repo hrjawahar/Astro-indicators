@@ -132,7 +132,8 @@
 
   // Find the form row that contains the Place input, to insert after it.
   function findPlaceRow() {
-    var sels = ["#place", "#placeInput", "#birthPlace", "#pob",
+    var sels = ["#inputPlaceSearch",            // this site's Place field (index.html)
+                "#place", "#placeInput", "#birthPlace", "#pob",
                 'input[name="place"]', 'input[name="birthPlace"]',
                 'input[placeholder*="lace" i]'];
     for (var i = 0; i < sels.length; i++) {
