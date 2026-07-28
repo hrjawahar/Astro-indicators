@@ -56,9 +56,10 @@
   // ── All program copy, one authoritative place ──────────────────────────────
   var copy = {
     clientIdLabel: "Client ID",
+    clientIdPending: "Generates automatically with your chart",
     clientIdTip: "Your permanent ID for this chart — share it so friends can name you as referrer.",
     mobileLabel: "Mobile number (optional)",
-    mobileTip: "No promotional or follow-up messages — ever.",
+    mobileTip: "Only used to send random gift vouchers by SMS — no marketing, ever.",
     referralLabel: "Referral ID (optional)",
     referralTip: "if referred by an existing user",
     refValid: "\u2713 Valid referral",
@@ -93,6 +94,7 @@
   var CSS =
     ".ai-ref-row{margin:10px 0}" +
     ".ai-ref-key{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;margin-bottom:2px}" +
+    ".ai-ref-code.ai-pending{font-family:inherit;font-size:12.5px;font-weight:400;opacity:.55;cursor:default;font-style:italic}" +
     ".ai-ref-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:16px;" +
       "font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:all}" +
     ".ai-ref-code svg{width:14px;height:14px;opacity:.55}" +
@@ -157,9 +159,9 @@
       '<div id="aiRefBlock">' +
         '<div class="ai-ref-row" id="aiClientIdRow">' +
           '<div class="ai-ref-key">' + copy.clientIdLabel + "</div>" +
-          '<span class="ai-ref-code" id="aiClientIdVal" title="Tap to copy">\u2014</span>' +
+          '<span class="ai-ref-code ai-pending" id="aiClientIdVal" title="Tap to copy">' + copy.clientIdPending + "</span>" +
           '<span class="ai-ref-flash" id="aiCopyFlash"></span>' +
-          '<div class="ai-ref-tip">' + copy.clientIdTip + "</div>" +
+          '<div class="ai-ref-tip" id="aiClientIdTip">' + copy.clientIdTip + "</div>" +
           '<div class="ai-ref-tip" id="aiInviteLine" style="display:none">' + copy.invite + "</div>" +
         "</div>" +
         '<div class="ai-ref-row">' +
@@ -187,6 +189,27 @@
       if (t) clearTimeout(t);
       t = setTimeout(liveCheck, 500);
     });
+
+    // Save the mobile number when the user leaves the field (and again is
+    // harmless — the server COALESCEs). Only meaningful once a chart exists.
+    var mobInput = document.getElementById("aiMobile");
+    if (mobInput) {
+      mobInput.addEventListener("blur", function () { saveMobile(); });
+    }
+  }
+
+  // Persist the form's mobile onto the customer row via the register action.
+  // No-op until a chart has been generated (we need the chartId as the key).
+  function saveMobile() {
+    if (!state.chartId) return;
+    var m = document.getElementById("aiMobile");
+    var val = m ? m.value.trim() : "";
+    if (!val) return;
+    fetch("/api/referral", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "register", chartId: state.chartId, mobile: val }),
+    }).catch(function () {});
   }
 
   function copyCode() {
@@ -249,17 +272,19 @@
 
     // Update the form line + reveal the invite line.
     var val = document.getElementById("aiClientIdVal");
-    if (val) val.innerHTML = state.code + " " + COPY_ICON;
+    if (val) { val.innerHTML = state.code + " " + COPY_ICON; val.classList.remove("ai-pending"); }
     var inv = document.getElementById("aiInviteLine");
     if (inv) inv.style.display = "";
 
     // Register server-side so this code is validatable as a referral
     // (free users included). Fire-and-forget; retried on next generation.
     if (!state.registered) {
+      var m0 = document.getElementById("aiMobile");
+      var mob0 = m0 ? m0.value.trim() : "";
       fetch("/api/referral", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "register", chartId: state.chartId }),
+        body: JSON.stringify({ action: "register", chartId: state.chartId, mobile: mob0 }),
       }).then(function () { state.registered = true; }).catch(function () {});
     }
 
