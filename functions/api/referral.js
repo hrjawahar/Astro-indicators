@@ -71,18 +71,23 @@ export async function onRequestPost(context) {
       const chartId = String(body.chartId || "");
       if (!chartId) return json({ error: "Missing chartId." }, 400);
       const code = friendlyCode(chartId);
+      // Optional mobile typed on the birth form. Trimmed; empty means "not given"
+      // and must never overwrite a number already on the row.
+      const mob = body.mobile ? String(body.mobile).trim() : "";
       const now = Date.now();
       // INSERT if new; if the row already exists (e.g. a paid customer), only
-      // fill client_code when it is still NULL — never disturb other columns.
+      // fill client_code when it is still NULL, and only set mobile when a value
+      // was supplied — never disturb other columns.
       // email is '' (not NULL) because the live schema declares email NOT NULL;
       // verify.js later replaces '' with the real email at purchase time.
       await env.DB.prepare(
-        "INSERT INTO customers (chart_id, email, client_code, created_at, updated_at) " +
-        "VALUES (?, '', ?, ?, ?) " +
+        "INSERT INTO customers (chart_id, email, client_code, mobile, created_at, updated_at) " +
+        "VALUES (?, '', ?, ?, ?, ?) " +
         "ON CONFLICT(chart_id) DO UPDATE SET " +
         "  client_code = COALESCE(customers.client_code, excluded.client_code), " +
+        "  mobile      = COALESCE(NULLIF(excluded.mobile, ''), customers.mobile), " +
         "  updated_at  = excluded.updated_at"
-      ).bind(chartId, code, now, now).run();
+      ).bind(chartId, code, mob, now, now).run();
       return json({ clientCode: code });
     }
 
