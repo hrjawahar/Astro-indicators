@@ -65,6 +65,7 @@
     refValid: "\u2713 Valid referral",
     refInvalid: "\u2717 Referral ID not found",
     refSelf: "That's your own Client ID",
+    refPending: "Generate your chart to confirm this referral",
     copied: "Copied!",
     invite: "Sharing is caring \uD83D\uDC9B \u2014 share your Client ID with friends. " +
             "When they name it as referrer, we'll thank you with a reward.",
@@ -103,8 +104,8 @@
       "border:1px solid rgba(128,128,128,.4);border-radius:6px;background:transparent;color:inherit}" +
     ".ai-ref-input.ai-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;" +
       "text-transform:uppercase;letter-spacing:.05em}" +
-    ".ai-ref-status{font-size:12px;margin-top:3px;min-height:15px}" +
-    ".ai-ref-status.ok{color:#2e9e5b}.ai-ref-status.bad{color:#c0392b}" +
+    ".ai-ref-status{font-size:12px;margin-top:3px;min-height:15px;opacity:.7}" +
+    ".ai-ref-status.ok{color:#2e9e5b;opacity:1}.ai-ref-status.bad{color:#c0392b;opacity:1}" +
     ".ai-ref-flash{color:#2e9e5b;font-size:11px;margin-left:6px}" +
     ".ai-ref-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);" +
       "background:#1d1d1d;color:#ffd76a;padding:12px 18px;border-radius:10px;font-size:14px;" +
@@ -250,10 +251,20 @@
     if (cid && friendlyCode(cid) === norm) {
       status.textContent = copy.refSelf; status.className = "ai-ref-status bad"; return;
     }
+    // No chart yet → we cannot rule out that this is the user's OWN code (a
+    // returning customer often types their code before generating). Never show a
+    // green "valid" here, or it would wrongly approve a self-referral. Ask them
+    // to generate first; the real check runs the instant the chart appears
+    // (onChartGenerated re-invokes liveCheck) and again authoritatively at
+    // payment in order.js.
+    if (!cid) {
+      status.textContent = copy.refPending; status.className = "ai-ref-status";
+      return;
+    }
     fetch("/api/referral", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "check", code: norm, chartId: cid || "" }),
+      body: JSON.stringify({ action: "check", code: norm, chartId: cid }),
     })
     .then(function (r) { return r.json(); })
     .then(function (v) {
