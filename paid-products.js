@@ -187,6 +187,16 @@
     host.innerHTML = `<div class="pp-empty">Reading your chart and writing your report.<br>
       <span style="display:inline-block;margin:10px 0;padding:5px 16px;background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.6);border-radius:999px;color:#c9a84c;font-weight:700;font-size:1.03em">⏱ This usually takes 1–2 minutes</span><br>
       Please keep this page open — it is built once, then saved so it re-opens instantly.</div>`;
+    // Bring the progress message into view — after payment the page is often
+    // scrolled elsewhere, leaving the user staring at a seemingly frozen screen.
+    // rAF lets the DOM paint the message first, then we scroll to it.
+    try {
+      requestAnimationFrame(function () {
+        host.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    } catch (e) {
+      try { host.scrollIntoView(); } catch (_) {}
+    }
     try {
       const facts = await getFacts();
       const cid = window.AI_chartId();
@@ -805,6 +815,14 @@
     host.innerHTML = `<div class="pp-empty">Reading your chart and preparing your answers.<br>
       <span style="display:inline-block;margin:10px 0;padding:5px 16px;background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.6);border-radius:999px;color:#c9a84c;font-weight:700;font-size:1.03em">⏱ This usually takes 1–2 minutes</span><br>
       Please keep this page open.</div>`;
+    // Bring the progress message into view (see buildLifeIndicators for why).
+    try {
+      requestAnimationFrame(function () {
+        host.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    } catch (e) {
+      try { host.scrollIntoView(); } catch (_) {}
+    }
     try {
       const facts = await getFacts();
       const picked = pickedIds.map(id => byId(facts, id)).filter(Boolean);
