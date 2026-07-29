@@ -383,6 +383,15 @@
     document.addEventListener("fullscreenchange", () => {
       const box = $("liBook"); if (box && !document.fullscreenElement) box.classList.remove("fb-fs");
     });
+
+    // Report is ready — bring the Download / Full screen bar into view so the
+    // user sees the next actions instead of having to hunt/scroll for them.
+    try {
+      requestAnimationFrame(function () {
+        var bar = document.querySelector("#liBook .fb-dlbar") || $("fbPdf");
+        if (bar) bar.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    } catch (e) {}
   }
 
 
@@ -866,6 +875,14 @@
       window._iccExistingSets = sets;
       if (w) w.scrollIntoView({ behavior:"smooth", block:"start" });
     };
+
+    // Answers are ready — bring the Download bar into view.
+    try {
+      requestAnimationFrame(function () {
+        var bar = document.querySelector("#iccAnswers .pp-paybar") || $("iccPdf");
+        if (bar) bar.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    } catch (e) {}
   }
 
   async function restoreICC() {
