@@ -112,7 +112,7 @@
       "box-shadow:0 6px 24px rgba(0,0,0,.35);z-index:99999;max-width:92vw;text-align:center}" +
     ".ai-ref-program{font-size:12.5px;line-height:1.5;opacity:.9;margin-top:14px;" +
       "padding-top:12px;border-top:1px solid rgba(128,128,128,.18)}" +
-    ".ai-ref-program h3{margin:0 0 6px;font-size:13.5px;letter-spacing:.01em}" +
+    ".ai-ref-program h3{margin:0 0 6px;font-size:13.5px;letter-spacing:.01em;color:var(--ai-gold,#C9A44C)}" +
     ".ai-ref-program p{margin:0 0 6px}" +
     ".ai-ref-program .ai-ref-lt{font-size:.85em;opacity:.7;font-weight:500}" +
     ".ai-ref-program .ai-ref-note{font-size:.92em;opacity:.75}";
