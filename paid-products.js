@@ -207,7 +207,8 @@
         const ordered = BOOK_ORDER.map(id => byId(facts, id)).filter(Boolean);
         const out = await narrate("report_section", ordered);
         sections = out.sections || [];
-        srv({ action:"store", chartId: cid, item:"lifeIndicators", lang:"en", sections });
+        srv({ action:"store", chartId: cid, item:"lifeIndicators", lang:"en", sections,
+              paymentId: (window.AI_lastPayment && window.AI_lastPayment.lifeIndicators) || null });
       }
       renderFlipbook(host, sections, facts);
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
@@ -837,7 +838,8 @@
       const picked = pickedIds.map(id => byId(facts, id)).filter(Boolean);
       const out = await narrate("icc_answer", picked);
       const sets = (existingSets || []).concat([{ answers: out.answers || [] }]);
-      srv({ action:"store", chartId: window.AI_chartId(), item:"icc", lang:"en", sections: sets });
+      srv({ action:"store", chartId: window.AI_chartId(), item:"icc", lang:"en", sections: sets,
+            paymentId: (window.AI_lastPayment && window.AI_lastPayment.icc) || null });
       renderICC(host, sets, facts);
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
