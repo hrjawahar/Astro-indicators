@@ -94,6 +94,8 @@ export async function onRequestPost(context) {
 
   // ── Record the paid report in D1 (so it persists across sessions) ──────────
   // Only for report purchases (chartId + item present). Consultations skip this.
+  let _dbReportError = null;   // surfaced in the response for diagnosis
+  let _dbReportWritten = false;
   if (env.DB && chartId && paidItem) {
     try {
       const now = Date.now();
@@ -102,9 +104,13 @@ export async function onRequestPost(context) {
         "VALUES (?, ?, ?, ?, ?) " +
         "ON CONFLICT(chart_id, item) DO UPDATE SET payment_id = excluded.payment_id, updated_at = excluded.updated_at"
       ).bind(String(chartId), String(paidItem), razorpay_payment_id, now, now).run();
+      _dbReportWritten = true;
     } catch (e) {
       // Don't fail the payment verification if the DB write hiccups — the user
-      // still paid. They can re-download; status will self-heal on next write.
+      // still paid. But DO surface the error: a silently-missing paid_reports
+      // row means the customer paid and we lost the record. Logged + returned.
+      _dbReportError = (e && e.message) ? e.message : String(e);
+      try { console.error("paid_reports write failed:", paidItem, chartId, _dbReportError); } catch (_) {}
     }
   }
 
@@ -155,6 +161,8 @@ export async function onRequestPost(context) {
     verified: true,
     paymentId: razorpay_payment_id,
     clientCode: chartId ? friendlyCode(String(chartId)) : null,
+    reportSaved: _dbReportWritten,
+    reportError: _dbReportError,   // null on success; the error message if the write failed
   });
 }
 
