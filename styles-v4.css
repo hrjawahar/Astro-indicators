@@ -262,3 +262,22 @@ textarea:focus { outline: none; border-color: var(--gold-dim); }
 .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 560px) { .grid-2col { grid-template-columns: 1fr; } }
 .form-hint { display: block; font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+/* ── Home-page funnel polish (2026 redesign) ─────────────────────────────── */
+/* Quiet the nav badges so the form is the visual hero, not the ribbon.
+   Keeps the honest Free/PAID/SOON info but tones down the shout. */
+.nav-tab .tab-badge {
+  font-size: 8.5px !important;
+  letter-spacing: 0.06em;
+  padding: 1px 5px !important;
+  opacity: 0.72;
+  font-weight: 600 !important;
+  border-radius: 6px;
+}
+.nav-tab:hover .tab-badge { opacity: 1; }
+/* Slightly calmer nav row overall */
+.nav-tabs { opacity: 0.96; }
+.nav-tab { font-size: 0.92rem; }
+
+/* Sample flipbook intro heading (proof-of-product section) */
+.sample-book-intro { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(201,168,76,0.18); }
+.sample-book-intro .card-title { text-align: center; margin-bottom: 4px; }
