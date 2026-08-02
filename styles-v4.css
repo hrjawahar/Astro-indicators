@@ -287,10 +287,24 @@ textarea:focus { outline: none; border-color: var(--gold-dim); }
 .ai-ref-details { margin-top: 6px; }
 .ai-ref-details p { font-size: 12.5px; opacity: 0.8; }
 
-/* Collapsible "How to use" toggle */
-.nav-guide-toggle { cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; }
-.nav-guide-toggle::after { content: "▾"; font-size: 0.8em; opacity: 0.6; transition: transform 0.2s; }
-.nav-guide-toggle[data-open="1"]::after { transform: rotate(180deg); }
+/* Collapsible "How to use" toggle — clearly clickable */
+.nav-guide-toggle {
+  cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between;
+  color: var(--gold); padding: 10px 12px; border: 1px solid rgba(201,168,76,0.35);
+  border-radius: var(--radius-sm, 8px); background: var(--gold-glow, rgba(201,168,76,0.08));
+  transition: background 0.2s;
+}
+.nav-guide-toggle:hover { background: rgba(201,168,76,0.14); }
+.nav-guide-toggle::before { content: "ⓘ  "; opacity: 0.8; font-weight: 400; }
+.nav-guide-toggle::after { content: "▾  Tap to open"; font-size: 0.62em; font-weight: 400; letter-spacing: 0.04em; opacity: 0.75; text-transform: none; white-space: nowrap; }
+.nav-guide-toggle[data-open="1"]::after { content: "▴  Tap to close"; }
 
 /* Trust line under the primary CTA */
 .generate-trust { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 8px; letter-spacing: 0.02em; }
+
+/* Optional pill (matches .ai-opt in referral-ui.js) for form labels */
+.opt-pill {
+  display: inline-block; font-size: 9.5px; letter-spacing: 0.06em; padding: 1px 6px; margin-left: 6px;
+  color: #C9A44C; background: rgba(201,164,76,0.12); border: 1px solid rgba(201,164,76,0.5);
+  border-radius: 8px; text-transform: uppercase; vertical-align: middle;
+}
