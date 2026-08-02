@@ -459,12 +459,12 @@
                 <input id="inputPlaceDisplay" type="hidden"/>
                 <div id="detectedUTC" class="detected-utc"></div>
               </div>
-              <span class="form-hint" data-i18n="form_pob_note">Search is powered by OpenStreetMap. GMT offset is auto-detected from city — no manual entry needed for most countries worldwide.</span>
             </div>
           </div>
 
           <div class="card nav-guide-card">
-            <h3 class="card-title" data-i18n="nav_guide_title">How to use this site</h3>
+            <h3 class="card-title nav-guide-toggle" onclick="var c=document.getElementById('navGuideBody');var o=c.style.display!=='none';c.style.display=o?'none':'block';this.setAttribute('data-open',o?'0':'1');"  data-open="0" data-i18n="nav_guide_title">How to use this site</h3>
+            <div id="navGuideBody" style="display:none">
             <ol class="nav-flow">
               <li>
                 <span class="nf-num">1</span>
@@ -487,21 +487,19 @@
                 <span data-i18n="nav_step4_b">Pay once, then read on screen or download the PDF. Re-open it free any time on the same chart.</span></div>
               </li>
            </ol>
+            </div>
             <div class="sample-book-intro">
               <h3 class="card-title">A peek inside the Life Indicators Report</h3>
               <div id="sampleFlipbook"></div>
             </div>
             <div class="nav-flow-note" data-i18n-html="nav_guide_note">All paid reports are in <b>English</b>. Charts and References are available in regional languages.</div>            <div class="nav-flow-tip" data-i18n="nav_guide_tip">Tip: the more exact your birth time, the more accurate your chart — even ±5 minutes matters.</div>
             <div class="ai-ref-program">
-              <h3>Referral &amp; Reward Program <span class="ai-ref-lt">(Limited time)</span></h3>
-              <p><em>For our paid report members.</em> Your unique <strong>Client ID</strong> doubles as your
-              referral code. Share it with friends and family &mdash; when they enter it while <u>purchasing
-              their own report</u>, you earn an Amazon gift voucher for every successful referral:
-              <strong>₹250</strong> for a LAMP report, <strong>₹150</strong> for a Q&amp;A report.
-              Vouchers are sent by SMS to your registered mobile number within a week of your friend&rsquo;s purchase.</p>
-              <p>This is a limited-period launch offer — start sharing today.</p>
-              <p class="ai-ref-note"><em>Please note:</em> Your Client ID is generated from your birth details.
-              Changing any detail creates a new chart with a new Client ID, so always share the ID printed on your report.</p>
+              <h3>Referral &amp; Reward <span class="ai-ref-lt">(Limited time)</span></h3>
+              <p>Bought a report? Share your <strong>Client ID</strong> &mdash; when a friend buys with it, you earn an Amazon voucher (<strong>₹250</strong> LAMP · <strong>₹150</strong> Q&amp;A), by SMS within a week.
+              <a href="#" class="ai-ref-more" onclick="var d=document.getElementById('aiRefDetails');d.style.display=d.style.display==='block'?'none':'block';this.textContent=d.style.display==='block'?'Show less':'How it works';return false;">How it works</a></p>
+              <div id="aiRefDetails" class="ai-ref-details" style="display:none">
+                <p>Your Client ID is your referral code, shown on your chart and report. A friend enters it while <u>purchasing their own report</u>; the reward follows their first purchase. Your Client ID comes from your birth details &mdash; change any detail and a new one is generated, so always share the ID printed on your report.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -513,6 +511,7 @@
             </button>
             <div id="statusMsg" class="status-msg"></div>
           </div>
+          <div class="generate-trust">Free · No signup · Read your chart in 6 languages</div>
           <div id="errorBox" class="error-box hidden"></div>
         </div>
 
