@@ -281,3 +281,16 @@ textarea:focus { outline: none; border-color: var(--gold-dim); }
 /* Sample flipbook intro heading (proof-of-product section) */
 .sample-book-intro { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(201,168,76,0.18); }
 .sample-book-intro .card-title { text-align: center; margin-bottom: 4px; }
+
+/* Referral block — collapsed teaser + expandable detail */
+.ai-ref-more { color: var(--gold); font-size: 12px; text-decoration: underline; cursor: pointer; white-space: nowrap; }
+.ai-ref-details { margin-top: 6px; }
+.ai-ref-details p { font-size: 12.5px; opacity: 0.8; }
+
+/* Collapsible "How to use" toggle */
+.nav-guide-toggle { cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; }
+.nav-guide-toggle::after { content: "▾"; font-size: 0.8em; opacity: 0.6; transition: transform 0.2s; }
+.nav-guide-toggle[data-open="1"]::after { transform: rotate(180deg); }
+
+/* Trust line under the primary CTA */
+.generate-trust { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 8px; letter-spacing: 0.02em; }
