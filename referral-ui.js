@@ -57,10 +57,10 @@
   var copy = {
     clientIdLabel: "Client ID",
     clientIdPending: "Generates automatically with your chart",
-    clientIdTip: "Your permanent ID for this chart — share it so friends can name you as referrer.",
-    mobileLabel: "Mobile number (optional)",
-    mobileTip: "Only used to send random gift vouchers by SMS — no marketing, ever.",
-    referralLabel: "Referral ID (optional)",
+    clientIdTip: "",
+    mobileLabel: 'Mobile number <span class="ai-opt">Optional</span>',
+    mobileTip: "For sending gift vouchers by SMS — no marketing, ever.",
+    referralLabel: 'Referral ID <span class="ai-opt">Optional</span>',
     referralTip: "if referred by an existing user",
     refValid: "\u2713 Valid referral",
     refInvalid: "\u2717 Referral ID not found",
@@ -95,6 +95,7 @@
   var CSS =
     ".ai-ref-row{margin:10px 0}" +
     ".ai-ref-key{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;margin-bottom:2px}" +
+    ".ai-opt{display:inline-block;font-size:9.5px;letter-spacing:.06em;padding:1px 6px;margin-left:6px;border:1px solid rgba(168,176,194,.4);border-radius:8px;opacity:.7;vertical-align:middle}" +
     ".ai-ref-code.ai-pending{font-family:inherit;font-size:12.5px;font-weight:400;opacity:.55;cursor:default;font-style:italic}" +
     ".ai-ref-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:16px;" +
       "font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:all}" +
@@ -166,7 +167,7 @@
           '<div class="ai-ref-key">' + copy.clientIdLabel + "</div>" +
           '<span class="ai-ref-code ai-pending" id="aiClientIdVal" title="Tap to copy">' + copy.clientIdPending + "</span>" +
           '<span class="ai-ref-flash" id="aiCopyFlash"></span>' +
-          '<div class="ai-ref-tip" id="aiClientIdTip">' + copy.clientIdTip + "</div>" +
+          (copy.clientIdTip ? '<div class="ai-ref-tip" id="aiClientIdTip">' + copy.clientIdTip + "</div>" : "") +
           '<div class="ai-ref-tip" id="aiInviteLine" style="display:none">' + copy.invite + "</div>" +
         "</div>" +
         '<div class="ai-ref-row">' +
