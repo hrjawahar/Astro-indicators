@@ -78,7 +78,7 @@
       return '<div class="sfb-pg sfb-cover sfb-closepg"><div class="sfb-frame"></div><div class="sfb-in">'
            + '<div class="sfb-logo">◈</div><div class="sfb-title2">' + p.title + '</div>'
            + '<div class="sfb-note">' + p.note + '</div>'
-           + '<a class="sfb-cta" href="#birthForm" onclick="try{document.getElementById(\'birthForm\')?.scrollIntoView({behavior:\'smooth\'});}catch(e){}">Generate your chart →</a>'
+           + '<a class="sfb-cta" href="#inputTab" onclick="try{document.getElementById(\'inputTab\')?.scrollIntoView({behavior:\'smooth\'});}catch(e){}">Generate your chart →</a>'
            + '<div class="sfb-ctasub">then get your <b>Life Indicators Report</b></div>'
            + '</div></div>';
     if (p.type === "contents")
