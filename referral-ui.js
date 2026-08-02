@@ -95,7 +95,9 @@
   var CSS =
     ".ai-ref-row{margin:10px 0}" +
     ".ai-ref-key{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;margin-bottom:2px}" +
-    ".ai-opt{display:inline-block;font-size:9.5px;letter-spacing:.06em;padding:1px 6px;margin-left:6px;border:1px solid rgba(168,176,194,.4);border-radius:8px;opacity:.7;vertical-align:middle}" +
+    ".ai-opt{display:inline-block;font-size:9.5px;letter-spacing:.06em;padding:1px 6px;margin-left:6px;" +
+      "color:#C9A44C;background:rgba(201,164,76,.12);border:1px solid rgba(201,164,76,.5);" +
+      "border-radius:8px;text-transform:uppercase;vertical-align:middle}" +
     ".ai-ref-code.ai-pending{font-family:inherit;font-size:12.5px;font-weight:400;opacity:.55;cursor:default;font-style:italic}" +
     ".ai-ref-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:16px;" +
       "font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:all}" +
