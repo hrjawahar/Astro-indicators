@@ -41,9 +41,31 @@ export async function onRequestPost(context) {
 
   try {
     if (action === "status") {
-      const row = await env.DB
+      let row = await env.DB
         .prepare("SELECT report_en, report_ta FROM paid_reports WHERE chart_id = ? AND item = ?")
         .bind(chartId, item).first();
+
+      // Self-heal (mirrors the "store" action): if no row exists but the client
+      // can supply a paymentId, re-verify it directly with Razorpay and CREATE
+      // the row if it genuinely paid for THIS item. This recovers purchases where
+      // verify.js's write failed, so a paid user is never wrongly sent back to
+      // the payment gateway. (On a later session the client may not have the
+      // paymentId; that case is covered by verify.js's retry writing the row.)
+      if (!row) {
+        const paymentId = body.paymentId ? String(body.paymentId) : "";
+        if (paymentId && await paymentCoversItem(env, paymentId, item)) {
+          const now = Date.now();
+          await env.DB.prepare(
+            "INSERT INTO paid_reports (chart_id, item, payment_id, created_at, updated_at) " +
+            "VALUES (?, ?, ?, ?, ?) " +
+            "ON CONFLICT(chart_id, item) DO UPDATE SET payment_id = excluded.payment_id, updated_at = excluded.updated_at"
+          ).bind(chartId, item, paymentId, now, now).run();
+          row = await env.DB
+            .prepare("SELECT report_en, report_ta FROM paid_reports WHERE chart_id = ? AND item = ?")
+            .bind(chartId, item).first();
+        }
+      }
+
       if (!row) return json({ paid: false, hasEN: false, hasTA: false });
       return json({ paid: true, hasEN: !!row.report_en, hasTA: !!row.report_ta });
     }
