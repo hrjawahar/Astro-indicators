@@ -1349,7 +1349,8 @@
     const cid = window.AI_chartId();
     if (!forcePay) {
       if (unlockedHere(item)) { run(); return; }
-      const st = await srv({ action:"status", chartId: cid, item });
+      const _pid = (window.AI_lastPayment && window.AI_lastPayment[item]) || null;
+      const st = await srv({ action:"status", chartId: cid, item, paymentId: _pid });
       if (st && st.paid) { (window.AI_unlocked=window.AI_unlocked||{})[item]=cid; run(); return; }
     }
     let owner=false; try{ owner = (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583"); }catch(e){}
