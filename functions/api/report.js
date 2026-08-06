@@ -26,6 +26,29 @@
 //  matching, captured payment, store still refuses (403), exactly as before.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ⚠️ KEEP IN SYNC — friendlyCode() exists in FOUR places (no build step, so it
+//    is duplicated byte-for-byte): referral-ui.js, functions/api/referral.js,
+//    functions/api/order.js, functions/api/verify.js — and now here. If you edit
+//    one, edit all five identically, or referral codes / paid-status lookups will
+//    disagree.
+function friendlyCode(chartId) {
+  var s = String(chartId || "");
+  function fnv(seed) {
+    var h = seed >>> 0;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      // h = (h * 16777619) mod 2^32, without Math.imul for max compatibility
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h >>> 0;
+  }
+  var A = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // Crockford-style: no 0/O/1/I
+  var h1 = fnv(0x811c9dc5), h2 = fnv(0x9747b28c), out = "", i;
+  for (i = 0; i < 4; i++) { out += A[h1 & 31]; h1 >>>= 5; }
+  for (i = 0; i < 4; i++) { out += A[h2 & 31]; h2 >>>= 5; }
+  return "AI-" + out.slice(0, 4) + "-" + out.slice(4);
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   if (!env.DB) return json({ error: "Database not configured (bind D1 as 'DB')." }, 500);
@@ -35,9 +58,34 @@ export async function onRequestPost(context) {
   catch { return json({ error: "Invalid request body." }, 400); }
 
   const action  = String(body.action || "");
-  const chartId = String(body.chartId || "");
+  let   chartId = String(body.chartId || "");
   const item    = String(body.item || "");
   if (!chartId || !item) return json({ error: "Missing chartId or item." }, 400);
+
+  // ── Chart-ID format reconciliation ─────────────────────────────────────────
+  // paid_reports.chart_id is stored in the RAW form (e.g. "cddffa19a_28").
+  // friendlyCode() is a ONE-WAY hash: raw → "AI-XXXX-XXXX" (not reversible).
+  // A returning-user bug can make the client send the FRIENDLY form to these
+  // actions. A raw-keyed lookup then misses, so a genuinely paid user reads as
+  // unpaid and is wrongly sent back to payment. Fix: if the incoming id is in
+  // friendly format, find the stored raw chart_id whose friendlyCode() matches
+  // it, and use that raw id for all lookups below. (Raw ids never start "AI-".)
+  if (/^AI-[0-9A-Z]{4}-[0-9A-Z]{4}$/i.test(chartId)) {
+    try {
+      const rows = await env.DB
+        .prepare("SELECT DISTINCT chart_id FROM paid_reports WHERE item = ?")
+        .bind(item).all();
+      const list = (rows && rows.results) ? rows.results : [];
+      for (const r of list) {
+        if (friendlyCode(String(r.chart_id)) === chartId.toUpperCase()) {
+          chartId = String(r.chart_id);   // resolved friendly → raw
+          break;
+        }
+      }
+      // If nothing matched, chartId stays as the friendly string; the raw-keyed
+      // queries below will simply find no row (correctly → paid:false).
+    } catch (_) { /* scan failure → fall through with original id */ }
+  }
 
   try {
     if (action === "status") {
