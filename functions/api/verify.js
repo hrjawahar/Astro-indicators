@@ -97,20 +97,30 @@ export async function onRequestPost(context) {
   let _dbReportError = null;   // surfaced in the response for diagnosis
   let _dbReportWritten = false;
   if (env.DB && chartId && paidItem) {
-    try {
-      const now = Date.now();
-      await env.DB.prepare(
-        "INSERT INTO paid_reports (chart_id, item, payment_id, created_at, updated_at) " +
-        "VALUES (?, ?, ?, ?, ?) " +
-        "ON CONFLICT(chart_id, item) DO UPDATE SET payment_id = excluded.payment_id, updated_at = excluded.updated_at"
-      ).bind(String(chartId), String(paidItem), razorpay_payment_id, now, now).run();
-      _dbReportWritten = true;
-    } catch (e) {
-      // Don't fail the payment verification if the DB write hiccups — the user
-      // still paid. But DO surface the error: a silently-missing paid_reports
-      // row means the customer paid and we lost the record. Logged + returned.
-      _dbReportError = (e && e.message) ? e.message : String(e);
-      try { console.error("paid_reports write failed:", paidItem, chartId, _dbReportError); } catch (_) {}
+    // Retry the write up to 3 times. A single transient D1 hiccup here used to
+    // leave NO paid_reports row — which meant the customer, though they genuinely
+    // paid, would be treated as unpaid on every future visit (status → paid:false
+    // → sent back to the payment gateway). Retrying makes the row reliably land.
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const now = Date.now();
+        await env.DB.prepare(
+          "INSERT INTO paid_reports (chart_id, item, payment_id, created_at, updated_at) " +
+          "VALUES (?, ?, ?, ?, ?) " +
+          "ON CONFLICT(chart_id, item) DO UPDATE SET payment_id = excluded.payment_id, updated_at = excluded.updated_at"
+        ).bind(String(chartId), String(paidItem), razorpay_payment_id, now, now).run();
+        _dbReportWritten = true;
+        _dbReportError = null;
+        break; // success — stop retrying
+      } catch (e) {
+        // Don't fail the payment verification if the DB write hiccups — the user
+        // still paid. Capture the error; if all attempts fail it is surfaced so a
+        // silently-missing paid_reports row can be diagnosed and recovered.
+        _dbReportError = (e && e.message) ? e.message : String(e);
+        try { console.error("paid_reports write failed (attempt " + attempt + "):", paidItem, chartId, _dbReportError); } catch (_) {}
+        // brief backoff before the next attempt (skip after the last)
+        if (attempt < 3) { try { await new Promise(r => setTimeout(r, 150 * attempt)); } catch (_) {} }
+      }
     }
   }
 
