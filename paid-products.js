@@ -1347,6 +1347,10 @@
       alert("Generate your chart first (Birth Data tab)."); return;
     }
     const cid = window.AI_chartId();
+    if (!cid) {
+      alert("Your chart is still finalizing (location not resolved yet). Please wait a moment and try again.");
+      return;
+    }
     if (!forcePay) {
       if (unlockedHere(item)) { run(); return; }
       const _pid = (window.AI_lastPayment && window.AI_lastPayment[item]) || null;
