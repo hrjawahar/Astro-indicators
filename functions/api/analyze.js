@@ -1,4 +1,41 @@
 // ─────────────────────────────────────────────────────────────────────────────
+//  FILE: functions/api/facts.js
+//  Cloudflare Pages Function — runs the 19-module rule engine server-side.
+//  Input : { chart: <the /api/chart response>, gender: "male"|"female"|"unspecified" }
+//  Output: { success, facts: EngineFact[] }   (owner-only modules NEVER included)
+//
+//  The engine bundle (engine-bundle.js) is generated from engine/ by build-engine.sh
+//  — do not edit the bundle by hand; edit the TypeScript and rebuild.
+// ─────────────────────────────────────────────────────────────────────────────
+import { runEngineFromChartResponse, bookExtras } from "./engine-bundle.js";
+
+export async function onRequestPost(context) {
+  let body;
+  try { body = await context.request.json(); }
+  catch { return json({ error: "Invalid request body." }, 400); }
+
+  const chart = body.chart;
+  if (!chart || !chart.d1 || !chart.d1.degrees || !chart.input) {
+    return json({ error: "chart must be the /api/chart response object." }, 400);
+  }
+  const gender = ["male", "female"].includes(body.gender) ? body.gender : "unspecified";
+
+  try {
+    // includeOwnerOnly is NOT exposed over HTTP by design — owner analysis is offline.
+    const { facts, errors } = runEngineFromChartResponse(chart, gender, {});
+    if (errors.length) {
+      return json({ error: "Engine validation failed.", modules: errors.map(e => e.module) }, 500);
+    }
+    const extras = bookExtras(chart, gender);   // planet-strength table + guidance
+    return json({ success: true, facts, extras });
+  } catch (e) {
+    return json({ error: e.message || "Engine failure." }, 500);
+  }
+}
+
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json" } });
+}// ─────────────────────────────────────────────────────────────────────────────
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
@@ -708,14 +745,27 @@ function getDomainActivators(config, lagnaSign) {
 //   priority: 'primary'   — planet runs its own Mahadasha
 //             'strong'    — activator runs AD within another activator's MD
 //             'secondary' — activator runs AD within a non-activator's MD
-function getDashaActivationWindows(config, dashas, birthDate, lagnaSign) {
+function getDashaActivationWindows(config, dashas, birthDate, lagnaSign, currentAge) {
   if (!dashas || !dashas.length) return [];
 
   const activators = getDomainActivators(config, lagnaSign);
   const birth = new Date(birthDate);
+  // currentAge = the native's age (in years) at report-generation time. Used to
+  // classify each window as already-passed, currently-running, or upcoming — so a
+  // new customer generating today is shown what's AHEAD (and, as useful context,
+  // what they have already moved through) rather than a flat whole-life list that
+  // may open on periods already behind them.
+  const nowAge = (typeof currentAge === 'number' && isFinite(currentAge)) ? currentAge : null;
 
   function toAge(dateStr) {
     return parseFloat(((new Date(dateStr) - birth) / (365.25*24*3600*1000)).toFixed(1));
+  }
+
+  function phaseOf(fromAge, toAge_) {
+    if (nowAge === null) return 'unknown';
+    if (toAge_ < nowAge) return 'past';
+    if (fromAge > nowAge) return 'upcoming';
+    return 'current';
   }
 
   const windows = [];
@@ -727,13 +777,15 @@ function getDashaActivationWindows(config, dashas, birthDate, lagnaSign) {
 
     // Mahadasha itself is an activator → primary window
     if (mdIsActivator && mdTo > 12 && mdFrom < 85) {
+      const fa = Math.max(mdFrom, 0), ta = Math.min(mdTo, 90);
       windows.push({
         planet:   md.lord,
         level:    'Mahadasha',
         within:   null,
-        from_age: Math.max(mdFrom, 0),
-        to_age:   Math.min(mdTo, 90),
-        priority: 'primary'
+        from_age: fa,
+        to_age:   ta,
+        priority: 'primary',
+        phase:    phaseOf(fa, ta)
       });
     }
 
@@ -744,13 +796,16 @@ function getDashaActivationWindows(config, dashas, birthDate, lagnaSign) {
       const adTo   = toAge(ad.endDate);
       if (adTo < 12 || adFrom > 85) return; // outside relevant lifespan
 
+      const fa = parseFloat(Math.max(adFrom, 0).toFixed(1));
+      const ta = parseFloat(Math.min(adTo, 90).toFixed(1));
       windows.push({
         planet:   ad.lord,
         level:    'Antardasha',
         within:   md.lord,
-        from_age: parseFloat(Math.max(adFrom, 0).toFixed(1)),
-        to_age:   parseFloat(Math.min(adTo, 90).toFixed(1)),
-        priority: mdIsActivator ? 'strong' : 'secondary'
+        from_age: fa,
+        to_age:   ta,
+        priority: mdIsActivator ? 'strong' : 'secondary',
+        phase:    phaseOf(fa, ta)
       });
     });
   });
@@ -943,7 +998,47 @@ function buildIndication(verdict, config, d1Result, d9Result, yogas) {
 function formatActivationWindows(windows, config) {
   if (!windows || !windows.length) return null;
 
-  // Group by priority
+  // If phase info is present (current age known), lead with what's AHEAD and add
+  // already-passed windows only as brief context. This directly serves the two
+  // questions the report answers: "why has this been happening" (past) and
+  // "what's ahead" (upcoming). If phase is unknown, fall back to the original
+  // whole-life presentation.
+  const hasPhase = windows.some(w => w.phase && w.phase !== 'unknown');
+
+  function label(w, withWithin) {
+    const lvl = w.level === 'Mahadasha' ? 'Mahadasha'
+              : (withWithin && w.within ? `AD within ${w.within} MD` : 'AD');
+    return `${w.planet} ${lvl} (age ${Math.round(w.from_age)}–${Math.round(w.to_age)})`;
+  }
+
+  if (hasPhase) {
+    const upcoming = windows.filter(w => w.phase === 'upcoming' || w.phase === 'current');
+    const past     = windows.filter(w => w.phase === 'past');
+    const parts = [];
+
+    if (upcoming.length) {
+      // Prioritise primary/strong among upcoming, keep chronological
+      const up = upcoming
+        .sort((a, b) => a.from_age - b.from_age)
+        .slice(0, 4)
+        .map(w => label(w, true));
+      parts.push('Ahead: ' + up.join(', '));
+    } else {
+      parts.push('Ahead: the principal activating periods for this area now sit later in the chart or have already unfolded; growth here comes through steady effort rather than a single dramatic window.');
+    }
+
+    if (past.length) {
+      const pa = past
+        .sort((a, b) => b.to_age - a.to_age) // most recent past first
+        .slice(0, 2)
+        .map(w => label(w, false));
+      parts.push('Already moved through: ' + pa.join(', '));
+    }
+
+    return parts.join('. ');
+  }
+
+  // ── Fallback: original whole-life grouping (phase unknown) ──────────────────
   const primary   = windows.filter(w => w.priority === 'primary');
   const strong    = windows.filter(w => w.priority === 'strong');
   const secondary = windows.filter(w => w.priority === 'secondary').slice(0, 4);
@@ -956,7 +1051,6 @@ function formatActivationWindows(windows, config) {
   }
 
   if (strong.length) {
-    // Summarise as antardasha sub-periods
     const s = strong.slice(0, 3).map(w => `${w.planet} AD within ${w.within} MD (age ${Math.round(w.from_age)}–${Math.round(w.to_age)})`);
     parts.push('Strong sub-periods: ' + s.join(', '));
   }
@@ -975,7 +1069,12 @@ function buildChartStatement(config, d1, d9, domainResult, dashas, birthDate, al
   const d1Result = domainResult._d1Result || {};
   const d9Result = domainResult._d9Result || {};
 
-  const activationWindows = getDashaActivationWindows(config, dashas, birthDate, d1.lagnaSign);
+  const currentAge        = (function () {
+    const b = new Date(birthDate);
+    if (isNaN(b.getTime())) return null;
+    return parseFloat(((Date.now() - b) / (365.25*24*3600*1000)).toFixed(1));
+  })();
+  const activationWindows = getDashaActivationWindows(config, dashas, birthDate, d1.lagnaSign, currentAge);
   const confidence        = assessConfidence(d1Result, d9Result, allYogas, config);
   const cautions          = buildCautions(d1Result, d9Result, new Set(), new Set(), config);
   const pattern           = describePattern(d1Result, d9Result, allYogas, config, d1, d9);
