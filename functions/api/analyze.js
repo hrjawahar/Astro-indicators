@@ -2127,6 +2127,123 @@ function generateChartOpening(classification, d1, d9) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Expose for use in onRequestPost
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CHARA KARAKAS (Jaimini) — Atmakaraka … Darakaraka, auto-derived from d1.degrees
+//
+//  RULE (locked):
+//   • ALWAYS exactly 7 portfolios (frozen names/meanings), ranked high→low by
+//     degree-within-sign (longitude % 30):
+//       Atmakaraka, Amatyakaraka, Bhratrukaraka, Matrukaraka,
+//       Putrakaraka, Gnathikaraka, Darakaraka.
+//   • 7 classical planets: Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn.
+//   • NO TIE → rank the 7, assign to the 7 portfolios. Rahu ABSENT.
+//   • TIE (two classical planets share the same INTEGER degree) → add Rahu with
+//     REVERSED degree (30 − Rahu deg-in-sign) to the pool; rank all 8; the TOP 7
+//     take the portfolios; the LOWEST-ranked (8th) body is EXCLUDED entirely.
+//     Tied planets self-order by their minutes (automatic — ranking uses the full
+//     fractional degree-in-sign).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CHARA_KARAKA_PORTFOLIOS = [
+  { role: "Atmakaraka",    short: "AK",  domain: "Soul / Self" },
+  { role: "Amatyakaraka",  short: "AmK", domain: "Career / Intellect" },
+  { role: "Bhratrukaraka", short: "BK",  domain: "Siblings / Guru" },
+  { role: "Matrukaraka",   short: "MK",  domain: "Mother and Father / Home" },
+  { role: "Putrakaraka",   short: "PK",  domain: "Children / Education" },
+  { role: "Gnathikaraka",  short: "GK",  domain: "Obstacles / Debts" },
+  { role: "Darakaraka",    short: "DK",  domain: "Spouse / Partnerships" }
+];
+
+const KARAKA_PORTFOLIO_DEFS = {
+  "Atmakaraka":    "The planet at the highest degree in the chart — classically the significator of the soul. It points to the theme the inner life keeps returning to: the lesson, longing, or work that feels most central to who one is becoming. Of all the karakas, this carries the strongest voice.",
+  "Amatyakaraka":  "The planet that advises the soul — traditionally the minister to the Atmakaraka's king. It colours how one thinks, counsels oneself, and makes one's way in the world of work. Where the AK sets the direction, the AmK shapes the means.",
+  "Bhratrukaraka": "The significator of siblings and, in the classical view, teachers and guides. It reflects the theme of courage, effort, and the people who walk alongside or show the way.",
+  "Matrukaraka":   "The significator of the parents and the home one comes from. It carries the theme of nurture, roots, emotional shelter, and the inner sense of security carried from one's origins.",
+  "Putrakaraka":   "The significator of children, creativity, and learning. It reflects what one brings into being — offspring, ideas, works — and how knowledge and creation move through the life.",
+  "Gnathikaraka":  "The significator of the difficulties that shape a person — obstacles, health, discipline, and what the tradition calls debts. This is the theme of what must be worked through, and the strength that working through it builds.",
+  "Darakaraka":    "The planet at the lowest degree in the chart — the significator of the spouse and of partnership itself. It points to the qualities one is drawn to in a life-partner, and the theme close union brings into the life."
+};
+
+const KARAKA_AK_MEANING = {
+  Sun:     "The soul's theme centres on selfhood, authority, and the long work of becoming someone who stands in their own light without needing it reflected back. Ego and essence must be told apart.",
+  Moon:    "The soul's theme is feeling, care, and the tides of the inner life. The work is to be nourished without being ruled by mood, and to give care without losing oneself in it.",
+  Mars:    "The soul's theme is courage, will, and right action. The work is to act with force without being ruled by anger — to become someone whose strength protects rather than harms.",
+  Mercury: "The soul's theme is mind, communication, and discernment. The work is to use intelligence in service of something true, rather than merely clever.",
+  Jupiter: "The soul's theme is wisdom, meaning, and faith. The work is to grow toward what is larger than oneself — to become a source of guidance without becoming certain of too much.",
+  Venus:   "The soul's theme is love, beauty, and relationship itself. The work is to love fully without losing discernment — to let the heart lead without letting it deceive.",
+  Saturn:  "The soul's theme is endurance, responsibility, and time. The work is long and often solitary — to build something real through patience, and to find that restriction can become a strange kind of freedom."
+};
+
+const KARAKA_DK_MEANING = {
+  Sun:     "One is drawn toward partners with presence, dignity, or authority — someone whose selfhood is clear. Partnership becomes a teacher about one's own.",
+  Moon:    "One is drawn toward partners who feel like home — nurturing, emotionally present. Partnership is where the need for belonging is met and tested.",
+  Mars:    "One is drawn toward partners with drive, directness, or strength. Partnership carries an element of heat — passion, and the work of handling conflict well.",
+  Mercury: "One is drawn toward partners who are quick, communicative, youthful in spirit. Partnership lives in conversation and the meeting of minds.",
+  Jupiter: "One is drawn toward partners who are wise, principled, or expansive — someone who widens one's world. Partnership carries a note of the teacher.",
+  Venus:   "One is drawn toward partners of warmth, beauty, and grace. This is the classical natural significator of partnership; union sits close to the centre of the path.",
+  Saturn:  "One is drawn toward partners who are steady, serious, or older in spirit. Partnership is built slowly and asks for commitment, duty, and staying power.",
+  Rahu:    "One is drawn toward partners who are unconventional, foreign, or outside the familiar world. Partnership arrives in unexpected ways and pulls one beyond the life one knew."
+};
+
+function karakaDegInSign(longitude) {
+  return (((longitude % 30) + 30) % 30);
+}
+
+function computeCharaKarakas(degrees) {
+  if (!degrees) return null;
+  const CLASSICAL = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
+
+  const list = [];
+  for (const p of CLASSICAL) {
+    if (degrees[p] == null) return null; // incomplete data → skip chapter safely
+    list.push({ planet: p, dis: karakaDegInSign(degrees[p]), reversed: false });
+  }
+
+  // TIE TEST: any two classical planets share the same integer degree?
+  let tie = false;
+  for (let a = 0; a < list.length && !tie; a++) {
+    for (let b = a + 1; b < list.length; b++) {
+      if (Math.floor(list[a].dis) === Math.floor(list[b].dis)) { tie = true; break; }
+    }
+  }
+
+  // TIE → add Rahu with reversed degree (30 − deg-in-sign)
+  if (tie && degrees.Rahu != null) {
+    list.push({ planet: "Rahu", dis: 30 - karakaDegInSign(degrees.Rahu), reversed: true });
+  }
+
+  // Rank high → low (fractional dis auto-orders tied planets by minutes)
+  list.sort((x, y) => y.dis - x.dis);
+
+  // Exactly 7 portfolios. Top 7 fill them; any 8th body is EXCLUDED.
+  const assigned = list.slice(0, 7);
+  const excluded = list.length > 7 ? list[7] : null;
+
+  const karakas = assigned.map((b, idx) => ({
+    role:      CHARA_KARAKA_PORTFOLIOS[idx].role,
+    short:     CHARA_KARAKA_PORTFOLIOS[idx].short,
+    domain:    CHARA_KARAKA_PORTFOLIOS[idx].domain,
+    planet:    b.planet,
+    degInSign: parseFloat(b.dis.toFixed(1)),
+    reversed:  b.reversed,
+    portfolioDef: KARAKA_PORTFOLIO_DEFS[CHARA_KARAKA_PORTFOLIOS[idx].role]
+  }));
+
+  const ak = karakas[0];
+  const dk = karakas[karakas.length - 1];
+
+  return {
+    tie,
+    rahuUsed: tie && degrees.Rahu != null,
+    excluded: excluded ? { planet: excluded.planet, degInSign: parseFloat(excluded.dis.toFixed(1)), reversed: excluded.reversed } : null,
+    karakas,
+    atmakaraka:  ak,
+    darakaraka:  dk,
+    akMeaning:   KARAKA_AK_MEANING[ak.planet] || "",
+    dkMeaning:   KARAKA_DK_MEANING[dk.planet] || ""
+  };
+}
+
 function buildAllStatements(d1, d9, domains, dashas, birthDate, yogasD1, yogasD9) {
   const allYogas     = [...yogasD1, ...yogasD9];
   const classification = classifyChartPattern(d1, d9, yogasD1, yogasD9);
@@ -2213,6 +2330,9 @@ export async function onRequestPost(context) {
     const eventFlags       = detectEventFlags(d1, d9, combustForFlags, yogasD1, yogasD9, classification);
     const compoundPatterns = detectCompoundPatterns(d1, d9, combustForFlags, yogasD1, yogasD9, classification);
 
+    // Chara Karakas (Atmakaraka … Darakaraka) — auto-derived from D1 degrees.
+    const charaKarakas = computeCharaKarakas(d1Degrees);
+
     return Response.json({
       generatedAt: new Date().toISOString(),
       summary,
@@ -2222,6 +2342,7 @@ export async function onRequestPost(context) {
       chartOpening,
       eventFlags,
       compoundPatterns,
+      charaKarakas,
     });
   } catch (error) {
     return Response.json({ error: error.message || "Unexpected error." }, { status:500 });
