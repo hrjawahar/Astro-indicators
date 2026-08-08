@@ -440,12 +440,35 @@ const CONSULT_CONFIG = {
       var n = parseFloat(v);
       return isFinite(n) ? (Math.round(n * 100) / 100).toFixed(2) : "";
     }
+    // Coarser rounding used ONLY for the chart-id basis. The place search can
+    // return slightly different coordinates for the SAME city on different days
+    // (e.g. 13.08 vs 13.09). At 2 decimals that jitter changed the chart id, so a
+    // returning paid customer generated a NEW id that no longer matched their
+    // stored paid_reports row — and was wrongly asked to pay again. Rounding to 1
+    // decimal (~11 km) absorbs that jitter while still separating real cities, so
+    // the same birth details reliably produce the same id over time.
+    function roundId(v) {
+      var n = parseFloat(v);
+      return isFinite(n) ? (Math.round(n * 10) / 10).toFixed(1) : "";
+    }
     function chartId() {
       var f = (window.currentData && window.currentData.form) || {};
       var dob = (f.dob || (document.getElementById("inputDOB") || {}).value || "").trim();
       var tob = (f.tob || (document.getElementById("inputTOB") || {}).value || "").trim();
-      var lat = round2(f.lat != null ? f.lat : (document.getElementById("inputLat") || {}).value);
-      var lng = round2(f.lng != null ? f.lng : (f.lon != null ? f.lon : (document.getElementById("inputLng") || {}).value));
+      // Normalize time to HH:MM so a stray ":SS" (some browsers add seconds) can't
+      // shift the id for the same birth time.
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(tob)) {
+        var _p = tob.split(":");
+        tob = ("0" + _p[0]).slice(-2) + ":" + ("0" + _p[1]).slice(-2);
+      }
+      var lat = roundId(f.lat != null ? f.lat : (document.getElementById("inputLat") || {}).value);
+      var lng = roundId(f.lng != null ? f.lng : (f.lon != null ? f.lon : (document.getElementById("inputLng") || {}).value));
+      // Guard: if coordinates are momentarily unavailable, DON'T fall through to a
+      // dob|tob-only id (that would make different cities collide and could also
+      // mismatch the paid row). An id without a resolved location is not trustworthy
+      // as a pay-once key, so signal "not ready" (empty) and let callers wait for
+      // the chart/coords to resolve rather than mint a wrong key.
+      if (lat === "" || lng === "") return "";
       var basis = [dob, tob, lat, lng].join("|");
       // djb2 string hash → hex; stable and collision-safe enough for this use.
       var h = 5381;
