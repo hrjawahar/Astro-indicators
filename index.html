@@ -77,6 +77,8 @@
   .chart-explainer .explainer-paid { color:var(--ai-gold,#C9A44C); font-weight:600; font-size:12.5px; line-height:1.6; margin-top:8px; }
   .ai-owner-only { display:none !important; }
   body.ai-owner .ai-owner-only { display:inline-flex !important; }
+  /* Always hidden — even in owner mode. For retired/internal tabs. */
+  .ai-hidden-tab, body.ai-owner .ai-hidden-tab { display:none !important; }
   .ai-paid-tab { border:1px solid var(--ai-gold); background:linear-gradient(160deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-gold-soft) !important; }
   .ai-paid-tab .tab-icon { color:var(--ai-gold); }
   .ai-gold-dot { font-size:.58rem; letter-spacing:.12em; color:var(--ai-navy); background:var(--ai-gold); border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; }
@@ -377,13 +379,13 @@
     <button class="nav-tab" data-tab="chartTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">◈</span> <span data-i18n="nav_charts">Charts</span>
     </button>
-    <button class="nav-tab ai-owner-only" data-tab="dashaTab" data-requires="chart">
+    <button class="nav-tab ai-hidden-tab" data-tab="dashaTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">◉</span> <span data-i18n="nav_dasha">Dasa Periods</span>
     </button>
-    <button class="nav-tab ai-owner-only" data-tab="domainTab" data-requires="analysis">
+    <button class="nav-tab ai-hidden-tab" data-tab="domainTab" data-requires="analysis">
       <span class="tab-icon" aria-hidden="true">◈</span> <span data-i18n="nav_domains">Life Domains</span>
     </button>
-    <button class="nav-tab ai-owner-only" data-tab="summaryTab" data-requires="analysis">
+    <button class="nav-tab ai-hidden-tab" data-tab="summaryTab" data-requires="analysis">
       <span class="tab-icon" aria-hidden="true">◎</span> <span data-i18n="nav_summary">Summary</span>
     </button>
     <button class="nav-tab ai-paid-tab" data-tab="lifeIndTab" data-requires="chart" title="Unlock your personalized LAMP (Life Analysis and Mapping Profile) report instantly. This comprehensive download maps your chart&#39;s unique meaning for deeper self-reflection.">
