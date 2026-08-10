@@ -756,6 +756,74 @@
     Saturn:"With Saturn here, this is built slowly through duty and endurance. Nothing comes by shortcut; it comes by showing up, for years.",
     Rahu:"With Rahu here, this hungers for the new, the foreign, and the unconventional. It pulls you off the well-worn path."
   };
+  // Vivid planet×role interpretation (felt daily life + soul's lesson), per source materials.
+  const KARAKA_PLANET_BY_ROLE = {
+    Atmakaraka: {
+      Sun:"Your soul is wired for authority, recognition, and standing at the centre. In daily life you feel a pull to be seen and to lead — and your deepest lesson is to build a self worth following from the inside, so your worth no longer depends on applause.",
+      Moon:"Your soul is wired for feeling, care, and belonging. In daily life your inner weather colours everything — when you are at peace you flourish, when unsettled you struggle. Your lesson is to become the steady source of your own comfort rather than needing the world to supply it.",
+      Mars:"You naturally possess a warrior spirit, but your soul's lesson is to evolve from raw aggression or impatience into conscious, disciplined strength. In daily interactions you will notice an intense drive to protect your independence and a low tolerance for stagnation — the work is to aim that fire, not extinguish it.",
+      Mercury:"Your soul is wired for intelligence, communication, and understanding. In daily life you meet everything first with the mind — analysing, questioning, connecting. Your lesson is to let that brilliant mind serve wisdom and truth, not just cleverness or endless noise.",
+      Jupiter:"Your soul is wired for meaning, wisdom, and faith. In daily life you seek the larger picture and the higher why behind things. Your lesson is to grow into a genuine guide for others while staying humble enough to keep learning yourself.",
+      Venus:"Your soul is wired for love, beauty, and connection. In daily life you are drawn to harmony, relationship, and the finer things — and can lose yourself in them. Your lesson is to love fully while keeping your discernment, so the heart leads without being deceived.",
+      Saturn:"Your soul is wired for endurance, responsibility, and mastery through time. In daily life you carry weight others don't, and success rarely comes quick or easy. Your lesson is to keep building patiently until restriction itself becomes a strange kind of freedom."
+    },
+    Amatyakaraka: {
+      Sun:"Your career runs on visibility and authority — you're built to lead, be seen, and hold responsibility. Day to day, work satisfies you most when you're recognised and in charge; the growth is to lead from competence and heart, not ego.",
+      Moon:"Your career runs on care, intuition, and connection with people. Day to day, you succeed through empathy and reading the room — the growth is to stay emotionally steady so others' moods don't run your professional life.",
+      Mars:"Your career runs on drive, competition, and decisive action. Day to day, you thrive on challenge and hate being idle; the growth is to channel that force into disciplined execution rather than burning out on constant urgency.",
+      Mercury:"Your career runs on intellect, communication, and versatility. Day to day, your professional edge is your mind — analysis, writing, negotiation, quick learning; the growth is to go deep, not just wide.",
+      Jupiter:"Your career runs on wisdom, teaching, and expansion. Day to day, you rise by guiding, advising, and seeing the bigger strategy; the growth is to turn vast knowledge into practical, grounded action.",
+      Venus:"Your career runs on relationship, aesthetics, and diplomacy. Day to day, you succeed through charm, taste, and the ability to bring people together; the growth is to hold firm standards beneath the harmony.",
+      Saturn:"Your professional life operates on the laws of patience, structure, and sheer endurance. Career success comes not from shortcuts but from showing up consistently, building systems, and carrying heavy responsibility. Your mind is geared toward long-term planning and duty — and that is exactly what earns you lasting authority."
+    },
+    Darakaraka: {
+      Sun:"You are drawn to partners with presence, dignity, and strength of self — someone whose light is clear. Partnership becomes a mirror for your own authority, teaching you as much about yourself as about them.",
+      Moon:"You are drawn to partners who feel like home — nurturing, emotionally present, safe. Partnership is where your need for belonging is both met and tested, and where you learn what real emotional security means.",
+      Mars:"You are drawn to partners with drive, directness, and strength. There is heat here — passion and, at times, friction; the relationship teaches you to handle conflict cleanly and to let another's fire meet yours without a war.",
+      Mercury:"You are drawn to partners who are quick, communicative, and youthful in spirit. Your bond lives in conversation and the meeting of minds; partnership stays alive when the talking, learning, and laughing never stop.",
+      Jupiter:"You are drawn to partners who are wise, principled, and expansive — someone who widens your world. There is a note of the teacher in your partner, and the relationship grows you toward greater meaning.",
+      Venus:"Your partnerships orient around harmony, beauty, comfort, and unconditional support. Your spouse or closest partners bring a balancing, soothing, diplomatic energy that softens your sharper edges — union sits close to the very centre of your path.",
+      Saturn:"You are drawn to partners who are steady, serious, and enduring — often older in spirit. Partnership is built slowly and asks for commitment, patience, and staying power; what it lacks in early fireworks it repays in lasting reliability."
+    },
+    Bhratrukaraka: {
+      Sun:"Your courage and your allies carry a proud, leaderly quality — you brave the world by standing tall, and your mentors are authority figures who show you how to command respect.",
+      Moon:"Your everyday courage is emotional and intuitive; you face the world best when inwardly at peace, and your siblings or closest allies act as an emotional anchor. You seek mentors who offer safety, not just facts.",
+      Mars:"Your courage is raw and ready — you meet competition head-on. Siblings and peers may be a source of both rivalry and fierce loyalty; the growth is turning combativeness into protective strength.",
+      Mercury:"Your courage is mental and verbal — you win through wit, communication, and adaptability. Your mentors and peers are the ones you can think out loud with.",
+      Jupiter:"Your courage is moral and hopeful — you brave things by believing in a larger good. Your mentors are genuine guides and teachers, and you often become one for others.",
+      Venus:"Your courage is relational — you face the world with grace and the support of harmonious bonds. Allies and siblings bring beauty, comfort, and diplomacy into your struggles.",
+      Saturn:"Your courage is quiet endurance — you outlast difficulty rather than charge it. Relationships with siblings or mentors may carry duty and distance, and mature slowly into deep respect."
+    },
+    Matrukaraka: {
+      Sun:"Home and parents carry a strong, authoritative tone; your sense of inner peace is tied to pride, dignity, and being seen within the family. You settle when you can stand tall at home.",
+      Moon:"Home is deeply emotional and nurturing for you; your inner peace rises and falls with the emotional climate of your household. A calm, caring home is oxygen to you.",
+      Mars:"Home carries energy and can carry friction; your domestic life is passionate and active, and your peace depends on channelling that heat into protection and provision rather than conflict.",
+      Mercury:"Having Mercury here brings a communicative, intellectual, fluid dynamic to home and parents. A happy home for you is full of books, ideas, and lively conversation; inner peace is sustained by curiosity and a mentally vibrant environment.",
+      Jupiter:"Home is a place of wisdom, generosity, and growth; your parents feel like guides, and your inner peace deepens when your household holds meaning, faith, and room to expand.",
+      Venus:"Home is your sanctuary of beauty, comfort, and affection; domestic happiness comes through harmony, pleasant surroundings, and warm relationships under your roof.",
+      Saturn:"Home carries responsibility and structure; early domestic life may feel heavy or restrained, and your peace is built slowly through duty, stability, and the security that endures."
+    },
+    Putrakaraka: {
+      Sun:"Your creativity and your bond with children carry authority and pride — you create to be seen and to lead, and you guide the young with a strong, radiant presence.",
+      Moon:"Your creativity flows from feeling and imagination; your bond with children is deeply nurturing and intuitive, and your best ideas arrive when your heart is at ease.",
+      Mars:"Your creativity is bold and energetic; you produce through drive and courage, and your relationship with children is active, protective, and direct.",
+      Mercury:"Your creativity is intellectual and expressive — ideas, words, design; you connect with children and students through communication, play, and shared curiosity.",
+      Jupiter:"Jupiter excels here: your creative expression and bond with children are philosophical, generous, and wisdom-seeking. You manifest intelligence through teaching and mentoring, and your creative work is rarely shallow — it wants to expand and do good.",
+      Venus:"Your creativity is artistic and beauty-driven; you create what is lovely and harmonious, and your bond with children is affectionate, playful, and warm.",
+      Saturn:"Your creativity is disciplined and structural; you build lasting works slowly and take your responsibilities to children seriously, offering steadiness more than spontaneity."
+    },
+    Gnathikaraka: {
+      Sun:"With the Sun handling your obstacles, daily friction often involves ego, authority figures, or your visibility. When problems arise you overcome them by burning away pride and stepping into leadership — you conquer by facing things head-on, not hiding.",
+      Moon:"Your obstacles are often emotional — moods, sensitivities, and the weight of others' needs. You overcome them by tending your inner world and finding calm; your discipline is emotional, not brute force.",
+      Mars:"Your obstacles show up as conflict, rivals, and impatience; you overcome them through direct, courageous action — the discipline is to fight the right battles and let the rest go.",
+      Mercury:"Your obstacles are often mental — overthinking, miscommunication, scattered focus; you overcome them through clear analysis, planning, and turning anxiety into organised thought.",
+      Jupiter:"Your obstacles can come from over-optimism or excess; you overcome them through wisdom, ethics, and faith — standing on higher principles to burn difficulty away.",
+      Venus:"Your obstacles often touch relationships, comfort, or indulgence; you overcome them through balance, fairness, and the discipline to not let pleasure or people-pleasing steer you off course.",
+      Saturn:"Your obstacles are the classic Saturnian ones — delay, debt, hard work, endurance; you overcome them exactly as Saturn demands: patience, discipline, and refusing to quit until the weight is carried."
+    }
+  };
+
+
   const KARAKA_HOUSE_MEAN = {
     1:"your identity, body, and the way you meet the world",
     2:"family, speech, savings, and what you truly value",
@@ -815,7 +883,8 @@
       return {
         role:KARAKA_PORTF[i][0], short:KARAKA_PORTF[i][1], domain:KARAKA_PORTF[i][2], title:KARAKA_PORTF[i][3],
         planet:p, degInSign:parseFloat(b.dis.toFixed(1)), reversed:b.reversed,
-        roleDef:KARAKA_ROLE_DEF[KARAKA_PORTF[i][0]], planetRole:KARAKA_PLANET_ROLE[p]||"",
+        roleDef:KARAKA_ROLE_DEF[KARAKA_PORTF[i][0]],
+        planetRole:(KARAKA_PLANET_BY_ROLE[KARAKA_PORTF[i][0]] && KARAKA_PLANET_BY_ROLE[KARAKA_PORTF[i][0]][p]) || KARAKA_PLANET_ROLE[p] || "",
         stage:karakaStage(b.dis),
         d1House:d1house, d1Sign:d1sign, d1Dig:d1dig, d9House:d9house, d9Sign:d9sign, d9Dig:d9dig,
         reality, promise, arc, reversal, rise
@@ -1357,42 +1426,42 @@
     // ── the karakas (Atmakaraka … Darakaraka) — D1/D9 synthesis ───────────────
     const ck = computeCharaKarakas(_m);
     if (ck && ck.karakas && ck.karakas.length === 7) {
-      const para = (txt, size, color, gap) => {
+      const kbreak = (need) => { if (y + need > H - M) newPage(); };
+      const kpara = (txt, size, color, gap) => {
         doc.setFontSize(size); doc.setTextColor(...color);
         const lines = doc.splitTextToSize(txt, W-M*2);
+        kbreak(lines.length * (size + 2.5) + 6);
         doc.text(lines, M, y);
         y += lines.length * (size + 2.5) + (gap || 0);
       };
 
       newPage(); heading("The Karakas — The Planets That Carry Your Life's Themes");
-      para("Drawn from the sage Jaimini, this system asks a subtler question than 'which planet sits in which house.' By the exact degree each planet occupies, one planet steps forward to carry each major theme of your life — from your soul (Atmakaraka, highest degree) down to your partnerships (Darakaraka, lowest degree).", 10.5, MUTE, 8);
-      para("For each karaka we read two layers: the reality now (your D1 birth chart, the daily grind) and the promise as you mature (your D9 chart, how it deepens in the second half of life).", 10.5, MUTE, 8);
+      kpara("Drawn from the sage Jaimini, this system asks a subtler question than 'which planet sits in which house.' By the exact degree each planet occupies, one planet steps forward to carry each major theme of your life — from your soul (Atmakaraka, highest degree) down to your partnerships (Darakaraka, lowest degree).", 10.5, MUTE, 8);
+      kpara("For each karaka we read two layers: the reality now (your D1 birth chart, the daily grind) and the promise as you mature (your D9 chart, how it deepens in the second half of life).", 10.5, MUTE, 8);
       if (ck.tie && ck.excluded) {
-        para("Two of your planets shared the same whole degree, so Rahu entered the ranking (counted in reverse) and " + ck.excluded.planet + " falls outside the seven portfolios for this chart.", 9.5, MUTE, 8);
+        kpara("Two of your planets shared the same whole degree, so Rahu entered the ranking (counted in reverse) and " + ck.excluded.planet + " falls outside the seven portfolios for this chart.", 9.5, MUTE, 8);
       }
-      para("This chapter offers interpretive guidance for reflection, in the spirit of the classical texts. Read it as a mirror for your own life, not as fixed fate.", 9, MUTE, 4);
+      kpara("This chapter offers interpretive guidance for reflection, in the spirit of the classical texts. Read it as a mirror for your own life, not as fixed fate.", 9, MUTE, 6);
 
-      // one block per karaka
       for (const k of ck.karakas) {
-        needPage(150);
+        kbreak(150);
         doc.setFontSize(10); doc.setTextColor(...GOLD);
         doc.text(k.role + "  (" + k.short + ")  —  " + k.title, M, y); y += 15;
         doc.setFontSize(12); doc.setTextColor(...INK);
         const revNote = k.reversed ? "  (Rahu, reversed)" : "";
         const digNote = k.d1Dig ? "  ·  " + k.d1Dig + " in D1" : "";
         doc.text(k.planet + "  ·  " + k.degInSign.toFixed(1) + "\u00b0" + revNote + digNote + "  ·  " + k.domain, M, y); y += 16;
-        para(k.roleDef, 10, MUTE, 5);
-        para(k.planetRole + " " + k.stage, 10, MUTE, 5);
-        if (k.reality) para(k.reality, 10, INK, 4);
-        if (k.promise) para(k.promise, 10, INK, 4);
-        if (k.arc)     para(k.arc, 10, GOLD, 12);
+        kpara(k.roleDef, 10, MUTE, 5);
+        kpara(k.planetRole + " " + k.stage, 10, MUTE, 5);
+        if (k.reality) kpara(k.reality, 10, INK, 4);
+        if (k.promise) kpara(k.promise, 10, INK, 4);
+        if (k.arc)     kpara(k.arc, 10, GOLD, 12);
       }
 
-      // Big Picture close
-      needPage(120); heading("The Karakas — The Big Picture");
-      if (ck.bigPicture) para(ck.bigPicture, 11, INK, 10);
-      else para("Taken together, your seven karakas map where your life's major themes are concentrated — and how each is invited to mature from its D1 reality into its D9 promise.", 11, INK, 10);
-      para("You are free to learn more about each of these planets and the karakas they carry from the many sources available — and to see for yourself how the themes connect with your own circumstances. Your lived experience is the real test of any reading.", 9.5, MUTE, 4);
+      newPage(); heading("The Karakas — The Big Picture");
+      if (ck.bigPicture) kpara(ck.bigPicture, 11, INK, 10);
+      else kpara("Taken together, your seven karakas map where your life's major themes are concentrated — and how each is invited to mature from its D1 reality into its D9 promise.", 11, INK, 10);
+      kpara("You are free to learn more about each of these planets and the karakas they carry from the many sources available — and to see for yourself how the themes connect with your own circumstances. Your lived experience is the real test of any reading.", 9.5, MUTE, 4);
     }
 
     // ── life theme ───────────────────────────────────────────────────────────
