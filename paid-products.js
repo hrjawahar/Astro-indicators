@@ -275,8 +275,9 @@
     // The Karakas chapter is inserted after Life Axis (page 8). It adds 0 or 2
     // pages depending on whether karakas can be computed for this chart — so the
     // contents must shift the pages that follow by the same amount.
-    const _ckToc = computeCharaKarakas(_m && _m.lons);
-    const kCount = (_ckToc && _ckToc.karakas && _ckToc.karakas.length === 7) ? 2 : 0;
+    const _ckToc = computeCharaKarakas(_m);
+    // Karaka chapter = opener + 7 karaka pages + big-picture close = 9 pages (or 0).
+    const kCount = (_ckToc && _ckToc.karakas && _ckToc.karakas.length === 7) ? 9 : 0;
     let at = 10 + kCount;                            // domains begin after karaka pages
     const fixed = [["A Note Before You Begin", 4], ["Your Birth Chart · D1", 5],
                    ["Your Birth Chart · D9", 6], ["Your Planetary Strengths", 7], ["Your Life Axis", 8]]
@@ -655,38 +656,54 @@
       <span class="pnum">${pnum}</span></div>`;
   }
 
-  // The Karakas — Atmakaraka … Darakaraka. Two pages: (1) the 7-portfolio table,
-  // (2) the deeper Atmakaraka & Darakaraka reading. Returns an ARRAY of page
-  // HTML strings (1 or 2 pages), or [] if karakas can't be computed.
+  // The Karakas — Atmakaraka … Darakaraka. ONE karaka per page (avoids the
+  // overflow/font-shrink seen when many were crammed on one page): an opener page,
+  // then 7 karaka pages (each with definition, your-planet, degree, D1→D9 arc),
+  // then a Big-Picture close. Returns an ARRAY of page HTML strings, or [].
   function karakaPages(m, pStart) {
-    const ck = computeCharaKarakas(m && m.lons);
+    const ck = computeCharaKarakas(m);
     if (!ck || !ck.karakas || ck.karakas.length !== 7) return [];
-    const rows = ck.karakas.map(k =>
-      `<div class="axis-row"><div class="axis-k">${esc(k.role)} (${esc(k.short)}) · ${esc(k.domain)}</div>
-        <div class="axis-v">${esc(k.planet)} · ${k.degInSign.toFixed(1)}°${k.reversed ? " <span class=\"axis-lord\">(Rahu, reversed)</span>" : ""}</div>
-        <div class="axis-n">${esc(k.portfolioDef)}</div></div>`).join("");
+    let pn = pStart;
+    const pages = [];
+
     const tieNote = ck.tie && ck.excluded
-      ? `<div class="foot">Two planets shared the same degree, so Rahu entered the ranking (counted in reverse) and ${esc(ck.excluded.planet)} falls outside the seven portfolios for this chart.</div>` : "";
+      ? `<div class="foot">Two of your planets shared the same whole degree, so Rahu entered the ranking (counted in reverse) and ${esc(ck.excluded.planet)} falls outside the seven portfolios for this chart.</div>` : "";
 
-    const page1 = `<div class="pg"><div class="kick">The Karakas</div><div class="rule"></div>
+    // Opener
+    pages.push(`<div class="pg"><div class="kick">The Karakas</div><div class="rule"></div>
       <h2>The planets that carry your life's themes</h2>
-      <div class="bd" style="margin-bottom:10px">Drawn from the sage Jaimini, this system asks a subtler question than “which planet sits in which house.” By the exact degree each planet occupies, one planet steps forward to carry each major theme of your life. The planet at the highest degree becomes your <b>Atmakaraka</b> — the significator of the soul; the one at the lowest becomes your <b>Darakaraka</b> — the significator of partnership.</div>
-      ${rows}
+      <div class="bd">Drawn from the sage Jaimini, this system asks a subtler question than “which planet sits in which house.” By the exact degree each planet occupies, one planet steps forward to carry each major theme of your life — from your soul (<b>Atmakaraka</b>, highest degree) down to your partnerships (<b>Darakaraka</b>, lowest degree).</div>
+      <div class="bd" style="margin-top:8px">For each, we read two layers: <b>the reality now</b> (your D1 birth chart — the daily grind) and <b>the promise as you mature</b> (your D9 chart — how it deepens in the second half of life).</div>
       ${tieNote}
-      <span class="pnum">${pStart}</span></div>`;
+      <div class="foot" style="margin-top:10px"><i>This chapter offers interpretive guidance for reflection, in the spirit of the classical texts. Read it as a mirror for your own life, not as fixed fate.</i></div>
+      <span class="pnum">${pn++}</span></div>`);
 
-    const page2 = `<div class="pg"><div class="kick">The Karakas</div><div class="rule"></div>
-      <h2>Atmakaraka & Darakaraka</h2>
-      <div class="axis-row"><div class="axis-k">Atmakaraka — the significator of your soul</div>
-        <div class="axis-v">${esc(ck.atmakaraka.planet)} · ${ck.atmakaraka.degInSign.toFixed(1)}° (highest degree)</div>
-        <div class="axis-n">The Atmakaraka is often called the strongest indicator of the soul's own agenda — stronger, some traditions hold, than even the Ascendant or the Moon. It hints at what the life is <i>for</i>: the theme your inner self keeps circling back to. ${esc(ck.akMeaning)}</div></div>
-      <div class="axis-row"><div class="axis-k">Darakaraka — the significator of partnership</div>
-        <div class="axis-v">${esc(ck.darakaraka.planet)} · ${ck.darakaraka.degInSign.toFixed(1)}° (lowest degree)${ck.darakaraka.reversed ? " · reversed" : ""}</div>
-        <div class="axis-n">The lowest-degree planet takes this role because partnership is where the soul meets what it is not yet: the spouse often carries the very qualities the Atmakaraka most needs to integrate. ${esc(ck.dkMeaning)}</div></div>
-      <div class="foot">You are free to learn more about each of these planets and the karakas they carry from the many sources available — and to see how the themes connect with your own circumstances. Your lived experience is the real test of any reading.</div>
-      <span class="pnum">${pStart + 1}</span></div>`;
+    // One page per karaka
+    for (const k of ck.karakas) {
+      const revBadge = k.reversed ? ` <span class="axis-lord">(Rahu, reversed)</span>` : "";
+      const digBadge = k.d1Dig ? ` · <span class="axis-lord">${esc(k.d1Dig)} in D1</span>` : "";
+      pages.push(`<div class="pg"><div class="kick">The Karakas · ${esc(k.short)}</div><div class="rule"></div>
+        <h2>${esc(k.role)} — ${esc(k.title)}</h2>
+        <div class="axis-v" style="margin-bottom:6px">${esc(k.planet)} · ${k.degInSign.toFixed(1)}°${revBadge}${digBadge} <span class="axis-lord">· ${esc(k.domain)}</span></div>
+        <div class="bd">${esc(k.roleDef)}</div>
+        <div class="bd" style="margin-top:6px">${esc(k.planetRole)} ${esc(k.stage)}</div>
+        ${k.reality ? `<div class="bd" style="margin-top:6px">${esc(k.reality)}</div>` : ""}
+        ${k.promise ? `<div class="bd" style="margin-top:4px">${esc(k.promise)}</div>` : ""}
+        ${k.arc ? `<div class="bd" style="margin-top:4px"><b>${esc(k.arc)}</b></div>` : ""}
+        <span class="pnum">${pn++}</span></div>`);
+    }
 
-    return [page1, page2];
+    // Big Picture close
+    const bp = ck.bigPicture
+      ? `<div class="bd">${esc(ck.bigPicture)}</div>`
+      : `<div class="bd">Taken together, your seven karakas map where your life's major themes are concentrated — and how each one is invited to mature from its D1 reality into its D9 promise.</div>`;
+    pages.push(`<div class="pg"><div class="kick">The Karakas</div><div class="rule"></div>
+      <h2>The big picture</h2>
+      ${bp}
+      <div class="foot" style="margin-top:10px">You are free to learn more about each of these planets and the karakas they carry from the many sources available — and to see how the themes connect with your own circumstances. Your lived experience is the real test of any reading.</div>
+      <span class="pnum">${pn++}</span></div>`);
+
+    return pages;
   }
 
   // Worth Considering  // Worth Considering — one action-oriented line per domain, derived from bands.
@@ -706,50 +723,71 @@
                        "Sagittarius","Capricorn","Aquarius","Pisces"];
 
   // ── Chara Karakas (Atmakaraka … Darakaraka) — shared by PDF + flipbook ──────
-  // Same locked rule as the engine (functions/api/analyze.js): 7 frozen
-  // portfolios; ranked high→low by degree-in-sign; on an integer-degree tie
-  // between two classical planets, Rahu enters with reversed degree (30−dis),
-  // all 8 rank, top 7 fill the portfolios, the lowest (8th) is excluded.
+  // Locked rule: 7 frozen portfolios; ranked high→low by degree-in-sign; on an
+  // integer-degree tie between two classical planets, Rahu enters with reversed
+  // degree (30−dis), all 8 rank, top 7 fill the portfolios, the lowest (8th) is
+  // excluded. Enhanced with D1/D9 synthesis. KEEP IN SYNC with the mirror copy in
+  // functions/api/analyze.js.
   const KARAKA_PORTF = [
-    ["Atmakaraka","AK","Soul / Self"],
-    ["Amatyakaraka","AmK","Career / Intellect"],
-    ["Bhratrukaraka","BK","Siblings / Guru"],
-    ["Matrukaraka","MK","Mother and Father / Home"],
-    ["Putrakaraka","PK","Children / Education"],
-    ["Gnathikaraka","GK","Obstacles / Debts"],
-    ["Darakaraka","DK","Spouse / Partnerships"]
+    ["Atmakaraka","AK","Soul / Self","The King"],
+    ["Amatyakaraka","AmK","Career / Intellect","The Prime Minister"],
+    ["Bhratrukaraka","BK","Siblings / Guru","The Ally"],
+    ["Matrukaraka","MK","Mother and Father / Home","The Home Base"],
+    ["Putrakaraka","PK","Children / Education","The Future Engine"],
+    ["Gnathikaraka","GK","Obstacles / Debts","The Gym"],
+    ["Darakaraka","DK","Spouse / Partnerships","The Mirror"]
   ];
-  const KARAKA_PORTF_DEF = {
-    "Atmakaraka":"The planet at the highest degree — classically the significator of the soul. It points to the theme the inner life keeps returning to: the lesson or longing most central to who one is becoming.",
-    "Amatyakaraka":"The minister to the soul. It colours how one thinks, counsels oneself, and makes one's way in work. Where the AK sets direction, the AmK shapes the means.",
-    "Bhratrukaraka":"Significator of siblings and, classically, teachers and guides — the theme of courage, effort, and those who walk alongside or show the way.",
-    "Matrukaraka":"Significator of the parents and the home one comes from — nurture, roots, and the inner sense of security carried from one's origins.",
-    "Putrakaraka":"Significator of children, creativity, and learning — what one brings into being, and how knowledge and creation move through the life.",
-    "Gnathikaraka":"Significator of the difficulties that shape a person — obstacles, health, discipline, and 'debts' — the theme of what must be worked through.",
-    "Darakaraka":"The planet at the lowest degree — significator of the spouse and of partnership itself: the qualities one is drawn to, and what close union brings."
+  const KARAKA_ROLE_DEF = {
+    Atmakaraka:"The King of your chart. This is your soul's deepest drive and the rawest version of who you are when nobody is watching — the one life-theme your soul came here to master.",
+    Amatyakaraka:"Your Prime Minister — the chief advisor to your soul. It runs your career, how your mind solves problems under pressure, and the energy you must channel to earn your living and your respect.",
+    Bhratrukaraka:"Your siblings, closest allies, and mentors — and your everyday courage, the resilience you reach for when the world turns competitive.",
+    Matrukaraka:"Your one home-base portfolio: mother and father both, your domestic happiness, your physical home, and the heart-centre you return to.",
+    Putrakaraka:"The engine of your future — children, your raw creativity, your higher intelligence, and your education.",
+    Gnathikaraka:"The gym and the dustbin of your chart — your obstacles, health, debts, and rivals, and the discipline it takes to master them.",
+    Darakaraka:"Your Mirror — your spouse, your long-term partner, key partnerships, and how you meet another person one-to-one."
   };
-  const KARAKA_AK_MEAN = {
-    Sun:"The soul's theme centres on selfhood and authority — becoming someone who stands in their own light without needing it reflected back. Ego and essence must be told apart.",
-    Moon:"The soul's theme is feeling and care — to be nourished without being ruled by mood, and to give care without losing oneself in it.",
-    Mars:"The soul's theme is courage, will, and right action — to act with force without being ruled by anger; strength that protects rather than harms.",
-    Mercury:"The soul's theme is mind, communication, and discernment — to use intelligence in service of something true, rather than merely clever.",
-    Jupiter:"The soul's theme is wisdom, meaning, and faith — to grow toward what is larger than oneself without becoming certain of too much.",
-    Venus:"The soul's theme is love, beauty, and relationship — to love fully without losing discernment; to let the heart lead without letting it deceive.",
-    Saturn:"The soul's theme is endurance, responsibility, and time — long, often solitary work, discovering that restriction can become a strange kind of freedom."
+  const KARAKA_PLANET_ROLE = {
+    Sun:"With the Sun here, this runs on authority, pride, and visibility. You are asked to lead from your true self, not your ego.",
+    Moon:"With the Moon here, this runs on feeling and care. It thrives when your inner world is calm, and wobbles when it isn't.",
+    Mars:"With Mars here, this runs on drive, courage, and heat. Your work is to turn raw force and impatience into disciplined strength.",
+    Mercury:"With Mercury here, this runs on intellect and words. You work it out by thinking, talking, analysing, and staying curious.",
+    Jupiter:"With Jupiter here, this expands toward wisdom and meaning. You naturally want to teach, guide, and find the higher purpose.",
+    Venus:"With Venus here, this softens toward harmony, beauty, and union. You seek balance, comfort, and the grace of good relationship.",
+    Saturn:"With Saturn here, this is built slowly through duty and endurance. Nothing comes by shortcut; it comes by showing up, for years.",
+    Rahu:"With Rahu here, this hungers for the new, the foreign, and the unconventional. It pulls you off the well-worn path."
   };
-  const KARAKA_DK_MEAN = {
-    Sun:"One is drawn toward partners with presence, dignity, or authority — someone whose selfhood is clear. Partnership becomes a teacher about one's own.",
-    Moon:"One is drawn toward partners who feel like home — nurturing, emotionally present. Partnership is where the need for belonging is met and tested.",
-    Mars:"One is drawn toward partners with drive, directness, or strength. Partnership carries heat — passion, and the work of handling conflict well.",
-    Mercury:"One is drawn toward partners who are quick, communicative, youthful in spirit. Partnership lives in conversation and the meeting of minds.",
-    Jupiter:"One is drawn toward partners who are wise, principled, or expansive — someone who widens one's world. Partnership carries a note of the teacher.",
-    Venus:"One is drawn toward partners of warmth, beauty, and grace — the classical natural significator of partnership. Union sits close to the centre of the path.",
-    Saturn:"One is drawn toward partners who are steady, serious, or older in spirit. Partnership is built slowly and asks for commitment and staying power.",
-    Rahu:"One is drawn toward partners who are unconventional, foreign, or outside the familiar world. Partnership arrives in unexpected ways and pulls one beyond the life one knew."
+  const KARAKA_HOUSE_MEAN = {
+    1:"your identity, body, and the way you meet the world",
+    2:"family, speech, savings, and what you truly value",
+    3:"courage, self-effort, communication, and skills you build yourself",
+    4:"home, mother, inner peace, and your emotional foundations",
+    5:"children, creativity, intelligence, and self-expression",
+    6:"daily work, service, debts, rivals, and health",
+    7:"partnership, marriage, and one-to-one public life",
+    8:"crises, sudden change, secrets, and deep transformation",
+    9:"beliefs, higher law, fortune, teachers, and long journeys",
+    10:"career, status, and visible worldly action",
+    11:"gains, networks, and the rewards you aim for",
+    12:"solitude, letting go, foreign lands, and the inner and spiritual world"
   };
+  const KARAKA_EX = { Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius" };
+  const KARAKA_DE = { Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries",Rahu:"Sagittarius",Ketu:"Gemini" };
+  const KARAKA_OWN = { Sun:["Leo"],Moon:["Cancer"],Mars:["Aries","Scorpio"],Mercury:["Gemini","Virgo"],Jupiter:["Sagittarius","Pisces"],Venus:["Taurus","Libra"],Saturn:["Capricorn","Aquarius"],Rahu:[],Ketu:[] };
   function karakaDIS(lon){ return ((((lon)%30)+30)%30); }
-  function computeCharaKarakas(lons){
-    if(!lons) return null;
+  function karakaDig(p,s){ if(KARAKA_EX[p]===s)return"Exalted"; if(KARAKA_DE[p]===s)return"Debilitated"; if((KARAKA_OWN[p]||[]).includes(s))return"Own sign"; return""; }
+  function karakaDigPhrase(l){ return l==="Exalted"?", at peak strength":l==="Debilitated"?", under real pressure":l==="Own sign"?", strong and at home":""; }
+  function karakaOrd(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+  function karakaStage(dis){
+    if(dis>=15) return "At "+dis.toFixed(0)+"° this is a high degree — a mature, heavy portfolio you cannot ignore; it presses on you with daily prominence.";
+    if(dis<=5)  return "At "+dis.toFixed(0)+"° this is a low, fresh degree — nascent potential that wakes up through the people and situations around you.";
+    return "At "+dis.toFixed(0)+"° this is a developing degree — ripening steadily through lived experience.";
+  }
+  function karakaHouseOf(houses,p){ if(!houses)return null; for(let h=1;h<=12;h++){ if((houses[h]||[]).includes(p))return h; } return null; }
+  function karakaSignOfHouse(lagnaSign,h){ const i=SIGNS_FULL2.indexOf(lagnaSign); if(i<0)return""; return SIGNS_FULL2[(i+h-1)%12]; }
+
+  function computeCharaKarakas(m){
+    if(!m || !m.lons) return null;
+    const lons=m.lons;
     const CL=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
     const list=[];
     for(const p of CL){ if(lons[p]==null) return null; list.push({planet:p,dis:karakaDIS(lons[p]),reversed:false}); }
@@ -758,16 +796,46 @@
     if(tie && lons.Rahu!=null) list.push({planet:"Rahu",dis:30-karakaDIS(lons.Rahu),reversed:true});
     list.sort((x,y)=>y.dis-x.dis);
     const assigned=list.slice(0,7), excluded=list.length>7?list[7]:null;
-    const karakas=assigned.map((b,i)=>({
-      role:KARAKA_PORTF[i][0], short:KARAKA_PORTF[i][1], domain:KARAKA_PORTF[i][2],
-      planet:b.planet, degInSign:parseFloat(b.dis.toFixed(1)), reversed:b.reversed,
-      portfolioDef:KARAKA_PORTF_DEF[KARAKA_PORTF[i][0]]
-    }));
+
+    const d1H=(m.d1&&m.d1.houses)||null, d9H=(m.d9&&m.d9.houses)||null;
+    const d1L=(m.d1&&m.d1.lagnaSign)||"", d9L=(m.d9&&m.d9.lagnaSign)||"";
+
+    const karakas=assigned.map((b,i)=>{
+      const p=b.planet;
+      const d1house=karakaHouseOf(d1H,p), d9house=karakaHouseOf(d9H,p);
+      const d1sign=d1house?karakaSignOfHouse(d1L,d1house):"", d9sign=d9house?karakaSignOfHouse(d9L,d9house):"";
+      const d1dig=d1sign?karakaDig(p,d1sign):"", d9dig=d9sign?karakaDig(p,d9sign):"";
+      const reversal=(d1dig==="Debilitated"&&(d9dig==="Exalted"||d9dig==="Own sign"));
+      const rise=(d1dig!=="Exalted"&&d9dig==="Exalted");
+      let reality="", promise="", arc="";
+      if(d1house){ reality="The reality now (D1): your "+p+" sits in your "+karakaOrd(d1house)+" house"+(d1sign?" in "+d1sign:"")+karakaDigPhrase(d1dig)+", so this plays out through "+(KARAKA_HOUSE_MEAN[d1house]||"this part of life")+"."; }
+      if(d9house){ promise="The promise as you mature (D9): it moves to your "+karakaOrd(d9house)+" house"+(d9sign?" in "+d9sign:"")+karakaDigPhrase(d9dig)+", so in the second half of life it deepens into "+(KARAKA_HOUSE_MEAN[d9house]||"this part of life")+"."; }
+      if(reversal) arc="This is a striking reversal — what began strained or ungrounded is rebuilt into genuine mastery. The early struggle was the training.";
+      else if(rise) arc="The direction is upward — early friction refines into real strength.";
+      return {
+        role:KARAKA_PORTF[i][0], short:KARAKA_PORTF[i][1], domain:KARAKA_PORTF[i][2], title:KARAKA_PORTF[i][3],
+        planet:p, degInSign:parseFloat(b.dis.toFixed(1)), reversed:b.reversed,
+        roleDef:KARAKA_ROLE_DEF[KARAKA_PORTF[i][0]], planetRole:KARAKA_PLANET_ROLE[p]||"",
+        stage:karakaStage(b.dis),
+        d1House:d1house, d1Sign:d1sign, d1Dig:d1dig, d9House:d9house, d9Sign:d9sign, d9Dig:d9dig,
+        reality, promise, arc, reversal, rise
+      };
+    });
     const ak=karakas[0], dk=karakas[karakas.length-1];
     return { tie, rahuUsed:tie&&lons.Rahu!=null,
       excluded: excluded?{planet:excluded.planet,degInSign:parseFloat(excluded.dis.toFixed(1)),reversed:excluded.reversed}:null,
-      karakas, atmakaraka:ak, darakaraka:dk,
-      akMeaning:KARAKA_AK_MEAN[ak.planet]||"", dkMeaning:KARAKA_DK_MEAN[dk.planet]||"" };
+      karakas, atmakaraka:ak, darakaraka:dk, bigPicture:karakaBigPicture(karakas) };
+  }
+  function karakaBigPicture(karakas){
+    let rev=0,rise=0,transf=0,exD9=0;
+    for(const k of karakas){ if(k.reversal)rev++; if(k.rise)rise++; if(k.d1House===8||k.d1House===12)transf++; if(k.d9Dig==="Exalted")exD9++; }
+    if((rev+rise)>=2 && (transf>=2||exD9>=3))
+      return "Read as a whole, your chart carries one clear arc: hard, hidden, or unsettled beginnings that are built — deliberately — into real strength. Several of your karakas start in the houses of crisis and letting-go and resolve into their most powerful placements as life matures. You are made for a strong second half. The difficulty in the early chapters is not a verdict; it is the training your later mastery is standing on.";
+    if(exD9>=3)
+      return "Read as a whole, your chart concentrates its power in the second half of life — several karakas reach their strongest placements only in the maturing D9 chart. What you build slowly now ripens into genuine authority later.";
+    if(rev>=1)
+      return "Read as a whole, your chart holds at least one deep reversal — a portfolio that begins under pressure and is rebuilt into strength. Where life has felt hardest is often exactly where your later mastery is forming.";
+    return null;
   }
 
   function chartSource() {
@@ -1286,66 +1354,45 @@
     y += 6; doc.setFontSize(10); doc.setTextColor(...MUTE);
     doc.text(doc.splitTextToSize("Please see the References page on this site to learn what each sign, house, and planetary lord signifies.", W-M*2), M, y);
 
-    // ── the karakas (Atmakaraka … Darakaraka) ─────────────────────────────────
-    const ck = computeCharaKarakas(_m.lons);
+    // ── the karakas (Atmakaraka … Darakaraka) — D1/D9 synthesis ───────────────
+    const ck = computeCharaKarakas(_m);
     if (ck && ck.karakas && ck.karakas.length === 7) {
-      newPage(); heading("The Karakas — The Planets That Carry Your Life's Themes");
-      doc.setFontSize(10.5); doc.setTextColor(...MUTE);
-      const ckIntro = "Drawn from the sage Jaimini, this system asks a subtler question than 'which planet sits in which house.' By the exact degree each planet occupies, one planet steps forward to carry each major theme of your life. The planet at the highest degree becomes your Atmakaraka — the significator of the soul; the one at the lowest becomes your Darakaraka — the significator of partnership.";
-      doc.text(doc.splitTextToSize(ckIntro, W-M*2), M, y);
-      y += doc.splitTextToSize(ckIntro, W-M*2).length * 13 + 14;
+      const para = (txt, size, color, gap) => {
+        doc.setFontSize(size); doc.setTextColor(...color);
+        const lines = doc.splitTextToSize(txt, W-M*2);
+        doc.text(lines, M, y);
+        y += lines.length * (size + 2.5) + (gap || 0);
+      };
 
-      // table of 7 portfolios
+      newPage(); heading("The Karakas — The Planets That Carry Your Life's Themes");
+      para("Drawn from the sage Jaimini, this system asks a subtler question than 'which planet sits in which house.' By the exact degree each planet occupies, one planet steps forward to carry each major theme of your life — from your soul (Atmakaraka, highest degree) down to your partnerships (Darakaraka, lowest degree).", 10.5, MUTE, 8);
+      para("For each karaka we read two layers: the reality now (your D1 birth chart, the daily grind) and the promise as you mature (your D9 chart, how it deepens in the second half of life).", 10.5, MUTE, 8);
+      if (ck.tie && ck.excluded) {
+        para("Two of your planets shared the same whole degree, so Rahu entered the ranking (counted in reverse) and " + ck.excluded.planet + " falls outside the seven portfolios for this chart.", 9.5, MUTE, 8);
+      }
+      para("This chapter offers interpretive guidance for reflection, in the spirit of the classical texts. Read it as a mirror for your own life, not as fixed fate.", 9, MUTE, 4);
+
+      // one block per karaka
       for (const k of ck.karakas) {
-        needPage(64);
-        doc.setFontSize(9); doc.setTextColor(...GOLD);
-        doc.text(k.role + "  (" + k.short + ")  ·  " + k.domain, M, y); y += 14;
+        needPage(150);
+        doc.setFontSize(10); doc.setTextColor(...GOLD);
+        doc.text(k.role + "  (" + k.short + ")  —  " + k.title, M, y); y += 15;
         doc.setFontSize(12); doc.setTextColor(...INK);
         const revNote = k.reversed ? "  (Rahu, reversed)" : "";
-        doc.text(k.planet + "  ·  " + k.degInSign.toFixed(1) + "\u00b0 in sign" + revNote, M, y); y += 14;
-        doc.setFontSize(9.5); doc.setTextColor(...MUTE);
-        doc.text(doc.splitTextToSize(k.portfolioDef, W-M*2), M, y);
-        y += doc.splitTextToSize(k.portfolioDef, W-M*2).length * 12 + 10;
+        const digNote = k.d1Dig ? "  ·  " + k.d1Dig + " in D1" : "";
+        doc.text(k.planet + "  ·  " + k.degInSign.toFixed(1) + "\u00b0" + revNote + digNote + "  ·  " + k.domain, M, y); y += 16;
+        para(k.roleDef, 10, MUTE, 5);
+        para(k.planetRole + " " + k.stage, 10, MUTE, 5);
+        if (k.reality) para(k.reality, 10, INK, 4);
+        if (k.promise) para(k.promise, 10, INK, 4);
+        if (k.arc)     para(k.arc, 10, GOLD, 12);
       }
 
-      if (ck.tie) {
-        needPage(46); y += 2; doc.setFontSize(9); doc.setTextColor(...MUTE);
-        const exNote = ck.excluded ? ("Two planets shared the same degree, so Rahu entered the ranking (counted in reverse) and " + ck.excluded.planet + " falls outside the seven portfolios for this chart.") : "";
-        doc.text(doc.splitTextToSize(exNote, W-M*2), M, y);
-        y += doc.splitTextToSize(exNote, W-M*2).length * 12 + 8;
-      }
-
-      // Atmakaraka — deeper
-      newPage(); heading("Atmakaraka — the significator of your soul");
-      doc.setFontSize(12); doc.setTextColor(...INK);
-      doc.text("Your Atmakaraka is " + ck.atmakaraka.planet + " (" + ck.atmakaraka.degInSign.toFixed(1) + "\u00b0, the highest degree in your chart).", M, y); y += 20;
-      doc.setFontSize(10.5); doc.setTextColor(...MUTE);
-      const akIntro = "The Atmakaraka is often called the strongest indicator of the soul's own agenda — stronger, some traditions hold, than even the Ascendant or the Moon. Where the rest of the chart describes the life you are living, it hints at what the life is for: the theme your inner self keeps circling back to.";
-      doc.text(doc.splitTextToSize(akIntro, W-M*2), M, y);
-      y += doc.splitTextToSize(akIntro, W-M*2).length * 13 + 10;
-      doc.text(doc.splitTextToSize(ck.akMeaning, W-M*2), M, y);
-      y += doc.splitTextToSize(ck.akMeaning, W-M*2).length * 13 + 8;
-      const akClose = "This is not a prediction, but a mirror held to the part of you that persists underneath circumstance — the longing that doesn't go away when the situation changes.";
-      doc.text(doc.splitTextToSize(akClose, W-M*2), M, y);
-      y += doc.splitTextToSize(akClose, W-M*2).length * 13 + 6;
-
-      // Darakaraka — deeper
-      newPage(); heading("Darakaraka — the significator of partnership");
-      doc.setFontSize(12); doc.setTextColor(...INK);
-      doc.text("Your Darakaraka is " + ck.darakaraka.planet + " (" + ck.darakaraka.degInSign.toFixed(1) + "\u00b0, the lowest degree in your chart)" + (ck.darakaraka.reversed ? ", entering by reversed degree." : "."), M, y); y += 20;
-      doc.setFontSize(10.5); doc.setTextColor(...MUTE);
-      const dkIntro = "The planet at the lowest degree is given this role because partnership is where the soul meets what it is not yet: the spouse often carries the very qualities the Atmakaraka most needs to integrate.";
-      doc.text(doc.splitTextToSize(dkIntro, W-M*2), M, y);
-      y += doc.splitTextToSize(dkIntro, W-M*2).length * 13 + 10;
-      doc.text(doc.splitTextToSize(ck.dkMeaning, W-M*2), M, y);
-      y += doc.splitTextToSize(ck.dkMeaning, W-M*2).length * 13 + 8;
-      const dkClose = "Read gently, this suggests the themes you are drawn toward in a partner and the kind of relating that helps you grow — not a fixed fate or a single person, but a direction the heart tends to lean.";
-      doc.text(doc.splitTextToSize(dkClose, W-M*2), M, y);
-      y += doc.splitTextToSize(dkClose, W-M*2).length * 13 + 8;
-
-      const ckInvite = "You are free to learn more about each of these planets and the karakas they carry from the many sources available — and to see for yourself how the themes connect with your own circumstances. Your lived experience is the real test of any reading.";
-      doc.setFontSize(9.5); doc.setTextColor(...MUTE);
-      doc.text(doc.splitTextToSize(ckInvite, W-M*2), M, y);
+      // Big Picture close
+      needPage(120); heading("The Karakas — The Big Picture");
+      if (ck.bigPicture) para(ck.bigPicture, 11, INK, 10);
+      else para("Taken together, your seven karakas map where your life's major themes are concentrated — and how each is invited to mature from its D1 reality into its D9 promise.", 11, INK, 10);
+      para("You are free to learn more about each of these planets and the karakas they carry from the many sources available — and to see for yourself how the themes connect with your own circumstances. Your lived experience is the real test of any reading.", 9.5, MUTE, 4);
     }
 
     // ── life theme ───────────────────────────────────────────────────────────
