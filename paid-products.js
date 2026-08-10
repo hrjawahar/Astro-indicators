@@ -853,6 +853,142 @@
   function karakaHouseOf(houses,p){ if(!houses)return null; for(let h=1;h<=12;h++){ if((houses[h]||[]).includes(p))return h; } return null; }
   function karakaSignOfHouse(lagnaSign,h){ const i=SIGNS_FULL2.indexOf(lagnaSign); if(i<0)return""; return SIGNS_FULL2[(i+h-1)%12]; }
 
+  // ── D1/D9 interpretation library (hybrid: composed base + enriched cells) ─────
+
+  // House arena (lived) — used by the composed base
+  const CK_HOUSE_ARENA = {
+    1:"your identity, body, and how you meet the world",
+    2:"money, family, speech, and self-worth",
+    3:"effort, courage, communication, and your dealings with peers",
+    4:"home, mother, and inner emotional security",
+    5:"children, creativity, romance, and self-expression",
+    6:"daily work, health, debts, service, and rivals",
+    7:"partnership, marriage, and one-to-one dealings",
+    8:"crises, secrets, sudden change, and deep psychological shifts",
+    9:"beliefs, fortune, teachers, ethics, and long journeys",
+    10:"career, status, and public responsibility",
+    11:"gains, networks, ambitions, and your social circles",
+    12:"solitude, foreign lands, spirituality, and the inner world"
+  };
+  // What the house becomes as a MATURE strength (D9 evolution arena)
+  const CK_HOUSE_PROMISE = {
+    1:"a grounded, self-possessed presence",
+    2:"real security, resources, and a steadying voice",
+    3:"courageous self-effort, skill, and independent action",
+    4:"deep inner peace and an emotionally rich home",
+    5:"creative mastery and wise guidance of the young",
+    6:"the power to defeat obstacles and serve with discipline",
+    7:"balanced, righteous partnership and counsel",
+    8:"mastery of crisis, depth, and transformation",
+    9:"wisdom, higher truth, and the role of a guide",
+    10:"visible authority and lasting achievement",
+    11:"abundant networks and fulfilled ambitions",
+    12:"spiritual wealth, release, and inner freedom"
+  };
+  const CK_PLANET_LESSON = {
+    Sun:"lead from genuine self-worth rather than pride or the need for applause",
+    Moon:"stay emotionally steady rather than be ruled by moods and others' needs",
+    Mars:"act with disciplined courage rather than out of panic, anger, or defense",
+    Mercury:"think and speak with clarity rather than scatter into overthinking",
+    Jupiter:"grow through wisdom and restraint rather than excess or easy optimism",
+    Venus:"seek balance and true value rather than indulgence or people-pleasing",
+    Saturn:"carry responsibility with patience rather than fear, delay, or bitterness"
+  };
+  const CK_PLANET_FEEL = {
+    Sun:"a drive to be seen and to matter",
+    Moon:"a strong emotional sensitivity",
+    Mars:"an intense, restless drive",
+    Mercury:"a busy, questioning mind",
+    Jupiter:"a search for meaning and the larger picture",
+    Venus:"a pull toward harmony, beauty, and closeness",
+    Saturn:"a weight of duty and quiet pressure"
+  };
+  const CK_PLANET_BECOMES = {
+    Sun:"a confident, principled authority",
+    Moon:"a calm, emotionally wealthy centre",
+    Mars:"a disciplined protector and strategist",
+    Mercury:"a clear, masterful communicator",
+    Jupiter:"a genuine teacher and guide",
+    Venus:"a source of harmony, beauty, and grace",
+    Saturn:"an unshakeable, enduring builder"
+  };
+
+  // ENRICHED CELLS — hand-written for highest impact (from source examples).
+  // Keyed "planet-house". D1 = daily reality+lesson; D9 = evolution+promise.
+  const CK_D1_ENRICH = {
+    "Mars-8":"Your daily life forces you to confront crises, sudden changes, secrets, or deep psychological shifts. Your first instinct may be defensive aggression or hidden anxiety — and your real lesson is to stop reacting from panic and act from steadiness instead.",
+    "Saturn-1":"You carry immense pressure directly on your shoulders. Daily life can feel like a constant test of your authority, reputation, and self-discipline, as though the weight of everything rests on you.",
+    "Moon-6":"Your emotional courage is tested by daily routines, debts, service, or draining dynamics with others. It is easy to feel worn down here, as if your inner reserves are always being spent.",
+    "Mercury-8":"Early home life, inner peace, or communication may feel ungrounded, chaotic, or prone to misunderstanding — a mind that churns on what lies hidden beneath the surface.",
+    "Jupiter-12":"Your wisdom and insight run deep, spiritual, and private. You process the world in solitude and feel pulled toward what lies beyond the material — sometimes at the cost of worldly footing.",
+    "Sun-9":"You possess a powerful, almost blinding drive to stand on higher law, ethics, and truth. Obstacles and ego-clashes are met head-on, with conviction — the work is to lead without needing to dominate.",
+    "Venus-8":"Your closest relationships begin intense, private, and transformative. Love is never casual for you; it involves deep bonding and navigating life's hidden currents together."
+  };
+  const CK_D9_ENRICH = {
+    "Mars-7":"Your soul ultimately evolves into a protector, counselor, and strategist. Your raw survival drive matures into a quest for higher truth, shared through balanced, righteous partnerships.",
+    "Saturn-3":"The pressure pays off. Your professional intellect channels into powerful self-effort — writing, communication, and highly independent executing skill. You become the author of your own work.",
+    "Moon-12":"An incredible shift: when you step back into quiet, solitude, or foreign spaces, your mind becomes deeply stable and emotionally wealthy. Your true strength is a private, untouchable inner sanctuary.",
+    "Mercury-4":"A complete reversal. Through lived experience you master your environment, building a home life that is organized, brilliant, and intellectually peaceful — clear logic curing the early confusion.",
+    "Jupiter-3":"You do not stay a silent mystic. You bring deep wisdom down to earth — teaching, writing, and guiding others with confident authority in your everyday circle.",
+    "Sun-12":"Your ultimate lesson is surrender: true victory over obstacles comes when you learn when to step back and channel your powerful ego into selfless service and spiritual detachment.",
+    "Venus-2":"The intense bond settles into a nurturing reality — your partner brings tangible security, warm family focus, sweet speech, and shared resources into your everyday life."
+  };
+
+  function ckDignTone(dig, layer){
+    // layer: 'd1' or 'd9'
+    if(dig==="Exalted") return layer==="d9" ? " Here it reaches its peak — an incredible strengthening as life matures." : " Even here it holds real power.";
+    if(dig==="Debilitated") return layer==="d9" ? " And it is reborn at full strength — a striking reversal from difficult beginnings." : " It works under real pressure here, and asks to be handled with care.";
+    if(dig==="Own sign") return " It stands strong and at home.";
+    return "";
+  }
+
+  // Compose a D1 reading
+  function ckReadD1(planet, house, sign, dig){
+    const key=planet+"-"+house;
+    let base = CK_D1_ENRICH[key] ||
+      ("In daily life your "+planet+" here brings "+CK_PLANET_FEEL[planet]+" into "+(CK_HOUSE_ARENA[house]||"this area of life")+". The lesson is to "+CK_PLANET_LESSON[planet]+".");
+    return "The reality now (D1) — "+planet+" in your "+ordK(house)+" house"+(sign?" in "+sign:"")+(dig?" ("+dig+")":"")+": "+base+ckDignTone(dig,"d1");
+  }
+  // Compose a D9 reading
+  function ckReadD9(planet, house, sign, dig){
+    const key=planet+"-"+house;
+    let base = CK_D9_ENRICH[key] ||
+      ("As it matures your "+planet+" moves toward "+(CK_HOUSE_PROMISE[house]||"a deeper expression")+", so this part of you grows into "+CK_PLANET_BECOMES[planet]+" in the second half of life.");
+    return "The promise as you mature (D9) — "+planet+" in your "+ordK(house)+" house"+(sign?" in "+sign:"")+(dig?" ("+dig+")":"")+": "+base+ckDignTone(dig,"d9");
+  }
+  function ordK(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+
+
+  // ── Enriched Big Picture — resonates with the source "Exaltation Alchemy" voice ─
+  function ckBigPictureRich(karakas){
+    let rev=0, rise=0, transf=0, exD9=0, exD1=0, ownD9=0;
+    const transfList=[], exaltList=[];
+    for(const k of karakas){
+      if(k.reversal) rev++;
+      if(k.rise) rise++;
+      if(k.d1House===8||k.d1House===12){ transf++; transfList.push(k.role); }
+      if(k.d9Dig==="Exalted"){ exD9++; exaltList.push(k.role); }
+      if(k.d1Dig==="Exalted") exD1++;
+      if(k.d9Dig==="Own sign") ownD9++;
+    }
+    const strongD9 = exD9 + ownD9;
+
+    // Strongest pattern: transformation-house D1 → exalted/strong D9 = "Exaltation Alchemy"
+    if((rev+rise)>=2 && (transf>=2 || strongD9>=3)){
+      return "Read as a whole, your chart carries an unmistakable arc — what the tradition calls exaltation alchemy: initial struggle systematically refined into brilliant strength. Several of your karakas begin in the houses of crisis, loss, and letting-go (the hard, hidden, exhausting side of daily life) and resolve into their most powerful placements as life matures. This is the signature of someone built for a strong second half. Your path asks you to lean into discipline, trust your quieter and more inward side, and hold faith that the difficulty of the early chapters is not a verdict — it is actively building the mastery of the later ones. What drains you now is, quite literally, training the strength you are meant to become.";
+    }
+    if(strongD9>=3){
+      return "Read as a whole, your chart concentrates its real power in the second half of life — several of your karakas reach their strongest placements only in the maturing D9 chart. What you build slowly and patiently now ripens into genuine authority and inner wealth later. You are rewarded not for speed, but for staying the course.";
+    }
+    if(rev>=1 || rise>=1){
+      return "Read as a whole, your chart holds a clear upward turn — at least one core portfolio begins under pressure and is rebuilt into strength as life matures. Where things have felt hardest is often exactly where your later mastery is quietly forming. Trust the direction of travel: it bends toward strength.";
+    }
+    if(exD1>=2){
+      return "Read as a whole, your chart carries real early strength — several karakas begin already well-placed. Your work is less about transformation and more about stewardship: honouring and building on the gifts you were given, rather than letting them sit idle.";
+    }
+    return null;
+  }
+
   function computeCharaKarakas(m){
     if(!m || !m.lons) return null;
     const lons=m.lons;
@@ -876,8 +1012,8 @@
       const reversal=(d1dig==="Debilitated"&&(d9dig==="Exalted"||d9dig==="Own sign"));
       const rise=(d1dig!=="Exalted"&&d9dig==="Exalted");
       let reality="", promise="", arc="";
-      if(d1house){ reality="The reality now (D1): your "+p+" sits in your "+karakaOrd(d1house)+" house"+(d1sign?" in "+d1sign:"")+karakaDigPhrase(d1dig)+", so this plays out through "+(KARAKA_HOUSE_MEAN[d1house]||"this part of life")+"."; }
-      if(d9house){ promise="The promise as you mature (D9): it moves to your "+karakaOrd(d9house)+" house"+(d9sign?" in "+d9sign:"")+karakaDigPhrase(d9dig)+", so in the second half of life it deepens into "+(KARAKA_HOUSE_MEAN[d9house]||"this part of life")+"."; }
+      if(d1house){ reality=ckReadD1(p, d1house, d1sign, d1dig); }
+      if(d9house){ promise=ckReadD9(p, d9house, d9sign, d9dig); }
       if(reversal) arc="This is a striking reversal — what began strained or ungrounded is rebuilt into genuine mastery. The early struggle was the training.";
       else if(rise) arc="The direction is upward — early friction refines into real strength.";
       return {
@@ -893,7 +1029,7 @@
     const ak=karakas[0], dk=karakas[karakas.length-1];
     return { tie, rahuUsed:tie&&lons.Rahu!=null,
       excluded: excluded?{planet:excluded.planet,degInSign:parseFloat(excluded.dis.toFixed(1)),reversed:excluded.reversed}:null,
-      karakas, atmakaraka:ak, darakaraka:dk, bigPicture:karakaBigPicture(karakas) };
+      karakas, atmakaraka:ak, darakaraka:dk, bigPicture:ckBigPictureRich(karakas) };
   }
   function karakaBigPicture(karakas){
     let rev=0,rise=0,transf=0,exD9=0;
