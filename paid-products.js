@@ -359,39 +359,44 @@
         ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
       </ul>
       <span class="pnum">2</span></div>`);
-    // Comparison grid is placed AFTER the first section (the context page), so the
-    // reader gets the framing before the chart grid.
     const cmp = domainComparisonPage(domainKey, 0);
     let n = 3;
-    const CHARS_PER_PAGE = 900;   // safe budget calibrated to the flip page box
+    const PAGE_BUDGET = 1050;   // chars a single page comfortably holds
     const emitSection = (sec) => {
       const heading = esc(sec.heading||"");
       const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+      const total = paras.reduce((a,p)=>a+p.length+2, 0);
+      // How many pages this section needs, then a BALANCED target per page so the
+      // last page is never left with a lone orphan line.
+      const pagesNeeded = Math.max(1, Math.ceil(total / PAGE_BUDGET));
+      const targetPerPage = Math.ceil(total / pagesNeeded);
       const chunks = [];
-      let cur = "";
+      let cur = "", curLen = 0;
       for (const p of paras) {
-        if (p.length > CHARS_PER_PAGE) {
-          if (cur) { chunks.push(cur); cur=""; }
-          for (let i=0;i<p.length;i+=CHARS_PER_PAGE) chunks.push(p.slice(i,i+CHARS_PER_PAGE));
-          continue;
+        const add = p.length + 2;
+        // start a new page only when we've reached the balanced target AND there's
+        // already content — keeps whole paragraphs together, pages evenly filled.
+        if (cur && curLen + add > targetPerPage && chunks.length < pagesNeeded - 1) {
+          chunks.push(cur); cur = p; curLen = add;
+        } else {
+          cur = cur ? (cur + "\n\n" + p) : p; curLen += add;
         }
-        if ((cur.length + p.length + 2) > CHARS_PER_PAGE) { chunks.push(cur); cur=p; }
-        else { cur = cur ? (cur + "\n\n" + p) : p; }
       }
       if (cur) chunks.push(cur);
       if (!chunks.length) chunks.push("");
+      const many = chunks.length > 1;
       chunks.forEach((chunk, ci) => {
-        const contHead = ci===0 ? heading : heading + " <span style=\"opacity:.6;font-size:.8em\">(cont.)</span>";
-        const bodyHtml = esc(chunk).replace(/\n/g,"<br>");
+        const contHead = ci===0 ? heading : heading + (many ? " <span style=\"opacity:.55;font-size:.75em\">(continued)</span>" : "");
+        const bodyHtml = esc(chunk).replace(/\n\n/g,"</p><p>").replace(/\n/g,"<br>");
         P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
           <h2>${contHead}</h2>
-          <div class="bd">${bodyHtml}</div>
+          <div class="bd"><p>${bodyHtml}</p></div>
           <span class="pnum">${n++}</span></div>`);
       });
     };
     sections.forEach((sec, si) => {
       emitSection(sec);
-      if (si === 0 && cmp) P.push(cmp.replace('data-pnum="0"', '').replace(/<span class="pnum">0<\/span>/, `<span class="pnum">${n++}</span>`));
+      if (si === 0 && cmp) P.push(cmp.replace(/<span class="pnum">0<\/span>/, `<span class="pnum">${n++}</span>`));
     });
     // Close with disclaimer (stronger for health)
     const disc = (domainKey==="health")
@@ -448,7 +453,7 @@
       const newPage=()=>{ doc.addPage(); y=M; };
       const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
       const para=(t,size,color,gap)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y,{align:"justify",maxWidth:W-M*2}); y+=L.length*(size+2.5)+(gap||0); };
-      const sectionHeading=(t)=>{ kbreak(40); doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(176,130,38); const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*17+3; doc.setDrawColor(220,205,170); doc.setLineWidth(0.5); doc.line(M,y,M+70,y); y+=12; doc.setFont("helvetica","normal"); };
+      const sectionHeading=(t)=>{ kbreak(72); doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(176,130,38); const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*17+3; doc.setDrawColor(220,205,170); doc.setLineWidth(0.5); doc.line(M,y,M+70,y); y+=12; doc.setFont("helvetica","normal"); };
       // header
       doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
       doc.setTextColor(201,164,76); doc.setFont("helvetica","bold"); doc.setFontSize(18);
