@@ -301,30 +301,7 @@
 </head>
 <body>
 
-  <!-- ── ONBOARDING CLICK-WRAP (first-open consent) ── -->
-  <div id="onboardGate" class="onboard-gate" role="dialog" aria-modal="true" aria-labelledby="obTitle">
-    <div class="onboard-card">
-      <div class="onboard-seal">◈</div>
-      <div class="onboard-kick">Welcome &amp; Setup</div>
-      <h2 id="obTitle" class="onboard-title">Important Disclaimer</h2>
-      <p class="onboard-lead">Before we calculate your birth chart, please read and accept our terms of use.</p>
-      <div class="onboard-body">
-        <p>This application provides astrological analysis using the Swiss Ephemeris (Lahiri Ayanamsa)
-        strictly for educational, entertainment, and self-reflective purposes. All interpretations and
-        timings are <b>indicative only and guarantee no outcomes</b>.</p>
-        <p class="onboard-caps">THIS CONTENT IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL, PSYCHOLOGICAL,
-        LEGAL, OR FINANCIAL ADVICE.</p>
-        <p>Do not use these insights as the sole basis for critical life decisions. Reports are generated
-        for a one-time fee and are final. By proceeding, you agree that you use this app at your own risk
-        and that the developers assume no liability for actions taken based on this data.</p>
-      </div>
-      <label class="onboard-check">
-        <input type="checkbox" id="onboardAgree">
-        <span>I have read, understood, and accept the Disclaimer and Terms of Use.</span>
-      </label>
-      <button id="onboardContinue" class="onboard-btn" disabled>Continue to report</button>
-    </div>
-  </div>
+  <!-- (Onboarding consent gate removed — disclaimers remain in reports/footer) -->
 
   <!-- ── TOPBAR ─────────────────────────────────────────────────────────── -->
   <header class="topbar">
@@ -391,8 +368,8 @@
     <button class="nav-tab ai-paid-tab" data-tab="lifeIndTab" data-requires="chart" title="Unlock your personalized LAMP (Life Analysis and Mapping Profile) report instantly. This comprehensive download maps your chart&#39;s unique meaning for deeper self-reflection.">
       <span class="tab-icon" aria-hidden="true">❖</span> <span>Life Indicators Report</span> <span class="ai-gold-dot">PAID</span>
     </button>
-    <button class="nav-tab ai-paid-tab" data-tab="iccTab" data-requires="chart">
-      <span class="tab-icon" aria-hidden="true">✦</span> <span>Instant Clarity Command</span> <span class="ai-gold-dot">PAID</span>
+    <button class="nav-tab ai-paid-tab" data-tab="domainReportTab" data-requires="chart">
+      <span class="tab-icon" aria-hidden="true">✦</span> <span>Domain Reports</span> <span class="ai-gold-dot">PAID</span>
     </button>
     <button class="nav-tab" data-tab="planetsTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">⊕</span> <span data-i18n="nav_planets">Planets</span>
@@ -489,7 +466,7 @@
               <li>
                 <span class="nf-num">3</span>
                 <div class="nf-body"><b><span data-i18n="nav_step3_h">Choose a report</span> — Paid</b>
-                <span data-i18n-html="nav_step3_b"><b>Life Indicators Report</b> — a full flipbook covering every area of your life. <b>Instant Clarity Command</b> — pick any 3 of 10 questions.</span></div>
+                <span data-i18n-html="nav_step3_b"><b>Life Indicators Report</b> — a full flipbook covering every area of your life. <b>Domain Reports</b> — a deep ₹750 blueprint for any single area (career, marriage, and more), read across D1, D9, and its own divisional chart.</span></div>
               </li>
               <li>
                 <span class="nf-num">4</span>
@@ -503,14 +480,6 @@
               <div id="sampleFlipbook"></div>
             </div>
             <div class="nav-flow-note" data-i18n-html="nav_guide_note">All paid reports are in <b>English</b>. Charts and References are available in regional languages.</div>            <div class="nav-flow-tip" data-i18n="nav_guide_tip">Tip: the more exact your birth time, the more accurate your chart — even ±5 minutes matters.</div>
-            <div class="ai-ref-program">
-              <h3>Referral &amp; Reward <span class="ai-ref-lt">(Limited time)</span></h3>
-              <p>Bought a report? Share your <strong>Client ID</strong> &mdash; when a friend buys with it, you earn an Amazon voucher (<strong>₹250</strong> LAMP · <strong>₹150</strong> Q&amp;A), by SMS within a week.
-              <a href="#" class="ai-ref-more" onclick="var d=document.getElementById('aiRefDetails');d.style.display=d.style.display==='block'?'none':'block';this.textContent=d.style.display==='block'?'Show less':'How it works';return false;">How it works</a></p>
-              <div id="aiRefDetails" class="ai-ref-details" style="display:none">
-                <p>Your Client ID is your referral code, shown on your chart and report. A friend enters it while <u>purchasing their own report</u>; the reward follows their first purchase. Your Client ID comes from your birth details &mdash; change any detail and a new one is generated, so always share the ID printed on your report.</p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -689,14 +658,17 @@
       <div id="liBook"></div>
       </div>
     </section>
-    <section id="iccTab" class="screen">
+    <section id="domainReportTab" class="screen">
       <div class="screen-inner">
-      <div class="pp-head"><h2>Instant Clarity Command <span class="pp-full">· ICC</span></h2>
-        <p class="pp-sub">Ten burning questions. Pick any three. Get direct, dated answers with a confidence score.</p>
-        <div id="iccPersonal" class="pp-personal"></div></div>
-      <div id="iccPickerWrap"><div id="iccPicker" class="icc-list"><div class="pp-empty">Generate your chart first (Birth Data tab).</div></div>
-      <div class="pp-paybar"><button id="iccPayBtn" class="pp-pay" disabled>Pick 3 questions</button></div></div>
-      <div id="iccAnswers"></div>
+      <div class="pp-head"><h2>Domain Reports <span class="pp-full">· ₹750 each</span></h2>
+        <p class="pp-sub">A deep Vedic blueprint for a single area of your life — read across D1, D9, and its own divisional chart. Choose the domain you most want clarity on.</p>
+        <div id="domainPersonal" class="pp-personal"></div></div>
+      <div id="domainPickerWrap">
+        <div id="domainPicker" class="icc-list">
+          <div class="pp-empty">Generate your chart first (Birth Data tab).</div>
+        </div>
+      </div>
+      <div id="domainReport"></div>
       </div>
     </section>
     <section id="planetsTab" class="screen">
@@ -785,7 +757,7 @@
           <p style="font-size:1.15rem; color:var(--ai-gold); font-weight:600; margin:10px 0;">Coming soon</p>
           <p class="intro-body" style="max-width:520px; margin:0 auto;">We're putting together one-on-one
           audio consultations with real care. Please check back shortly — in the meantime, your LAMP and
-          Instant Clarity Command reports are ready whenever you are.</p>
+          Domain Reports are ready whenever you are.</p>
         </div>
       </div>
     </section>
