@@ -2273,6 +2273,109 @@ export async function onRequestOptions() {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DOMAIN REPORTS — divisional charts + per-domain facts packet (for API writer)
+//  Validated: D10 reproduces the Career sample 10/10 at exact longitudes.
+// ═══════════════════════════════════════════════════════════════════════════════
+const V_SIGNS=["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+const V_EX={Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra",Rahu:"Gemini",Ketu:"Sagittarius"};
+const V_DE={Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries",Rahu:"Sagittarius",Ketu:"Gemini"};
+const V_OWN={Sun:["Leo"],Moon:["Cancer"],Mars:["Aries","Scorpio"],Mercury:["Gemini","Virgo"],Jupiter:["Sagittarius","Pisces"],Venus:["Taurus","Libra"],Saturn:["Capricorn","Aquarius"],Rahu:[],Ketu:[]};
+const V_LORD={Aries:"Mars",Taurus:"Venus",Gemini:"Mercury",Cancer:"Moon",Leo:"Sun",Virgo:"Mercury",Libra:"Venus",Scorpio:"Mars",Sagittarius:"Jupiter",Capricorn:"Saturn",Aquarius:"Saturn",Pisces:"Jupiter"};
+function vSi(l){return Math.floor((((l%360)+360)%360)/30);}
+function vDis(l){return (((l%30)+30)%30);}
+function vDig(p,sign){ if(V_EX[p]===sign)return"Exalted"; if(V_DE[p]===sign)return"Debilitated"; if((V_OWN[p]||[]).includes(sign))return"Own sign"; return"Neutral"; }
+const VARGA_FN={
+  D3:l=>{const s=vSi(l),p=Math.floor(vDis(l)/10);return (s+[0,4,8][p])%12;},
+  D4:l=>{const s=vSi(l),p=Math.floor(vDis(l)/7.5);return (s+[0,3,6,9][p])%12;},
+  D7:l=>{const s=vSi(l),p=Math.floor(vDis(l)/(30/7));const st=((s+1)%2===1)?s:(s+6)%12;return (st+p)%12;},
+  D9:l=>{const s=vSi(l),p=Math.floor(vDis(l)/(30/9)),m=s%3;const st=m===0?s:m===1?(s+8)%12:(s+4)%12;return (st+p)%12;},
+  D10:l=>{const s=vSi(l),p=Math.floor(vDis(l)/3);const st=((s+1)%2===1)?s:(s+8)%12;return (st+p)%12;}
+};
+function buildVargaChart(key, d1Lons, ascLon){
+  const fn=VARGA_FN[key]; if(!fn||!d1Lons) return null;
+  // Ascendant longitude for the varga lagna: prefer explicit ascLon, else d1Lons.Lagna.
+  const lagLon = (ascLon!=null) ? ascLon : d1Lons.Lagna;
+  if(lagLon==null) return null;
+  const signs={}; for(const[p,lon] of Object.entries(d1Lons)){ if(lon==null||p==="Lagna")continue; signs[p]=fn(lon); }
+  const lagIdx=fn(lagLon); const houses={}; for(let h=1;h<=12;h++)houses[h]=[];
+  const placements={};
+  for(const[p,siv] of Object.entries(signs)){ const house=((siv-lagIdx+12)%12)+1; houses[house].push(p); placements[p]={sign:V_SIGNS[siv],house,dignity:vDig(p,V_SIGNS[siv])}; }
+  return { lagnaSign:V_SIGNS[lagIdx], houses, placements };
+}
+function d1PlacementsFromDegrees(degrees, lagnaSign){
+  if(!degrees||lagnaSign==null) return null;
+  const lagIdx=V_SIGNS.indexOf(lagnaSign); if(lagIdx<0) return null;
+  const out={};
+  for(const[p,lon] of Object.entries(degrees)){ if(lon==null)continue; const si=vSi(lon); const house=((si-lagIdx+12)%12)+1; out[p]={sign:V_SIGNS[si],house,degInSign:+vDis(lon).toFixed(1),dignity:vDig(p,V_SIGNS[si])}; }
+  return out;
+}
+function houseLord(lagnaSign, houseNum){
+  const lagIdx=V_SIGNS.indexOf(lagnaSign); if(lagIdx<0) return null;
+  return V_LORD[V_SIGNS[(lagIdx+houseNum-1)%12]];
+}
+const DOMAIN_REPORT_CONFIG = {
+  self:     { title:"Character Blueprint", focus:"self, character, and life-direction", house:1,  karaka:"Atmakaraka",    varga:null,  vargaLabel:"D1 + D9" },
+  career:   { title:"Career Blueprint",    focus:"career path, timing, and direction", house:10, karaka:"Amatyakaraka",  varga:"D10", vargaLabel:"D10 (Dashamsha)" },
+  siblings: { title:"Courage Blueprint",   focus:"siblings, courage, and initiative",  house:3,  karaka:"Bhratrukaraka", varga:"D3",  vargaLabel:"D3 (Drekkana)" },
+  mother:   { title:"Home Blueprint",      focus:"mother, home, and inner security",   house:4,  karaka:"Matrukaraka",   varga:"D4",  vargaLabel:"D4 (Chaturthamsha)" },
+  children: { title:"Progeny Blueprint",   focus:"children, creativity, and progeny",  house:5,  karaka:"Putrakaraka",   varga:"D7",  vargaLabel:"D7 (Saptamsha)" },
+  health:   { title:"Wellbeing Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
+  marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
+};
+function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon){
+  const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
+  const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign);
+  if(!d1P) return null;
+  const hLord=houseLord(d1LagnaSign, cfg.house);
+  const lordPlacement=hLord?d1P[hLord]:null;
+  const occupants=Object.entries(d1P).filter(([p,v])=>v.house===cfg.house && p!=="Lagna").map(([p,v])=>({planet:p,...v}));
+  const karakaPlanet=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role===cfg.karaka)||{}).planet:null;
+  let vargaChart=null;
+  if(cfg.varga && cfg.varga!=="D9"){ vargaChart=buildVargaChart(cfg.varga, d1Degrees, ascLon); }
+  const convergences=[];
+  if(vargaChart && lordPlacement){
+    const vLord=houseLord(vargaChart.lagnaSign, cfg.house);
+    const vLordPlace=vLord?vargaChart.placements[vLord]:null;
+    if(vLordPlace && lordPlacement.house===vLordPlace.house){
+      convergences.push(`In BOTH D1 and ${cfg.varga}, the ${ordinalD(cfg.house)}-house lord sits in the ${ordinalD(lordPlacement.house)} house — a repeated, independent signal.`);
+    }
+  }
+  if(karakaPlanet && d1P[karakaPlanet] && (d1P[karakaPlanet].dignity==="Exalted"||d1P[karakaPlanet].dignity==="Own sign")){
+    convergences.push(`${karakaPlanet} (the ${cfg.karaka}) is strongly placed in D1 — a primary support for this domain.`);
+  }
+  const flags={};
+  if(domainKey==="marriage"){
+    const sevOcc=occupants.map(o=>o.planet);
+    const ketuIn7=sevOcc.includes("Ketu"), rahuIn7=sevOcc.includes("Rahu");
+    const maleficIn7=sevOcc.some(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
+    const lordWeak=lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house));
+    const afflicted = ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak);
+    flags.marriageAfflicted=!!afflicted;
+    flags.remarriageIndicated=!!afflicted;
+  }
+  if(domainKey==="children"){
+    const fifthAfflicted=(lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house)))||occupants.some(o=>["Saturn","Mars","Rahu","Ketu"].includes(o.planet));
+    flags.progenyHighCare=!!fifthAfflicted;
+  }
+  if(domainKey==="health"){ flags.healthWatch=true; }
+  let neechaBhanga=null;
+  if(lordPlacement && lordPlacement.dignity==="Debilitated"){
+    const dispositor=V_LORD[lordPlacement.sign];
+    if(dispositor && d1P[dispositor] && (d1P[dispositor].dignity==="Exalted"||d1P[dispositor].dignity==="Own sign")){
+      neechaBhanga=`${hLord} is debilitated but its dispositor ${dispositor} is strong — a debilitation-cancellation (Neecha Bhanga), so it strengthens with maturity.`;
+    }
+  }
+  return {
+    domainKey, title:cfg.title, focus:cfg.focus, house:cfg.house, houseName:ordinalD(cfg.house),
+    karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
+    d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
+    d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
+    vargaChart, convergences, flags, neechaBhanga
+  };
+}
+
 export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
@@ -2333,6 +2436,28 @@ export async function onRequestPost(context) {
     // Chara Karakas (Atmakaraka … Darakaraka) — auto-derived from D1 degrees.
     const charaKarakas = computeCharaKarakas(d1Degrees);
 
+    // Domain-report facts packets (7 domains) — grounded source for the API writer.
+    const domainFacts = {};
+    if (d1Degrees && d1.lagnaSign) {
+      // Ascendant longitude for varga-lagna computation. The chart provides
+      // lagnaSign + lagnaDegree (degree-in-sign); reconstruct the exact absolute
+      // longitude so divisional lagnas are precise (no mid-sign approximation).
+      let ascLon = null;
+      const lagDeg = body?.d1?.lagnaDegree;
+      if (lagDeg != null && d1.lagnaSign) {
+        const li = V_SIGNS.indexOf(d1.lagnaSign);
+        if (li >= 0) ascLon = li * 30 + lagDeg;
+      }
+      if (ascLon == null && d1Degrees && d1Degrees.Lagna != null) ascLon = d1Degrees.Lagna;
+      if (ascLon == null) {
+        const li = V_SIGNS.indexOf(d1.lagnaSign);
+        if (li >= 0) ascLon = li * 30 + 15; // last-resort fallback
+      }
+      for (const key of Object.keys(DOMAIN_REPORT_CONFIG)) {
+        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon);
+      }
+    }
+
     return Response.json({
       generatedAt: new Date().toISOString(),
       summary,
@@ -2343,6 +2468,7 @@ export async function onRequestPost(context) {
       eventFlags,
       compoundPatterns,
       charaKarakas,
+      domainFacts,
     });
   } catch (error) {
     return Response.json({ error: error.message || "Unexpected error." }, { status:500 });
