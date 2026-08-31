@@ -284,6 +284,57 @@
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
+  // Comparison page: D1 · D9 · divisional side-by-side, per planet, with a short note.
+  function domainComparisonPage(domainKey, pnum) {
+    const facts = (window.currentData && window.currentData.analysis
+                  && window.currentData.analysis.domainFacts
+                  && window.currentData.analysis.domainFacts[domainKey]) || null;
+    if (!facts || !facts.d1 || !facts.d1.placements) return "";
+    const PLANETS = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+    const d1P = facts.d1.placements;
+    // D9 placements: derive from d9.houses (house→planets) — invert to planet→house
+    const d9P = {};
+    if (facts.d9 && facts.d9.houses) {
+      for (const h of Object.keys(facts.d9.houses)) for (const p of (facts.d9.houses[h]||[])) d9P[p] = { house:+h };
+    }
+    const vP = (facts.vargaChart && facts.vargaChart.placements) || null;
+    const vLabel = facts.divisional || (domainKey==="marriage"?"D9":"—");
+    // short per-planet note anchored to the domain
+    const NOTE = (p) => {
+      const a = d1P[p]; if (!a) return "";
+      if (a.dignity === "Exalted") return "strong — a genuine asset here";
+      if (a.dignity === "Debilitated") return "under pressure — handle with care";
+      if (a.dignity === "Own sign") return "at home — reliable strength";
+      if (p === facts.karakaPlanet) return "your "+facts.karaka+" — key to this domain";
+      if (facts.d1.houseLord === p) return "rules your "+facts.houseName+" house";
+      return "";
+    };
+    const rows = PLANETS.filter(p=>d1P[p]).map(p => {
+      const a = d1P[p];
+      const d9h = d9P[p] ? (ordK(d9P[p].house)) : "—";
+      const vh = (vP && vP[p]) ? (vP[p].sign+" "+ordK(vP[p].house)) : (domainKey==="marriage"?"(see D9)":"—");
+      return `<tr>
+        <td style="font-weight:600">${esc(p)}</td>
+        <td>${esc(a.sign)} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
+        <td>${esc(d9h)}</td>
+        <td>${esc(vh)}</td>
+        <td style="opacity:.8">${esc(NOTE(p))}</td>
+      </tr>`;
+    }).join("");
+    return `<div class="pg"><div class="kick">Chart Comparison</div><div class="rule"></div>
+      <h2>D1 · D9 · ${esc(vLabel)} at a glance</h2>
+      <div class="bd" style="margin-bottom:8px">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading.</div>
+      <table class="cmp-table" style="width:100%;border-collapse:collapse;font-size:.82rem;line-height:1.35">
+        <thead><tr style="color:var(--ai-gold);text-align:left;border-bottom:1px solid rgba(201,168,76,.4)">
+          <th style="padding:4px 6px">Planet</th><th style="padding:4px 6px">D1 (birth)</th>
+          <th style="padding:4px 6px">D9</th><th style="padding:4px 6px">${esc(vLabel)}</th>
+          <th style="padding:4px 6px">Note</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="foot" style="margin-top:10px">Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
   function domainSectionsToPages(domainKey, sections) {
     const f0 = (window.currentData && window.currentData.form) || {};
     const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
@@ -308,14 +359,39 @@
         ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
       </ul>
       <span class="pnum">2</span></div>`);
-    // One page per API section
+    // Comparison page (D1 · D9 · divisional) — reinforces credibility before the prose
+    const cmp = domainComparisonPage(domainKey, 3);
     let n = 3;
+    if (cmp) { P.push(cmp); n = 4; }
+    // One or more pages per API section — long bodies are split across pages by
+    // paragraph so no page overflows its box (was: everything on one page → scroll).
+    const CHARS_PER_PAGE = 900;   // safe budget calibrated to the flip page box
     for (const sec of sections) {
-      const bodyHtml = esc(sec.body||"").replace(/\n/g,"<br>");
-      P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
-        <h2>${esc(sec.heading||"")}</h2>
-        <div class="bd">${bodyHtml}</div>
-        <span class="pnum">${n++}</span></div>`);
+      const heading = esc(sec.heading||"");
+      // Split body into paragraphs (double newline or single newline blocks)
+      const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+      const chunks = [];
+      let cur = "";
+      for (const p of paras) {
+        // if a single paragraph alone exceeds budget, hard-split it
+        if (p.length > CHARS_PER_PAGE) {
+          if (cur) { chunks.push(cur); cur=""; }
+          for (let i=0;i<p.length;i+=CHARS_PER_PAGE) chunks.push(p.slice(i,i+CHARS_PER_PAGE));
+          continue;
+        }
+        if ((cur.length + p.length + 2) > CHARS_PER_PAGE) { chunks.push(cur); cur=p; }
+        else { cur = cur ? (cur + "\n\n" + p) : p; }
+      }
+      if (cur) chunks.push(cur);
+      if (!chunks.length) chunks.push("");
+      chunks.forEach((chunk, ci) => {
+        const contHead = ci===0 ? heading : heading + " <span style=\"opacity:.6;font-size:.8em\">(cont.)</span>";
+        const bodyHtml = esc(chunk).replace(/\n/g,"<br>");
+        P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
+          <h2>${contHead}</h2>
+          <div class="bd">${bodyHtml}</div>
+          <span class="pnum">${n++}</span></div>`);
+      });
     }
     // Close with disclaimer (stronger for health)
     const disc = (domainKey==="health")
@@ -384,6 +460,40 @@
       doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
       doc.text((fmtDOB(f0.dob,f0.tob)||"") + "  ·  " + (f0.place||""), M, y); y+=8;
       doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=22;
+      // Comparison table (D1 · D9 · divisional) — mirrors the on-screen page
+      try {
+        const facts = (window.currentData && window.currentData.analysis
+                      && window.currentData.analysis.domainFacts
+                      && window.currentData.analysis.domainFacts[domainKey]) || null;
+        if (facts && facts.d1 && facts.d1.placements) {
+          const PLANETS=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+          const d1P=facts.d1.placements, vP=(facts.vargaChart&&facts.vargaChart.placements)||null;
+          const d9P={}; if(facts.d9&&facts.d9.houses){ for(const h of Object.keys(facts.d9.houses)) for(const p of (facts.d9.houses[h]||[])) d9P[p]={house:+h}; }
+          const vLabel=facts.divisional||(domainKey==="marriage"?"D9":"—");
+          const ordP=(x)=>{var s=["th","st","nd","rd"],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
+          kbreak(40);
+          doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(176,130,38);
+          doc.text("D1 · D9 · "+vLabel+" at a glance", M, y); y+=16;
+          doc.setFontSize(8.5);
+          const cols=[M, M+90, M+230, M+300, M+400];
+          doc.setTextColor(...MUTE); doc.setFont("helvetica","bold");
+          ["Planet","D1 (birth)","D9","" + vLabel,"Note"].forEach((h,i)=>doc.text(h,cols[i],y));
+          y+=12; doc.setFont("helvetica","normal");
+          for(const p of PLANETS){ const a=d1P[p]; if(!a) continue; kbreak(14);
+            const d9h=d9P[p]?ordP(d9P[p].house):"—";
+            const vh=(vP&&vP[p])?(vP[p].sign+" "+ordP(vP[p].house)):(domainKey==="marriage"?"see D9":"—");
+            let note=""; if(a.dignity==="Exalted")note="strong asset"; else if(a.dignity==="Debilitated")note="under pressure"; else if(a.dignity==="Own sign")note="at home"; else if(p===facts.karakaPlanet)note=facts.karaka; else if(facts.d1.houseLord===p)note="rules "+facts.houseName;
+            doc.setTextColor(...INK); doc.text(p, cols[0], y);
+            doc.setTextColor(...MUTE);
+            doc.text((a.sign+" "+ordP(a.house)+(a.dignity&&a.dignity!=="Neutral"?" "+a.dignity[0]:"")).slice(0,22), cols[1], y);
+            doc.text(String(d9h), cols[2], y);
+            doc.text(String(vh).slice(0,14), cols[3], y);
+            doc.text(String(note).slice(0,20), cols[4], y);
+            y+=13;
+          }
+          y+=10;
+        }
+      } catch(_){}
       for (const sec of sections) {
         kbreak(60);
         doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(176,130,38);
