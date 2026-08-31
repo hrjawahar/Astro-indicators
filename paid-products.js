@@ -215,6 +215,8 @@
   }
 
   // ═══ DOMAIN REPORTS (Career, Marriage, …) — API-written, same flipbook shell ═══
+  // Shared flipbook state (used by both LAMP and domain reports).
+  let _book = { pages: [], idx: 0, animating: false, target: 0, meta: "" };
   const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage"];
   const DOMAIN_LABELS = {
     self:"Self & Character", career:"Career", siblings:"Siblings & Courage",
