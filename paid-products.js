@@ -214,8 +214,196 @@
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
-  // ── flipbook renderer: 3D leaf-turn, ported from the approved POC ──────────
-  let _book = { pages: [], idx: 0, animating: false, target: 0, meta: "" };
+  // ═══ DOMAIN REPORTS (Career, Marriage, …) — API-written, same flipbook shell ═══
+  const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage"];
+  const DOMAIN_LABELS = {
+    self:"Self & Character", career:"Career", siblings:"Siblings & Courage",
+    mother:"Mother & Home", children:"Children", health:"Health & Wellbeing", marriage:"Marriage"
+  };
+  const DOMAIN_ITEM = (k) => "domain_" + k;   // paid_reports item string per domain
+
+  function renderDomainPicker() {
+    const wrap = $("domainPicker"); if (!wrap) return;
+    const ready = !!(window.currentData && window.currentData.chart);
+    if (!ready) { wrap.innerHTML = `<div class="pp-empty">Generate your chart first (Birth Data tab).</div>`; return; }
+    const P = price;
+    const DOMAIN_BLURB = {
+      self:"Your soul, character, and life-direction — read from D1 and D9.",
+      career:"Career path, timing, and direction — confirmed by the D10 chart.",
+      siblings:"Siblings, courage, and initiative — confirmed by the D3 chart.",
+      mother:"Mother, home, and inner security — confirmed by the D4 chart.",
+      children:"Children, creativity, and progeny — confirmed by the D7 chart.",
+      health:"Health, vitality, and resilience — read from D1 (6th & 8th) and D9.",
+      marriage:"Marriage, partnership, and timing — confirmed by the D9 chart.",
+    };
+    wrap.innerHTML = DOMAIN_KEYS.map(k => `
+      <div class="icc-pick" data-domain="${k}">
+        <div class="icc-num">\u2726</div>
+        <div style="flex:1">
+          <div class="icc-q">${esc(DOMAIN_LABELS[k])} Blueprint</div>
+          <span class="icc-hint">${esc(DOMAIN_BLURB[k]||"")}</span>
+        </div>
+        <button class="pp-pay" data-domain-buy="${k}" style="flex:0 0 auto">\u20B9${P(DOMAIN_ITEM(k),750)}</button>
+      </div>`).join("");
+    wrap.querySelectorAll("[data-domain-buy]").forEach(btn => {
+      const k = btn.getAttribute("data-domain-buy");
+      btn.onclick = () => payThenRun(DOMAIN_ITEM(k), P(DOMAIN_ITEM(k),750),
+        DOMAIN_LABELS[k] + " Blueprint", () => openDomainReport(k));
+    });
+  }
+
+  async function openDomainReport(domainKey) {
+    const host = $("domainReport"); if (!host) return;
+    host.innerHTML = `<div class="pp-empty">Reading your ${esc(DOMAIN_LABELS[domainKey]||"domain")} blueprint.<br>
+      <span style="display:inline-block;margin:10px 0;padding:5px 16px;background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.6);border-radius:999px;color:#c9a84c;font-weight:700">⏱ This usually takes 1–2 minutes</span><br>
+      Please keep this page open.</div>`;
+    try { host.scrollIntoView(); } catch (_) {}
+    try {
+      const cid = window.AI_chartId();
+      const item = DOMAIN_ITEM(domainKey);
+      const cached = await srv({ action:"fetch", chartId: cid, item, lang:"en" });
+      let sections = cached && cached.sections;
+      if (!sections) {
+        const facts = (window.currentData && window.currentData.analysis
+                      && window.currentData.analysis.domainFacts
+                      && window.currentData.analysis.domainFacts[domainKey]) || null;
+        if (!facts) throw new Error("Chart facts unavailable — please regenerate your chart.");
+        const res = await fetch("/api/domain-report", {
+          method:"POST", headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ domainKey, facts })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "Report writer unavailable.");
+        sections = data.sections || [];
+        srv({ action:"store", chartId: cid, item, lang:"en", sections,
+              paymentId: (window.AI_lastPayment && window.AI_lastPayment[item]) || null });
+      }
+      renderDomainFlipbook(host, domainKey, sections);
+    } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
+  }
+
+  function domainSectionsToPages(domainKey, sections) {
+    const f0 = (window.currentData && window.currentData.form) || {};
+    const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
+    const P = [];
+    // Cover
+    P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
+      <div class="seal">◈</div>
+      <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
+      <div class="kick" style="color:var(--ai-gold)">${esc(DOMAIN_LABELS[domainKey]||"")} Report</div>
+      <h1>${esc(title)}</h1>
+      <div class="cover-sub">A Vedic reading of your ${esc(DOMAIN_LABELS[domainKey]||"")}</div>
+      <div class="cover-meta" style="margin-top:14px;opacity:.85">${esc(fmtDOB(f0.dob,f0.tob)||"")} · ${esc(f0.place||"")}</div>
+      </div></div>`);
+    // Birth details
+    const _cc = clientCode();
+    P.push(`<div class="pg"><div class="kick">Birth Details</div><div class="rule"></div>
+      <ul class="toc bdl">
+        <li><b>Name</b><i>${esc(f0.name||"—")}</i></li>
+        <li><b>Date of birth</b><i>${esc(f0.dob||"—")}</i></li>
+        <li><b>Time of birth</b><i>${esc(f0.tob?f0.tob+" (24-hr)":"—")}</i></li>
+        <li><b>Place</b><i>${esc(f0.place||"—")}</i></li>
+        ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
+      </ul>
+      <span class="pnum">2</span></div>`);
+    // One page per API section
+    let n = 3;
+    for (const sec of sections) {
+      const bodyHtml = esc(sec.body||"").replace(/\n/g,"<br>");
+      P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
+        <h2>${esc(sec.heading||"")}</h2>
+        <div class="bd">${bodyHtml}</div>
+        <span class="pnum">${n++}</span></div>`);
+    }
+    // Close with disclaimer (stronger for health)
+    const disc = (domainKey==="health")
+      ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
+      : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.";
+    P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
+      <h2>A closing note</h2>
+      <div class="bd">${esc(disc)}</div>
+      <div class="foot" style="margin-top:12px">You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint.</div>
+      ${(function(){ const _cc = clientCode(); return _cc ? `<div class="closing" style="margin-top:14px">Your Client ID<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>` : ""; })()}
+      <span class="pnum">${n++}</span></div>`);
+    return P;
+  }
+
+  function renderDomainFlipbook(host, domainKey, sections) {
+    const P = domainSectionsToPages(domainKey, sections);
+    _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
+    host.innerHTML = `
+      <div class="stage"><div class="book" id="fbBook">
+        <div class="page" id="fbStatic"></div>
+        <div class="leaf" id="fbLeaf">
+          <div class="leaf-face" id="fbLeafFront"></div>
+          <div class="leaf-face leaf-back" id="fbLeafBack"></div>
+          <div class="shade" id="fbShade"></div>
+        </div></div></div>
+      <div class="controls"><button class="fb-nav" id="fbPrev">‹</button>
+        <div class="dots" id="fbDots"></div>
+        <button class="fb-nav" id="fbNext">›</button></div>
+      <div class="hint">Swipe, use ← → keys, or tap the dots</div>
+      <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
+        <button id="fbPdf" class="pp-pay">Download PDF</button></div>`;
+    bindBook();
+    bookRender();
+    $("fbPdf").onclick = () => exportDomainPDF(domainKey, sections);
+    const fsBtn = $("fbFull");
+    if (fsBtn) fsBtn.onclick = () => {
+      const box = $("domainReport"); if (!box) return;
+      if (document.fullscreenElement) { document.exitFullscreen(); return; }
+      if (box.requestFullscreen) { box.classList.add("fb-fs"); box.requestFullscreen().catch(()=>{}); }
+    };
+    try { requestAnimationFrame(function(){ var bar=document.querySelector("#domainReport .fb-dlbar")||$("fbPdf"); if(bar) bar.scrollIntoView({behavior:"smooth",block:"center"}); }); } catch(e){}
+  }
+
+  function exportDomainPDF(domainKey, sections) {
+    if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
+    try {
+      const jsPDF = window.jspdf.jsPDF;
+      const doc = new jsPDF({ unit:"pt", format:"a4" });
+      const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+      const M = 56; let y = 0;
+      const GOLD=[201,164,76], INK=[40,40,44], MUTE=[110,110,120];
+      const f0 = (window.currentData && window.currentData.form) || {};
+      const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
+      const newPage=()=>{ doc.addPage(); y=M; };
+      const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
+      const para=(t,size,color,gap)=>{ doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y); y+=L.length*(size+2.5)+(gap||0); };
+      // header
+      doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
+      doc.setTextColor(201,164,76); doc.setFont("helvetica","bold"); doc.setFontSize(18);
+      doc.text("AstroIndicators", M, 42);
+      doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(180,188,200);
+      doc.text("Swiss Ephemeris · Lahiri Ayanamsha", M, 58);
+      y = 100;
+      doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(17);
+      doc.text(title, M, y); y+=20;
+      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
+      doc.text((fmtDOB(f0.dob,f0.tob)||"") + "  ·  " + (f0.place||""), M, y); y+=8;
+      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=22;
+      for (const sec of sections) {
+        kbreak(60);
+        doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(176,130,38);
+        const hl=doc.splitTextToSize(sec.heading||"",W-M*2); doc.text(hl,M,y); y+=hl.length*16+6;
+        para(String(sec.body||""), 10.5, INK, 12);
+      }
+      // disclaimer
+      kbreak(80);
+      const disc=(domainKey==="health")
+        ? "Disclaimer: This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor."
+        : "Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. All payments are final.";
+      para(disc, 8.5, MUTE, 4);
+      const pages=doc.internal.getNumberOfPages();
+      for(let i=1;i<=pages;i++){ doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
+        doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-26);
+        doc.text("Page "+i+" of "+pages, W-M, H-26, {align:"right"}); }
+      const safe=(clientCode()||"report").replace(/[^a-z0-9]/gi,"_");
+      doc.save("AstroIndicators_"+domainKey+"_"+safe+".pdf");
+    } catch(e){ alert("Sorry — the PDF could not be generated. Please try again or use the on-screen book."); }
+  }
+
+
   let _bookChartId = null;   // which chart the currently rendered book belongs to
 
   function renderFlipbook(host, sections, facts) {
@@ -1736,7 +1924,7 @@
           var v = (ef2.value || "").trim();
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return;
           ef2.removeEventListener("blur", resume); ef2.removeEventListener("change", resume);
-          var backTab = resumeItem === "icc" ? "iccTab" : "lifeIndTab";
+          var backTab = (resumeItem && resumeItem.indexOf("domain_") === 0) ? "domainReportTab" : "lifeIndTab";
           document.querySelector('.nav-tab[data-tab="'+backTab+'"]')?.click();
           setTimeout(function(){ payThenRun(resumeItem, resumeAmount, resumeLabel, resumeRun); }, 200);
         };
@@ -1809,25 +1997,14 @@
     if (liBtn) { liBtn.textContent = `Unlock the full report — ₹${price("lifeIndicators",999)}`;
       liBtn.onclick = () => payThenRun("lifeIndicators", price("lifeIndicators",999),
         "Life Indicators Report", buildLifeIndicators); }
-    const iccBtn = $("iccPayBtn");
-    if (iccBtn) iccBtn.onclick = async () => {
-      const ids = [...document.querySelectorAll("#iccPicker input:checked")].map(b => b.dataset.mid);
-      if (ids.length !== 3) return;
-      // if this chart already has a paid answer-set, replay it — never grant a
-      // second set of questions on a single payment
-      const existing = window._iccExistingSets || null;
-      if (!existing && await restoreICC()) return;   // first entry: replay what's paid
-      payThenRun("icc", price("icc",499),
-        existing ? "Instant Clarity — new set of 3" : "Instant Clarity Command (3 answers)",
-        () => { window._iccExistingSets = null; buildICC(ids, existing); },
-        !!existing);                                  // repeat set = always charge
-    };
+    // Domain Reports — build the 7-karaka picker + wire each to pay→openDomainReport
+    renderDomainPicker();
     // teasers render when the tabs are first opened
-    document.querySelectorAll('.nav-tab[data-tab="lifeIndTab"], .nav-tab[data-tab="iccTab"]')
+    document.querySelectorAll('.nav-tab[data-tab="lifeIndTab"], .nav-tab[data-tab="domainReportTab"]')
       .forEach(b => b.addEventListener("click", function () {
         resetLifeIndicatorsIfChartChanged();
         renderTeasers();
-        if (b.dataset.tab === "iccTab") { resetICCIfChartChanged(); restoreICC(); }
+        if (b.dataset.tab === "domainReportTab") { renderDomainPicker(); }
       }));
   });
 })();
