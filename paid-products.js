@@ -447,7 +447,7 @@
       const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
       const newPage=()=>{ doc.addPage(); y=M; };
       const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
-      const para=(t,size,color,gap)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y); y+=L.length*(size+2.5)+(gap||0); };
+      const para=(t,size,color,gap)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y,{align:"justify",maxWidth:W-M*2}); y+=L.length*(size+2.5)+(gap||0); };
       const sectionHeading=(t)=>{ kbreak(40); doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(176,130,38); const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*17+3; doc.setDrawColor(220,205,170); doc.setLineWidth(0.5); doc.line(M,y,M+70,y); y+=12; doc.setFont("helvetica","normal"); };
       // header
       doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
@@ -474,22 +474,25 @@
           const vLabel=facts.divisional||(domainKey==="marriage"?"D9":"—");
           const ordP=(x)=>{var s=["th","st","nd","rd"],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
           sectionHeading("Chart Comparison — D1 · D9 · "+vLabel);
+          const SGN3 = (s)=> (s||"").slice(0,3);  // Sagittarius→Sag, prevents overflow
           doc.setFontSize(8.5);
-          const cols=[M, M+90, M+230, M+300, M+400];
+          // column x-positions with enough width; last col wide for the note
+          const cP=M, cD1=M+70, cD9=M+180, cDx=M+225, cN=M+320;
           doc.setTextColor(...MUTE); doc.setFont("helvetica","bold");
-          ["Planet","D1 (birth)","D9",""+vLabel,"Note"].forEach((h,i)=>doc.text(h,cols[i],y));
-          y+=4; doc.setDrawColor(220,205,170); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=10;
+          doc.text("Planet",cP,y); doc.text("D1 (birth)",cD1,y); doc.text("D9",cD9,y); doc.text(vLabel,cDx,y); doc.text("Note",cN,y);
+          y+=4; doc.setDrawColor(220,205,170); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=11;
           doc.setFont("helvetica","normal");
           for(const p of PLANETS){ const a=d1P[p]; if(!a) continue; kbreak(14);
             const d9h=d9P[p]?ordP(d9P[p].house):"—";
-            const vh=(vP&&vP[p])?(vP[p].sign+" "+ordP(vP[p].house)):(domainKey==="marriage"?"see D9":"—");
+            const vh=(vP&&vP[p])?(SGN3(vP[p].sign)+" "+ordP(vP[p].house)):(domainKey==="marriage"?"see D9":"—");
             let note=""; if(a.dignity==="Exalted")note="strong asset"; else if(a.dignity==="Debilitated")note="under pressure"; else if(a.dignity==="Own sign")note="at home"; else if(p===facts.karakaPlanet)note=facts.karaka; else if(facts.d1.houseLord===p)note="rules "+facts.houseName;
-            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(p, cols[0], y);
+            const d1txt = SGN3(a.sign)+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
+            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(p,cP,y);
             doc.setFont("helvetica","normal"); doc.setTextColor(...MUTE);
-            doc.text((a.sign+" "+ordP(a.house)+(a.dignity&&a.dignity!=="Neutral"?" "+a.dignity[0]:"")).slice(0,22), cols[1], y);
-            doc.text(String(d9h), cols[2], y);
-            doc.text(String(vh).slice(0,14), cols[3], y);
-            doc.text(String(note).slice(0,20), cols[4], y);
+            doc.text(d1txt, cD1, y);
+            doc.text(String(d9h), cD9, y);
+            doc.text(String(vh), cDx, y);
+            doc.text(String(note), cN, y);
             y+=12.5;
           }
           y+=12;
