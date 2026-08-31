@@ -178,25 +178,11 @@
                  'autocomplete="tel" maxlength="16" placeholder="+91\u2026">' +
           '<div class="ai-ref-tip">' + copy.mobileTip + "</div>" +
         "</div>" +
-        '<div class="ai-ref-row">' +
-          '<div class="ai-ref-key">' + copy.referralLabel + "</div>" +
-          '<input class="ai-ref-input ai-code" id="aiReferral" type="text" ' +
-                 'autocomplete="off" spellcheck="false" maxlength="14" placeholder="AI-XXXX-XXXX">' +
-          '<div class="ai-ref-tip">' + copy.referralTip + "</div>" +
-          '<div class="ai-ref-status" id="aiRefStatus"></div>' +
-        "</div>" +
       "</div>"
     );
     anchor.insertAdjacentElement("afterend", block);
 
     document.getElementById("aiClientIdVal").addEventListener("click", copyCode);
-
-    var refInput = document.getElementById("aiReferral");
-    var t = null;
-    refInput.addEventListener("input", function () {
-      if (t) clearTimeout(t);
-      t = setTimeout(liveCheck, 500);
-    });
 
     // Save the mobile number when the user leaves the field (and again is
     // harmless — the server COALESCEs). Only meaningful once a chart exists.
