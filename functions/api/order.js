@@ -43,7 +43,14 @@ const PRICES = {
   "consult_30min": 500,
   "consult_60min": 999,
   lifeIndicators: 999,
-  icc: 499,
+  // Domain reports — ₹750 each (API-written, per-karaka divisional analysis)
+  domain_self:     750,
+  domain_career:   750,
+  domain_siblings: 750,
+  domain_mother:   750,
+  domain_children: 750,
+  domain_health:   750,
+  domain_marriage: 750,
 };
 
 // ⚠️ KEEP IN SYNC — friendlyCode()/normalizeCode() exist in FOUR places (no
@@ -98,31 +105,7 @@ export async function onRequestPost(context) {
     return json({ error: "Unknown item." }, 400);
   }
 
-  // ── Referral validation (authoritative; best-effort, never blocks) ─────────
-  // Valid = code exists in customers.client_code AND is not the buyer's own.
-  // Free users' codes count too (they were registered at chart generation).
-  const chartId = String(body.chartId || "");
-  let refCode = "";
-  const typed = normalizeCode(body.referralCode);
-  // A referral is credited ONLY when we can identify the buyer (chartId present)
-  // and prove the code is not their own. No chartId → we cannot rule out self-
-  // referral, so we decline to credit rather than risk a fraudulent voucher.
-  if (typed && chartId && env.DB) {
-    try {
-      const isSelf = friendlyCode(chartId) === typed;
-      if (!isSelf) {
-        const row = await env.DB
-          .prepare("SELECT chart_id FROM customers WHERE client_code = ?")
-          .bind(typed).first();
-        // Belt & braces: even if codes differ, never credit the buyer's own row.
-        if (row && String(row.chart_id) !== chartId) refCode = typed;
-      }
-    } catch (e) {
-      // DB hiccup → treat as "no referral". A purchase must never fail here.
-    }
-  }
-
-  // Razorpay expects the amount in paise (smallest unit): ₹499 → 49900
+  // Razorpay expects the amount in paise (smallest unit): ₹750 → 75000
   const amountPaise = Math.round(amount * 100);
 
   // Basic auth header: base64("key_id:secret")
@@ -138,9 +121,8 @@ export async function onRequestPost(context) {
       amount: amountPaise,
       currency: "INR",
       receipt: "rcpt_" + item + "_" + Date.now(),
-      // notes are the server-authoritative facts verify.js reads back later:
-      //   item = what was actually bought, ref = validated referrer code.
-      notes: { item: item, ref: refCode },
+      // notes.item = the server-authoritative item verify.js reads back later.
+      notes: { item: item },
     }),
   });
 
