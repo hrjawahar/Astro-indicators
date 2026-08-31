@@ -2360,19 +2360,54 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     flags.progenyHighCare=!!fifthAfflicted;
   }
   if(domainKey==="health"){ flags.healthWatch=true; }
-  let neechaBhanga=null;
-  if(lordPlacement && lordPlacement.dignity==="Debilitated"){
-    const dispositor=V_LORD[lordPlacement.sign];
-    if(dispositor && d1P[dispositor] && (d1P[dispositor].dignity==="Exalted"||d1P[dispositor].dignity==="Own sign")){
-      neechaBhanga=`${hLord} is debilitated but its dispositor ${dispositor} is strong — a debilitation-cancellation (Neecha Bhanga), so it strengthens with maturity.`;
+
+  // Neecha Bhanga (debilitation cancellation) — check the domain lord AND any
+  // debilitated planet occupying the domain house (the Career sample's Mercury case).
+  const neechaBhangaList=[];
+  const nbCandidates=[];
+  if(lordPlacement && lordPlacement.dignity==="Debilitated" && hLord) nbCandidates.push(hLord);
+  for(const o of occupants){ if(o.dignity==="Debilitated") nbCandidates.push(o.planet); }
+  // Also: debilitated planets sharing the domain-lord's house (they colour the domain).
+  if(lordPlacement && lordPlacement.house){
+    for(const [p,v] of Object.entries(d1P)){
+      if(p==="Lagna") continue;
+      if(v.house===lordPlacement.house && v.dignity==="Debilitated") nbCandidates.push(p);
     }
   }
+  for(const cand of [...new Set(nbCandidates)]){
+    const place=d1P[cand]; if(!place) continue;
+    const dispositor=V_LORD[place.sign];
+    if(dispositor && d1P[dispositor] && (d1P[dispositor].dignity==="Exalted"||d1P[dispositor].dignity==="Own sign")){
+      neechaBhangaList.push(`${cand} is debilitated in ${place.sign} but its dispositor ${dispositor} is strong (${d1P[dispositor].dignity}) — a debilitation-cancellation (Neecha Bhanga). This means ${cand}'s significations strengthen with maturity rather than staying weak.`);
+    }
+  }
+  const neechaBhanga = neechaBhangaList.length ? neechaBhangaList.join(" ") : null;
+
+  // Dasha timing relevant to this domain — the current period + which upcoming
+  // Mahadashas activate the domain's key planets (house lord, karaka, occupants).
+  let dashaTiming=null;
+  if(dashas && Array.isArray(dashas) && dashas.length){
+    const keyPlanets = new Set([hLord, karakaPlanet, ...occupants.map(o=>o.planet)].filter(Boolean));
+    const now = Date.now();
+    const rows=[];
+    let current=null;
+    for(const md of dashas){
+      const st=md.startDate?new Date(md.startDate).getTime():null;
+      const en=md.endDate?new Date(md.endDate).getTime():null;
+      const yrs = (st!=null&&en!=null) ? (new Date(md.startDate).getFullYear()+"–"+new Date(md.endDate).getFullYear()) : "";
+      const relevant = keyPlanets.has(md.lord);
+      if(st!=null&&en!=null&&now>=st&&now<en) current={lord:md.lord,years:yrs,relevant};
+      if(relevant) rows.push({lord:md.lord,years:yrs,note:(md.lord===hLord?"rules your "+ordinalD(cfg.house)+" house of "+cfg.focus:md.lord===karakaPlanet?"the "+cfg.karaka+", your domain significator":"active in your "+ordinalD(cfg.house)+" house")});
+    }
+    dashaTiming={ current, relevantPeriods:rows.slice(0,6) };
+  }
+
   return {
     domainKey, title:cfg.title, focus:cfg.focus, house:cfg.house, houseName:ordinalD(cfg.house),
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
     d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
-    vargaChart, convergences, flags, neechaBhanga
+    vargaChart, convergences, flags, neechaBhanga, dashaTiming
   };
 }
 
