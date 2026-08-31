@@ -425,23 +425,34 @@ function wireToolbar(panelId, originalText) {
 
 // Stream Claude API via Cloudflare proxy
 async function callIndicationAPI(prompt, targetEl, cacheKey, cacheMap) {
-  // ── Deprecated free Dasha/Antardasha AI reading ──────────────────────────────
-  // This used the old { prompt } contract that /api/indicate (v2) no longer
-  // accepts (v2 only narrates validated rule-engine facts). Rather than fire a
-  // request that 400s, we show the same paid-report nudge the D1/D9 panels use.
-  // Signature is unchanged so all existing call sites keep working untouched.
-  // To restore a real free reading here, add a guarded Dasha path to indicate.js
-  // and rewrite this to call it; see REFERRAL-REFERENCE / project notes.
-  if (targetEl) {
-    targetEl.innerHTML =
-      `<div class="ind-content" style="opacity:.9;line-height:1.6">` +
-      `<span style="color:var(--ai-gold,#C9A44C);font-weight:600">◈ </span>` +
-      `A full reading of this planetary period — its themes, timing, and turning ` +
-      `points — is covered in detail in the paid <b>Life Indicators</b> report.` +
-      `</div>`;
+  targetEl.innerHTML=`<div class="ind-loading"><span class="spinner"></span>Generating from chart data…</div>`;
+  const panelId=cacheKey.replace(/[^a-zA-Z0-9]/g,"_");
+  try {
+    const res=await fetch("/api/indicate",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({prompt,max_tokens:2000}),
+    });
+    if (!res.ok){const err=await res.json().catch(()=>({error:`HTTP ${res.status}`}));throw new Error(err.error||`HTTP ${res.status}`);}
+    targetEl.innerHTML=`${buildIndicationToolbar(panelId)}<div class="ind-content" id="content-${panelId}"></div>`;
+    const contentEl=document.getElementById(`content-${panelId}`);
+    let full="";
+    const reader=res.body.getReader(), decoder=new TextDecoder();
+    while (true) {
+      const {done,value}=await reader.read(); if(done) break;
+      const lines=decoder.decode(value,{stream:true}).split("\n");
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw=line.slice(6).trim(); if(raw==="[DONE]") continue;
+        try{const delta=JSON.parse(raw).delta?.text||"";if(delta){full+=delta;contentEl.innerHTML=markdownToHTML(full);}}catch{}
+      }
+    }
+    cacheMap.set(cacheKey,full);
+    wireToolbar(panelId,full);
+  } catch(err) {
+    targetEl.innerHTML=`<div class="ind-error">Could not generate: ${err.message}</div>`;
   }
 }
-
 
 // Returns "F" (friend), "E" (enemy), or "N" (neutral) between houseLord and visitor
 function getRelationshipTag(houseLord, visitor) {
@@ -652,7 +663,7 @@ async function generate() {
     genText.innerHTML = `<span class="spinner"></span>Analyzing domains...`;
 
     const analysisPayload = {
-      d1: { lagnaSign: chartData.d1.lagnaSign, houses: chartData.d1.houses, degrees: chartData.d1.degrees, latitudes: chartData.d1.latitudes },
+      d1: { lagnaSign: chartData.d1.lagnaSign, lagnaDegree: chartData.d1.lagnaDegree, houses: chartData.d1.houses, degrees: chartData.d1.degrees, latitudes: chartData.d1.latitudes },
       d9: { lagnaSign: chartData.d9.lagnaSign, houses: chartData.d9.houses, degrees: chartData.d9.degrees, latitudes: chartData.d9.latitudes || {} },
       dashas:    chartData.dasha?.dashas    || null,
       birthDate: form.dob                  || null,
