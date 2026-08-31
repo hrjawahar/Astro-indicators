@@ -452,7 +452,7 @@
       const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
       const newPage=()=>{ doc.addPage(); y=M; };
       const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
-      const para=(t,size,color,gap)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y,{align:"justify",maxWidth:W-M*2}); y+=L.length*(size+2.5)+(gap||0); };
+      const para=(t,size,color,gap)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y); y+=L.length*(size+2.5)+(gap||0); };
       const sectionHeading=(t)=>{ kbreak(72); doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(176,130,38); const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*17+3; doc.setDrawColor(220,205,170); doc.setLineWidth(0.5); doc.line(M,y,M+70,y); y+=12; doc.setFont("helvetica","normal"); };
       // header
       doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
@@ -519,7 +519,19 @@
         doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-26);
         doc.text("Page "+i+" of "+pages, W-M, H-26, {align:"right"}); }
       const safe=(clientCode()||"report").replace(/[^a-z0-9]/gi,"_");
-      doc.save("AstroIndicators_"+domainKey+"_"+safe+".pdf");
+      // Use a Blob URL rather than doc.save() — some browser PDF viewers render the
+      // default jsPDF save() output blank; a proper Blob download is standards-clean.
+      try {
+        const fname = "AstroIndicators_"+domainKey+"_"+safe+".pdf";
+        const blob = doc.output("blob");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = fname;
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 4000);
+      } catch(_) {
+        doc.save("AstroIndicators_"+domainKey+"_"+safe+".pdf");  // fallback
+      }
     } catch(e){ alert("Sorry — the PDF could not be generated. Please try again or use the on-screen book."); }
   }
 
