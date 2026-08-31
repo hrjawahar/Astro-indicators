@@ -16,7 +16,14 @@ const APP_CONFIG = {
     consult30:    500,   // 30-minute consultation
     consult60:    999,   // 60-minute consultation
     lifeIndicators: 999, // Life Indicators Report (flipbook) — full engine build
-    icc:          499,   // Instant Clarity Command — 3 of 10 questions
+    // Domain reports — ₹750 each (per-karaka divisional analysis, API-written)
+    domain_self:     750,
+    domain_career:   750,
+    domain_siblings: 750,
+    domain_mother:   750,
+    domain_children: 750,
+    domain_health:   750,
+    domain_marriage: 750,
   },
 
   // ── GST ────────────────────────────────────────────────────────────────────
@@ -31,7 +38,7 @@ const APP_CONFIG = {
   // Only the PUBLIC Key ID goes here. The SECRET never goes in code — it lives in
   // Cloudflare environment variables. Swap test → live key when you go live.
   razorpay: {
-    keyId: "rzp_test_REPLACE_WITH_YOUR_TEST_KEY_ID",   // public key (test for now)
+    keyId: "rzp_live_TWLqMBLkjM1EzT",                  // public LIVE key
     businessName: "AstroIndicators",                   // shown at checkout
     themeColor: "#0B0E1A",                             // checkout accent (navy)
   },
