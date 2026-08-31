@@ -313,25 +313,25 @@
       const a = d1P[p];
       const d9h = d9P[p] ? (ordK(d9P[p].house)) : "—";
       const vh = (vP && vP[p]) ? (vP[p].sign+" "+ordK(vP[p].house)) : (domainKey==="marriage"?"(see D9)":"—");
-      return `<tr>
-        <td style="font-weight:600">${esc(p)}</td>
-        <td>${esc(a.sign)} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
-        <td>${esc(d9h)}</td>
-        <td>${esc(vh)}</td>
-        <td style="opacity:.8">${esc(NOTE(p))}</td>
+      return `<tr style="border-bottom:1px solid rgba(201,168,76,.12)">
+        <td style="font-weight:600;padding:2px 4px">${esc(p)}</td>
+        <td style="padding:2px 4px">${esc(a.sign)} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
+        <td style="padding:2px 4px">${esc(d9h)}</td>
+        <td style="padding:2px 4px">${esc(vh)}</td>
+        <td style="opacity:.8;padding:2px 4px">${esc(NOTE(p))}</td>
       </tr>`;
     }).join("");
     return `<div class="pg"><div class="kick">Chart Comparison</div><div class="rule"></div>
-      <h2>D1 · D9 · ${esc(vLabel)} at a glance</h2>
-      <div class="bd" style="margin-bottom:8px">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading.</div>
-      <table class="cmp-table" style="width:100%;border-collapse:collapse;font-size:.82rem;line-height:1.35">
+      <h2 style="font-size:1.15rem">D1 · D9 · ${esc(vLabel)} at a glance</h2>
+      <div class="bd" style="margin-bottom:6px;font-size:.82rem">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading.</div>
+      <table class="cmp-table" style="width:100%;border-collapse:collapse;font-size:.72rem;line-height:1.25">
         <thead><tr style="color:var(--ai-gold);text-align:left;border-bottom:1px solid rgba(201,168,76,.4)">
-          <th style="padding:4px 6px">Planet</th><th style="padding:4px 6px">D1 (birth)</th>
-          <th style="padding:4px 6px">D9</th><th style="padding:4px 6px">${esc(vLabel)}</th>
-          <th style="padding:4px 6px">Note</th></tr></thead>
+          <th style="padding:3px 4px">Planet</th><th style="padding:3px 4px">D1 (birth)</th>
+          <th style="padding:3px 4px">D9</th><th style="padding:3px 4px">${esc(vLabel)}</th>
+          <th style="padding:3px 4px">Note</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="foot" style="margin-top:10px">Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
+      <div class="foot" style="margin-top:8px;font-size:.72rem">Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
@@ -359,21 +359,17 @@
         ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
       </ul>
       <span class="pnum">2</span></div>`);
-    // Comparison page (D1 · D9 · divisional) — reinforces credibility before the prose
-    const cmp = domainComparisonPage(domainKey, 3);
+    // Comparison grid is placed AFTER the first section (the context page), so the
+    // reader gets the framing before the chart grid.
+    const cmp = domainComparisonPage(domainKey, 0);
     let n = 3;
-    if (cmp) { P.push(cmp); n = 4; }
-    // One or more pages per API section — long bodies are split across pages by
-    // paragraph so no page overflows its box (was: everything on one page → scroll).
     const CHARS_PER_PAGE = 900;   // safe budget calibrated to the flip page box
-    for (const sec of sections) {
+    const emitSection = (sec) => {
       const heading = esc(sec.heading||"");
-      // Split body into paragraphs (double newline or single newline blocks)
       const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
       const chunks = [];
       let cur = "";
       for (const p of paras) {
-        // if a single paragraph alone exceeds budget, hard-split it
         if (p.length > CHARS_PER_PAGE) {
           if (cur) { chunks.push(cur); cur=""; }
           for (let i=0;i<p.length;i+=CHARS_PER_PAGE) chunks.push(p.slice(i,i+CHARS_PER_PAGE));
@@ -392,7 +388,11 @@
           <div class="bd">${bodyHtml}</div>
           <span class="pnum">${n++}</span></div>`);
       });
-    }
+    };
+    sections.forEach((sec, si) => {
+      emitSection(sec);
+      if (si === 0 && cmp) P.push(cmp.replace('data-pnum="0"', '').replace(/<span class="pnum">0<\/span>/, `<span class="pnum">${n++}</span>`));
+    });
     // Close with disclaimer (stronger for health)
     const disc = (domainKey==="health")
       ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
@@ -447,7 +447,8 @@
       const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
       const newPage=()=>{ doc.addPage(); y=M; };
       const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
-      const para=(t,size,color,gap)=>{ doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y); y+=L.length*(size+2.5)+(gap||0); };
+      const para=(t,size,color,gap)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y); y+=L.length*(size+2.5)+(gap||0); };
+      const sectionHeading=(t)=>{ kbreak(40); doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(176,130,38); const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*17+3; doc.setDrawColor(220,205,170); doc.setLineWidth(0.5); doc.line(M,y,M+70,y); y+=12; doc.setFont("helvetica","normal"); };
       // header
       doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
       doc.setTextColor(201,164,76); doc.setFont("helvetica","bold"); doc.setFontSize(18);
@@ -460,46 +461,45 @@
       doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
       doc.text((fmtDOB(f0.dob,f0.tob)||"") + "  ·  " + (f0.place||""), M, y); y+=8;
       doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=22;
-      // Comparison table (D1 · D9 · divisional) — mirrors the on-screen page
-      try {
-        const facts = (window.currentData && window.currentData.analysis
-                      && window.currentData.analysis.domainFacts
-                      && window.currentData.analysis.domainFacts[domainKey]) || null;
-        if (facts && facts.d1 && facts.d1.placements) {
+      // Comparison table renderer (called AFTER the first/context section)
+      const drawComparison = () => {
+        try {
+          const facts = (window.currentData && window.currentData.analysis
+                        && window.currentData.analysis.domainFacts
+                        && window.currentData.analysis.domainFacts[domainKey]) || null;
+          if (!(facts && facts.d1 && facts.d1.placements)) return;
           const PLANETS=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
           const d1P=facts.d1.placements, vP=(facts.vargaChart&&facts.vargaChart.placements)||null;
           const d9P={}; if(facts.d9&&facts.d9.houses){ for(const h of Object.keys(facts.d9.houses)) for(const p of (facts.d9.houses[h]||[])) d9P[p]={house:+h}; }
           const vLabel=facts.divisional||(domainKey==="marriage"?"D9":"—");
           const ordP=(x)=>{var s=["th","st","nd","rd"],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
-          kbreak(40);
-          doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(176,130,38);
-          doc.text("D1 · D9 · "+vLabel+" at a glance", M, y); y+=16;
+          sectionHeading("Chart Comparison — D1 · D9 · "+vLabel);
           doc.setFontSize(8.5);
           const cols=[M, M+90, M+230, M+300, M+400];
           doc.setTextColor(...MUTE); doc.setFont("helvetica","bold");
-          ["Planet","D1 (birth)","D9","" + vLabel,"Note"].forEach((h,i)=>doc.text(h,cols[i],y));
-          y+=12; doc.setFont("helvetica","normal");
+          ["Planet","D1 (birth)","D9",""+vLabel,"Note"].forEach((h,i)=>doc.text(h,cols[i],y));
+          y+=4; doc.setDrawColor(220,205,170); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=10;
+          doc.setFont("helvetica","normal");
           for(const p of PLANETS){ const a=d1P[p]; if(!a) continue; kbreak(14);
             const d9h=d9P[p]?ordP(d9P[p].house):"—";
             const vh=(vP&&vP[p])?(vP[p].sign+" "+ordP(vP[p].house)):(domainKey==="marriage"?"see D9":"—");
             let note=""; if(a.dignity==="Exalted")note="strong asset"; else if(a.dignity==="Debilitated")note="under pressure"; else if(a.dignity==="Own sign")note="at home"; else if(p===facts.karakaPlanet)note=facts.karaka; else if(facts.d1.houseLord===p)note="rules "+facts.houseName;
-            doc.setTextColor(...INK); doc.text(p, cols[0], y);
-            doc.setTextColor(...MUTE);
+            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(p, cols[0], y);
+            doc.setFont("helvetica","normal"); doc.setTextColor(...MUTE);
             doc.text((a.sign+" "+ordP(a.house)+(a.dignity&&a.dignity!=="Neutral"?" "+a.dignity[0]:"")).slice(0,22), cols[1], y);
             doc.text(String(d9h), cols[2], y);
             doc.text(String(vh).slice(0,14), cols[3], y);
             doc.text(String(note).slice(0,20), cols[4], y);
-            y+=13;
+            y+=12.5;
           }
-          y+=10;
-        }
-      } catch(_){}
-      for (const sec of sections) {
-        kbreak(60);
-        doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(176,130,38);
-        const hl=doc.splitTextToSize(sec.heading||"",W-M*2); doc.text(hl,M,y); y+=hl.length*16+6;
+          y+=12;
+        } catch(_){}
+      };
+      sections.forEach((sec, si) => {
+        sectionHeading(sec.heading||"");
         para(String(sec.body||""), 10.5, INK, 12);
-      }
+        if (si === 0) drawComparison();
+      });
       // disclaimer
       kbreak(80);
       const disc=(domainKey==="health")
@@ -647,6 +647,9 @@
 
     // ── what to actually do (concrete, behaviour-level) ──────────────────────
     P.push(guidancePage(n++, extras));
+
+    // ── go deeper: Domain Reports (lead-gen) ─────────────────────────────────
+    P.push(domainLeadPage(n++));
 
     // ── closing letter ───────────────────────────────────────────────────────
     P.push(closingLetterPage(n++));
@@ -799,6 +802,16 @@
         and begin to meet your questions with understanding.</p>
         <p style="text-align:center;font-style:italic">Happy reading. We'll meet you again at the end.</p>
       </div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
+  function domainLeadPage(pnum) {
+    return `<div class="pg"><div class="kick">Go Deeper</div><div class="rule"></div>
+      <h2>Domain Blueprints — one life-area, in real depth</h2>
+      <div class="bd">This LAMP report maps your <b>whole</b> chart across every area of life. But for the one question that matters most to you right now — your <b>career</b>, your <b>marriage</b>, your <b>children</b>, your <b>health</b> — there is a deeper reading.</div>
+      <div class="bd" style="margin-top:8px">Each <b>Domain Blueprint</b> takes a single karaka and reads it across <b>three charts</b>: your birth chart (D1), your Navamsha (D9), and the divisional chart built specifically for that area — <b>D10 for career, D7 for children, D4 for home</b>, and so on. Where two independent charts agree, that convergence becomes the most trustworthy signal in the reading — the kind of confirmation a single chart can never give.</div>
+      <div class="bd" style="margin-top:8px">Where LAMP tells you <i>what</i> your chart holds, a Domain Blueprint tells you <i>how</i> that one area unfolds — first half of life versus second, with dasha timing for when it activates.</div>
+      <div class="closing" style="margin-top:14px">Choose a Domain Blueprint from the <b>Domain Reports</b> tab · ₹750 each</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
