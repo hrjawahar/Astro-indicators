@@ -63,16 +63,26 @@ async function writeDomainReport(env, domainKey, facts) {
   const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
 
   // The model returns JSON: { "sections": [ {heading, body}, ... ] }
-  let parsed;
-  try {
-    const clean = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-    parsed = JSON.parse(clean);
-  } catch {
-    // Fallback: wrap whole text as one section so nothing is lost
-    parsed = { sections: [{ heading: facts.title || "Report", body: text }] };
+  let parsed = null;
+  const tryParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
+  // 1) direct, 2) strip markdown fences, 3) extract the first {...} block
+  let clean = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  parsed = tryParse(clean);
+  if (!parsed) {
+    const first = clean.indexOf("{"), last = clean.lastIndexOf("}");
+    if (first !== -1 && last > first) parsed = tryParse(clean.slice(first, last + 1));
   }
-  const sections = Array.isArray(parsed.sections) ? parsed.sections : [];
-  if (!sections.length) throw new Error("AI writer returned no sections.");
+  if (!parsed || !Array.isArray(parsed.sections) || !parsed.sections.length) {
+    // Last resort: if there's readable text, present it as a single section rather
+    // than returning nothing (prevents a blank flipbook).
+    if (clean && clean.length > 40) {
+      parsed = { sections: [{ heading: (facts.title || "Report"), body: clean.replace(/[{}\[\]"]/g," ").trim() }] };
+    } else {
+      throw new Error("The AI writer returned an unreadable or empty response.");
+    }
+  }
+  const sections = (parsed.sections || []).filter(s => s && (s.heading || s.body));
+  if (!sections.length) throw new Error("AI writer returned no usable sections.");
   return sections;
 }
 
