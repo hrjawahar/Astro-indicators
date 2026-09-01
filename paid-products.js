@@ -397,7 +397,10 @@
       const many = chunks.length > 1;
       chunks.forEach((chunk, ci) => {
         const contHead = ci===0 ? heading : heading + (many ? " <span style=\"opacity:.55;font-size:.75em\">(continued)</span>" : "");
-        const bodyHtml = esc(chunk).replace(/\n\n/g,"</p><p>").replace(/\n/g,"<br>");
+        // esc first (safety), then re-enable **bold** as <b> and paragraph breaks
+        const bodyHtml = esc(chunk)
+          .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+          .replace(/\n\n/g,"</p><p>").replace(/\n/g,"<br>");
         P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
           <h2>${contHead}</h2>
           <div class="bd"><p>${bodyHtml}</p></div>
@@ -457,13 +460,47 @@
       const doc = new jsPDF({ unit:"pt", format:"a4" });
       const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
       const M = 56; let y = 0;
-      const GOLD=[201,164,76], INK=[40,40,44], MUTE=[110,110,120];
+      const GOLD=[201,164,76], INK=[40,40,44], MUTE=[110,110,120], HL=[120,80,20];
       const f0 = (window.currentData && window.currentData.form) || {};
       const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
       const newPage=()=>{ doc.addPage(); y=M; };
       const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
-      const para=(t,size,color,gap)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const L=doc.splitTextToSize(t,W-M*2); kbreak(L.length*(size+2.5)+6); doc.text(L,M,y); y+=L.length*(size+2.5)+(gap||0); };
-      const sectionHeading=(t)=>{ kbreak(72); doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(176,130,38); const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*17+3; doc.setDrawColor(220,205,170); doc.setLineWidth(0.5); doc.line(M,y,M+70,y); y+=12; doc.setFont("helvetica","normal"); };
+      // paragraph-aware body: splits on newlines, adds space between paragraphs,
+      // and renders **bold** spans in a bold weight for emphasis.
+      const bodyBlock=(t,size,gap)=>{
+        const paras = String(t||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+        paras.forEach(pg=>{
+          // handle inline **bold**: render segments
+          const parts = pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+          doc.setFontSize(size);
+          // For simplicity of wrapping with mixed weight, if the paragraph has bold
+          // markers we render it line-by-line detecting bold; else plain justified-left.
+          if (parts.length>1) {
+            // rebuild plain text, then bold whole paragraph if it is fully wrapped in **…**
+            const plain = pg.replace(/\*\*/g,"");
+            const fullyBold = /^\*\*[^*]+\*\*$/.test(pg);
+            doc.setFont("helvetica", fullyBold?"bold":"normal");
+            doc.setTextColor(...(fullyBold?HL:INK));
+            const L=doc.splitTextToSize(plain,W-M*2); kbreak(L.length*(size+2.5)+8);
+            doc.text(L,M,y); y+=L.length*(size+2.5)+8;
+          } else {
+            doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
+            const L=doc.splitTextToSize(pg,W-M*2); kbreak(L.length*(size+2.5)+8);
+            doc.text(L,M,y); y+=L.length*(size+2.5)+8;
+          }
+        });
+        y += (gap||0);
+      };
+      const sectionHeading=(t,firstBodyLen)=>{
+        // Reserve room for the heading AND the opening lines of its body, so a
+        // heading never sits alone at the bottom of a page.
+        const need = 34 + Math.min(70, Math.ceil((firstBodyLen||0)/70)*14 + 28);
+        kbreak(need);
+        doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(176,130,38);
+        const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*16+2;
+        doc.setDrawColor(210,190,150); doc.setLineWidth(0.6); doc.line(M,y,W-M,y); y+=13;
+        doc.setFont("helvetica","normal");
+      };
       // header
       doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
       doc.setTextColor(201,164,76); doc.setFont("helvetica","bold"); doc.setFontSize(18);
@@ -488,7 +525,7 @@
           const d9P={}; if(facts.d9&&facts.d9.houses){ for(const h of Object.keys(facts.d9.houses)) for(const p of (facts.d9.houses[h]||[])) d9P[p]={house:+h}; }
           const vLabel=facts.divisional||(domainKey==="marriage"?"D9":"—");
           const ordP=(x)=>{var s=["th","st","nd","rd"],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
-          sectionHeading("Chart Comparison — D1 · D9 · "+vLabel);
+          sectionHeading("Chart Comparison — D1 · D9 · "+vLabel, 200);
           const SGN3 = (s)=> (s||"").slice(0,3);  // Sagittarius→Sag, prevents overflow
           doc.setFontSize(8.5);
           // column x-positions with enough width; last col wide for the note
@@ -514,16 +551,20 @@
         } catch(_){}
       };
       sections.forEach((sec, si) => {
-        sectionHeading(sec.heading||"");
-        para(String(sec.body||""), 10.5, INK, 12);
+        const firstPara = (String(sec.body||"").split(/\n\s*\n|\n/).find(s=>s.trim())||"").length;
+        sectionHeading(sec.heading||"", firstPara);
+        bodyBlock(String(sec.body||""), 10.5, 10);
         if (si === 0) drawComparison();
       });
       // disclaimer
-      kbreak(80);
+      kbreak(70); y+=6;
+      doc.setDrawColor(210,190,150); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=12;
       const disc=(domainKey==="health")
         ? "Disclaimer: This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor."
         : "Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. All payments are final.";
-      para(disc, 8.5, MUTE, 4);
+      doc.setFont("helvetica","italic"); doc.setFontSize(8.5); doc.setTextColor(...MUTE);
+      const dL=doc.splitTextToSize(disc,W-M*2); doc.text(dL,M,y); y+=dL.length*11+4;
+      doc.setFont("helvetica","normal");
       const pages=doc.internal.getNumberOfPages();
       for(let i=1;i<=pages;i++){ doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
         doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-26);
