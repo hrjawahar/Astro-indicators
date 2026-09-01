@@ -275,10 +275,20 @@
           body: JSON.stringify({ domainKey, facts })
         });
         const data = await res.json();
+        if (!res.ok) throw new Error("Writer error " + res.status + (data && data.error ? (": " + data.error) : ""));
         if (!data.success) throw new Error(data.error || "Report writer unavailable.");
         sections = data.sections || [];
+        if (!Array.isArray(sections) || sections.length === 0)
+          throw new Error("The report came back empty. Please try again in a moment.");
+        // sanity: every section must have a heading and some body
+        sections = sections.filter(s => s && (s.heading || s.body));
+        if (!sections.length) throw new Error("The report came back without readable content. Please try again.");
         srv({ action:"store", chartId: cid, item, lang:"en", sections,
               paymentId: (window.AI_lastPayment && window.AI_lastPayment[item]) || null });
+      }
+      if (!Array.isArray(sections) || !sections.length) {
+        host.innerHTML = `<div class="pp-empty">This report has no content yet. Please try opening it again.</div>`;
+        return;
       }
       renderDomainFlipbook(host, domainKey, sections);
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
