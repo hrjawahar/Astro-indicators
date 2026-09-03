@@ -238,7 +238,17 @@
       health:"Health, vitality, and resilience — read from D1 (6th & 8th) and D9.",
       marriage:"Marriage, partnership, and timing — confirmed by the D9 chart.",
     };
-    wrap.innerHTML = DOMAIN_KEYS.map(k => `
+    const bundlePrice = P("domain_all", 3999);
+    const bundleCard = `
+      <div class="icc-pick" data-domain="all" style="border:1.5px solid rgba(201,168,76,.6);background:rgba(201,168,76,.07)">
+        <div class="icc-num">★</div>
+        <div style="flex:1">
+          <div class="icc-q">All Seven Domains — Complete Blueprint</div>
+          <span class="icc-hint">Every life-area in one book: career, marriage, children, health, home, courage & self. Save over ₹1,250 vs buying individually.</span>
+        </div>
+        <button class="pp-pay" data-domain-buy="all" style="flex:0 0 auto">₹${bundlePrice}</button>
+      </div>`;
+    wrap.innerHTML = bundleCard + DOMAIN_KEYS.map(k => `
       <div class="icc-pick" data-domain="${k}">
         <div class="icc-num">\u2726</div>
         <div style="flex:1">
@@ -249,9 +259,80 @@
       </div>`).join("");
     wrap.querySelectorAll("[data-domain-buy]").forEach(btn => {
       const k = btn.getAttribute("data-domain-buy");
-      btn.onclick = () => payThenRun(DOMAIN_ITEM(k), P(DOMAIN_ITEM(k),750),
-        DOMAIN_LABELS[k] + " Blueprint", () => openDomainReport(k));
+      if (k === "all") {
+        btn.onclick = () => payThenRun("domain_all", bundlePrice, "All Seven Domains — Complete Blueprint", () => openAllDomainsReport());
+      } else {
+        btn.onclick = () => payThenRun(DOMAIN_ITEM(k), P(DOMAIN_ITEM(k),750),
+          DOMAIN_LABELS[k] + " Blueprint", () => openDomainReport(k));
+      }
     });
+  }
+
+  // All-Domains bundle: generate/fetch all 7 domains and render one combined book.
+  async function openAllDomainsReport() {
+    const host = $("domainReport"); if (!host) return;
+    host.innerHTML = `<div class="pp-empty">Building your complete Life Domains blueprint — all seven areas.<br>
+      <span style="display:inline-block;margin:10px 0;padding:5px 16px;background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.6);border-radius:999px;color:#c9a84c;font-weight:700">⏱ This takes about 5–7 minutes — seven detailed readings are being written</span><br>
+      Please keep this page open and don't refresh — your blueprint is being prepared.</div>`;
+    try { host.scrollIntoView(); } catch (_) {}
+    try {
+      const cid = window.AI_chartId();
+      const bundleItem = "domain_all";
+      // If the combined book is already cached, use it.
+      const cached = await srv({ action:"fetch", chartId: cid, item: bundleItem, lang:"en" });
+      let combined = cached && cached.sections;
+      if (!combined) {
+        combined = [];
+        // Resilience: after each domain we store partial progress under a progress
+        // key, so a dropped connection / refresh resumes instead of losing paid work.
+        const progressKey = "domain_all_progress";
+        let done = {};
+        try {
+          const prog = await srv({ action:"fetch", chartId: cid, item: progressKey, lang:"en" });
+          if (prog && prog.sections && Array.isArray(prog.sections)) {
+            combined = prog.sections;
+            // which domains are already in the partial combined book
+            for (const s of combined) if (s._divider) done[s.domain] = true;
+          }
+        } catch (_) {}
+        for (const k of DOMAIN_KEYS) {
+          if (done[k]) continue;  // already built in a previous (interrupted) run
+          host.querySelector(".pp-empty") && (host.querySelector(".pp-empty").innerHTML =
+            `Building your complete blueprint…<br><span style="color:#c9a84c;font-weight:700">Now reading: ${esc(DOMAIN_LABELS[k])}</span><br><span style="opacity:.7">(${DOMAIN_KEYS.indexOf(k)+1} of 7) · about 5–7 minutes total · please don't refresh</span>`);
+          let secs = null;
+          const one = await srv({ action:"fetch", chartId: cid, item: DOMAIN_ITEM(k), lang:"en" });
+          if (one && one.sections) secs = one.sections;
+          if (!secs) {
+            const facts = (window.currentData && window.currentData.analysis
+                          && window.currentData.analysis.domainFacts
+                          && window.currentData.analysis.domainFacts[k]) || null;
+            if (facts) {
+              try {
+                const res = await fetch("/api/domain-report", {
+                  method:"POST", headers:{ "Content-Type":"application/json" },
+                  body: JSON.stringify({ domainKey:k, facts })
+                });
+                const data = await res.json();
+                if (data.success && Array.isArray(data.sections) && data.sections.length) {
+                  secs = data.sections;
+                  srv({ action:"store", chartId: cid, item: DOMAIN_ITEM(k), lang:"en", sections: secs, paymentId: null });
+                }
+              } catch (_) {}
+            }
+          }
+          if (secs && secs.length) {
+            combined.push({ _divider:true, domain:k, heading: DOMAIN_LABELS[k] + " Blueprint" });
+            secs.forEach(s => combined.push({ ...s, _domain:k }));
+            // persist partial progress so an interruption resumes here
+            try { await srv({ action:"store", chartId: cid, item: progressKey, lang:"en", sections: combined, paymentId: null }); } catch (_) {}
+          }
+        }
+        if (!combined.length) throw new Error("Could not build the combined report. Please try again — any completed sections are saved.");
+        srv({ action:"store", chartId: cid, item: bundleItem, lang:"en", sections: combined,
+              paymentId: (window.AI_lastPayment && window.AI_lastPayment[bundleItem]) || null });
+      }
+      renderAllDomainsFlipbook(host, combined);
+    } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
   async function openDomainReport(domainKey) {
@@ -343,6 +424,145 @@
       </table>
       <div class="foot" style="margin-top:8px;font-size:.72rem">Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
       <span class="pnum">${pnum}</span></div>`;
+  }
+
+  function allDomainsToPages(combined) {
+    const f0 = (window.currentData && window.currentData.form) || {};
+    const _cc = clientCode();
+    const P = [];
+    // Cover
+    P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
+      <div class="seal">◈</div>
+      <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
+      <div class="kick" style="color:var(--ai-gold)">Complete Life Domains</div>
+      <h1>Your Seven Blueprints</h1>
+      <div class="cover-sub">Career · Marriage · Children · Health · Home · Courage · Self</div>
+      <div class="cover-meta" style="margin-top:14px;opacity:.85">${esc(fmtDOB(f0.dob,f0.tob)||"")} · ${esc(f0.place||"")}</div>
+      </div></div>`);
+    // Contents
+    const domains = combined.filter(s=>s._divider).map(s=>s.domain);
+    P.push(`<div class="pg"><div class="kick">Contents</div><div class="rule"></div>
+      <h2>What's inside</h2>
+      <ul class="toc">${domains.map(k=>`<li><b>${esc(DOMAIN_LABELS[k])} Blueprint</b></li>`).join("")}</ul>
+      <div class="foot" style="margin-top:12px">Each blueprint reads one life-area across your D1, D9, and its dedicated divisional chart — with the convergences that make the reading credible.</div>
+      <span class="pnum">2</span></div>`);
+    let n = 3;
+    const CHARS = 1050;
+    combined.forEach(item => {
+      if (item._divider) {
+        P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
+          <div class="seal" style="font-size:1.6rem">✦</div>
+          <div class="kick" style="color:var(--ai-gold);margin-top:10px">Blueprint</div>
+          <h1 style="font-size:2rem">${esc(item.heading)}</h1>
+          <div class="cover-sub">${esc((DOMAIN_BLURB_MAP[item.domain])||"")}</div>
+          </div><span class="pnum">${n++}</span></div>`);
+        return;
+      }
+      // paginate this section
+      const heading = esc(item.heading||"");
+      const paras = String(item.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+      const total = paras.reduce((a,p)=>a+p.length+2,0);
+      const pagesNeeded = Math.max(1, Math.ceil(total/CHARS));
+      const target = Math.ceil(total/pagesNeeded);
+      const chunks=[]; let cur="",cl=0;
+      for(const p of paras){ const add=p.length+2;
+        if(cur && cl+add>target && chunks.length<pagesNeeded-1){chunks.push(cur);cur=p;cl=add;}
+        else{cur=cur?cur+"\n\n"+p:p;cl+=add;} }
+      if(cur)chunks.push(cur); if(!chunks.length)chunks.push("");
+      const many=chunks.length>1;
+      chunks.forEach((chunk,ci)=>{
+        const hh = ci===0?heading:heading+(many?" <span style=\"opacity:.55;font-size:.75em\">(continued)</span>":"");
+        const bodyHtml = esc(chunk).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/\n\n/g,"</p><p>").replace(/\n/g,"<br>");
+        P.push(`<div class="pg"><div class="kick">${esc(DOMAIN_LABELS[item._domain]||"")}</div><div class="rule"></div>
+          <h2>${hh}</h2><div class="bd"><p>${bodyHtml}</p></div>
+          <span class="pnum">${n++}</span></div>`);
+      });
+    });
+    // Close
+    P.push(`<div class="pg"><div class="kick">Complete Blueprint</div><div class="rule"></div>
+      <h2>A closing note</h2>
+      <div class="bd">These seven blueprints together map the major arcs of your life. Read them not as fixed fate but as the structural shape of your path — and let your own lived experience be the truest test of each.</div>
+      ${_cc?`<div class="closing" style="margin-top:14px">Your Client ID<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>`:""}
+      <span class="pnum">${n++}</span></div>`);
+    return P;
+  }
+
+  const DOMAIN_BLURB_MAP = {
+    self:"Soul, character, and life-direction", career:"Career path, timing, and direction",
+    siblings:"Siblings, courage, and initiative", mother:"Mother, home, and inner security",
+    children:"Children, creativity, and progeny", health:"Health, vitality, and resilience",
+    marriage:"Marriage, partnership, and timing"
+  };
+
+  function renderAllDomainsFlipbook(host, combined) {
+    const P = allDomainsToPages(combined);
+    _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
+    host.innerHTML = `
+      <div class="stage"><div class="book" id="fbBook">
+        <div class="page" id="fbStatic"></div>
+        <div class="leaf" id="fbLeaf">
+          <div class="leaf-face" id="fbLeafFront"></div>
+          <div class="leaf-face leaf-back" id="fbLeafBack"></div>
+          <div class="shade" id="fbShade"></div>
+        </div></div></div>
+      <div class="controls"><button class="fb-nav" id="fbPrev">‹</button>
+        <div class="dots" id="fbDots"></div>
+        <button class="fb-nav" id="fbNext">›</button></div>
+      <div class="hint">Swipe, use ← → keys, or tap the dots</div>
+      <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
+        <button id="fbPdf" class="pp-pay">Download PDF</button></div>`;
+    bindBook(); bookRender();
+    $("fbPdf").onclick = () => exportAllDomainsPDF(combined);
+    const fsBtn = $("fbFull");
+    if (fsBtn) fsBtn.onclick = () => {
+      const box = $("domainReport"); if (!box) return;
+      if (document.fullscreenElement) { document.exitFullscreen(); return; }
+      if (box.requestFullscreen) { box.classList.add("fb-fs"); box.requestFullscreen().catch(()=>{}); }
+    };
+  }
+
+  function exportAllDomainsPDF(combined) {
+    if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
+    try {
+      const jsPDF = window.jspdf.jsPDF;
+      const doc = new jsPDF({ unit:"pt", format:"a4" });
+      const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), M=56; let y=0;
+      const GOLD=[201,164,76], INK=[40,40,44], MUTE=[110,110,120];
+      const f0=(window.currentData&&window.currentData.form)||{};
+      const newPage=()=>{doc.addPage();y=M;};
+      const kbreak=(need)=>{if(y+need>H-M)newPage();};
+      const bodyBlock=(t,size)=>{ String(t||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean).forEach(pg=>{
+        const fullyBold=/^\*\*[^*]+\*\*$/.test(pg); const plain=pg.replace(/\*\*/g,"");
+        doc.setFont("helvetica",fullyBold?"bold":"normal"); doc.setTextColor(...(fullyBold?[120,80,20]:INK)); doc.setFontSize(size);
+        const L=doc.splitTextToSize(plain,W-M*2); kbreak(L.length*(size+2.5)+8); doc.text(L,M,y); y+=L.length*(size+2.5)+8; }); };
+      // header
+      doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
+      doc.setTextColor(201,164,76); doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.text("AstroIndicators",M,42);
+      doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(180,188,200); doc.text("Swiss Ephemeris · Lahiri Ayanamsha",M,58);
+      y=100; doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.text("Complete Life Domains — Seven Blueprints",M,y); y+=20;
+      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE); doc.text((fmtDOB(f0.dob,f0.tob)||"")+"  ·  "+(f0.place||""),M,y); y+=8;
+      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=20;
+      combined.forEach(item=>{
+        if(item._divider){ kbreak(60); y+=6;
+          doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(176,130,38);
+          doc.text(item.heading,M,y); y+=8; doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.line(M,y,W-M,y); y+=16; return; }
+        kbreak(50); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(90,70,20);
+        const hl=doc.splitTextToSize(item.heading||"",W-M*2); doc.text(hl,M,y); y+=hl.length*15+8;
+        bodyBlock(item.body,10.5); y+=8;
+      });
+      kbreak(60); y+=6; doc.setDrawColor(210,190,150); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=12;
+      doc.setFont("helvetica","italic"); doc.setFontSize(8.5); doc.setTextColor(...MUTE);
+      const disc="Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. All payments are final.";
+      doc.text(doc.splitTextToSize(disc,W-M*2),M,y);
+      const pages=doc.internal.getNumberOfPages();
+      for(let i=1;i<=pages;i++){ doc.setPage(i); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
+        doc.text("(c) 2026 AstroIndicators · astroindicators.com",M,H-26);
+        doc.text("Page "+i+" of "+pages,W-M,H-26,{align:"right"}); }
+      const safe=(clientCode()||"report").replace(/[^a-z0-9]/gi,"_");
+      const blob=doc.output("blob"); const url=URL.createObjectURL(blob);
+      const a=document.createElement("a"); a.href=url; a.download="AstroIndicators_AllDomains_"+safe+".pdf";
+      document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},4000);
+    } catch(e){ alert("Sorry — the PDF could not be generated. Please try again or use the on-screen book."); }
   }
 
   function domainSectionsToPages(domainKey, sections) {
@@ -882,7 +1102,8 @@
       <div class="bd">This LAMP report maps your <b>whole</b> chart across every area of life. But for the one question that matters most to you right now — your <b>career</b>, your <b>marriage</b>, your <b>children</b>, your <b>health</b> — there is a deeper reading.</div>
       <div class="bd" style="margin-top:8px">Each <b>Domain Blueprint</b> takes a single karaka and reads it across <b>three charts</b>: your birth chart (D1), your Navamsha (D9), and the divisional chart built specifically for that area — <b>D10 for career, D7 for children, D4 for home</b>, and so on. Where two independent charts agree, that convergence becomes the most trustworthy signal in the reading — the kind of confirmation a single chart can never give.</div>
       <div class="bd" style="margin-top:8px">Where LAMP tells you <i>what</i> your chart holds, a Domain Blueprint tells you <i>how</i> that one area unfolds — first half of life versus second, with dasha timing for when it activates.</div>
-      <div class="closing" style="margin-top:14px">Choose a Domain Blueprint from the <b>Domain Reports</b> tab · ₹750 each</div>
+      <div class="bd" style="margin-top:8px">Want the complete picture? The <b>All Seven Domains</b> bundle brings every life-area — career, marriage, children, health, home, courage, and self — into one blueprint, at a saving of over ₹1,250 versus buying them individually.</div>
+      <div class="closing" style="margin-top:14px">Open the <b>Domain Reports</b> tab · ₹750 each, or all seven for ₹3,999</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
