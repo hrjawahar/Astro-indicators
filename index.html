@@ -82,6 +82,20 @@
   .ai-paid-tab { border:1px solid var(--ai-gold); background:linear-gradient(160deg,var(--ai-navy),var(--ai-navy-2)); color:var(--ai-gold-soft) !important; }
   .ai-paid-tab .tab-icon { color:var(--ai-gold); }
   .ai-gold-dot { font-size:.58rem; letter-spacing:.12em; color:var(--ai-navy); background:var(--ai-gold); border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; }
+  .ai-new-dot { font-size:.58rem; letter-spacing:.12em; color:#fff; background:#c0392b; border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; animation:ai-new-pulse 2s ease-in-out infinite; }
+  @keyframes ai-new-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+  .ai-has-tip { position:relative; }
+  .ai-has-tip::after {
+    content: attr(data-tip);
+    position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
+    width:min(320px,80vw); background:#0F1024; color:#E6E9F0; border:1px solid rgba(201,168,76,.5);
+    border-radius:10px; padding:10px 12px; font-size:.72rem; line-height:1.5; font-weight:400;
+    letter-spacing:normal; text-align:left; white-space:normal; z-index:9999;
+    opacity:0; visibility:hidden; transition:opacity .18s ease; pointer-events:none;
+    box-shadow:0 8px 28px rgba(0,0,0,.4);
+  }
+  .ai-has-tip:hover::after, .ai-has-tip:focus-visible::after { opacity:1; visibility:visible; }
+  @media (max-width:640px){ .ai-has-tip::after{ display:none; } }
   .pp-sub { max-width:640px; }
   .pp-full { font-size:.62em; color:var(--ai-gold); font-weight:500; }
   .pp-legal { font-size:.72rem; letter-spacing:.04em; color:#B08A3C; font-weight:600; max-width:680px; margin-top:8px; text-transform:uppercase; line-height:1.5; }
@@ -261,7 +275,7 @@
   .pg .final-signoff { margin-top:26px; }
   .pg .final-signoff .who { font-size:1rem; color:var(--ai-gold); margin-bottom:4px; }
   .fb-legend b { color:#5A4410; font-weight:700; }
-  #liBook.fb-fs { background:radial-gradient(circle at 50% 30%, #141B33, #05060C);
+  #liBook.fb-fs, #domainReport.fb-fs { background:radial-gradient(circle at 50% 30%, #141B33, #05060C);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     padding:2vh 0; overflow:auto; }
   #liBook.fb-fs .book { width:min(64vh,96vw); height:min(94vh,128vw); }
@@ -272,6 +286,13 @@
   #liBook.fb-fs .fbchart-svg { max-width:360px; }
   #liBook.fb-fs .fb-dlbar { display:none; }
   #liBook.fb-fs .hint { color:#9a9; }
+  #domainReport.fb-fs .book { width:min(64vh,96vw); height:min(94vh,128vw); }
+  #domainReport.fb-fs .pg { padding:40px 44px 54px; font-size:1.05rem; }
+  #domainReport.fb-fs .pg h1 { font-size:2.4rem; } #domainReport.fb-fs .pg h2 { font-size:1.5rem; }
+  #domainReport.fb-fs .pg .bd { font-size:1.08rem; line-height:1.8; }
+  #domainReport.fb-fs .cmp-table { font-size:.92rem; }
+  #domainReport.fb-fs .fb-dlbar { display:none; }
+  #domainReport.fb-fs .hint { color:#9a9; }
   .fb-share { margin-top:20px; text-align:center; }
   .fb-share-label { font-size:.66rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ai-gold); margin-bottom:8px; }
   .fb-share-icons { display:flex; gap:12px; justify-content:center; }
@@ -368,8 +389,9 @@
     <button class="nav-tab ai-paid-tab" data-tab="lifeIndTab" data-requires="chart" title="Unlock your personalized LAMP (Life Analysis and Mapping Profile) report instantly. This comprehensive download maps your chart&#39;s unique meaning for deeper self-reflection.">
       <span class="tab-icon" aria-hidden="true">❖</span> <span>Life Indicators Report</span> <span class="ai-gold-dot">PAID</span>
     </button>
-    <button class="nav-tab ai-paid-tab" data-tab="domainReportTab" data-requires="chart">
-      <span class="tab-icon" aria-hidden="true">✦</span> <span>Domain Reports</span> <span class="ai-gold-dot">PAID</span>
+    <button class="nav-tab ai-paid-tab ai-has-tip" data-tab="domainReportTab" data-requires="chart"
+      data-tip="What makes Domain Reports unique: each reading converges your D1 birth chart, your D9 Navamsha, and the karaka's own sub-divisional chart (D10 for career, D7 for children, and so on). Where these independent charts agree, that convergence gives a precise, credible reading no single chart can offer.">
+      <span class="tab-icon" aria-hidden="true">✦</span> <span>Domain Reports</span> <span class="ai-new-dot">NEW</span> <span class="ai-gold-dot">PAID</span>
     </button>
     <button class="nav-tab" data-tab="planetsTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">⊕</span> <span data-i18n="nav_planets">Planets</span>
@@ -661,7 +683,7 @@
     <section id="domainReportTab" class="screen">
       <div class="screen-inner">
       <div class="pp-head"><h2>Domain Reports <span class="pp-full">· ₹750 each</span></h2>
-        <p class="pp-sub">A deep Vedic blueprint for a single area of your life — read across D1, D9, and its own divisional chart. Choose the domain you most want clarity on.</p>
+        <p class="pp-sub">A deep Vedic blueprint for a single area of your life. <b>What makes it unique:</b> each reading converges your <b>D1</b> birth chart, your <b>D9</b> Navamsha, and the karaka's own <b>sub-divisional chart</b> (D10 for career, D7 for children, and so on). Where these independent charts agree, that convergence gives a precise reading no single chart can offer.</p>
         <div id="domainPersonal" class="pp-personal"></div></div>
       <div id="domainPickerWrap">
         <div id="domainPicker" class="icc-list">
