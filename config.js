@@ -24,6 +24,7 @@ const APP_CONFIG = {
     domain_children: 750,
     domain_health:   750,
     domain_marriage: 750,
+    domain_all:      3999,   // All 7 Domains bundle (vs ₹5,250 individually)
   },
 
   // ── GST ────────────────────────────────────────────────────────────────────
