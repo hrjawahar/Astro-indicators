@@ -84,18 +84,6 @@
   .ai-gold-dot { font-size:.58rem; letter-spacing:.12em; color:var(--ai-navy); background:var(--ai-gold); border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; }
   .ai-new-dot { font-size:.58rem; letter-spacing:.12em; color:#fff; background:#c0392b; border-radius:8px; padding:1px 6px; margin-left:6px; font-weight:700; animation:ai-new-pulse 2s ease-in-out infinite; }
   @keyframes ai-new-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
-  .ai-has-tip { position:relative; }
-  .ai-has-tip::after {
-    content: attr(data-tip);
-    position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
-    width:min(320px,80vw); background:#0F1024; color:#E6E9F0; border:1px solid rgba(201,168,76,.5);
-    border-radius:10px; padding:10px 12px; font-size:.72rem; line-height:1.5; font-weight:400;
-    letter-spacing:normal; text-align:left; white-space:normal; z-index:9999;
-    opacity:0; visibility:hidden; transition:opacity .18s ease; pointer-events:none;
-    box-shadow:0 8px 28px rgba(0,0,0,.4);
-  }
-  .ai-has-tip:hover::after, .ai-has-tip:focus-visible::after { opacity:1; visibility:visible; }
-  @media (max-width:640px){ .ai-has-tip::after{ display:none; } }
   .pp-sub { max-width:640px; }
   .pp-full { font-size:.62em; color:var(--ai-gold); font-weight:500; }
   .pp-legal { font-size:.72rem; letter-spacing:.04em; color:#B08A3C; font-weight:600; max-width:680px; margin-top:8px; text-transform:uppercase; line-height:1.5; }
@@ -312,7 +300,9 @@
   .dots { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:60%; }
   .dots .dot { width:7px; height:7px; border-radius:50%; background:rgba(201,164,76,.32); cursor:pointer; }
   .dots .dot.on { background:var(--ai-gold); transform:scale(1.25); }
-  .fb-dlbar { display:flex; justify-content:center; gap:14px; margin:14px 0 30px; flex-wrap:wrap; }
+  .fb-dlbar { display:flex !important; justify-content:center; gap:14px; margin:14px 0 30px; flex-wrap:wrap; }
+  #domainReport .fb-dlbar, #liBook .fb-dlbar { position:relative; z-index:5; }
+  #domainReport:not(.fb-fs), #liBook:not(.fb-fs) { overflow:visible; }
   
   .hint { text-align:center; font-size:.76rem; color:#7c7c7c; margin-bottom:26px; }
   .fb-nav { background:var(--ai-navy); color:var(--ai-gold-soft); border:1px solid var(--ai-gold);
@@ -389,8 +379,7 @@
     <button class="nav-tab ai-paid-tab" data-tab="lifeIndTab" data-requires="chart" title="Unlock your personalized LAMP (Life Analysis and Mapping Profile) report instantly. This comprehensive download maps your chart&#39;s unique meaning for deeper self-reflection.">
       <span class="tab-icon" aria-hidden="true">❖</span> <span>Life Indicators Report</span> <span class="ai-gold-dot">PAID</span>
     </button>
-    <button class="nav-tab ai-paid-tab ai-has-tip" data-tab="domainReportTab" data-requires="chart"
-      data-tip="What makes Domain Reports unique: each reading converges your D1 birth chart, your D9 Navamsha, and the karaka's own sub-divisional chart (D10 for career, D7 for children, and so on). Where these independent charts agree, that convergence gives a precise, credible reading no single chart can offer.">
+    <button class="nav-tab ai-paid-tab" data-tab="domainReportTab" data-requires="chart">
       <span class="tab-icon" aria-hidden="true">✦</span> <span>Domain Reports</span> <span class="ai-new-dot">NEW</span> <span class="ai-gold-dot">PAID</span>
     </button>
     <button class="nav-tab" data-tab="planetsTab" data-requires="chart">
