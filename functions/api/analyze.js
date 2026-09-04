@@ -2314,6 +2314,10 @@ function houseLord(lagnaSign, houseNum){
   const lagIdx=V_SIGNS.indexOf(lagnaSign); if(lagIdx<0) return null;
   return V_LORD[V_SIGNS[(lagIdx+houseNum-1)%12]];
 }
+function occupantsOfHouse(d1P, houseNum){
+  if(!d1P) return [];
+  return Object.entries(d1P).filter(([p,v])=>p!=="Lagna" && v.house===houseNum).map(([p])=>p);
+}
 const DOMAIN_REPORT_CONFIG = {
   self:     { title:"Character Blueprint", focus:"self, character, and life-direction", house:1,  karaka:"Atmakaraka",    varga:null,  vargaLabel:"D1 + D9" },
   career:   { title:"Career Blueprint",    focus:"career path, timing, and direction", house:10, karaka:"Amatyakaraka",  varga:"D10", vargaLabel:"D10 (Dashamsha)" },
@@ -2345,21 +2349,112 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   if(karakaPlanet && d1P[karakaPlanet] && (d1P[karakaPlanet].dignity==="Exalted"||d1P[karakaPlanet].dignity==="Own sign")){
     convergences.push(`${karakaPlanet} (the ${cfg.karaka}) is strongly placed in D1 — a primary support for this domain.`);
   }
+
+  // Deeper checks (added after validating against a real father/child case the
+  // shallow version missed):
+  // (a) D9 domain-lord in a dusthana (6/8/12) — a maturation-level CAUTION even
+  //     when D1 looks fine. This is where a careful astrologer finds the caveat.
+  // (b) The domain lord IS the Atmakaraka — the domain is soul-central, not
+  //     peripheral; it carries extra weight in the life.
+  let d9LordCaution=null;
+  if(hLord && d9Houses && d9LagnaSign){
+    // (i) the D1-lagna domain lord's position in D9
+    let d9House=null;
+    for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(hLord)){ d9House=h; break; } }
+    if(d9House && [6,8,12].includes(d9House)){
+      d9LordCaution=`In the D9 (the maturation chart), the ${ordinalD(cfg.house)}-lord ${hLord} sits in the ${ordinalD(d9House)} house — a house of testing. This adds a note of caution to this area as life matures, even where the birth chart looks settled.`;
+    }
+    // (ii) the D9 chart's OWN domain lord (from the D9 ascendant) — the technique a
+    //      careful reader uses. If that lord sits in a D9 dusthana, it's a caution.
+    if(!d9LordCaution){
+      const d9DomLord = houseLord(d9LagnaSign, cfg.house);
+      if(d9DomLord){
+        let d9DomHouse=null;
+        for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(d9DomLord)){ d9DomHouse=h; break; } }
+        if(d9DomHouse && [6,8,12].includes(d9DomHouse)){
+          d9LordCaution=`In the D9 (the maturation chart), its own ${ordinalD(cfg.house)}-lord ${d9DomLord} sits in the ${ordinalD(d9DomHouse)} house — a house of testing. This is the single most important caution in this reading: it asks you to hold this area with extra patience and care as life unfolds.`;
+        }
+      }
+    }
+    if(d9LordCaution) convergences.push(d9LordCaution);
+  }
+  const akPlanet=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Atmakaraka")||{}).planet:null;
+  const domainIsSoulCentral = akPlanet && hLord && akPlanet===hLord;
+  if(domainIsSoulCentral){
+    convergences.push(`The ${ordinalD(cfg.house)}-lord ${hLord} is also your Atmakaraka (soul significator) — so this area is not peripheral; it is one of the central channels through which your life's core work is lived out. Expect it to carry real weight.`);
+  }
+
   const flags={};
+  // Headline D1→D9 "shift" — when the domain's key planet changes strength or the
+  // domain mode differs between D1 and D9, that pivot is the reader's key takeaway.
+  // We flag it so the writer can OPEN the D9 section with a bold verdict line.
+  let shiftHeadline=null;
+  if(hLord && d1P[hLord]){
+    const d1dig=d1P[hLord].dignity, d1house=d1P[hLord].house;
+    let d9h=null; if(d9Houses){ for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(hLord)){ d9h=h; break; } } }
+    const d1Kendra=[1,4,7,10].includes(d1house), d1Dusthana=[6,8,12].includes(d1house);
+    const d9Kendra=d9h!=null&&[1,4,7,10].includes(d9h), d9Dusthana=d9h!=null&&[6,8,12].includes(d9h);
+    // karaka placement too (e.g. Amatyakaraka for career)
+    const kp = karakaPlanet && d1P[karakaPlanet] ? d1P[karakaPlanet] : null;
+    const lordDepth = [8,12].includes(d1house);           // lord in transformation/withdrawal house
+    const karakaDepth = kp && [8,12].includes(kp.house);
+    if(d1Kendra && d9Dusthana) shiftHeadline=`Your ${cfg.focus} begins in the foreground (a strong D1 placement) but the D9 pulls it toward a quieter, more inward, or independent second-half expression — the visible early mode is likely to give way as life matures.`;
+    else if(d1Dusthana && d9Kendra) shiftHeadline=`Your ${cfg.focus} may feel constrained early (a testing D1 placement) but the D9 lifts it into real strength — the second half of life is where this area comes into its own.`;
+    else if(lordDepth || karakaDepth) shiftHeadline=`Your ${cfg.focus} is structured around depth rather than surface visibility — as life matures, expect a move away from conventional, front-stage expression toward more independent, specialised, or behind-the-scenes work.`;
+    else if(d9Dusthana && !d1Dusthana) shiftHeadline=`As life matures, your ${cfg.focus} shifts toward a more inward, behind-the-scenes, or independent mode than its early expression.`;
+  }
+  flags.shift = shiftHeadline || null;
+
   if(domainKey==="marriage"){
     const sevOcc=occupants.map(o=>o.planet);
     const ketuIn7=sevOcc.includes("Ketu"), rahuIn7=sevOcc.includes("Rahu");
     const maleficIn7=sevOcc.some(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
     const lordWeak=lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house));
-    const afflicted = ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak);
+    const afflicted = ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak) || !!d9LordCaution;
     flags.marriageAfflicted=!!afflicted;
-    flags.remarriageIndicated=!!afflicted;
+    flags.remarriageIndicated=!!(ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak));
   }
   if(domainKey==="children"){
-    const fifthAfflicted=(lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house)))||occupants.some(o=>["Saturn","Mars","Rahu","Ketu"].includes(o.planet));
+    const fifthAfflicted=(lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house)))
+                        ||occupants.some(o=>["Saturn","Mars","Rahu","Ketu"].includes(o.planet))
+                        ||!!d9LordCaution;  // NOW also catches the D9 maturation caution
     flags.progenyHighCare=!!fifthAfflicted;
+    flags.progenySoulCentral=!!domainIsSoulCentral;
   }
-  if(domainKey==="health"){ flags.healthWatch=true; }
+  if(domainKey==="health"){
+    flags.healthWatch=true;
+    // Deep health read (Option C): name the STRESSED AREAS to prompt precaution &
+    // professional care — never a diagnosis. Areas map to classical significations.
+    const lagLord = houseLord(d1LagnaSign, 1);
+    const sixthLord = houseLord(d1LagnaSign, 6);
+    const eighthLord = houseLord(d1LagnaSign, 8);
+    const asc1 = Object.entries(d1P).filter(([p,v])=>v.house===1 && p!=="Lagna").map(([p])=>p);
+    const sixth = occupantsOfHouse(d1P,6), eighth=occupantsOfHouse(d1P,8);
+    const areas=[]; const notes=[];
+    // malefic on Ascendant → constitution/vitality strain
+    const maleficOnAsc = asc1.filter(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
+    if(maleficOnAsc.length){ areas.push("overall constitution and vitality"); notes.push(`${maleficOnAsc.join(", ")} on your Ascendant asks for steady attention to baseline vitality and stamina.`); }
+    // debilitated/combust stack → resilience under strain
+    const weak = Object.entries(d1P).filter(([p,v])=>p!=="Lagna"&&(v.dignity==="Debilitated")).map(([p])=>p);
+    if(weak.length>=2){ areas.push("resilience and recovery"); notes.push(`Several planets sit under pressure (${weak.join(", ")}), which can mean the body asks for more deliberate rest and recovery than average.`); }
+    // Mars afflicted → inflammation/injury/heat; Moon/Mercury afflicted → nervous system/mind
+    const marsAff = d1P.Mars && (d1P.Mars.dignity==="Debilitated" || [6,8,12].includes(d1P.Mars.house));
+    if(marsAff){ areas.push("injuries, inflammation, and heat-related tendencies"); notes.push("Mars is under strain — worth extra care around accidents, injury, inflammation, and blood-heat conditions."); }
+    const mercAff = d1P.Mercury && (d1P.Mercury.dignity==="Debilitated" || [6,8,12].includes(d1P.Mercury.house));
+    const moonAff = d1P.Moon && (d1P.Moon.dignity==="Debilitated" || [6,8,12].includes(d1P.Moon.house));
+    if(mercAff||moonAff){ areas.push("nervous system, mind, and temperament"); notes.push("The mind-and-nerves significators are stressed — proactive attention to mental calm, sleep, and nervous-system health is worth prioritising."); }
+    // 6th/8th lord condition → chronic vs acute axis
+    if((sixthLord&&d1P[sixthLord]&&[1,8,12].includes(d1P[sixthLord].house)) || (eighthLord&&d1P[eighthLord]&&[1,6,12].includes(d1P[eighthLord].house))){
+      areas.push("chronic-tendency awareness"); notes.push("The illness-axis lords sit in sensitive houses — regular check-ups help catch slow-building or chronic tendencies early.");
+    }
+    flags.healthAreas = areas;
+    flags.healthNotes = notes;
+    flags.healthStrong = (maleficOnAsc.length>0) || (weak.length>=2) || marsAff || (mercAff&&moonAff);
+    // closest MD/AD when health is most active is added via dashaTiming.keyWindows,
+    // where keyPlanets already includes the stressed significators for health below.
+  }
+  flags.domainSoulCentral=!!domainIsSoulCentral;
+  flags.d9MaturationCaution=!!d9LordCaution;
 
   // Neecha Bhanga (debilitation cancellation) — check the domain lord AND any
   // debilitated planet occupying the domain house (the Career sample's Mercury case).
@@ -2383,23 +2478,54 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   }
   const neechaBhanga = neechaBhangaList.length ? neechaBhangaList.join(" ") : null;
 
-  // Dasha timing relevant to this domain — the current period + which upcoming
-  // Mahadashas activate the domain's key planets (house lord, karaka, occupants).
+  // Dasha timing — MD level PLUS antardasha (AD) sub-periods, since real events
+  // land at the AD level. We surface: the current MD+AD, the domain-relevant MDs,
+  // and the specific AD sub-windows that most activate the domain's key planets.
   let dashaTiming=null;
   if(dashas && Array.isArray(dashas) && dashas.length){
-    const keyPlanets = new Set([hLord, karakaPlanet, ...occupants.map(o=>o.planet)].filter(Boolean));
+    let keyPlanets = new Set([hLord, karakaPlanet, ...occupants.map(o=>o.planet)].filter(Boolean));
+    // For health, the "when to be vigilant" windows are driven by the STRESSED
+    // significators (Ascendant lord, malefics on Asc, afflicted Mars/Moon/Mercury,
+    // 6th/8th lords), so add them so keyWindows highlight the right MD/AD.
+    if(domainKey==="health"){
+      const add=[houseLord(d1LagnaSign,1), houseLord(d1LagnaSign,6), houseLord(d1LagnaSign,8),
+                 ...occupantsOfHouse(d1P,1), ...occupantsOfHouse(d1P,6), ...occupantsOfHouse(d1P,8)];
+      for(const p of add) if(p) keyPlanets.add(p);
+      // afflicted Mars/Moon/Mercury
+      for(const p of ["Mars","Moon","Mercury"]) if(d1P[p] && (d1P[p].dignity==="Debilitated"||[6,8,12].includes(d1P[p].house))) keyPlanets.add(p);
+    }
+    // stressors for this domain = malefics + the lords of dusthana houses relative to lagna
     const now = Date.now();
-    const rows=[];
-    let current=null;
+    const yr = (d)=> d? new Date(d).getFullYear() : null;
+    const rows=[]; const adWindows=[];
+    let current=null, currentAD=null;
     for(const md of dashas){
       const st=md.startDate?new Date(md.startDate).getTime():null;
       const en=md.endDate?new Date(md.endDate).getTime():null;
-      const yrs = (st!=null&&en!=null) ? (new Date(md.startDate).getFullYear()+"–"+new Date(md.endDate).getFullYear()) : "";
+      const yrs = (st!=null&&en!=null) ? (yr(md.startDate)+"–"+yr(md.endDate)) : "";
       const relevant = keyPlanets.has(md.lord);
-      if(st!=null&&en!=null&&now>=st&&now<en) current={lord:md.lord,years:yrs,relevant};
+      const isCurrentMD = (st!=null&&en!=null&&now>=st&&now<en);
+      if(isCurrentMD) current={lord:md.lord,years:yrs,relevant};
       if(relevant) rows.push({lord:md.lord,years:yrs,note:(md.lord===hLord?"rules your "+ordinalD(cfg.house)+" house of "+cfg.focus:md.lord===karakaPlanet?"the "+cfg.karaka+", your domain significator":"active in your "+ordinalD(cfg.house)+" house")});
+      // scan antardashas
+      if(Array.isArray(md.antarDasas)){
+        for(const ad of md.antarDasas){
+          const ast=ad.startDate?new Date(ad.startDate).getTime():null;
+          const aen=ad.endDate?new Date(ad.endDate).getTime():null;
+          const ayrs=(ast!=null&&aen!=null)?(yr(ad.startDate)+"–"+yr(ad.endDate)):"";
+          if(isCurrentMD && ast!=null&&aen!=null&&now>=ast&&now<aen) currentAD={md:md.lord,ad:ad.lord,years:ayrs};
+          // an AD is domain-significant if its lord is a domain key planet AND it's
+          // in a domain-relevant MD (the MD/AD both touch the domain = strongest).
+          if(keyPlanets.has(ad.lord) && (relevant || keyPlanets.has(md.lord))){
+            adWindows.push({ md:md.lord, ad:ad.lord, years:ayrs,
+              note:(ad.lord===hLord? ad.lord+" (your "+ordinalD(cfg.house)+"-lord) sub-period within "+md.lord+" — a concentrated window for this area"
+                    : ad.lord===karakaPlanet? ad.lord+" (the "+cfg.karaka+") sub-period within "+md.lord+" — the domain significator activates here"
+                    : ad.lord+" sub-period within "+md.lord+" — this area is stirred") });
+          }
+        }
+      }
     }
-    dashaTiming={ current, relevantPeriods:rows.slice(0,6) };
+    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:adWindows.slice(0,8) };
   }
 
   return {
