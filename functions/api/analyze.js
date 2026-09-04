@@ -2423,35 +2423,62 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   }
   if(domainKey==="health"){
     flags.healthWatch=true;
-    // Deep health read (Option C): name the STRESSED AREAS to prompt precaution &
-    // professional care — never a diagnosis. Areas map to classical significations.
     const lagLord = houseLord(d1LagnaSign, 1);
     const sixthLord = houseLord(d1LagnaSign, 6);
     const eighthLord = houseLord(d1LagnaSign, 8);
-    const asc1 = Object.entries(d1P).filter(([p,v])=>v.house===1 && p!=="Lagna").map(([p])=>p);
-    const sixth = occupantsOfHouse(d1P,6), eighth=occupantsOfHouse(d1P,8);
-    const areas=[]; const notes=[];
-    // malefic on Ascendant → constitution/vitality strain
+    const asc1 = occupantsOfHouse(d1P,1);
+    const areas=[]; const notes=[]; let cognitivePrimary=false;
+
+    // ── COGNITIVE / NERVOUS-SYSTEM axis (checked FIRST, can become the headline) ──
+    // Signals: Mercury or Moon afflicted OR prominent (Lagna/1st/5th); the Rahu-Ketu
+    // axis debilitated/afflicted (impulsiveness, over-stimulation, restlessness); a
+    // Mercury- or Moon-ruled Lagna carrying malefics.
+    const merc=d1P.Mercury, moon=d1P.Moon;
+    const mercProm = merc && [1,5].includes(merc.house);
+    const moonProm = moon && [1,5].includes(moon.house);
+    const mercAff  = merc && (merc.dignity==="Debilitated" || [6,8,12].includes(merc.house));
+    const moonAff  = moon && (moon.dignity==="Debilitated" || [6,8,12].includes(moon.house));
+    const rahu=d1P.Rahu, ketu=d1P.Ketu;
+    const nodesAfflicted = (rahu && (rahu.dignity==="Debilitated" || [1,4,5].includes(rahu.house)))
+                        || (ketu && (ketu.dignity==="Debilitated" || [1,4,5].includes(ketu.house)));
+    const mercuryLagna = ["Gemini","Virgo"].includes(d1LagnaSign);
+    const moonLagna = d1LagnaSign==="Cancer";
+    const maleficOnAsc0 = asc1.filter(p=>["Saturn","Mars","Rahu","Ketu"].includes(p));
+    const nervousConstitution = (mercuryLagna||moonLagna) && maleficOnAsc0.length>0;
+
+    const cognitiveSignals = [mercProm,moonProm,mercAff,moonAff,nodesAfflicted,nervousConstitution].filter(Boolean).length;
+    if(cognitiveSignals>=2){
+      cognitivePrimary=true;
+      areas.push("the nervous system, mind, focus, and temperament");
+      let why=[];
+      if(nodesAfflicted) why.push("the Rahu-Ketu axis is stressed (a signal linked to restlessness, impulsiveness, and over-stimulation)");
+      if(mercProm||mercAff) why.push("Mercury — the significator of the mind and nerves — is prominently or sensitively placed");
+      if(moonProm||moonAff) why.push("the Moon (emotional regulation) is under emphasis");
+      if(nervousConstitution) why.push("a "+d1LagnaSign+" Ascendant carrying malefics gives a finely-tuned but easily-stressed nervous constitution");
+      notes.push("This chart places STRONG emphasis on the mind-and-nervous-system dimension of health: "+why.join("; ")+". This is the area that most rewards proactive attention — steady routines, calm environments, sleep, focus support, and professional guidance where behaviour, attention, or temperament need it. (This is a structural tendency for extra care, never a diagnosis.)");
+    } else if(mercAff||moonAff||nodesAfflicted){
+      areas.push("nervous system, mind, and temperament");
+      notes.push("The mind-and-nerves significators carry some stress — proactive attention to mental calm, sleep, focus, and nervous-system health is worth prioritising.");
+    }
+
+    // ── constitution / vitality ──
     const maleficOnAsc = asc1.filter(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
-    if(maleficOnAsc.length){ areas.push("overall constitution and vitality"); notes.push(`${maleficOnAsc.join(", ")} on your Ascendant asks for steady attention to baseline vitality and stamina.`); }
-    // debilitated/combust stack → resilience under strain
+    if(maleficOnAsc.length){ areas.push("overall constitution and vitality"); notes.push(`${maleficOnAsc.join(", ")} on the Ascendant asks for steady attention to baseline vitality and stamina.`); }
+    // ── resilience / recovery ──
     const weak = Object.entries(d1P).filter(([p,v])=>p!=="Lagna"&&(v.dignity==="Debilitated")).map(([p])=>p);
     if(weak.length>=2){ areas.push("resilience and recovery"); notes.push(`Several planets sit under pressure (${weak.join(", ")}), which can mean the body asks for more deliberate rest and recovery than average.`); }
-    // Mars afflicted → inflammation/injury/heat; Moon/Mercury afflicted → nervous system/mind
+    // ── Mars axis (injury/inflammation) — kept but SECONDARY, single mention ──
     const marsAff = d1P.Mars && (d1P.Mars.dignity==="Debilitated" || [6,8,12].includes(d1P.Mars.house));
-    if(marsAff){ areas.push("injuries, inflammation, and heat-related tendencies"); notes.push("Mars is under strain — worth extra care around accidents, injury, inflammation, and blood-heat conditions."); }
-    const mercAff = d1P.Mercury && (d1P.Mercury.dignity==="Debilitated" || [6,8,12].includes(d1P.Mercury.house));
-    const moonAff = d1P.Moon && (d1P.Moon.dignity==="Debilitated" || [6,8,12].includes(d1P.Moon.house));
-    if(mercAff||moonAff){ areas.push("nervous system, mind, and temperament"); notes.push("The mind-and-nerves significators are stressed — proactive attention to mental calm, sleep, and nervous-system health is worth prioritising."); }
-    // 6th/8th lord condition → chronic vs acute axis
+    if(marsAff && !cognitivePrimary){ areas.push("injuries, inflammation, and physical overexertion"); notes.push("Mars is under strain — some extra care around accidents, inflammation, and overexertion is sensible."); }
+    else if(marsAff && cognitivePrimary){ areas.push("physical energy and inflammation (secondary)"); notes.push("Mars under strain adds a secondary note around physical stamina and inflammation — real, but less central than the nervous-system theme above."); }
+    // ── chronic axis ──
     if((sixthLord&&d1P[sixthLord]&&[1,8,12].includes(d1P[sixthLord].house)) || (eighthLord&&d1P[eighthLord]&&[1,6,12].includes(d1P[eighthLord].house))){
-      areas.push("chronic-tendency awareness"); notes.push("The illness-axis lords sit in sensitive houses — regular check-ups help catch slow-building or chronic tendencies early.");
+      areas.push("chronic-tendency awareness"); notes.push("The illness-axis lords sit in sensitive houses — regular check-ups help catch slow-building tendencies early.");
     }
     flags.healthAreas = areas;
     flags.healthNotes = notes;
-    flags.healthStrong = (maleficOnAsc.length>0) || (weak.length>=2) || marsAff || (mercAff&&moonAff);
-    // closest MD/AD when health is most active is added via dashaTiming.keyWindows,
-    // where keyPlanets already includes the stressed significators for health below.
+    flags.healthCognitivePrimary = cognitivePrimary;
+    flags.healthStrong = cognitivePrimary || (maleficOnAsc.length>0) || (weak.length>=2) || marsAff;
   }
   flags.domainSoulCentral=!!domainIsSoulCentral;
   flags.d9MaturationCaution=!!d9LordCaution;
