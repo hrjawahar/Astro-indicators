@@ -2303,11 +2303,68 @@ function buildVargaChart(key, d1Lons, ascLon){
   for(const[p,siv] of Object.entries(signs)){ const house=((siv-lagIdx+12)%12)+1; houses[house].push(p); placements[p]={sign:V_SIGNS[siv],house,dignity:vDig(p,V_SIGNS[siv])}; }
   return { lagnaSign:V_SIGNS[lagIdx], houses, placements };
 }
-function d1PlacementsFromDegrees(degrees, lagnaSign){
+// ── SHARED: classical affliction-severity scorer (used by ALL domains) ───────
+// Severity comes from COMPOUNDING, not single placements. A single malefic is
+// ordinary life; multiple severe factors CONVERGING is what the tradition treats
+// as serious. Returns { score, tier, factors } where tier is 'plain'|'moderate'|
+// 'strong'. Only 'strong' earns a prominent "Watch out for" in the report.
+// This prevents overfitting: common single placements stay plain; genuine
+// concentrations (like a 6th loaded with malefics + a retro-debilitated planet)
+// escalate. Each factor is a classically heavier affliction.
+function scoreDomainSeverity(d1P, houseNum, hLord, karakaPlanet, d9LordCaution, occupants, domainKey){
+  if(!d1P) return { score:0, tier:'plain', factors:[] };
+  const MAL=["Saturn","Mars","Rahu","Ketu","Sun"];
+  const factors=[]; let score=0;
+  // (1) domain house loaded with MULTIPLE malefics (cluster affliction)
+  const houseMalefics = (occupants||[]).filter(o=>MAL.includes(o.planet));
+  if(houseMalefics.length>=3){ score+=3; factors.push(`the ${houseNum}th house carries a heavy cluster of malefics (${houseMalefics.map(o=>o.planet).join(", ")})`); }
+  else if(houseMalefics.length===2){ score+=2; factors.push(`two malefics sit together in the ${houseNum}th house`); }
+  else if(houseMalefics.length===1){ score+=1; }
+  // (2) domain lord doubly/triply afflicted (retrograde AND debilitated compounds)
+  const lp = hLord? d1P[hLord] : null;
+  if(lp){
+    let lpAff=0; const lpWhy=[];
+    if(lp.dignity==="Debilitated"){ lpAff++; lpWhy.push("debilitated"); }
+    if(lp.retro){ lpAff++; lpWhy.push("retrograde"); }
+    if([6,8,12].includes(lp.house)){ lpAff++; lpWhy.push("in a house of testing"); }
+    if(lpAff>=2){ score+=2; factors.push(`the ${houseNum}th-lord ${hLord} is compounded (${lpWhy.join(" and ")})`); }
+    else if(lpAff===1){ score+=1; }
+  }
+  // (3) the domain karaka doubly afflicted
+  const kp = karakaPlanet? d1P[karakaPlanet] : null;
+  if(kp){
+    let kAff=0; const kWhy=[];
+    if(kp.dignity==="Debilitated"){ kAff++; kWhy.push("debilitated"); }
+    if(kp.retro){ kAff++; kWhy.push("retrograde"); }
+    if([6,8,12].includes(kp.house)){ kAff++; }
+    if(kAff>=2){ score+=2; factors.push(`the domain significator ${karakaPlanet} is compounded (${kWhy.join(" and ")})`); }
+    else if(kAff===1){ score+=1; }
+  }
+  // (4) the D9 maturation caution (independent chart agreeing) — a real convergence
+  if(d9LordCaution){ score+=2; factors.push("the D9 maturation chart independently flags this area"); }
+  // (5) nodes both debilitated — a real disruptor, but a GENERAL one; give it
+  //     modest weight so it colours a domain without alone making it 'strong'.
+  if(d1P.Rahu && d1P.Ketu && d1P.Rahu.dignity==="Debilitated" && d1P.Ketu.dignity==="Debilitated"){ score+=1; factors.push("the Rahu-Ketu axis is debilitated on both ends"); }
+  // (6) a malefic sitting ON the Ascendant — this is a CONSTITUTION/SELF/HEALTH
+  //     signal, so it only counts for those domains (it does not make someone's
+  //     marriage or career "severe"). Scoping prevents whole-chart affliction from
+  //     leaking into unrelated domains.
+  if(domainKey==="self" || domainKey==="health"){
+    const asc1p = occupantsOfHouse(d1P,1).filter(p=>["Saturn","Mars","Rahu","Ketu"].includes(p));
+    if(asc1p.length){ score+=1; if(asc1p.length>=2) score+=1; factors.push(`${asc1p.join(", ")} on the Ascendant places extra strain on the constitution`); }
+  }
+  // Tier thresholds: strong requires genuine convergence of severe factors.
+  let tier='plain';
+  if(score>=5) tier='strong';
+  else if(score>=3) tier='moderate';
+  return { score, tier, factors };
+}
+
+function d1PlacementsFromDegrees(degrees, lagnaSign, retroMap){
   if(!degrees||lagnaSign==null) return null;
   const lagIdx=V_SIGNS.indexOf(lagnaSign); if(lagIdx<0) return null;
   const out={};
-  for(const[p,lon] of Object.entries(degrees)){ if(lon==null)continue; const si=vSi(lon); const house=((si-lagIdx+12)%12)+1; out[p]={sign:V_SIGNS[si],house,degInSign:+vDis(lon).toFixed(1),dignity:vDig(p,V_SIGNS[si])}; }
+  for(const[p,lon] of Object.entries(degrees)){ if(lon==null)continue; const si=vSi(lon); const house=((si-lagIdx+12)%12)+1; out[p]={sign:V_SIGNS[si],house,degInSign:+vDis(lon).toFixed(1),dignity:vDig(p,V_SIGNS[si]),retro:!!(retroMap&&retroMap[p])}; }
   return out;
 }
 function houseLord(lagnaSign, houseNum){
@@ -2328,9 +2385,9 @@ const DOMAIN_REPORT_CONFIG = {
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
 };
 function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
-function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon){
+function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
-  const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign);
+  const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
   if(!d1P) return null;
   const hLord=houseLord(d1LagnaSign, cfg.house);
   const lordPlacement=hLord?d1P[hLord]:null;
@@ -2405,6 +2462,20 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   }
   flags.shift = shiftHeadline || null;
 
+  // ── Shared severity + conditional "Watch out for" (all domains) ──────────────
+  // The severity score decides whether a prominent, noticeable caution is EARNED.
+  // Only a 'strong' tier (genuine convergence of compounding factors) produces a
+  // "Watch out for" line — always framed as a hint to PREPARE, never a verdict.
+  const severity = scoreDomainSeverity(d1P, cfg.house, hLord, karakaPlanet, d9LordCaution, occupants, domainKey);
+  flags.severityTier = severity.tier;         // 'plain' | 'moderate' | 'strong'
+  flags.severityScore = severity.score;
+  flags.severityFactors = severity.factors;
+  let watchOutFor = null;
+  if(severity.tier==="strong"){
+    watchOutFor = `This area shows a genuine convergence of factors (${severity.factors.slice(0,3).join("; ")}) — worth holding with real care and preparation, not as something that will certainly go wrong, but as a part of life that rewards foresight, professional guidance where relevant, and a steady plan.`;
+  }
+  flags.watchOutFor = watchOutFor;
+
   if(domainKey==="marriage"){
     const sevOcc=occupants.map(o=>o.planet);
     const ketuIn7=sevOcc.includes("Ketu"), rahuIn7=sevOcc.includes("Rahu");
@@ -2429,36 +2500,38 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const asc1 = occupantsOfHouse(d1P,1);
     const areas=[]; const notes=[]; let cognitivePrimary=false;
 
-    // ── COGNITIVE / NERVOUS-SYSTEM axis (checked FIRST, can become the headline) ──
-    // Signals: Mercury or Moon afflicted OR prominent (Lagna/1st/5th); the Rahu-Ketu
-    // axis debilitated/afflicted (impulsiveness, over-stimulation, restlessness); a
-    // Mercury- or Moon-ruled Lagna carrying malefics.
-    const merc=d1P.Mercury, moon=d1P.Moon;
-    const mercProm = merc && [1,5].includes(merc.house);
-    const moonProm = moon && [1,5].includes(moon.house);
-    const mercAff  = merc && (merc.dignity==="Debilitated" || [6,8,12].includes(merc.house));
-    const moonAff  = moon && (moon.dignity==="Debilitated" || [6,8,12].includes(moon.house));
-    const rahu=d1P.Rahu, ketu=d1P.Ketu;
-    const nodesAfflicted = (rahu && (rahu.dignity==="Debilitated" || [1,4,5].includes(rahu.house)))
-                        || (ketu && (ketu.dignity==="Debilitated" || [1,4,5].includes(ketu.house)));
+    // ── COGNITIVE / NERVOUS-SYSTEM axis — gated by SHARED SEVERITY tier ──
+    // Only becomes the PRIMARY emphasis when the chart's overall severity is 'strong'
+    // (genuine convergence) AND real cognitive signals are present. Otherwise it is a
+    // measured note at most. This is the fix for the 51%-over-firing problem: common
+    // single placements no longer trigger a nervous-system headline.
+    const merc=d1P.Mercury, moon=d1P.Moon, rahu=d1P.Rahu, ketu=d1P.Ketu;
+    const mercDebil = merc && merc.dignity==="Debilitated";
+    const moonDebil = moon && moon.dignity==="Debilitated";
+    const mercDusthana = merc && [6,8,12].includes(merc.house);
+    const moonDusthana = moon && [6,8,12].includes(moon.house);
+    const nodeDebil = (rahu && rahu.dignity==="Debilitated") || (ketu && ketu.dignity==="Debilitated");
     const mercuryLagna = ["Gemini","Virgo"].includes(d1LagnaSign);
     const moonLagna = d1LagnaSign==="Cancer";
     const maleficOnAsc0 = asc1.filter(p=>["Saturn","Mars","Rahu","Ketu"].includes(p));
     const nervousConstitution = (mercuryLagna||moonLagna) && maleficOnAsc0.length>0;
+    // real cognitive signals (each a genuine affliction, not a common placement)
+    const cogSignals = [mercDebil, moonDebil, nodeDebil, (nervousConstitution && (mercDusthana||moonDusthana||nodeDebil)), (mercDusthana&&moonDusthana)].filter(Boolean).length;
 
-    const cognitiveSignals = [mercProm,moonProm,mercAff,moonAff,nodesAfflicted,nervousConstitution].filter(Boolean).length;
-    if(cognitiveSignals>=2){
+    // PRIMARY only when overall severity is strong AND cognitive signals genuinely converge
+    if(severity.tier==="strong" && cogSignals>=2){
       cognitivePrimary=true;
       areas.push("the nervous system, mind, focus, and temperament");
       let why=[];
-      if(nodesAfflicted) why.push("the Rahu-Ketu axis is stressed (a signal linked to restlessness, impulsiveness, and over-stimulation)");
-      if(mercProm||mercAff) why.push("Mercury — the significator of the mind and nerves — is prominently or sensitively placed");
-      if(moonProm||moonAff) why.push("the Moon (emotional regulation) is under emphasis");
-      if(nervousConstitution) why.push("a "+d1LagnaSign+" Ascendant carrying malefics gives a finely-tuned but easily-stressed nervous constitution");
-      notes.push("This chart places STRONG emphasis on the mind-and-nervous-system dimension of health: "+why.join("; ")+". This is the area that most rewards proactive attention — steady routines, calm environments, sleep, focus support, and professional guidance where behaviour, attention, or temperament need it. (This is a structural tendency for extra care, never a diagnosis.)");
-    } else if(mercAff||moonAff||nodesAfflicted){
-      areas.push("nervous system, mind, and temperament");
-      notes.push("The mind-and-nerves significators carry some stress — proactive attention to mental calm, sleep, focus, and nervous-system health is worth prioritising.");
+      if(nodeDebil) why.push("the Rahu-Ketu axis is debilitated (a signal linked to restlessness, impulsiveness, and over-stimulation)");
+      if(mercDebil||mercDusthana) why.push("Mercury — the significator of the mind and nerves — is sensitively placed");
+      if(moonDebil||moonDusthana) why.push("the Moon (emotional regulation) is under emphasis");
+      if(nervousConstitution) why.push("a "+d1LagnaSign+" Ascendant carrying malefics gives a finely-tuned, easily-stressed nervous constitution");
+      notes.push("This chart places STRONG emphasis on the mind-and-nervous-system dimension of wellbeing: "+why.join("; ")+". This is the area that most rewards proactive attention — steady routines, calm environments, sleep, focus support, and professional guidance where behaviour, attention, or temperament need it. (A structural tendency for extra care, never a diagnosis.)");
+    } else if(cogSignals>=1 && (mercDebil||moonDebil||nodeDebil)){
+      // measured, secondary note only
+      areas.push("nervous system, mind, and rest");
+      notes.push("The mind-and-nerves significators carry some stress — steady sleep, mental calm, and focus support are worth prioritising.");
     }
 
     // ── constitution / vitality ──
@@ -2553,6 +2626,11 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       }
     }
     dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:adWindows.slice(0,8) };
+    // now that timing exists, enrich the watch-out-for with the nearest key window
+    if(flags.watchOutFor && dashaTiming.keyWindows && dashaTiming.keyWindows[0]){
+      const w=dashaTiming.keyWindows[0];
+      flags.watchOutFor += ` This is most worth attention around the ${w.years} window (the ${w.ad} sub-period within ${w.md}).`;
+    }
   }
 
   return {
@@ -2642,7 +2720,7 @@ export async function onRequestPost(context) {
         if (li >= 0) ascLon = li * 30 + 15; // last-resort fallback
       }
       for (const key of Object.keys(DOMAIN_REPORT_CONFIG)) {
-        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon);
+        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null));
       }
     }
 
