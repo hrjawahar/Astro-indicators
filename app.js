@@ -663,7 +663,7 @@ async function generate() {
     genText.innerHTML = `<span class="spinner"></span>Analyzing domains...`;
 
     const analysisPayload = {
-      d1: { lagnaSign: chartData.d1.lagnaSign, lagnaDegree: chartData.d1.lagnaDegree, houses: chartData.d1.houses, degrees: chartData.d1.degrees, latitudes: chartData.d1.latitudes },
+      d1: { lagnaSign: chartData.d1.lagnaSign, lagnaDegree: chartData.d1.lagnaDegree, houses: chartData.d1.houses, degrees: chartData.d1.degrees, latitudes: chartData.d1.latitudes, retro: chartData.d1.retro },
       d9: { lagnaSign: chartData.d9.lagnaSign, houses: chartData.d9.houses, degrees: chartData.d9.degrees, latitudes: chartData.d9.latitudes || {} },
       dashas:    chartData.dasha?.dashas    || null,
       birthDate: form.dob                  || null,
