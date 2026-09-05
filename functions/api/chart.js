@@ -807,6 +807,10 @@ export async function onRequestPost(context) {
     const latitudes = {};
     for (const p of PLANET_LIST) latitudes[p] = sidPositions[p].latitude;
 
+    // Retrograde map (analyze.js severity scoring reads this).
+    const retro = {};
+    for (const p of PLANET_LIST) retro[p] = !!(planets[p] && planets[p].retrograde);
+
     return Response.json({
       success: true,
       input: { name, dob, tob, place: geo.displayName, lat: geo.lat, lng: geo.lng, utcOffset: utcOff },
@@ -816,7 +820,8 @@ export async function onRequestPost(context) {
         lagnaDegree: Math.round(lagnaDeg * 100) / 100,
         houses: d1Houses,
         degrees,
-        latitudes
+        latitudes,
+        retro
       },
       d9: {
         lagnaSign: d9Data.lagnaSign,
