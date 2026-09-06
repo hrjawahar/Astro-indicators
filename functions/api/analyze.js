@@ -2385,6 +2385,22 @@ const DOMAIN_REPORT_CONFIG = {
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
 };
 function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+// Dusthana flavour — standard Parashari house significations (6/8/12). Each names
+// the difficulty AND its constructive dimension (our wellbeing framing). Applied to
+// domain-relevant planets (lord, karaka, domain-house occupants) sitting in a
+// dusthana. Descriptive only — does NOT affect severity scoring.
+const DUSTHANA_FLAVOUR = {
+  6:  { theme:"obstacles, competition, daily struggle, and service", constructive:"this is a placement that builds resilience and problem-solving strength — progress here comes through effort and outlasting resistance, and can be genuinely productive", short:"struggle-but-productive" },
+  8:  { theme:"transformation, sudden change, hidden or research-oriented work, and depth", constructive:"this is not weakness but depth — mastery here comes through upheaval, reinvention, and working beneath the surface rather than on the visible stage", short:"transformation/upheaval" },
+  12: { theme:"loss, withdrawal, foreign or behind-the-scenes settings, and letting go", constructive:"this turns inward or outward-to-the-distant — strength here is found in solitude, spirituality, foreign or institutional settings, and releasing rather than grasping", short:"withdrawal/letting-go" }
+};
+function dusthanaReading(planet, placement, roleLabel){
+  if(!placement || ![6,8,12].includes(placement.house)) return null;
+  const f = DUSTHANA_FLAVOUR[placement.house];
+  return { planet, role:roleLabel, house:placement.house,
+    reading:`${planet}${roleLabel?" ("+roleLabel+")":""} sits in the ${ordinalD(placement.house)} house — bringing ${f.theme}. ${f.constructive}.`,
+    short:f.short };
+}
 function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
@@ -2467,6 +2483,22 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // Only a 'strong' tier (genuine convergence of compounding factors) produces a
   // "Watch out for" line — always framed as a hint to PREPARE, never a verdict.
   const severity = scoreDomainSeverity(d1P, cfg.house, hLord, karakaPlanet, d9LordCaution, occupants, domainKey);
+
+  // Dusthana flavours (descriptive, classically grounded) for the domain-relevant
+  // planets. The TONE of how these are presented is driven by severity.tier below
+  // (plain = calm/descriptive; strong = noticeable caution) — so a single lord in a
+  // dusthana reads calmly, while a dusthana PLUS other compounding factors reads
+  // with more weight. This does not change severity scoring — only description.
+  const dusthanaReadings = [];
+  const seenD = new Set();
+  const addDusthana = (planet, roleLabel) => {
+    if(!planet || seenD.has(planet)) return;
+    const r = dusthanaReading(planet, d1P[planet], roleLabel);
+    if(r){ dusthanaReadings.push(r); seenD.add(planet); }
+  };
+  addDusthana(hLord, ordinalD(cfg.house)+"-lord");
+  addDusthana(karakaPlanet, cfg.karaka);
+  for(const o of occupants){ addDusthana(o.planet, "in your "+ordinalD(cfg.house)+" house"); }
   flags.severityTier = severity.tier;         // 'plain' | 'moderate' | 'strong'
   flags.severityScore = severity.score;
   flags.severityFactors = severity.factors;
@@ -2597,7 +2629,22 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // stressors for this domain = malefics + the lords of dusthana houses relative to lagna
     const now = Date.now();
     const yr = (d)=> d? new Date(d).getFullYear() : null;
-    const rows=[]; const adWindows=[];
+    // A planet is a "domain stressor" (its AD was likely a testing window) if it is:
+    //  - the domain house-lord PLACED IN a dusthana (6/8/12) — e.g. 10th-lord in 8th
+    //  - a dusthana (6th/8th/12th) lord relative to the lagna
+    //  - debilitated, or a malefic occupying the domain house
+    const dusthanaLords = new Set([houseLord(d1LagnaSign,6), houseLord(d1LagnaSign,8), houseLord(d1LagnaSign,12)].filter(Boolean));
+    const domainHouseMalefics = new Set((occupants||[]).filter(o=>["Saturn","Mars","Rahu","Ketu"].includes(o.planet)).map(o=>o.planet));
+    function isStressor(planet){
+      if(!planet) return false;
+      const pp=d1P[planet];
+      if(hLord===planet && pp && [6,8,12].includes(pp.house)) return true; // domain-lord in dusthana
+      if(dusthanaLords.has(planet)) return true;
+      if(pp && pp.dignity==="Debilitated") return true;
+      if(domainHouseMalefics.has(planet)) return true;
+      return false;
+    }
+    const rows=[]; const adWindows=[]; const pastWindows=[];
     let current=null, currentAD=null;
     for(const md of dashas){
       const st=md.startDate?new Date(md.startDate).getTime():null;
@@ -2622,10 +2669,17 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
                     : ad.lord===karakaPlanet? ad.lord+" (the "+cfg.karaka+") sub-period within "+md.lord+" — the domain significator activates here"
                     : ad.lord+" sub-period within "+md.lord+" — this area is stirred") });
           }
+          // RETROSPECTIVE (read-only): within the CURRENT MD, a PAST sub-period whose
+          // lord is a genuine domain stressor was likely a testing window. This gives
+          // the reader recognisable confirmation ("yes, that hard patch was then").
+          if(isCurrentMD && aen!=null && aen<now && isStressor(ad.lord)){
+            pastWindows.push({ md:md.lord, ad:ad.lord, years:ayrs,
+              note: ad.lord+" sub-period within "+md.lord+" — a period when "+cfg.focus+" was likely tested, stirred, or under pressure" });
+          }
         }
       }
     }
-    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:adWindows.slice(0,8) };
+    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:adWindows.slice(0,8), pastWindows:pastWindows.slice(0,4) };
     // now that timing exists, enrich the watch-out-for with the nearest key window
     if(flags.watchOutFor && dashaTiming.keyWindows && dashaTiming.keyWindows[0]){
       const w=dashaTiming.keyWindows[0];
@@ -2638,7 +2692,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
     d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
-    vargaChart, convergences, flags, neechaBhanga, dashaTiming
+    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings
   };
 }
 
