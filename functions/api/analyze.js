@@ -2661,10 +2661,14 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
           const aen=ad.endDate?new Date(ad.endDate).getTime():null;
           const ayrs=(ast!=null&&aen!=null)?(yr(ad.startDate)+"–"+yr(ad.endDate)):"";
           if(isCurrentMD && ast!=null&&aen!=null&&now>=ast&&now<aen) currentAD={md:md.lord,ad:ad.lord,years:ayrs};
-          // an AD is domain-significant if its lord is a domain key planet AND it's
-          // in a domain-relevant MD (the MD/AD both touch the domain = strongest).
-          if(keyPlanets.has(ad.lord) && (relevant || keyPlanets.has(md.lord))){
-            adWindows.push({ md:md.lord, ad:ad.lord, years:ayrs,
+          // an AD is domain-significant if its lord activates this domain — the
+          // AD lord is a domain key planet OR a domain stressor. (Previously this
+          // also required the MD to be domain-relevant, which MISSED a critical AD
+          // like the 10th-lord's sub-period inside an unrelated MD. Now aligned with
+          // the retrospective logic so forward and backward are consistent.)
+          if(keyPlanets.has(ad.lord) || isStressor(ad.lord)){
+            const upcoming = (ast!=null && ast>=now);
+            adWindows.push({ md:md.lord, ad:ad.lord, years:ayrs, upcoming,
               note:(ad.lord===hLord? ad.lord+" (your "+ordinalD(cfg.house)+"-lord) sub-period within "+md.lord+" — a concentrated window for this area"
                     : ad.lord===karakaPlanet? ad.lord+" (the "+cfg.karaka+") sub-period within "+md.lord+" — the domain significator activates here"
                     : ad.lord+" sub-period within "+md.lord+" — this area is stirred") });
