@@ -2478,6 +2478,14 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   }
   flags.shift = shiftHeadline || null;
 
+  // Disruption signature: the domain lord OR karaka sitting in the 8th house is the
+  // classical "periodic disruption and reinvention" pattern. When present, the report
+  // should NAME it as 'disruption' explicitly (intensity still tier-appropriate).
+  const eighthPlanets = [];
+  if(hLord && d1P[hLord] && d1P[hLord].house===8) eighthPlanets.push(hLord);
+  if(karakaPlanet && d1P[karakaPlanet] && d1P[karakaPlanet].house===8 && !eighthPlanets.includes(karakaPlanet)) eighthPlanets.push(karakaPlanet);
+  flags.disruptionSignature = eighthPlanets.length ? eighthPlanets : null;
+
   // ── Shared severity + conditional "Watch out for" (all domains) ──────────────
   // The severity score decides whether a prominent, noticeable caution is EARNED.
   // Only a 'strong' tier (genuine convergence of compounding factors) produces a
