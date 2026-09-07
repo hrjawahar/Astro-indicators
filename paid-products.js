@@ -689,19 +689,25 @@
       // and renders **bold** spans in a bold weight for emphasis.
       const bodyBlock=(t,size,gap)=>{
         const paras = String(t||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
-        paras.forEach(pg=>{
-          // handle inline **bold**: render segments
+        paras.forEach((pg,pi)=>{
           const parts = pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
           doc.setFontSize(size);
-          // For simplicity of wrapping with mixed weight, if the paragraph has bold
-          // markers we render it line-by-line detecting bold; else plain justified-left.
           if (parts.length>1) {
-            // rebuild plain text, then bold whole paragraph if it is fully wrapped in **…**
             const plain = pg.replace(/\*\*/g,"");
             const fullyBold = /^\*\*[^*]+\*\*$/.test(pg);
             doc.setFont("helvetica", fullyBold?"bold":"normal");
             doc.setTextColor(...(fullyBold?HL:INK));
-            const L=doc.splitTextToSize(plain,W-M*2); kbreak(L.length*(size+2.5)+8);
+            const L=doc.splitTextToSize(plain,W-M*2);
+            // A fully-bold line is a SUB-HEADING (e.g. **Now**). Reserve room for it
+            // PLUS the first lines of the paragraph that follows, so it never sits
+            // alone at the bottom of a page with its content flowing over.
+            let need = L.length*(size+2.5)+8;
+            if (fullyBold && paras[pi+1]) {
+              const nextPlain = paras[pi+1].replace(/\*\*/g,"");
+              const nextL = doc.splitTextToSize(nextPlain, W-M*2);
+              need += Math.min(3, nextL.length)*(size+2.5) + 6;
+            }
+            kbreak(need);
             doc.text(L,M,y); y+=L.length*(size+2.5)+8;
           } else {
             doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
