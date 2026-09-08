@@ -2486,6 +2486,22 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   if(karakaPlanet && d1P[karakaPlanet] && d1P[karakaPlanet].house===8 && !eighthPlanets.includes(karakaPlanet)) eighthPlanets.push(karakaPlanet);
   flags.disruptionSignature = eighthPlanets.length ? eighthPlanets : null;
 
+  // ── Age-awareness (marriage / career / children read differently for a minor) ──
+  // Compute the native's current age; for the "adult-life" domains, a native under
+  // 21 gets FUTURE-oriented framing (this area is not yet lived) and the timing is
+  // indicated in real terms only from age 21 onward. Health frames only its long-term
+  // cautions as future; self/siblings/mother are unchanged (active from childhood).
+  const AGE_SENSITIVE = { marriage:21, career:21, children:21 };
+  let currentAge = null;
+  try { const b=new Date(birthDate); if(!isNaN(b.getTime())) currentAge = Math.floor((Date.now()-b)/(365.25*24*3600*1000)); } catch(_){}
+  flags.currentAge = currentAge;
+  const realTermAge = AGE_SENSITIVE[domainKey] || null;
+  flags.ageSensitive = !!realTermAge;
+  flags.realTermAge = realTermAge;
+  // isMinorForDomain = under the real-term age for an age-sensitive domain
+  flags.isMinorForDomain = (realTermAge!=null && currentAge!=null && currentAge < realTermAge);
+  flags.healthLongTermFuture = (domainKey==="health" && currentAge!=null && currentAge < 18);
+
   // ── Shared severity + conditional "Watch out for" (all domains) ──────────────
   // The severity score decides whether a prominent, noticeable caution is EARNED.
   // Only a 'strong' tier (genuine convergence of compounding factors) produces a
@@ -2691,7 +2707,17 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         }
       }
     }
-    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:adWindows.slice(0,8), pastWindows:pastWindows.slice(0,4) };
+    // Age-gate: for age-sensitive domains (marriage/career/children), a window is
+    // only meaningful once the native reaches the real-term age. Compute the calendar
+    // year the native turns realTermAge, and drop windows that end before it — a
+    // relationship/career "activation" at age 2 is not a real-life event.
+    let realTermYear = null;
+    if(realTermAge!=null && birthDate){ try{ realTermYear = new Date(birthDate).getFullYear() + realTermAge; }catch(_){}}
+    const yearOfEnd = (yrs)=>{ if(!yrs) return null; const m=String(yrs).match(/(\d{4})\s*$/); return m?parseInt(m[1],10):null; };
+    const ageGate = (w)=>{ if(realTermYear==null) return true; const ey=yearOfEnd(w.years); return ey==null || ey>=realTermYear; };
+    const kw = adWindows.filter(ageGate).slice(0,8);
+    const pw = pastWindows.filter(ageGate).slice(0,4);
+    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, realTermAge, realTermYear };
     // now that timing exists, enrich the watch-out-for with the nearest key window
     if(flags.watchOutFor && dashaTiming.keyWindows && dashaTiming.keyWindows[0]){
       const w=dashaTiming.keyWindows[0];
