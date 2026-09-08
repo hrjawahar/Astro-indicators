@@ -120,6 +120,26 @@
     if(word) word.onclick = ()=>{ if(menu)menu.style.display="none"; onWord(); };
     document.addEventListener("click", ()=>{ if(menu) menu.style.display="none"; });
   }
+  // Convert LAMP's module-format sections+facts into {heading,body} for Word export.
+  function lampSectionsToWord(sections, facts){
+    const out = [];
+    let lastCat = null;
+    for(const sec of (sections||[])){
+      const f = byId(facts, sec.module_id); if(!f) continue;
+      const cat = (typeof CATEGORY_LABEL!=="undefined" && CATEGORY_LABEL[f.category]) || f.category || "";
+      if(cat && cat!==lastCat){ out.push({ _divider:true, heading:cat }); lastCat=cat; }
+      let body = String(sec.narrative||"");
+      const meta = [];
+      if(f.band) meta.push(String(f.band).replace(/_/g," "));
+      if(f.confidence!=null) meta.push(f.confidence+"% confidence");
+      if(meta.length) body = "("+meta.join(" · ")+")\n\n"+body;
+      const win = f.timing_windows && f.timing_windows[0];
+      if(win){ try{ body += "\n\nTiming — "+(win.label||"")+": "+fmtWin(win); }catch(_){}}
+      out.push({ heading: sec.heading||"", body });
+    }
+    return out;
+  }
+
   function downloadDropdownHTML(){
     return `<div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word <span class="dl-sub">(for translation)</span></button></div></div>`;
   }
@@ -1015,11 +1035,14 @@
         <button class="fb-nav" id="fbNext">›</button></div>
       <div class="hint">Swipe, use ← → keys, or tap the dots</div>
       <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
-        <button id="fbPdf" class="pp-pay">Download PDF</button></div>`;
+        ${downloadDropdownHTML()}</div>`;
 
     bindBook();
     bookRender();
-    $("fbPdf").onclick = () => exportPDF(sections, facts);
+    wireDownloadDropdown(
+      ()=>exportPDF(sections, facts),
+      ()=>exportWordDoc("AstroIndicators_LifeIndicators_"+(((cd&&cd.form&&cd.form.name)||"report").replace(/[^a-z0-9]/gi,"_")), "Life Analysis & Mapping Profile — LAMP", "Your personalized life blueprint", lampSectionsToWord(sections, facts))
+    );
     const fsBtn = $("fbFull");
     if (fsBtn) fsBtn.onclick = () => {
       const box = $("liBook");
