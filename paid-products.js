@@ -89,6 +89,41 @@
   }
   const byId = (facts, id) => facts.find(f => f.module_id === id);
 
+  // ── Word (.doc) export: HTML-as-doc, opens in Word/Google Docs, editable for
+  //    translation. Zero dependencies. ──
+  function esc4doc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function exportWordDoc(fileBase, title, subtitle, sections){
+    try{
+      const f0 = (window.currentData && window.currentData.form) || {};
+      const cc = clientCode();
+      const bodyHtml = (sections||[]).map(sec=>{
+        if(sec._divider){ return `<h1 style="color:#8a6d1f;border-bottom:2px solid #c9a84c;padding-bottom:4px;margin-top:28px">${esc4doc(sec.heading||"")}</h1>`; }
+        const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(p=>{
+          const html = esc4doc(p).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+          return `<p style="margin:0 0 10px;line-height:1.5;text-align:left">${html}</p>`;
+        }).join("");
+        return `<h2 style="color:#b0821f;margin:18px 0 8px">${esc4doc(sec.heading||"")}</h2>${paras}`;
+      }).join("");
+      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
+      const blob = new Blob(["\ufeff"+doc], {type:"application/msword"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href=url; a.download=fileBase+".doc";
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 4000);
+    }catch(e){ alert("Sorry \u2014 the Word file could not be generated. Please try the PDF instead."); }
+  }
+  function wireDownloadDropdown(onPdf, onWord){
+    const btn = $("dlBtn"), menu = $("dlMenu");
+    if(btn) btn.onclick = (e)=>{ e.stopPropagation(); if(menu) menu.style.display = (menu.style.display==="block"?"none":"block"); };
+    const pdf = $("dlPdf"), word = $("dlWord");
+    if(pdf) pdf.onclick = ()=>{ if(menu)menu.style.display="none"; onPdf(); };
+    if(word) word.onclick = ()=>{ if(menu)menu.style.display="none"; onWord(); };
+    document.addEventListener("click", ()=>{ if(menu) menu.style.display="none"; });
+  }
+  function downloadDropdownHTML(){
+    return `<div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word <span class="dl-sub">(for translation)</span></button></div></div>`;
+  }
+
 
   // ── personalization strip: proves the reading is keyed to THEIR birth data ──
   function fmtDOB(dob, tob) {
@@ -510,9 +545,9 @@
         <button class="fb-nav" id="fbNext">›</button></div>
       <div class="hint">Swipe, use ← → keys, or tap the dots</div>
       <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
-        <button id="fbPdf" class="pp-pay">Download PDF</button></div>`;
+        ${downloadDropdownHTML()}</div>`;
     bindBook(); bookRender();
-    $("fbPdf").onclick = () => exportAllDomainsPDF(combined);
+    wireDownloadDropdown(()=>exportAllDomainsPDF(combined), ()=>exportWordDoc("AstroIndicators_AllDomains_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), "Complete Life Domains — Seven Blueprints", "", combined));
     const fsBtn = $("fbFull");
     if (fsBtn) fsBtn.onclick = () => {
       const box = $("domainReport"); if (!box) return;
@@ -660,10 +695,10 @@
         <button class="fb-nav" id="fbNext">›</button></div>
       <div class="hint">Swipe, use ← → keys, or tap the dots</div>
       <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
-        <button id="fbPdf" class="pp-pay">Download PDF</button></div>`;
+        ${downloadDropdownHTML()}</div>`;
     bindBook();
     bookRender();
-    $("fbPdf").onclick = () => exportDomainPDF(domainKey, sections);
+    wireDownloadDropdown(()=>exportDomainPDF(domainKey, sections), ()=>exportWordDoc("AstroIndicators_"+domainKey+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), (DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint", "A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||""), sections));
     const fsBtn = $("fbFull");
     if (fsBtn) fsBtn.onclick = () => {
       const box = $("domainReport"); if (!box) return;
