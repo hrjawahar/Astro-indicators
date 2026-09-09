@@ -96,6 +96,11 @@
     try{
       const f0 = (window.currentData && window.currentData.form) || {};
       const cc = clientCode();
+      const noteHtml = `<div style="background:#fbf6e6;border:1px solid #e2cf8f;border-radius:8px;padding:12px 14px;margin:14px 0">
+        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f">${esc4doc(READ_NOTE_TITLE)} <span style="color:#c0392b">${esc4doc(READ_NOTE_TAG)}</span></p>
+        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f;font-size:10.5pt">${esc4doc(READ_NOTE_OPENER)}</p>
+        ${READ_NOTE_LINES.map(l=>`<p style="margin:0 0 7px;line-height:1.45;font-size:10.5pt">${esc4doc(l)}</p>`).join("")}
+      </div>`;
       const bodyHtml = (sections||[]).map(sec=>{
         if(sec._divider){ return `<h1 style="color:#8a6d1f;border-bottom:2px solid #c9a84c;padding-bottom:4px;margin-top:28px">${esc4doc(sec.heading||"")}</h1>`; }
         const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(p=>{
@@ -104,7 +109,7 @@
         }).join("");
         return `<h2 style="color:#b0821f;margin:18px 0 8px">${esc4doc(sec.heading||"")}</h2>${paras}`;
       }).join("");
-      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
+      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
       const blob = new Blob(["\ufeff"+doc], {type:"application/msword"});
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href=url; a.download=fileBase+".doc";
@@ -140,8 +145,45 @@
     return out;
   }
 
+  // Shared "how to read + translate" note — placed at the start of every report
+  // (flipbook, PDF, Word, LAMP) to lower the barrier for non-astrology readers.
+  const READ_NOTE_TITLE = "How to read this report";
+  const READ_NOTE_TAG = "(Important)";
+  const READ_NOTE_OPENER = "No knowledge in astrology is your worry? Cool — we thought of you. Please follow this short guideline, prepared to address exactly that apprehension.";
+  const READ_NOTE_LINES = [
+    "This is a detailed Vedic analysis and it uses some traditional terms (planets, houses, and charts like D1, D9, D10). You do NOT need to understand every technical word to get the value from it.",
+    "First pass: read only the plain-language sections — 'What This Means For You', 'Timing', and 'The Bottom Line'. These carry the core insight.",
+    "Second pass: if you're curious, revisit the detailed sections — they show why the conclusions hold.",
+    "Take your time. This isn't a one-read document; the insights land more deeply when you return to it over days, alongside your own life experience.",
+    "The convergences (where two charts independently agree) are the most reliable signals — those are worth trusting most.",
+    "Prefer your own language? Download this report as WORD, then open translate.google.com, choose 'Documents', and upload the file — Google translates the whole report and gives you a copy to download in your language, with no copy-pasting. (Tested — it works beautifully.)",
+    "This report is a mirror for reflection, not a verdict. Read it gently."
+  ];
+
+  function readNotePage(pnum){
+    // Flipbook page has a fixed height — use a tightened version of the note here;
+    // the PDF and Word carry the full note (they have flowing pages).
+    const shortLines = [
+      "This is a detailed Vedic analysis with some traditional terms (planets, houses, D1/D9/D10). You do NOT need to understand every word to get the value.",
+      "First pass: read the plain-language parts — 'What This Means For You', 'Timing', 'The Bottom Line'. Second pass: revisit the detail for the 'why'.",
+      "Take your time — it deepens as you return to it over days.",
+      "Prefer your own language? Download as WORD, then upload it at translate.google.com → Documents — Google returns a translated copy, no copy-pasting.",
+      "A mirror for reflection, not a verdict. Read it gently."
+    ];
+    return `<div class="pg"><div class="kick">How to Read This</div><div class="rule"></div>
+      <h2 style="font-size:1.1rem">${esc(READ_NOTE_TITLE)} <span style="color:#c0392b;font-size:.8em">${esc(READ_NOTE_TAG)}</span></h2>
+      <div class="bd" style="font-size:.82rem;line-height:1.45">
+        <p style="margin:0 0 8px;font-weight:600;color:#8a6d1f">${esc(READ_NOTE_OPENER)}</p>
+        ${shortLines.map(l=>`<p style="margin:0 0 6px">${esc(l)}</p>`).join("")}
+      </div>
+      <span class="pnum">${pnum}</span></div>`;
+  }
+
   function downloadDropdownHTML(){
-    return `<div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word <span class="dl-sub">(for translation)</span></button></div></div>`;
+    return `<div style="text-align:center">
+      <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word <span class="dl-sub">(for translation)</span></button></div></div>
+      <div class="dl-tip">💡 Tip: download as <b>Word</b>, then upload it to <b>translate.google.com → Documents</b> to read in your own language.</div>
+    </div>`;
   }
 
 
@@ -644,8 +686,9 @@
         ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
       </ul>
       <span class="pnum">2</span></div>`);
+    P.push(readNotePage(3));
     const cmp = domainComparisonPage(domainKey, 0);
-    let n = 3;
+    let n = 4;
     const PAGE_BUDGET = 1050;   // chars a single page comfortably holds
     const emitSection = (sec) => {
       const heading = esc(sec.heading||"");
@@ -793,7 +836,24 @@
       doc.text(title, M, y); y+=20;
       doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
       doc.text((fmtDOB(f0.dob,f0.tob)||"") + "  ·  " + (f0.place||""), M, y); y+=8;
-      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=22;
+      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=18;
+      // How-to-read note box
+      (function(){
+        doc.setFillColor(251,246,230); doc.setDrawColor(226,207,143);
+        const noteLines=[];
+        doc.setFontSize(9.5);
+        doc.splitTextToSize(READ_NOTE_OPENER, W-M*2-16).forEach(x=>noteLines.push({t:x,b:true})); noteLines.push({t:""});
+        for(const l of READ_NOTE_LINES){ doc.splitTextToSize(l, W-M*2-16).forEach(x=>noteLines.push({t:x})); noteLines.push({t:""}); }
+        const boxH = 22 + noteLines.length*11;
+        if(y+boxH>H-M) newPage();
+        doc.roundedRect(M, y, W-M*2, boxH, 4,4, "FD");
+        let ny=y+15; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(138,109,31);
+        doc.text(READ_NOTE_TITLE+"  ", M+8, ny);
+        const tw=doc.getTextWidth(READ_NOTE_TITLE+"  ");
+        doc.setTextColor(192,57,43); doc.text(READ_NOTE_TAG, M+8+tw, ny); ny+=14;
+        for(const ln of noteLines){ if(ln.t){ doc.setFont("helvetica",ln.b?"bold":"normal"); doc.setTextColor(ln.b?138:70, ln.b?109:70, ln.b?31:70); doc.setFontSize(9.5); doc.text(ln.t, M+8, ny); } ny+=11; }
+        y += boxH + 14;
+      })();
       // Comparison table renderer (called AFTER the first/context section)
       const drawComparison = () => {
         try {
@@ -1156,6 +1216,9 @@
         you connect the dots yourself. Our hope is that it helps you <b>relax, reflect, and rejuvenate</b>,
         and begin to meet your questions with understanding.</p>
         <p style="text-align:center;font-style:italic">Happy reading. We'll meet you again at the end.</p>
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(201,168,76,.10);border:1px solid rgba(201,168,76,.4);border-radius:8px;font-size:.82rem">
+          <b>How to read this:</b> you don't need to know astrology to get the value. On a first pass, read the plain-language parts and let the technical detail wash over you; return to it over days — it deepens with re-reading. <b>Prefer your own language?</b> Download this report as <b>Word</b>, then open <b>translate.google.com → Documents</b> and upload the file — Google returns a translated copy to download, no copy-pasting.
+        </div>
       </div>
       <span class="pnum">${pnum}</span></div>`;
   }
