@@ -165,16 +165,15 @@
     // the PDF and Word carry the full note (they have flowing pages).
     const shortLines = [
       "This is a detailed Vedic analysis with some traditional terms (planets, houses, D1/D9/D10). You do NOT need to understand every word to get the value.",
-      "First pass: read the plain-language parts — 'What This Means For You', 'Timing', 'The Bottom Line'. Second pass: revisit the detail for the 'why'.",
-      "Take your time — it deepens as you return to it over days.",
+      "First pass: read the plain-language parts — 'What This Means For You', 'Timing', 'The Bottom Line'. Second pass: revisit the detail for the 'why'. Take your time — it deepens as you return to it.",
       "Prefer your own language? Download as WORD, then upload it at translate.google.com → Documents — Google returns a translated copy, no copy-pasting.",
       "A mirror for reflection, not a verdict. Read it gently."
     ];
     return `<div class="pg"><div class="kick">How to Read This</div><div class="rule"></div>
-      <h2 style="font-size:1.1rem">${esc(READ_NOTE_TITLE)} <span style="color:#c0392b;font-size:.8em">${esc(READ_NOTE_TAG)}</span></h2>
-      <div class="bd" style="font-size:.82rem;line-height:1.45">
-        <p style="margin:0 0 8px;font-weight:600;color:#8a6d1f">${esc(READ_NOTE_OPENER)}</p>
-        ${shortLines.map(l=>`<p style="margin:0 0 6px">${esc(l)}</p>`).join("")}
+      <h2 style="font-size:1.28rem">${esc(READ_NOTE_TITLE)} <span style="color:#c0392b;font-size:.78em">${esc(READ_NOTE_TAG)}</span></h2>
+      <div class="bd" style="font-size:.95rem;line-height:1.6">
+        <p style="margin:0 0 10px;font-weight:600;color:#8a6d1f;font-size:1rem">${esc(READ_NOTE_OPENER)}</p>
+        ${shortLines.map(l=>`<p style="margin:0 0 9px">${esc(l)}</p>`).join("")}
       </div>
       <span class="pnum">${pnum}</span></div>`;
   }
