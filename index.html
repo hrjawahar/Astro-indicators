@@ -301,8 +301,9 @@
   .dots { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:60%; }
   .dots .dot { width:7px; height:7px; border-radius:50%; background:rgba(201,164,76,.32); cursor:pointer; }
   .dots .dot.on { background:var(--ai-gold); transform:scale(1.25); }
-  .fb-dlbar { display:flex !important; justify-content:center; gap:14px; margin:14px 0 30px; flex-wrap:wrap; }
+  .fb-dlbar { display:flex !important; justify-content:center; align-items:flex-start; gap:16px; margin:14px 0 24px; flex-wrap:wrap; }
   #domainReport .fb-dlbar, #liBook .fb-dlbar { position:relative; z-index:5; }
+  .fb-dlbar #fbFull { align-self:flex-start; height:auto; }
   .dl-wrap { position:relative; display:inline-block; }
   .dl-menu { display:none; position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
     background:#0F1024; border:1px solid rgba(201,168,76,.5); border-radius:10px; padding:6px;
