@@ -616,6 +616,13 @@
       if (document.fullscreenElement) { document.exitFullscreen(); return; }
       if (box.requestFullscreen) { box.classList.add("fb-fs"); box.requestFullscreen().catch(()=>{}); }
     };
+    if (!window._aiDomFsBound) { window._aiDomFsBound = true;
+      document.addEventListener("fullscreenchange", () => {
+        const box = $("domainReport"); if (!box) return;
+        if (!document.fullscreenElement) box.classList.remove("fb-fs");
+        try { bookRender(); } catch(e){}
+      });
+    }
   }
 
   function exportAllDomainsPDF(combined) {
@@ -768,6 +775,13 @@
       if (document.fullscreenElement) { document.exitFullscreen(); return; }
       if (box.requestFullscreen) { box.classList.add("fb-fs"); box.requestFullscreen().catch(()=>{}); }
     };
+    if (!window._aiDomFsBound) { window._aiDomFsBound = true;
+      document.addEventListener("fullscreenchange", () => {
+        const box = $("domainReport"); if (!box) return;
+        if (!document.fullscreenElement) box.classList.remove("fb-fs");
+        try { bookRender(); } catch(e){}
+      });
+    }
     try { requestAnimationFrame(function(){ var bar=document.querySelector("#domainReport .fb-dlbar")||$("fbPdf"); if(bar) bar.scrollIntoView({behavior:"smooth",block:"center"}); }); } catch(e){}
   }
 
