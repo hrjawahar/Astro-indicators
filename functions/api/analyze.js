@@ -2401,6 +2401,148 @@ function dusthanaReading(planet, placement, roleLabel){
     reading:`${planet}${roleLabel?" ("+roleLabel+")":""} sits in the ${ordinalD(placement.house)} house — bringing ${f.theme}. ${f.constructive}.`,
     short:f.short };
 }
+// ── CAREER COMPASS (career domain only) ──────────────────────────────────────
+// A NET-NEW, ADDITIVE decision framework. It does NOT change any existing rule
+// (severity, flags, timing, shift). It only READS already-computed placements
+// and returns the chart's STRUCTURAL LEANING on two INDEPENDENT axes that never
+// compensate for each other:
+//   • Sector Fit — which kind of field the 10th lord points toward
+//   • Role  Fit — the mode of work (build / operate / advise) + visibility
+// plus a Core-Nature line (element + modality + planet essence of the 10th lord
+// read across D1, D9 and D10) and a "test it against your own field" guideline.
+// The ENGINE decides the leanings and consistency; the LLM only phrases them.
+// Framed as leaning, never certainty. Nodes never rule signs, so the 10th lord
+// is always one of the seven classical planets — no node edge case here.
+const SIGN_ELEMENT = { Aries:"Fire",Leo:"Fire",Sagittarius:"Fire", Taurus:"Earth",Virgo:"Earth",Capricorn:"Earth", Gemini:"Air",Libra:"Air",Aquarius:"Air", Cancer:"Water",Scorpio:"Water",Pisces:"Water" };
+const SIGN_MODALITY = { Aries:"Movable",Cancer:"Movable",Libra:"Movable",Capricorn:"Movable", Taurus:"Fixed",Leo:"Fixed",Scorpio:"Fixed",Aquarius:"Fixed", Gemini:"Dual",Virgo:"Dual",Sagittarius:"Dual",Pisces:"Dual" };
+const ELEMENT_EDGE = {
+  Fire:  "the pioneering, front-line, enterprise edge of a field — where action and initiative lead",
+  Earth: "the structure, systems, and durable-results edge of a field — where building and execution lead",
+  Air:   "the ideas, communication, and network edge of a field — where intellect and connection lead",
+  Water: "the people, intuition, care, research, or behind-the-scenes edge of a field — where depth leads over surface"
+};
+const PLANET_ESSENCE = {
+  Sun:"authority, leadership, and the drive to direct and be seen",
+  Moon:"the public, care, and responsiveness to people and mood",
+  Mars:"drive, engineering, courage, and decisive action",
+  Mercury:"intellect, communication, commerce, and analysis",
+  Jupiter:"wisdom, counsel, teaching, and expansion",
+  Venus:"aesthetics, relationship, value, and harmony",
+  Saturn:"structure, endurance, service, and the long cycle"
+};
+const PLANET_SECTORS = {
+  Sun:["Government & public administration","Leadership & senior authority roles","Medicine & healthcare","Politics, civic & institutional bodies"],
+  Moon:["Public-facing & consumer services","Hospitality, food, travel & liquids","Care, nursing & wellbeing","Retail & mass-market goods"],
+  Mars:["Engineering & technical trades","Defence, police & security","Surgery, sports & physical disciplines","Real estate, land & construction"],
+  Mercury:["Commerce, trade & business","Communication, writing & media","Analytics, accounting & data","IT, software & systems logic"],
+  Jupiter:["Teaching, training & education","Law, advisory & consulting","Finance, banking & wealth","Counselling, publishing & philosophy"],
+  Venus:["Arts, design & aesthetics","Entertainment, media & creative work","Luxury, beauty, fashion & lifestyle","Hospitality & relationship-based roles"],
+  Saturn:["Structure, systems & operations","Infrastructure, manufacturing & mining","Long-cycle & institutional service","Labour, agriculture & work with the underserved"]
+};
+const MODALITY_ROLE = {
+  Movable:{ role:"Builder / initiator", desc:"wired to start, launch, and change direction — to originate rather than maintain" },
+  Fixed:  { role:"Operator / steady executor", desc:"wired to hold, deepen, and sustain — to build durability into what already exists rather than constantly pivot" },
+  Dual:   { role:"Advisor / connector", desc:"wired to translate, advise, and move between worlds — to guide and adapt rather than own one fixed track" }
+};
+function ccHouseClass(h){
+  if(h===1||h===10) return "visible";
+  if(h===7||h===11) return "relational";
+  if(h===6||h===8||h===12) return "behind";
+  return "supportive";
+}
+const CC_HOUSECLASS_NOTE = {
+  visible:"front-stage and visible — leadership- or authority-facing work",
+  relational:"partnership-, client-, or network-facing work",
+  behind:"behind-the-scenes, specialist, or independent work — depth over visibility",
+  supportive:"steady, foundational, supporting-role work"
+};
+// Dominant value across [D1,D9,D10]. Ties resolve to D1 (index 0, the foundation)
+// but the tie is reported so the phrasing stays honest.
+function ccDominant(arr){
+  const vals=arr.filter(Boolean); if(!vals.length) return null;
+  const counts={}; for(const v of vals) counts[v]=(counts[v]||0)+1;
+  let best=vals[0], bestN=counts[vals[0]];
+  for(const v of vals){ if(counts[v]>bestN){ best=v; bestN=counts[v]; } }
+  const tie = Object.values(counts).filter(n=>n===bestN).length>1;
+  return { value:best, count:bestN, total:vals.length, tie };
+}
+// 3/3 agree = clear; 2/3 = leaning (one outlier); all differ = cross-current.
+function ccConsistency(dom){
+  if(!dom) return { label:"unclear", note:"the signal could not be read across the charts" };
+  if(dom.count===dom.total && dom.total>=2) return { label:"clear", note:"D1, D9 and D10 all agree — a strong, repeated signal" };
+  if(dom.count===2) return { label:"leaning", note:"two of the three charts (D1/D9/D10) agree, with one pulling a different way — a real leaning, not a certainty" };
+  return { label:"cross-current", note:"D1, D9 and D10 each point a different way — genuinely mixed; this is where your own testing matters most" };
+}
+function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign){
+  if(!hLord || !lordPlacement || !PLANET_SECTORS[hLord]) return null;
+  // 10th-lord position in each of the three charts
+  const d1 = { sign:lordPlacement.sign, house:lordPlacement.house, dignity:lordPlacement.dignity };
+  // D9: locate hLord among d9 houses; sign = (d9 lagna + house-1)
+  let d9=null;
+  if(d9Houses && d9LagnaSign){
+    let d9h=null; for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(hLord)){ d9h=h; break; } }
+    if(d9h){ const si=(V_SIGNS.indexOf(d9LagnaSign)+d9h-1)%12; d9={ sign:V_SIGNS[si], house:d9h, dignity:vDig(hLord,V_SIGNS[si]) }; }
+  }
+  // D10: from the already-built varga chart
+  let d10=null;
+  if(vargaChart && vargaChart.placements && vargaChart.placements[hLord]){
+    const pp=vargaChart.placements[hLord]; d10={ sign:pp.sign, house:pp.house, dignity:pp.dignity };
+  }
+  const pack = (p)=> p ? { ...p, element:SIGN_ELEMENT[p.sign], modality:SIGN_MODALITY[p.sign], houseClass:ccHouseClass(p.house) } : null;
+  const P = { d1:pack(d1), d9:pack(d9), d10:pack(d10) };
+  const three = [P.d1,P.d9,P.d10];
+  const elDom  = ccDominant(three.map(x=>x&&x.element));
+  const modDom = ccDominant(three.map(x=>x&&x.modality));
+  const hcDom  = ccDominant(three.map(x=>x&&x.houseClass));
+
+  // ── Core Nature ──
+  const coreNature = {
+    element: elDom ? elDom.value : null,
+    modality: modDom ? modDom.value : null,
+    essence: PLANET_ESSENCE[hLord],
+    verdict: (elDom && modDom)
+      ? `Your career instrument is ${hLord} — ${PLANET_ESSENCE[hLord]} — expressed most through ${elDom.value.toLowerCase()} (${ELEMENT_EDGE[elDom.value]}) in a ${modDom.value.toLowerCase()} rhythm (${MODALITY_ROLE[modDom.value].desc}).`
+      : `Your career instrument is ${hLord} — ${PLANET_ESSENCE[hLord]}.`
+  };
+
+  // ── Sector Fit (independent axis 1) — planet karakatva, edged by dominant element ──
+  const sectorCons = ccConsistency(elDom);
+  const sectorSignals = [
+    `Your 10th lord is ${hLord}, whose natural fields are: ${PLANET_SECTORS[hLord].join("; ")}.`,
+    elDom ? `Across D1, D9 and D10 the 10th lord sits most in ${elDom.value.toLowerCase()} signs (${elDom.count} of ${elDom.total}) — tilting these fields toward ${ELEMENT_EDGE[elDom.value]}.` : null,
+    (P.d1&&P.d1.dignity)? `In D1 it is ${P.d1.dignity.toLowerCase()==="neutral"?"neutrally placed":P.d1.dignity.toLowerCase()} — ${(P.d1.dignity==="Exalted"||P.d1.dignity==="Own sign")?"the field expresses cleanly and with confidence":P.d1.dignity==="Debilitated"?"the field is real but harder-won; it rewards persistence over ease":"the field is workable and steady"}.` : null
+  ].filter(Boolean);
+  const sectorFit = { leaning: PLANET_SECTORS[hLord].slice(), edge: elDom?elDom.value:null,
+    consistency: sectorCons.label, consistencyNote: sectorCons.note, signals: sectorSignals };
+
+  // ── Role Fit (independent axis 2) — modality gives build/operate/advise; house-class gives visibility ──
+  const roleCons = ccConsistency(modDom);
+  const roleBase = modDom ? MODALITY_ROLE[modDom.value] : null;
+  const roleSignals = [
+    modDom ? `The 10th lord sits in ${modDom.value.toLowerCase()} signs in ${modDom.count} of ${modDom.total} charts — ${roleBase?roleBase.desc:""}.` : null,
+    hcDom ? `Its house placement across the charts is most often ${hcDom.value==="visible"?"angular/visible":hcDom.value==="behind"?"in the 6/8/12 (depth) houses":hcDom.value==="relational"?"partnership/network houses":"supportive houses"} — pointing to ${CC_HOUSECLASS_NOTE[hcDom.value]}.` : null,
+    `These two axes are read SEPARATELY: your field (Sector) and your mode of working (Role) can each lean a different way, and the chart does not blend them.`
+  ].filter(Boolean);
+  const roleFit = {
+    leaning: roleBase ? roleBase.role : null,
+    visibility: hcDom ? CC_HOUSECLASS_NOTE[hcDom.value] : null,
+    consistency: roleCons.label, consistencyNote: roleCons.note, signals: roleSignals
+  };
+
+  // ── How to test it yourself (the reader runs the pass/fail against their own life) ──
+  const howToTest = [
+    "This page gives the chart's structural LEANING — not a verdict. It becomes direction only when you test it against your own working life.",
+    "TEST 1 — Sector: take the sector leaning above and hold it against YOUR OWN field and experience. Does the field you work in (or are drawn to) sit INSIDE this leaning, ADJACENT to it, or OUTSIDE it? Judge by what work has actually energised you and produced real results — not by what merely sounds appealing.",
+    "TEST 2 — Role: take the role leaning above and hold it against how you ACTUALLY work best. In your real day-to-day, are you mostly BUILDING (starting new things), OPERATING (running and sustaining what exists), or ADVISING (guiding, connecting, translating)? Be honest about where your results have come from.",
+    "Read the two tests SEPARATELY — they do not average out. A clear sector with a mismatched role (or the reverse) is common and informative; do not merge them into a single answer.",
+    "Where the chart's leaning and your own field/experience AGREE, treat that as your confirmed direction — lean into it. Where they DIVERGE, the gap is itself the signal: either a genuine strength you have not yet moved into, or a mismatch worth re-examining before your next career step.",
+    "Then use the Timing section of this report to decide WHEN to act on what you have confirmed."
+  ];
+
+  return { tenthLord:hLord, positions:P, coreNature, sectorFit, roleFit, howToTest,
+    framing:"structural leaning, tested by the reader against their own field and experience — not a prediction" };
+}
+
 function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
@@ -2725,12 +2867,18 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     }
   }
 
+  // ── Career Compass (career domain only): net-new, additive decision framework ──
+  let careerCompass=null;
+  if(domainKey==="career"){
+    try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
+  }
+
   return {
     domainKey, title:cfg.title, focus:cfg.focus, house:cfg.house, houseName:ordinalD(cfg.house),
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
     d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
-    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings
+    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass
   };
 }
 
