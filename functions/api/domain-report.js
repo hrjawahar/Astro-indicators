@@ -63,27 +63,68 @@ async function writeDomainReport(env, domainKey, facts) {
   const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
 
   // The model returns JSON: { "sections": [ {heading, body}, ... ] }
-  let parsed = null;
   const tryParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
-  // 1) direct, 2) strip markdown fences, 3) extract the first {...} block
   let clean = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-  parsed = tryParse(clean);
-  if (!parsed) {
-    const first = clean.indexOf("{"), last = clean.lastIndexOf("}");
-    if (first !== -1 && last > first) parsed = tryParse(clean.slice(first, last + 1));
+  const first = clean.indexOf("{"), last = clean.lastIndexOf("}");
+  const block = (first !== -1 && last > first) ? clean.slice(first, last + 1) : clean;
+
+  // Parse attempts, most-faithful first. The sanitized attempt fixes the #1 cause of
+  // LLM JSON failure: raw newlines/tabs left INSIDE string values (very likely now
+  // that sections carry numbered lists and separators).
+  let parsed = tryParse(clean) || tryParse(block) || tryParse(sanitizeJsonish(block));
+  let sections = (parsed && Array.isArray(parsed.sections)) ? parsed.sections : null;
+
+  // If structured parse still failed, SALVAGE clean heading/body pairs by pattern.
+  // This NEVER dumps the raw JSON with its "sections:/heading:/body:" labels into the
+  // report (the old fallback did, producing an unreadable blob in the Word/PDF).
+  if (!sections || !sections.length) {
+    const salv = salvageSections(sanitizeJsonish(block));
+    if (salv.length) sections = salv;
   }
-  if (!parsed || !Array.isArray(parsed.sections) || !parsed.sections.length) {
-    // Last resort: if there's readable text, present it as a single section rather
-    // than returning nothing (prevents a blank flipbook).
-    if (clean && clean.length > 40) {
-      parsed = { sections: [{ heading: (facts.title || "Report"), body: clean.replace(/[{}\[\]"]/g," ").trim() }] };
-    } else {
-      throw new Error("The AI writer returned an unreadable or empty response.");
-    }
+  // Absolute last resort: readable prose with ALL JSON syntax AND key labels removed.
+  if (!sections || !sections.length) {
+    const stripped = clean.replace(/[{}\[\]"]/g, " ")
+                          .replace(/\b(sections|heading|body)\s*:/gi, " ")
+                          .replace(/\s+,/g, " ").replace(/\s{2,}/g, " ").trim();
+    if (stripped.length > 40) sections = [{ heading: (facts.title || "Report"), body: stripped }];
+    else throw new Error("The AI writer returned an unreadable or empty response.");
   }
-  const sections = (parsed.sections || []).filter(s => s && (s.heading || s.body));
+  sections = sections.filter(s => s && (s.heading || s.body));
   if (!sections.length) throw new Error("AI writer returned no usable sections.");
   return sections;
+}
+
+// Escape raw control chars that appear INSIDE JSON string values — the most common
+// reason an LLM's JSON fails JSON.parse. Leaves structure (braces/commas) intact.
+function sanitizeJsonish(s) {
+  let out = "", inStr = false, esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (esc) { out += c; esc = false; continue; }
+    if (c === "\\") { out += c; esc = true; continue; }
+    if (c === '"') { inStr = !inStr; out += c; continue; }
+    if (inStr) {
+      if (c === "\n") { out += "\\n"; continue; }
+      if (c === "\r") { out += "\\r"; continue; }
+      if (c === "\t") { out += "\\t"; continue; }
+    }
+    out += c;
+  }
+  return out;
+}
+
+// Tolerantly recover { heading, body } pairs from imperfect JSON so a single stray
+// character never collapses the whole report into one unreadable blob.
+function salvageSections(raw) {
+  const secs = [];
+  const re = /"heading"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"body"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  const unesc = (x) => x.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "")
+                        .replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  let m;
+  while ((m = re.exec(raw))) {
+    secs.push({ heading: unesc(m[1]).trim(), body: unesc(m[2]).trim() });
+  }
+  return secs;
 }
 
 function buildSystemPrompt() {
@@ -139,6 +180,8 @@ function buildSystemPrompt() {
     " • HONESTY ON CONSISTENCY: when a consistency label is 'cross-current', say clearly that the chart is genuinely mixed on that axis and the reader's own testing matters most there. Never overstate a 'leaning' as a 'clear'.",
     " • HOW TO TEST THIS YOURSELF: render facts.careerCompass.howToTest as a numbered list, faithfully and in order. This is the heart of the page — the reader runs the pass/fail against their OWN career field and experience to arrive at their next direction. Keep every step; do not soften or drop the instruction to test the leaning against their real field and results.",
     " • TONE: confident and practical (career is a Tier-2 domain), but always framed as leaning-to-be-tested, never as fate.",
+    " • NAMING GUARD: reserve the name 'Career Compass' EXCLUSIVELY for this dedicated section. In section 4 (Where the Charts Agree), if you print a D10 placement table, label it 'D10 Placement Table' — NEVER 'Career Compass' or 'Career Compass (D10 Summary)'. The name must not appear twice meaning two different things.",
+    " • FIELD vs MODE CONSISTENCY (applies to sections 2–5 for the CAREER domain): a dusthana/8th-house placement of the career lord describes the MODE of working (depth, behind-the-scenes, transformational, research-like process) — it is NOT a list of industries. In the narrative sections do NOT name specific fields/industries from the 8th house (avoid asserting 'finance, healing, occult, psychology, estate work' as the suited fields). The SECTOR (which field) is owned by the Career Compass Sector Fit, driven by the 10th lord's own significations. Keep the two consistent: narrative = how you work (mode); Compass = what field (sector). The exception is the health domain, which legitimately names bodily areas.",
     "",
     "THE NARRATIVE SPINE (every report follows it): FIRST HALF of life read from D1 → SECOND HALF maturation shown in D9 → the divisional chart independently CONFIRMS the pattern. Emphasise convergences (where two charts agree) as the credibility core — the facts packet lists them.",
     "",
