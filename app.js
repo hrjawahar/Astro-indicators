@@ -797,7 +797,7 @@ function renderChandrashtama(ch, data) {
   const path = w.nakshatras.map(n => `<b>${n.name}</b> <span style="opacity:.7">(${n.at.split(", ")[0]})</span>`).join(" → ");
 
   host.innerHTML = `
-    <h3 class="card-title">Chandrashtama — your Moon's monthly low tide</h3>
+    <h3 class="card-title">Chandrashtama — your Moon's monthly low tide <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span></h3>
     <p class="card-body" style="margin-top:-4px">For your birth Moon in <b>${ch.natalMoonSign}</b>, the sensitive window each month is when the Moon transits the 8th sign, <b>${ch.eighthSign}</b>. Times shown in ${ch.tzLabel}.</p>
     <div style="border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:14px 16px;margin:10px 0 14px;background:rgba(201,168,76,.05)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Moon in ${w.sign}</b></div>
@@ -861,18 +861,32 @@ function downloadChandraPDF(ch, data) {
   doc.setFont("helvetica", "bold"); doc.setFontSize(12); need(18); doc.setTextColor(...INK);
   doc.text("Your upcoming windows (next 12 months)", M, y); y += 18;
   for (const w of ch.windows) {
-    need(58);
-    doc.setFillColor(248, 244, 232); doc.roundedRect(M, y - 2, W - M * 2, 50, 4, 4, "F");
+    const colL = M + 14, colR = W / 2 + 6, rightW = W - M - colR;
+    // Measure the right column first so the card is tall enough and nothing overlaps.
+    doc.setFontSize(9.5);
+    const msLines = doc.splitTextToSize(`${w.peak.at}  (${w.peak.nakshatra})`, rightW);
+    doc.setFontSize(8.5);
+    const starLines = doc.splitTextToSize("Stars: " + w.nakshatras.map(n => n.name).join("  >  "), rightW);
+    const rightBottom = 18 + 14 + msLines.length * 12 + 6 + starLines.length * 11;
+    const leftBottom = 18 + 16 + 16;
+    const cardH = Math.max(rightBottom, leftBottom) + 12;
+    need(cardH + 8);
+    doc.setFillColor(248, 244, 232); doc.roundedRect(M, y, W - M * 2, cardH, 5, 5, "F");
+    // Left column
     doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...INK);
-    doc.text(`Moon in ${w.sign}`, M + 10, y + 13);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(...INK);
-    doc.text(`Enters: ${w.ingress.at}`, M + 10, y + 27);
-    doc.text(`Ends: ${w.egress.at}`, M + 10, y + 39);
-    doc.setTextColor(176, 96, 40); doc.setFont("helvetica", "bold");
-    doc.text(`Most sensitive: ${w.peak.at} (${w.peak.nakshatra})`, W / 2 + 10, y + 27, { maxWidth: W / 2 - M - 16 });
-    doc.setFont("helvetica", "normal"); doc.setTextColor(...MUTE); doc.setFontSize(8.5);
-    doc.text("Stars: " + w.nakshatras.map(n => n.name).join(" → "), W / 2 + 10, y + 39, { maxWidth: W / 2 - M - 16 });
-    y += 58;
+    doc.text(`Moon in ${w.sign}`, colL, y + 18);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+    doc.text(`Enters:  ${w.ingress.at}`, colL, y + 36);
+    doc.text(`Ends:    ${w.egress.at}`, colL, y + 52);
+    // Right column
+    let ry = y + 18;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(176, 96, 40);
+    doc.text("Most sensitive point", colR, ry); ry += 14;
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...INK);
+    doc.text(msLines, colR, ry); ry += msLines.length * 12 + 6;
+    doc.setTextColor(...MUTE); doc.setFontSize(8.5);
+    doc.text(starLines, colR, ry);
+    y += cardH + 8;
   }
   footer();
   const safe = (name || "chart").replace(/[^a-z0-9]/gi, "_");
