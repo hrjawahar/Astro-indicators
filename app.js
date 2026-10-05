@@ -797,7 +797,7 @@ function renderChandrashtama(ch, data) {
   const path = w.nakshatras.map(n => `<b>${n.name}</b> <span style="opacity:.7">(${n.at.split(", ")[0]})</span>`).join(" → ");
 
   host.innerHTML = `
-    <h3 class="card-title">Chandrashtama — your Moon's monthly low tide <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span></h3>
+    <h3 class="card-title">Chandrashtama — your Moon's monthly low tide <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span> <span style="background:#1a7f4b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">FREE</span></h3>
     <p class="card-body" style="margin-top:-4px">For your birth Moon in <b>${ch.natalMoonSign}</b>, the sensitive window each month is when the Moon transits the 8th sign, <b>${ch.eighthSign}</b>. Times shown in ${ch.tzLabel}.</p>
     <div style="border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:14px 16px;margin:10px 0 14px;background:rgba(201,168,76,.05)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Moon in ${w.sign}</b></div>
