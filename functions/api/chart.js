@@ -705,6 +705,100 @@ function getNakshatraPada(sidLon) {
 //  MAIN HANDLER
 // ══════════════════════════════════════════════════════════════════════════════
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  CHANDRASHTAMA — transit Moon through the 8th sign from the natal Moon.
+//  Reuses the SAME Moon math as the natal chart (moonPosition / lahiriAyanamsha /
+//  toSidereal) so there is zero drift. Validated to the minute against independent
+//  real-world timings. Returns the next `months` windows from `nowJD`, each with:
+//    ingress (Moon enters 8th sign) · nakshatra crossings · degree-exact peak
+//    (transit Moon reaches the SAME degree in the 8th sign as the natal Moon sits
+//    in the 1st — the classical "most intense" point) · egress (Moon leaves).
+//  Times are formatted in a fixed display timezone (default IST, +5.5).
+// ─────────────────────────────────────────────────────────────────────────────
+const CH_SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+const CH_WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const CH_MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const CH_NLEN = 360 / 27;
+
+function moonSidLonAtJD(JD) {
+  const T = (JD - 2451545.0) / 36525;
+  return norm360(toSidereal(moonPosition(T).longitude, lahiriAyanamsha(JD)));
+}
+// Bisection: time in [a,b] where the sidereal Moon longitude == target. The bracket
+// is always small (hours), so there is no 360° wrap ambiguity.
+function chCrossTime(a, b, target) {
+  const f = (JD) => { let d = moonSidLonAtJD(JD) - target; if (d > 180) d -= 360; if (d < -180) d += 360; return d; };
+  let fa = f(a);
+  for (let i = 0; i < 48; i++) { const m = (a + b) / 2, fm = f(m); if ((fa <= 0) === (fm <= 0)) { a = m; fa = fm; } else { b = m; } }
+  return (a + b) / 2;
+}
+// Julian Day (UT) → calendar parts in the display timezone.
+function chJdToParts(JD, tz) {
+  JD += tz / 24;
+  let z = Math.floor(JD + 0.5), f = JD + 0.5 - z, A = z;
+  if (z >= 2299161) { const al = Math.floor((z - 1867216.25) / 36524.25); A = z + 1 + al - Math.floor(al / 4); }
+  const B = A + 1524, C = Math.floor((B - 122.1) / 365.25), D = Math.floor(365.25 * C), E = Math.floor((B - D) / 30.6001);
+  const dayF = B - D - Math.floor(30.6001 * E) + f;
+  const mo = E < 14 ? E - 1 : E - 13, y = mo > 2 ? C - 4716 : C - 4715;
+  const d = Math.floor(dayF); let frac = (dayF - d) * 24, h = Math.floor(frac), mi = Math.round((frac - h) * 60);
+  if (mi === 60) { mi = 0; h++; }
+  return { y, mo, d, h, mi, wd: CH_WD[Math.floor(JD + 1.5) % 7] };
+}
+function chFmt(JD, tz) {
+  const p = chJdToParts(JD, tz);
+  return `${p.wd} ${p.d} ${CH_MON[p.mo - 1]} ${p.y}, ${String(p.h).padStart(2, "0")}:${String(p.mi).padStart(2, "0")}`;
+}
+function computeChandrashtama(natalMoonSidLon, nowJD, months, tzOffset) {
+  const tz = (tzOffset == null) ? 5.5 : tzOffset;
+  months = months || 12;
+  natalMoonSidLon = norm360(natalMoonSidLon);
+  const natalSign = Math.floor(natalMoonSidLon / 30);
+  const eighth = (natalSign + 7) % 12;
+  const segStart = eighth * 30, segEnd = eighth * 30 + 30;
+  const peakLon = norm360(natalMoonSidLon + 210); // same degree, 8th sign
+  const inSeg = (JD) => Math.floor(moonSidLonAtJD(JD) / 30) === eighth;
+  const windows = [];
+  const scanStart = nowJD - 3, scanEnd = nowJD + months * 30.44 + 6, STEP = 0.1;
+  let JD = scanStart, prevIn = inSeg(JD), ingressJD = prevIn ? scanStart : null;
+  while (JD < scanEnd) {
+    const nJD = JD + STEP, nowIn = inSeg(nJD);
+    if (!prevIn && nowIn) ingressJD = chCrossTime(JD, nJD, segStart);
+    if (prevIn && !nowIn && ingressJD != null) {
+      const egressJD = chCrossTime(JD, nJD, segEnd);
+      if (egressJD >= nowJD) {
+        const peakJD = chCrossTime(ingressJD, egressJD, peakLon);
+        // nakshatra crossings inside the window (sample ~1 min past ingress so the
+        // exact sign boundary never mislabels the first nakshatra)
+        const naks = [];
+        const startNak = Math.floor(moonSidLonAtJD(ingressJD + 0.0007) / CH_NLEN);
+        naks.push({ name: NAKSHATRAS[startNak % 27], jd: ingressJD, at: chFmt(ingressJD, tz) });
+        for (let k = startNak + 1; k * CH_NLEN < segEnd - 0.001; k++) {
+          const bLon = k * CH_NLEN; if (bLon <= segStart) continue;
+          const t = chCrossTime(ingressJD, egressJD, bLon);
+          naks.push({ name: NAKSHATRAS[k % 27], jd: t, at: chFmt(t, tz) });
+        }
+        windows.push({
+          sign: CH_SIGNS[eighth],
+          ingress: { jd: ingressJD, at: chFmt(ingressJD, tz) },
+          peak:    { jd: peakJD, at: chFmt(peakJD, tz), nakshatra: NAKSHATRAS[Math.floor(peakLon / CH_NLEN) % 27] },
+          egress:  { jd: egressJD, at: chFmt(egressJD, tz) },
+          nakshatras: naks
+        });
+      }
+      ingressJD = null;
+    }
+    prevIn = nowIn; JD = nJD;
+    if (windows.length >= months + 2) break;
+  }
+  return {
+    natalMoonSign: CH_SIGNS[natalSign],
+    eighthSign: CH_SIGNS[eighth],
+    peakDegreeLon: Math.round(peakLon * 100) / 100,
+    tzLabel: tz === 5.5 ? "IST" : ("UTC" + (tz >= 0 ? "+" : "") + tz),
+    windows
+  };
+}
+
 export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
@@ -811,6 +905,17 @@ export async function onRequestPost(context) {
     const retro = {};
     for (const p of PLANET_LIST) retro[p] = !!(planets[p] && planets[p].retrograde);
 
+    // Chandrashtama — next 12 months of transit-Moon-in-8th windows for this native.
+    // Computed from the natal Moon and the current date; additive, never throws.
+    let chandrashtama = null;
+    try {
+      const nowJD = dateToJulianDay(
+        new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, new Date().getUTCDate(),
+        new Date().getUTCHours(), new Date().getUTCMinutes(), 0
+      );
+      chandrashtama = computeChandrashtama(sidPositions.Moon.longitude, nowJD, 12, 5.5);
+    } catch (_) { chandrashtama = null; }
+
     return Response.json({
       success: true,
       input: { name, dob, tob, place: geo.displayName, lat: geo.lat, lng: geo.lng, utcOffset: utcOff },
@@ -830,7 +935,8 @@ export async function onRequestPost(context) {
         latitudes: {}
       },
       planets,
-      dasha
+      dasha,
+      chandrashtama
     });
 
   } catch (error) {

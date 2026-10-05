@@ -763,7 +763,122 @@ function renderChartScreen(data) {
       AIref.appendLagnaItem("#lagnaBar");          // adds the CLIENT ID item to the lagna bar
     }
   } catch (e) {}
+
+  // ── Chandrashtama — monthly Moon "low tide" (free for everyone) ──
+  try { renderChandrashtama(data.chandrashtama, data); } catch (e) {}
 }
+
+// Julian Day (UT) for "now", to match the server's JD values on each window.
+function _nowJD() { return (Date.now() / 86400000) + 2440587.5; }
+
+const CHANDRA_INTRO =
+  "Chandrashtama is the roughly 2.5-day stretch each month when the transiting Moon passes through the 8th sign from your birth Moon sign. Because the Moon governs the mind and emotions, these are days of a lower emotional tide — generally better suited to rest and routine than to major moves. It is a gentle timing guide, not a prediction: with a little awareness, most of these days pass unremarkably.";
+
+const CHANDRA_MANAGE = [
+  "Keep it routine: where you can, avoid launching ventures, signing major agreements, or making big financial decisions on these days.",
+  "Guard your words: misunderstandings come more easily — listen more, react less, and postpone heated conversations.",
+  "Protect your energy: a lighter schedule, more rest and good hydration help; the peak point asks for the most care.",
+  "Turn it inward: reflection, planning and quiet practices (meditation or slow breathing) suit this tide better than confrontation."
+];
+
+function renderChandrashtama(ch, data) {
+  const host = document.getElementById("chandraCard");
+  if (!host) return;
+  if (!ch || !ch.windows || !ch.windows.length) { host.style.display = "none"; return; }
+  host.style.display = "";
+  const now = _nowJD();
+  // Pick the current (in-progress) window if any, else the next upcoming one.
+  let w = ch.windows.find(x => x.ingress.jd <= now && x.egress.jd >= now)
+        || ch.windows.find(x => x.ingress.jd >= now) || ch.windows[0];
+  const live = (w.ingress.jd <= now && w.egress.jd >= now);
+  const badge = live
+    ? `<span style="background:#c0392b;color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px">Happening now</span>`
+    : `<span style="background:rgba(201,168,76,.18);color:var(--ai-gold,#b0821f);font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px">Next window</span>`;
+  const path = w.nakshatras.map(n => `<b>${n.name}</b> <span style="opacity:.7">(${n.at.split(", ")[0]})</span>`).join(" → ");
+
+  host.innerHTML = `
+    <h3 class="card-title">Chandrashtama — your Moon's monthly low tide</h3>
+    <p class="card-body" style="margin-top:-4px">For your birth Moon in <b>${ch.natalMoonSign}</b>, the sensitive window each month is when the Moon transits the 8th sign, <b>${ch.eighthSign}</b>. Times shown in ${ch.tzLabel}.</p>
+    <div style="border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:14px 16px;margin:10px 0 14px;background:rgba(201,168,76,.05)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Moon in ${w.sign}</b></div>
+      <div class="chandra-row"><span class="chandra-k">Enters ${w.sign}</span><span class="chandra-v">${w.ingress.at}</span></div>
+      <div class="chandra-row"><span class="chandra-k">Star path</span><span class="chandra-v">${path}</span></div>
+      <div class="chandra-row"><span class="chandra-k">★ Most sensitive point</span><span class="chandra-v"><b>${w.peak.at}</b> <span style="opacity:.7">(${w.peak.nakshatra})</span></span></div>
+      <div class="chandra-row"><span class="chandra-k">Ends</span><span class="chandra-v">${w.egress.at}</span></div>
+    </div>
+    <details style="margin-bottom:12px">
+      <summary style="cursor:pointer;font-weight:600;color:var(--ai-gold,#b0821f)">What this is &amp; how to manage it</summary>
+      <p class="card-body" style="margin:8px 0">${CHANDRA_INTRO}</p>
+      <ul style="margin:0;padding-left:18px">${CHANDRA_MANAGE.map(x => `<li style="margin:4px 0">${x}</li>`).join("")}</ul>
+    </details>
+    <button class="btn-primary" id="chandraPdfBtn" style="width:auto">Download 12-month guide (PDF)</button>
+  `;
+  const btn = document.getElementById("chandraPdfBtn");
+  if (btn) btn.onclick = () => { try { downloadChandraPDF(ch, data); } catch (e) { alert("Could not build the PDF. Please refresh and retry."); } };
+}
+
+function downloadChandraPDF(ch, data) {
+  if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
+  const jsPDF = window.jspdf.jsPDF;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  const M = 48, GOLD = [201, 164, 76], INK = [40, 40, 40], MUTE = [110, 110, 110];
+  let y = 0;
+  const name = (data && data.input && data.input.name) || "";
+  function footer() {
+    doc.setFontSize(8); doc.setTextColor(150); doc.setFont("helvetica", "italic");
+    doc.text("This is an educational timing guide for self-reflection, not a prediction or professional advice.  © 2026 AstroIndicators · astroindicators.com", M, H - 26, { maxWidth: W - M * 2 });
+  }
+  function need(h) { if (y + h > H - 46) { footer(); doc.addPage(); y = 54; } }
+  function para(txt, size, color, lh) {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(size); doc.setTextColor(...(color || INK));
+    const lines = doc.splitTextToSize(txt, W - M * 2);
+    for (const ln of lines) { need(lh); doc.text(ln, M, y); y += lh; }
+  }
+  // Header
+  doc.setFillColor(...GOLD); doc.rect(0, 0, W, 6, "F");
+  y = 60; doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...GOLD);
+  doc.text("AstroIndicators", M, y);
+  y += 26; doc.setFontSize(16); doc.setTextColor(...INK);
+  doc.text("Chandrashtama — Your 12-Month Guide", M, y);
+  y += 20; doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
+  doc.text(`${name ? name + "  ·  " : ""}Birth Moon: ${ch.natalMoonSign}  ·  Sensitive sign (8th): ${ch.eighthSign}  ·  Times in ${ch.tzLabel}`, M, y);
+  y += 24;
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.line(M, y, W - M, y); y += 20;
+  // Intro + manage
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(...INK); need(16); doc.text("What Chandrashtama is", M, y); y += 16;
+  para(CHANDRA_INTRO, 10.5, INK, 15); y += 8;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12); need(16); doc.text("How to manage these days", M, y); y += 16;
+  for (const b of CHANDRA_MANAGE) {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); need(14); doc.text("•", M, y);
+    doc.setFont("helvetica", "normal");
+    const lines = doc.splitTextToSize(b, W - M * 2 - 14);
+    for (let i = 0; i < lines.length; i++) { if (i) need(14); doc.text(lines[i], M + 14, y); if (i < lines.length - 1) y += 14; }
+    y += 16;
+  }
+  y += 6;
+  // Windows table
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12); need(18); doc.setTextColor(...INK);
+  doc.text("Your upcoming windows (next 12 months)", M, y); y += 18;
+  for (const w of ch.windows) {
+    need(58);
+    doc.setFillColor(248, 244, 232); doc.roundedRect(M, y - 2, W - M * 2, 50, 4, 4, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...INK);
+    doc.text(`Moon in ${w.sign}`, M + 10, y + 13);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(...INK);
+    doc.text(`Enters: ${w.ingress.at}`, M + 10, y + 27);
+    doc.text(`Ends: ${w.egress.at}`, M + 10, y + 39);
+    doc.setTextColor(176, 96, 40); doc.setFont("helvetica", "bold");
+    doc.text(`Most sensitive: ${w.peak.at} (${w.peak.nakshatra})`, W / 2 + 10, y + 27, { maxWidth: W / 2 - M - 16 });
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...MUTE); doc.setFontSize(8.5);
+    doc.text("Stars: " + w.nakshatras.map(n => n.name).join(" → "), W / 2 + 10, y + 39, { maxWidth: W / 2 - M - 16 });
+    y += 58;
+  }
+  footer();
+  const safe = (name || "chart").replace(/[^a-z0-9]/gi, "_");
+  doc.save("AstroIndicators_Chandrashtama_" + safe + ".pdf");
+}
+window.downloadChandraPDF = downloadChandraPDF;
 function buildCombustSet(planets) {
   const orbs = { Moon:7, Mars:17, Mercury:14, Jupiter:11, Venus:10, Saturn:15 };
   const combust = new Set();

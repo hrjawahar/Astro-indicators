@@ -308,3 +308,10 @@ textarea:focus { outline: none; border-color: var(--gold-dim); }
   color: #C9A44C; background: rgba(201,164,76,0.12); border: 1px solid rgba(201,164,76,0.5);
   border-radius: 8px; text-transform: uppercase; vertical-align: middle;
 }
+
+/* Chandrashtama card rows */
+.chandra-row{display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px dashed rgba(201,168,76,.22);font-size:13px}
+.chandra-row:last-child{border-bottom:none}
+.chandra-k{flex:0 0 150px;color:var(--text-dim,#777);font-weight:600}
+.chandra-v{flex:1;color:var(--text,#222)}
+@media(max-width:540px){.chandra-row{flex-direction:column;gap:2px}.chandra-k{flex:none}}
