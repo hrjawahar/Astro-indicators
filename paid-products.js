@@ -110,11 +110,8 @@
         return `<h2 style="color:#b0821f;margin:18px 0 8px">${esc4doc(sec.heading||"")}</h2>${paras}`;
       }).join("");
       const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
-      const blob = new Blob(["\ufeff"+doc], {type:"application/msword"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href=url; a.download=fileBase+".doc";
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 4000);
+      // Real .docx (not HTML-renamed-.doc): opens correctly on phones and in Google Translate \u2192 Documents.
+      window.AI_DOCX.downloadHTML(doc, fileBase + ".docx");
     }catch(e){ alert("Sorry \u2014 the Word file could not be generated. Please try the PDF instead."); }
   }
   function wireDownloadDropdown(onPdf, onWord){
@@ -156,7 +153,7 @@
     "Second pass: if you're curious, revisit the detailed sections — they show why the conclusions hold.",
     "Take your time. This isn't a one-read document; the insights land more deeply when you return to it over days, alongside your own life experience.",
     "The convergences (where two charts independently agree) are the most reliable signals — those are worth trusting most.",
-    "Prefer your own language? Download this report as WORD, then open translate.google.com, choose 'Documents', and upload the file — Google translates the whole report and gives you a copy to download in your language, with no copy-pasting. (Tested — it works beautifully.)",
+    "Prefer your own language? Download this report as WORD, then open translate.google.co.in, choose 'Documents', and upload the file — Google translates the whole report and gives you a copy to download in your language, with no copy-pasting. On a phone, first switch Chrome to 'Desktop site' (⋮ menu) so the Documents option appears.",
     "This report is a mirror for reflection, not a verdict. Read it gently."
   ];
 
@@ -166,7 +163,7 @@
     const shortLines = [
       "This is a detailed Vedic analysis with some traditional terms (planets, houses, D1/D9/D10). You do NOT need to understand every word to get the value.",
       "First pass: read the plain-language parts — 'What This Means For You', 'Timing', 'The Bottom Line'. Second pass: revisit the detail for the 'why'. Take your time — it deepens as you return to it.",
-      "Prefer your own language? Download as WORD, then upload it at translate.google.com → Documents — Google returns a translated copy, no copy-pasting.",
+      "Prefer your own language? Download as WORD, then upload it at translate.google.co.in → Documents (on a phone, switch Chrome to 'Desktop site' first) — Google returns a translated copy.",
       "A mirror for reflection, not a verdict. Read it gently."
     ];
     return `<div class="pg"><div class="kick">How to Read This</div><div class="rule"></div>
@@ -181,7 +178,7 @@
   function downloadDropdownHTML(){
     return `<div style="text-align:center">
       <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word <span class="dl-sub">(for translation)</span></button></div></div>
-      <div class="dl-tip">💡 Tip: download as <b>Word</b>, then upload it to <b>translate.google.com → Documents</b> to read in your own language.</div>
+      <div class="dl-tip">${window.AI_DOCX ? AI_DOCX.translateTipHTML() : "💡 Tip: download as <b>Word</b>, then upload it to <b>translate.google.com → Documents</b> to read in your own language."}</div>
     </div>`;
   }
 

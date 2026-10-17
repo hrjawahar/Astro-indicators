@@ -779,12 +779,9 @@ const CONSULT_CONFIG = {
           ? "<div style='background:#fdf6e3;border:1px solid #c9a84c;border-radius:8px;padding:12px 16px;margin:14px 0;font-size:11pt;color:#5a3e00;line-height:1.7'>" + esc(TA_QUALITY_NOTE) + "</div>"
           : "") +
         secHTML + "</body></html>";
-      var blob = new Blob(["\uFEFF", html], { type: "application/msword" });
-      var url = URL.createObjectURL(blob);
+      // Real .docx (not HTML-renamed-.doc): phone viewers garbled Tamil in the old format.
       var safe = (name || "report").replace(/[^a-z0-9]/gi, "_");
-      var a = document.createElement("a");
-      a.href = url; a.download = "AstroIndicators_" + safe + "_" + currentLang() + ".doc";
-      a.click(); URL.revokeObjectURL(url);
+      window.AI_DOCX.downloadHTML(html, "AstroIndicators_" + safe + "_" + currentLang() + ".docx", { lang: currentLang() });
     }
 
     // For the translated Word path: reformat dates to DD/MM/YYYY and append the
