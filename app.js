@@ -348,9 +348,7 @@ function downloadAsWord(text, filename) {
     .replace(/<div class="ind-section-title">/g,'<h2>')
     .replace(/<\/div>/g,'</h2>');
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:12pt;line-height:1.65;color:#111;max-width:680px;margin:40px auto}h2{font-size:12pt;color:#5a3e00;border-bottom:1px solid #ccc;padding-bottom:3px;margin-top:18px}p{margin:0 0 9px}</style></head><body>${body}</body></html>`;
-  const blob=new Blob(["\uFEFF",html],{type:"application/msword"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a"); a.href=url; a.download=filename+".doc"; a.click(); URL.revokeObjectURL(url);
+  window.AI_DOCX.downloadHTML(html, filename + ".docx");   // real .docx (old HTML-.doc garbled on phones)
 }
 
 // Download as PDF via print dialog
@@ -2878,10 +2876,7 @@ function downloadHealthReport(format) {
   const filename = `health-report-${name}`;
 
   if (format === "word") {
-    const blob = new Blob(["\uFEFF", html], { type:"application/msword" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href=url; a.download=filename+".doc"; a.click(); URL.revokeObjectURL(url);
+    window.AI_DOCX.downloadHTML(html, filename + ".docx");   // real .docx (old HTML-.doc garbled on phones)
   } else if (format === "pdf") {
     const win = window.open("","_blank");
     if (win) { win.document.write(html); win.document.close(); }
