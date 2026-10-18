@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Test Codes · Owner</title>
+<style>
+  :root { --navy:#0B0E1A; --navy2:#141B33; --gold:#C9A44C; --soft:#E8D9AE; --ink:#EDEBE4; --mute:#9aa0b8; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--navy); color:var(--ink); font:15px/1.5 Inter,system-ui,sans-serif; padding:16px }
+  main { max-width:860px; margin:0 auto }
+  h1 { font:700 22px/1.2 Georgia,serif; color:var(--gold); letter-spacing:.06em; margin:8px 0 4px }
+  p.sub { color:var(--mute); margin:0 0 18px }
+  section { background:var(--navy2); border:1px solid #2a3150; border-radius:14px; padding:16px; margin-bottom:14px }
+  h2 { font-size:15px; margin:0 0 10px; color:var(--soft) }
+  label { display:block; font-size:12px; color:var(--mute); margin:8px 0 3px }
+  input, select { width:100%; padding:10px 11px; border-radius:9px; border:1px solid #3a4266; background:var(--navy); color:var(--ink); font-size:14px }
+  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px }
+  button { background:var(--gold); color:var(--navy); border:0; border-radius:9px; padding:10px 16px; font-weight:700; cursor:pointer; margin-top:12px }
+  button.ghost { background:none; color:var(--ink); border:1px solid #3a4266 }
+  pre { white-space:pre-wrap; word-break:break-all; background:var(--navy); border:1px dashed var(--gold); border-radius:10px; padding:12px; font-size:13px }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid #2a3150 }
+  th { color:var(--mute); font-weight:600 }
+  .msg { margin-top:10px; color:var(--soft); font-size:13px }
+  .wrap { overflow-x:auto }
+</style>
+</head>
+<body>
+<main>
+  <h1>TEST CODES</h1>
+  <p class="sub">Each code unlocks one report (user's choice; not the bundle or consultations) for one birth chart. Codes are shown only once — copy them before leaving.</p>
+
+  <section>
+    <h2>Admin key</h2>
+    <input id="key" type="password" placeholder="TESTCODE_ADMIN_KEY" autocomplete="off">
+    <div class="msg">Kept only in this browser tab.</div>
+  </section>
+
+  <section>
+    <h2>Create codes</h2>
+    <div class="row">
+      <div><label>How many (1–50)</label><input id="count" type="number" min="1" max="50" value="5"></div>
+      <div><label>Valid for (days)</label><input id="days" type="number" min="1" max="365" value="30"></div>
+      <div><label>Batch name</label><input id="batch" placeholder="Friends-Oct"></div>
+    </div>
+    <label>Note (who it's for)</label><input id="note" placeholder="Beta testers from the Chennai group">
+    <button id="create">Create codes</button>
+    <div id="created"></div>
+  </section>
+
+  <section>
+    <h2>Codes &amp; usage</h2>
+    <div class="row">
+      <div><label>Filter by batch (optional)</label><input id="fbatch"></div>
+    </div>
+    <button id="list" class="ghost">Show codes</button>
+    <div id="table" class="wrap"></div>
+  </section>
+
+  <section>
+    <h2>Revoke an unused code</h2>
+    <label>Full code, or its last 4 characters</label><input id="rev" placeholder="AI-TEST-XXXXX-XXXXX or 2XPA">
+    <button id="revoke" class="ghost">Revoke</button>
+    <div id="revmsg" class="msg"></div>
+  </section>
+</main>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  try { $("key").value = sessionStorage.getItem("tc_admin") || ""; } catch (e) {}
+  $("key").addEventListener("change", function () { try { sessionStorage.setItem("tc_admin", $("key").value); } catch (e) {} });
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function call(body) {
+    return fetch("/api/testcode", { method: "POST", headers: { "Content-Type": "application/json", "X-Admin-Key": $("key").value }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); });
+  }
+  function d(ms) { return ms ? new Date(ms).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""; }
+
+  $("create").onclick = function () {
+    call({ action: "create", count: $("count").value, days: $("days").value, batch: $("batch").value, note: $("note").value })
+      .then(function (r) {
+        if (r.error) { $("created").innerHTML = "<div class='msg'>" + esc(r.error) + "</div>"; return; }
+        var lines = r.codes.map(function (c) { return c + "   →   https://astroindicators.com/?testcode=" + c; }).join("\n");
+        $("created").innerHTML = "<label>Created " + r.codes.length + " code(s), valid until " + d(r.expiresAt) + ". Send each person their own link:</label><pre id='codes'>" + esc(lines) +
+          "</pre><button class='ghost' id='copy'>Copy all</button>";
+        $("copy").onclick = function () { navigator.clipboard.writeText(lines).then(function () { $("copy").textContent = "Copied ✓"; }); };
+      });
+  };
+
+  $("list").onclick = function () {
+    call({ action: "list", batch: $("fbatch").value }).then(function (r) {
+      if (r.error) { $("table").innerHTML = "<div class='msg'>" + esc(r.error) + "</div>"; return; }
+      var used = r.rows.filter(function (x) { return x.used; }).length;
+      var html = "<div class='msg'>" + r.rows.length + " codes · " + used + " used</div><table><tr><th>…Last 4</th><th>Batch</th><th>Note</th><th>Status</th><th>Expires</th><th>Used for</th><th>Used on</th><th>Email</th></tr>";
+      r.rows.forEach(function (x) {
+        var st = x.status === "revoked" ? "Revoked" : x.used ? "Used" : (x.expires_at < r.now ? "Expired" : "Active");
+        html += "<tr><td>" + esc(x.code_hint) + "</td><td>" + esc(x.batch) + "</td><td>" + esc(x.note) + "</td><td>" + st + "</td><td>" + d(x.expires_at) +
+          "</td><td>" + esc(x.redeemed_item || "") + "</td><td>" + d(x.redeemed_at) + "</td><td>" + esc(x.redeemed_email || "") + "</td></tr>";
+      });
+      $("table").innerHTML = html + "</table>";
+    });
+  };
+
+  $("revoke").onclick = function () {
+    var v = $("rev").value.trim(); if (!v) return;
+    call(v.replace(/[^0-9A-Za-z]/g, "").length > 6 ? { action: "revoke", code: v } : { action: "revoke", hint: v })
+      .then(function (r) { $("revmsg").textContent = r.error ? r.error : (r.revoked ? "Revoked " + r.revoked + " code(s)." : "No unused code matched."); });
+  };
+})();
+</script>
+</body>
+</html>
