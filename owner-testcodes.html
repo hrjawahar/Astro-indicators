@@ -89,8 +89,9 @@
     call({ action: "create", count: $("count").value, days: $("days").value, batch: $("batch").value, note: $("note").value })
       .then(function (r) {
         if (r.error) { $("created").innerHTML = "<div class='msg'>" + esc(r.error) + "</div>"; return; }
-        var lines = r.codes.map(function (c) { return c + "   →   https://astroindicators.com/?testcode=" + c; }).join("\n");
-        $("created").innerHTML = "<label>Created " + r.codes.length + " code(s), valid until " + d(r.expiresAt) + ". Send each person their own link:</label><pre id='codes'>" + esc(lines) +
+        var base = (location.protocol === "https:" ? location.origin : "https://astroindicators.com");
+        var lines = r.codes.map(function (c) { return c + "   →   " + base + "/?testcode=" + c; }).join("\n");
+        $("created").innerHTML = "<label>Created " + r.codes.length + " code(s), valid until " + d(r.expiresAt) + ". Send each person their own link (links point to the site this page is open on):</label><pre id='codes'>" + esc(lines) +
           "</pre><button class='ghost' id='copy'>Copy all</button>";
         $("copy").onclick = function () { navigator.clipboard.writeText(lines).then(function () { $("copy").textContent = "Copied ✓"; }); };
       });
