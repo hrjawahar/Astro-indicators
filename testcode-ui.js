@@ -118,7 +118,13 @@
     if (inflight[key]) return inflight[key];
 
     var code = get();
-    if (!code || !opts.item || opts.booking || INELIGIBLE.test(String(opts.item))) return realStart(opts);
+    if (code && (opts.booking || /^(domain_all|consult)/.test(String(opts.item || "")))) {
+      // Saved code, but this purchase isn't eligible → say so, keep the code, then pay.
+      var what = /^domain_all/.test(String(opts.item || "")) ? "the All 7 Domains bundle" : "consultations";
+      toast("Your test code isn't valid for " + what + " — it stays saved for any single report. Continuing to payment…", false);
+      return new Promise(function (r) { setTimeout(r, 2200); }).then(function () { return realStart(opts); });
+    }
+    if (!code || !opts.item || INELIGIBLE.test(String(opts.item))) return realStart(opts);
     if (!chartId) return realStart(opts);
 
     var p = redeemWith(code, chartId, opts, key);
