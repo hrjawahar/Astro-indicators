@@ -60,6 +60,13 @@
   </section>
 
   <section>
+    <h2>Check a code</h2>
+    <label>Paste a full code to see exactly why it works or doesn't</label><input id="chk" placeholder="AI-TEST-XXXXX-XXXXX">
+    <button id="check" class="ghost">Check</button>
+    <div id="chkmsg" class="msg"></div>
+  </section>
+
+  <section>
     <h2>Revoke an unused code</h2>
     <label>Full code, or its last 4 characters</label><input id="rev" placeholder="AI-TEST-XXXXX-XXXXX or 2XPA">
     <button id="revoke" class="ghost">Revoke</button>
@@ -101,6 +108,11 @@
       });
       $("table").innerHTML = html + "</table>";
     });
+  };
+
+  $("check").onclick = function () {
+    var v = $("chk").value.trim(); if (!v) return;
+    call({ action: "check", code: v }).then(function (r) { $("chkmsg").textContent = r.error ? r.error : r.reason; });
   };
 
   $("revoke").onclick = function () {

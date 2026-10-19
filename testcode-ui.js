@@ -39,7 +39,7 @@
   function toast(msg, good) {
     var t = document.createElement("div");
     t.textContent = msg;
-    t.style.cssText = "position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:99999;max-width:92vw;" +
+    t.style.cssText = "position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:2147483647;max-width:92vw;" +
       "padding:12px 18px;border-radius:12px;font:600 14px/1.4 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);" +
       (good ? "background:#C9A44C;color:#0B0E1A" : "background:#141B33;color:#EDEBE4;border:1px solid #C9A44C");
     document.body.appendChild(t);
@@ -103,15 +103,31 @@
   var realStart = window.startPayment;
   if (typeof realStart !== "function") { try { console.warn("testcode-ui.js: load after payments.js"); } catch (e) {} return; }
 
+  // Guards against the SAME report being started twice (double-tap, or the
+  // email-field "resume" helper firing alongside a click): while a code is being
+  // redeemed, or after it succeeded, repeat calls for that chart + report share
+  // the result instead of opening Razorpay on top of the unlocked report.
+  var inflight = {}, redeemed = {};
+
   window.startPayment = function (opts) {
     opts = opts || {};
-    var code = get();
-    if (!code || !opts.item || opts.booking || INELIGIBLE.test(String(opts.item))) return realStart(opts);
-
     var chartId = opts.chartId || window.AI_chartId || null;
     if (typeof chartId === "function") { try { chartId = chartId(); } catch (e) { chartId = null; } }
+    var key = String(chartId || "") + "|" + String(opts.item || "");
+    if (redeemed[key]) return Promise.resolve(redeemed[key]);
+    if (inflight[key]) return inflight[key];
+
+    var code = get();
+    if (!code || !opts.item || opts.booking || INELIGIBLE.test(String(opts.item))) return realStart(opts);
     if (!chartId) return realStart(opts);
 
+    var p = redeemWith(code, chartId, opts, key);
+    inflight[key] = p;
+    p.then(function () { delete inflight[key]; }, function () { delete inflight[key]; });
+    return p;
+  };
+
+  function redeemWith(code, chartId, opts, key) {
     return fetch("/api/redeem", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: code, chartId: String(chartId), item: opts.item, email: opts.email || "" }),
@@ -124,13 +140,14 @@
         }
         if (res && res.ok) {
           set("");                                              // one-time: forget it
-          (window.AI_unlocked = window.AI_unlocked || {})[opts.item] = true;
+          (window.AI_unlocked = window.AI_unlocked || {})[opts.item] = String(chartId);
           toast("✓ Unlocked with your test code — enjoy your report!", true);
-          return { paymentId: res.paymentId, item: opts.item, clientCode: null, test: true };
+          redeemed[key] = { paymentId: res.paymentId, item: opts.item, clientCode: null, test: true };
+          return redeemed[key];
         }
         set("");
         toast((res && res.error ? res.error : "This code couldn't be used.") + " Continuing to payment…", false);
         return new Promise(function (r) { setTimeout(r, 1400); }).then(function () { return realStart(opts); });
       }, function () { return realStart(opts); });       // network trouble → normal payment
-  };
+  }
 })();
