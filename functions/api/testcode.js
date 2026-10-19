@@ -7,6 +7,7 @@
 //  POST { action:"create", count, batch, note, days }  → { codes:[...plain codes...] }  (shown ONCE)
 //  POST { action:"list",   batch? }                    → { rows:[...] }   (no hashes, no plain codes)
 //  POST { action:"revoke", code? | hint? }             → { revoked:n }
+//  POST { action:"check",  code }                      → { found, reason, ... }  (diagnostics)
 //
 //  SETUP (Cloudflare → Settings → Environment variables, encrypt both):
 //    TESTCODE_ADMIN_KEY = a long random password only you know
@@ -52,6 +53,28 @@ export async function onRequestPost({ request, env }) {
               (batch ? "WHERE batch = ? " : "") + "ORDER BY created_at DESC LIMIT 500";
     const res = batch ? await env.DB.prepare(q).bind(batch).all() : await env.DB.prepare(q).all();
     return json({ rows: res.results || [], now });
+  }
+
+  if (action === "check") {
+    // Owner diagnostics: why does a code work / not work?
+    const code = String(body.code || "");
+    const row = await env.DB.prepare("SELECT * FROM test_codes WHERE code_hash = ?")
+      .bind(await hashCode(code, env.TESTCODE_PEPPER)).first();
+    if (!row) {
+      const sameHint = await env.DB.prepare("SELECT COUNT(*) AS n FROM test_codes WHERE code_hint = ?")
+        .bind(hint(code)).first();
+      return json({ found: false, hintMatches: (sameHint && sameHint.n) || 0,
+        reason: (sameHint && sameHint.n)
+          ? "A code ending in these 4 characters exists, but the full code doesn't match. Either a character is mistyped, or TESTCODE_PEPPER was changed after this code was created (that makes all older codes unusable)."
+          : "No such code. Check for a typo." });
+    }
+    const expired = !row.redeemed_chart_id && row.expires_at < now;
+    const reason = row.status !== "active" ? "Revoked."
+      : row.redeemed_chart_id ? "Already used for " + row.redeemed_item + " on " + new Date(row.redeemed_at).toISOString().slice(0, 10) + " — it only re-opens that same report on that same birth chart."
+      : expired ? "Expired on " + new Date(row.expires_at).toISOString().slice(0, 10) + "."
+      : "Valid and unused — it will unlock the first eligible report chosen.";
+    return json({ found: true, status: row.status, used: !!row.redeemed_chart_id, expired, batch: row.batch,
+      redeemed_item: row.redeemed_item || null, expires_at: row.expires_at, reason });
   }
 
   if (action === "revoke") {
