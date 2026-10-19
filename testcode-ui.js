@@ -99,6 +99,35 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { renderBanner(); addFooterLink(); });
   else { renderBanner(); addFooterLink(); }
 
+  function chooseBox(isBundle, amount) {
+    return new Promise(function (resolve) {
+      var old = document.getElementById("aiTestcodeChoose"); if (old) old.remove();
+      var price = amount ? " ₹" + Number(amount).toLocaleString("en-IN") : "";
+      var box = document.createElement("div");
+      box.id = "aiTestcodeChoose";
+      box.style.cssText = "position:fixed;inset:0;z-index:2147483646;background:rgba(5,8,20,.72);display:flex;align-items:center;justify-content:center;padding:16px";
+      box.innerHTML =
+        "<div role='dialog' aria-modal='true' style='background:#141B33;border:1px solid #C9A44C;border-radius:16px;padding:20px;width:100%;max-width:400px;color:#EDEBE4;font:14px/1.55 Inter,system-ui,sans-serif'>" +
+        "<div style='font-weight:700;color:#E8D9AE;font-size:16px;margin-bottom:8px'>🎟 Your test code covers one individual report</div>" +
+        "<div style='opacity:.92'>" + (isBundle
+          ? "Use it on <b>any single Domain report (₹750)</b> — Career, Marriage, Self and the rest — or the Life Indicators report. It doesn't cover the <b>All 7 Domains bundle</b>."
+          : "Use it on <b>any single Domain report (₹750)</b> or the Life Indicators report. It doesn't cover <b>consultations</b>.") +
+        "<br><span style='color:#C9A44C'>Your code stays saved.</span></div>" +
+        "<div style='display:flex;flex-direction:column;gap:10px;margin-top:16px'>" +
+        "<button type='button' data-back style='background:#C9A44C;border:0;color:#0B0E1A;font-weight:700;border-radius:10px;padding:11px 14px;cursor:pointer;font-size:15px'>Choose a single report</button>" +
+        "<button type='button' data-pay style='background:none;border:1px solid #3a4266;color:#EDEBE4;border-radius:10px;padding:10px 14px;cursor:pointer'>Pay" + price + " for " + (isBundle ? "the bundle" : "the consultation") + "</button>" +
+        "</div></div>";
+      document.body.appendChild(box);
+      function done(v) { box.remove(); resolve(v); }
+      box.querySelector("[data-back]").onclick = function () {
+        done(false);
+        try { document.querySelector('.nav-tab[data-tab="domainReportTab"]') && document.querySelector('.nav-tab[data-tab="domainReportTab"]').click(); } catch (e) {}
+      };
+      box.querySelector("[data-pay]").onclick = function () { done(true); };
+      box.onclick = function (e) { if (e.target === box) done(false); };
+    });
+  }
+
   // 3. Wrap startPayment (defined by payments.js, which must load first).
   var realStart = window.startPayment;
   if (typeof realStart !== "function") { try { console.warn("testcode-ui.js: load after payments.js"); } catch (e) {} return; }
@@ -119,10 +148,12 @@
 
     var code = get();
     if (code && (opts.booking || /^(domain_all|consult)/.test(String(opts.item || "")))) {
-      // Saved code, but this purchase isn't eligible → say so, keep the code, then pay.
-      var what = /^domain_all/.test(String(opts.item || "")) ? "the All 7 Domains bundle" : "consultations";
-      toast("Your test code isn't valid for " + what + " — it stays saved for any single report. Continuing to payment…", false);
-      return new Promise(function (r) { setTimeout(r, 2200); }).then(function () { return realStart(opts); });
+      // Saved code, but this purchase isn't eligible → let the tester choose:
+      // go back and pick a single report (code kept), or pay for this item.
+      var isBundle = /^domain_all/.test(String(opts.item || ""));
+      return chooseBox(isBundle, opts.amount).then(function (pay) {
+        return pay ? realStart(opts) : Promise.reject("dismissed");   // callers ignore "dismissed"
+      });
     }
     if (!code || !opts.item || INELIGIBLE.test(String(opts.item))) return realStart(opts);
     if (!chartId) return realStart(opts);
