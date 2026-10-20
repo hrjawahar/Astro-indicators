@@ -13,8 +13,8 @@
 //    two people can't claim the same code at once).
 //  • Same chart + same report again → ok (re-open / re-download, like a paid report).
 //  • Different birth details → different chartId → refused → normal payment.
-//  • Codes are looked up by SHA-256 hash; one generic error message for all
-//    failures; 5 failed attempts per IP per 15 minutes.
+//  • Codes are looked up by SHA-256 hash; failures return a short reason
+//    (invalid / revoked / used / expired); 5 failed attempts per IP per 15 minutes.
 //  • payment_id is "TEST-<last4>" so test unlocks never count as revenue, and
 //    verify.js (referral rewards, invoices) is never involved.
 //
@@ -25,7 +25,14 @@ import { ELIGIBLE_ITEMS, hashCode, hint, isRawChartId, json } from "../utils/tes
 
 const MAX_FAILS = 5;
 const WINDOW_MS = 15 * 60 * 1000;
-const GENERIC = "This code is invalid, expired or already used.";
+// Specific (but safe) reasons for the tester. Codes are 50-bit random and failed
+// attempts are rate-limited, so naming the reason doesn't help anyone guess codes.
+const MSG = {
+  invalid: "This code isn't valid — please check it was typed exactly as sent.",
+  revoked: "This code is no longer active.",
+  used:    "This code has already been used for another report or birth chart. Each code unlocks one report on one chart.",
+  expired: "This code has expired.",
+};
 
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return json({ ok: false, error: "Not configured." }, 500);
@@ -48,20 +55,21 @@ export async function onRequestPost({ request, env }) {
   if (fails && fails.n >= MAX_FAILS) {
     return json({ ok: false, error: "Too many attempts. Please try again in 15 minutes." }, 429);
   }
-  const fail = async () => {
+  const fail = async (why = "invalid") => {
     try {
       await env.DB.batch([
         env.DB.prepare("INSERT INTO test_code_attempts (ip, at) VALUES (?, ?)").bind(ip, now),
         env.DB.prepare("DELETE FROM test_code_attempts WHERE at < ?").bind(now - 24 * 3600 * 1000),
       ]);
     } catch (_) {}
-    return json({ ok: false, error: GENERIC });
+    return json({ ok: false, reason: why, error: MSG[why] || MSG.invalid });
   };
 
-  if (code.replace(/[^0-9A-Za-z]/g, "").length < 8) return fail();
+  if (code.replace(/[^0-9A-Za-z]/g, "").length < 8) return fail("invalid");
   const h = await hashCode(code, env.TESTCODE_PEPPER);
   const row = await env.DB.prepare("SELECT * FROM test_codes WHERE code_hash = ?").bind(h).first();
-  if (!row || row.status !== "active") return fail();
+  if (!row) return fail("invalid");
+  if (row.status !== "active") return fail("revoked");
 
   const paymentId = "TEST-" + hint(code);
 
@@ -71,16 +79,16 @@ export async function onRequestPost({ request, env }) {
       await writePaid(env, chartId, item, paymentId, now);
       return json({ ok: true, paymentId, again: true });
     }
-    return fail();
+    return fail("used");
   }
-  if (row.expires_at < now) return fail();
+  if (row.expires_at < now) return fail("expired");
 
   // Bind atomically: succeeds only if nobody redeemed it a moment ago.
   const upd = await env.DB.prepare(
     "UPDATE test_codes SET redeemed_chart_id = ?, redeemed_item = ?, redeemed_at = ?, redeemed_email = ?, redeemed_ip = ? " +
     "WHERE code_hash = ? AND redeemed_chart_id IS NULL AND status = 'active' AND expires_at >= ?"
   ).bind(chartId, item, now, email, ip, h, now).run();
-  if (!upd.meta || upd.meta.changes !== 1) return fail();
+  if (!upd.meta || upd.meta.changes !== 1) return fail("used");
 
   const wrote = await writePaid(env, chartId, item, paymentId, now);
   if (!wrote) {

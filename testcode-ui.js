@@ -12,7 +12,8 @@
 //  window.startPayment is wrapped: for an eligible report (not the domain bundle,
 //  not a consultation) with a saved code, we call /api/redeem first.
 //    ok  → resolve exactly like a successful payment (callers unlock as usual)
-//    no  → short notice, code cleared, and the normal Razorpay checkout opens.
+//    no  → a box explains why (used / expired / invalid / revoked); the tester
+//          chooses Pay or Cancel. Checkout never opens on its own.
 //  A code works once; afterwards it's bound to that birth chart on the server.
 // ─────────────────────────────────────────────────────────────────────────────
 (function () {
@@ -99,6 +100,31 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { renderBanner(); addFooterLink(); });
   else { renderBanner(); addFooterLink(); }
 
+  // A refused code never opens checkout on its own: the tester reads why, then chooses.
+  function refusedBox(reason, amount) {
+    return new Promise(function (resolve) {
+      var old = document.getElementById("aiTestcodeRefused"); if (old) old.remove();
+      var price = amount ? " ₹" + Number(amount).toLocaleString("en-IN") : "";
+      var box = document.createElement("div");
+      box.id = "aiTestcodeRefused";
+      box.style.cssText = "position:fixed;inset:0;z-index:2147483646;background:rgba(5,8,20,.72);display:flex;align-items:center;justify-content:center;padding:16px";
+      box.innerHTML =
+        "<div role='dialog' aria-modal='true' style='background:#141B33;border:1px solid #C9A44C;border-radius:16px;padding:20px;width:100%;max-width:400px;color:#EDEBE4;font:14px/1.55 Inter,system-ui,sans-serif'>" +
+        "<div style='font-weight:700;color:#E8D9AE;font-size:16px;margin-bottom:8px'>🎟 This test code can't be used</div>" +
+        "<div style='opacity:.92' data-msg></div>" +
+        "<div style='display:flex;flex-direction:column;gap:10px;margin-top:16px'>" +
+        "<button type='button' data-pay style='background:#C9A44C;border:0;color:#0B0E1A;font-weight:700;border-radius:10px;padding:11px 14px;cursor:pointer;font-size:15px'>Pay" + price + " instead</button>" +
+        "<button type='button' data-x style='background:none;border:1px solid #3a4266;color:#EDEBE4;border-radius:10px;padding:10px 14px;cursor:pointer'>Cancel</button>" +
+        "</div></div>";
+      box.querySelector("[data-msg]").textContent = reason || "This code couldn't be used.";
+      document.body.appendChild(box);
+      function done(v) { box.remove(); resolve(v); }
+      box.querySelector("[data-pay]").onclick = function () { done(true); };
+      box.querySelector("[data-x]").onclick = function () { done(false); };
+      box.onclick = function (e) { if (e.target === box) done(false); };
+    });
+  }
+
   function chooseBox(isBundle, amount) {
     return new Promise(function (resolve) {
       var old = document.getElementById("aiTestcodeChoose"); if (old) old.remove();
@@ -182,9 +208,10 @@
           redeemed[key] = { paymentId: res.paymentId, item: opts.item, clientCode: null, test: true };
           return redeemed[key];
         }
-        set("");
-        toast((res && res.error ? res.error : "This code couldn't be used.") + " Continuing to payment…", false);
-        return new Promise(function (r) { setTimeout(r, 1400); }).then(function () { return realStart(opts); });
+        set("");                                              // refused for good → forget it
+        return refusedBox(res && res.error, opts.amount).then(function (pay) {
+          return pay ? realStart(opts) : Promise.reject("dismissed");    // callers ignore "dismissed"
+        });
       }, function () { return realStart(opts); });       // network trouble → normal payment
   }
 })();
