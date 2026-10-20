@@ -1,9 +1,9 @@
 // Shared helpers for test codes (redeem.js + testcode.js).
 // Lives in functions/utils/ (no onRequest exports → no route).
 
-// Reports a test code may unlock. NOT allowed: "domain_all" (bundle), "consult_*".
+// Reports a test code may unlock: the 7 individual Domain reports (₹750) only.
+// NOT allowed: Life Indicators (LAMP), the All 7 bundle, ICC, Dasa, Life Domains, consultations.
 export const ELIGIBLE_ITEMS = new Set([
-  "lifeIndicators", "icc", "dasha", "lifeDomains",
   "domain_self", "domain_career", "domain_siblings", "domain_mother",
   "domain_children", "domain_health", "domain_marriage",
 ]);

@@ -8,7 +8,7 @@
 //    → 429 { ok:false, error }               too many failed attempts
 //
 //  RULES
-//  • One code = ONE report (user's choice; never the domain bundle or a consultation)
+//  • One code = ONE individual Domain report (₹750, user's choice; never LAMP, the bundle, ICC or a consultation)
 //    for ONE birth chart. It binds to the chart on first use (atomic UPDATE, so
 //    two people can't claim the same code at once).
 //  • Same chart + same report again → ok (re-open / re-download, like a paid report).
@@ -46,7 +46,7 @@ export async function onRequestPost({ request, env }) {
   const ip      = request.headers.get("CF-Connecting-IP") || "unknown";
   const now     = Date.now();
 
-  if (!ELIGIBLE_ITEMS.has(item)) return json({ ok: false, error: "Test codes can't be used for this report." });
+  if (!ELIGIBLE_ITEMS.has(item)) return json({ ok: false, reason: "not_eligible", error: "Test codes work only on individual Domain reports (₹750)." });
   if (!isRawChartId(chartId))    return json({ ok: false, error: "Please generate your chart first." }, 400);
 
   // Rate limit (failed attempts only).

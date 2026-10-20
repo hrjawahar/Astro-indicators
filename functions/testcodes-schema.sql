@@ -2,8 +2,8 @@
 --  Test codes (payment bypass for selected users) — run ONCE in the D1 console
 --  (Cloudflare → Workers & Pages → D1 → astro_paid → Console). Safe to re-run.
 --
---  A code unlocks ONE report (the user's choice, excluding the domain bundle and
---  consultations) for ONE birth chart. It binds to that chart on first use; any
+--  A code unlocks ONE individual Domain report (₹750, the user's choice — not
+--  Life Indicators, the bundle, ICC or consultations) for ONE birth chart. It binds to that chart on first use; any
 --  other birth details are sent to the normal payment gateway.
 --  Codes are stored HASHED (SHA-256) — the plain code is shown only once, when
 --  it is created on the owner page.
