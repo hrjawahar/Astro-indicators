@@ -770,47 +770,59 @@ function renderChartScreen(data) {
 // Julian Day (UT) for "now", to match the server's JD values on each window.
 function _nowJD() { return (Date.now() / 86400000) + 2440587.5; }
 
-const CHANDRA_INTRO =
-  "Chandrashtama is the roughly 2.5-day stretch each month when the transiting Moon passes through the 8th sign from your birth Moon sign. Because the Moon governs the mind and emotions, these are days of a lower emotional tide — generally better suited to rest and routine than to major moves. It is a gentle timing guide, not a prediction: with a little awareness, most of these days pass unremarkably.";
+const CHANDRA_I18N = {"EN": {"title": "Chandrashtama — your Moon's monthly low tide", "now": "Happening now", "next": "Next window", "moon_in": "Moon in", "enters": "Enters", "star_path": "Star path", "peak": "Most sensitive point", "ends": "Ends", "manage_summary": "What this is & how to manage it", "download": "Download 12-month guide (PDF)", "intro_line": "For your birth Moon in {s}, the sensitive window each month is when the Moon transits the 8th sign, {e}. Times shown in {tz}.", "intro": "Chandrashtama is the roughly 2.5-day stretch each month when the transiting Moon passes through the 8th sign from your birth Moon sign. Because the Moon governs the mind and emotions, these are days of a lower emotional tide — generally better suited to rest and routine than to major moves. It is a gentle timing guide, not a prediction: with a little awareness, most of these days pass unremarkably.", "manage": ["Keep it routine: where you can, avoid launching ventures, signing major agreements, or making big financial decisions on these days.", "Guard your words: misunderstandings come more easily — listen more, react less, and postpone heated conversations.", "Protect your energy: a lighter schedule, more rest and good hydration help; the peak point asks for the most care.", "Turn it inward: reflection, planning and quiet practices (meditation or slow breathing) suit this tide better than confrontation."], "pdf_title": "Chandrashtama — Your 12-Month Guide", "pdf_what": "What Chandrashtama is", "pdf_howmanage": "How to manage these days", "pdf_windows": "Your upcoming windows (next 12 months)", "pdf_birthmoon": "Birth Moon", "pdf_sensitive": "Sensitive sign (8th)", "pdf_times_in": "Times in", "pdf_stars": "Stars", "cont": "continued", "footer": "This is an educational timing guide for self-reflection, not a prediction or professional advice.  © 2026 AstroIndicators · astroindicators.com"}, "TA": {"title": "சந்திராஷ்டமம் — உங்கள் சந்திரனின் மாதாந்திர தாழ்வு நேரம்", "now": "இப்போது நடக்கிறது", "next": "அடுத்த காலம்", "moon_in": "சந்திரன்", "enters": "நுழைவு", "star_path": "நட்சத்திரப் பாதை", "peak": "மிக உணர்வுள்ள தருணம்", "ends": "முடிவு", "manage_summary": "இது என்ன & எப்படி சமாளிப்பது", "download": "12 மாத வழிகாட்டியைப் பதிவிறக்கவும் (PDF)", "intro_line": "உங்கள் ஜென்ம சந்திரன் {s} ராசியில் இருப்பதால், ஒவ்வொரு மாதமும் சந்திரன் 8வது ராசியான {e} வழியே செல்லும்போது உணர்வுள்ள காலம் ஏற்படுகிறது. நேரங்கள் {tz} படி.", "intro": "சந்திராஷ்டமம் என்பது ஒவ்வொரு மாதமும் கடந்து செல்லும் சந்திரன் உங்கள் ஜென்ம ராசியிலிருந்து 8வது ராசியைக் கடக்கும் சுமார் 2.5 நாள் காலம். சந்திரன் மனதையும் உணர்ச்சிகளையும் ஆளுவதால், இந்த நாட்கள் உணர்வு ரீதியாக தாழ்வான நேரம் — பெரிய முடிவுகளை விட ஓய்வுக்கும் வழக்கமான வேலைகளுக்கும் ஏற்றவை. இது ஒரு மென்மையான நேர வழிகாட்டி, கணிப்பு அல்ல: சிறிது விழிப்புணர்வுடன், இந்த நாட்கள் பெரும்பாலும் சாதாரணமாகவே கடந்துவிடும்.", "manage": ["வழக்கம் போல் இருங்கள்: முடிந்தவரை இந்த நாட்களில் புதிய முயற்சிகள், முக்கிய ஒப்பந்தங்கள் அல்லது பெரிய நிதி முடிவுகளைத் தவிர்க்கவும்.", "சொற்களைக் கவனியுங்கள்: தவறான புரிதல்கள் எளிதில் வரும் — அதிகம் கேளுங்கள், குறைவாக எதிர்வினையாற்றுங்கள், சூடான உரையாடல்களை ஒத்திவைக்கவும்.", "உங்கள் சக்தியைப் பாதுகாக்கவும்: இலகுவான அட்டவணை, அதிக ஓய்வு, நல்ல நீர்ச்சத்து உதவும்; உச்ச தருணம் அதிக கவனம் கேட்கிறது.", "உள்நோக்கித் திரும்புங்கள்: சிந்தனை, திட்டமிடல், அமைதியான பயிற்சிகள் (தியானம் அல்லது மெதுவான சுவாசம்) மோதலை விட இந்த நேரத்திற்கு ஏற்றவை."], "pdf_title": "சந்திராஷ்டமம் — உங்கள் 12 மாத வழிகாட்டி", "pdf_what": "சந்திராஷ்டமம் என்றால் என்ன", "pdf_howmanage": "இந்த நாட்களை எப்படி சமாளிப்பது", "pdf_windows": "உங்கள் வரவிருக்கும் காலங்கள் (அடுத்த 12 மாதங்கள்)", "pdf_birthmoon": "ஜென்ம சந்திரன்", "pdf_sensitive": "உணர்வுள்ள ராசி (8வது)", "pdf_times_in": "நேரங்கள்", "pdf_stars": "நட்சத்திரங்கள்", "cont": "தொடர்ச்சி", "footer": "இது சுயபரிசீலனைக்கான கல்வி நேர வழிகாட்டி; கணிப்போ தொழில்முறை ஆலோசனையோ அல்ல.  © 2026 AstroIndicators · astroindicators.com"}, "TE": {"title": "చంద్రాష్టమం — మీ చంద్రుని నెలవారీ తక్కువ స్థితి", "now": "ప్రస్తుతం జరుగుతోంది", "next": "తదుపరి కాలం", "moon_in": "చంద్రుడు", "enters": "ప్రవేశం", "star_path": "నక్షత్ర మార్గం", "peak": "అత్యంత సున్నితమైన సమయం", "ends": "ముగింపు", "manage_summary": "ఇది ఏమిటి & ఎలా నిర్వహించాలి", "download": "12 నెలల మార్గదర్శిని డౌన్‌లోడ్ చేయండి (PDF)", "intro_line": "మీ జన్మ చంద్రుడు {s} రాశిలో ఉన్నందున, ప్రతి నెలా చంద్రుడు 8వ రాశి {e} గుండా ప్రయాణించేటప్పుడు సున్నితమైన కాలం ఏర్పడుతుంది. సమయాలు {tz} ప్రకారం.", "intro": "చంద్రాష్టమం అంటే ప్రతి నెలా గోచార చంద్రుడు మీ జన్మ రాశి నుండి 8వ రాశిని దాటే సుమారు 2.5 రోజుల కాలం. చంద్రుడు మనస్సు మరియు భావోద్వేగాలను పరిపాలిస్తాడు కాబట్టి, ఈ రోజులు భావోద్వేగపరంగా తక్కువ స్థితి కలిగినవి — పెద్ద నిర్ణయాల కంటే విశ్రాంతికి మరియు సాధారణ పనులకు అనుకూలమైనవి. ఇది ఒక సున్నితమైన సమయ మార్గదర్శిని, జోస్యం కాదు: కొంచెం అవగాహనతో, ఈ రోజులు చాలావరకు సాధారణంగానే గడిచిపోతాయి.", "manage": ["దినచర్యను కొనసాగించండి: వీలైనంత వరకు ఈ రోజులలో కొత్త ప్రయత్నాలు, ముఖ్యమైన ఒప్పందాలు లేదా పెద్ద ఆర్థిక నిర్ణయాలను నివారించండి.", "మీ మాటలను జాగ్రత్తగా చూసుకోండి: అపార్థాలు సులభంగా వస్తాయి — ఎక్కువగా వినండి, తక్కువగా ప్రతిస్పందించండి, వేడి సంభాషణలను వాయిదా వేయండి.", "మీ శక్తిని కాపాడుకోండి: తేలికైన షెడ్యూల్, ఎక్కువ విశ్రాంతి, మంచి నీటి సేవనం సహాయపడతాయి; గరిష్ఠ సమయం అత్యధిక శ్రద్ధ కోరుతుంది.", "లోపలికి మళ్లండి: ఆలోచన, ప్రణాళిక, ప్రశాంతమైన అభ్యాసాలు (ధ్యానం లేదా నెమ్మదైన శ్వాస) ఘర్షణ కంటే ఈ సమయానికి అనుకూలమైనవి."], "pdf_title": "చంద్రాష్టమం — మీ 12 నెలల మార్గదర్శిని", "pdf_what": "చంద్రాష్టమం అంటే ఏమిటి", "pdf_howmanage": "ఈ రోజులను ఎలా నిర్వహించాలి", "pdf_windows": "మీ రాబోయే కాలాలు (తదుపరి 12 నెలలు)", "pdf_birthmoon": "జన్మ చంద్రుడు", "pdf_sensitive": "సున్నితమైన రాశి (8వ)", "pdf_times_in": "సమయాలు", "pdf_stars": "నక్షత్రాలు", "cont": "కొనసాగింపు", "footer": "ఇది స్వీయ ఆలోచన కోసం విద్యా సమయ మార్గదర్శిని; జోస్యం లేదా వృత్తిపరమైన సలహా కాదు.  © 2026 AstroIndicators · astroindicators.com"}, "HI": {"title": "चंद्राष्टम — आपके चंद्रमा का मासिक निम्न ज्वार", "now": "अभी चल रहा है", "next": "अगली अवधि", "moon_in": "चंद्रमा", "enters": "प्रवेश", "star_path": "नक्षत्र मार्ग", "peak": "सबसे संवेदनशील क्षण", "ends": "समाप्ति", "manage_summary": "यह क्या है और इसे कैसे संभालें", "download": "12 महीने की मार्गदर्शिका डाउनलोड करें (PDF)", "intro_line": "आपका जन्म चंद्रमा {s} राशि में होने के कारण, हर महीने जब चंद्रमा 8वीं राशि {e} से गुजरता है तब संवेदनशील अवधि बनती है। समय {tz} के अनुसार।", "intro": "चंद्राष्टम वह लगभग 2.5 दिन की अवधि है जब हर महीने गोचर चंद्रमा आपकी जन्म राशि से 8वीं राशि से गुजरता है। चूँकि चंद्रमा मन और भावनाओं का कारक है, ये दिन भावनात्मक रूप से निम्न ज्वार के होते हैं — बड़े निर्णयों की तुलना में विश्राम और नियमित कार्यों के लिए अधिक उपयुक्त। यह एक सौम्य समय-मार्गदर्शिका है, भविष्यवाणी नहीं: थोड़ी सजगता के साथ, ये दिन अधिकतर सामान्य रूप से बीत जाते हैं।", "manage": ["दिनचर्या बनाए रखें: जहाँ संभव हो, इन दिनों नए उद्यम शुरू करने, बड़े समझौतों पर हस्ताक्षर करने या बड़े वित्तीय निर्णय लेने से बचें।", "अपने शब्दों का ध्यान रखें: गलतफहमियाँ आसानी से होती हैं — अधिक सुनें, कम प्रतिक्रिया दें, और गरमागरम बातचीत टालें।", "अपनी ऊर्जा बचाएँ: हल्का कार्यक्रम, अधिक विश्राम और पर्याप्त जल सहायक होते हैं; चरम क्षण सबसे अधिक सावधानी माँगता है।", "भीतर की ओर मुड़ें: चिंतन, योजना और शांत अभ्यास (ध्यान या धीमी साँस) टकराव की तुलना में इस समय के लिए अधिक उपयुक्त हैं।"], "pdf_title": "चंद्राष्टम — आपकी 12 महीने की मार्गदर्शिका", "pdf_what": "चंद्राष्टम क्या है", "pdf_howmanage": "इन दिनों को कैसे संभालें", "pdf_windows": "आपकी आगामी अवधियाँ (अगले 12 महीने)", "pdf_birthmoon": "जन्म चंद्रमा", "pdf_sensitive": "संवेदनशील राशि (8वीं)", "pdf_times_in": "समय", "pdf_stars": "नक्षत्र", "cont": "जारी", "footer": "यह आत्म-चिंतन हेतु एक शैक्षिक समय-मार्गदर्शिका है; भविष्यवाणी या पेशेवर सलाह नहीं।  © 2026 AstroIndicators · astroindicators.com"}, "KA": {"title": "ಚಂದ್ರಾಷ್ಟಮ — ನಿಮ್ಮ ಚಂದ್ರನ ಮಾಸಿಕ ಇಳಿತ", "now": "ಈಗ ನಡೆಯುತ್ತಿದೆ", "next": "ಮುಂದಿನ ಅವಧಿ", "moon_in": "ಚಂದ್ರ", "enters": "ಪ್ರವೇಶ", "star_path": "ನಕ್ಷತ್ರ ಮಾರ್ಗ", "peak": "ಅತ್ಯಂತ ಸೂಕ್ಷ್ಮ ಕ್ಷಣ", "ends": "ಅಂತ್ಯ", "manage_summary": "ಇದು ಏನು ಮತ್ತು ಹೇಗೆ ನಿಭಾಯಿಸುವುದು", "download": "12 ತಿಂಗಳ ಮಾರ್ಗದರ್ಶಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ (PDF)", "intro_line": "ನಿಮ್ಮ ಜನ್ಮ ಚಂದ್ರ {s} ರಾಶಿಯಲ್ಲಿರುವುದರಿಂದ, ಪ್ರತಿ ತಿಂಗಳು ಚಂದ್ರ 8ನೇ ರಾಶಿ {e} ಮೂಲಕ ಸಾಗುವಾಗ ಸೂಕ್ಷ್ಮ ಅವಧಿ ಉಂಟಾಗುತ್ತದೆ. ಸಮಯಗಳು {tz} ಪ್ರಕಾರ.", "intro": "ಚಂದ್ರಾಷ್ಟಮ ಎಂದರೆ ಪ್ರತಿ ತಿಂಗಳು ಗೋಚಾರ ಚಂದ್ರ ನಿಮ್ಮ ಜನ್ಮ ರಾಶಿಯಿಂದ 8ನೇ ರಾಶಿಯನ್ನು ದಾಟುವ ಸುಮಾರು 2.5 ದಿನಗಳ ಅವಧಿ. ಚಂದ್ರ ಮನಸ್ಸು ಮತ್ತು ಭಾವನೆಗಳನ್ನು ಆಳುವುದರಿಂದ, ಈ ದಿನಗಳು ಭಾವನಾತ್ಮಕವಾಗಿ ಕಡಿಮೆ ಸ್ಥಿತಿಯವು — ದೊಡ್ಡ ನಿರ್ಧಾರಗಳಿಗಿಂತ ವಿಶ್ರಾಂತಿ ಮತ್ತು ದಿನಚರಿಗೆ ಹೆಚ್ಚು ಸೂಕ್ತ. ಇದು ಒಂದು ಮೃದು ಸಮಯ ಮಾರ್ಗದರ್ಶಿ, ಭವಿಷ್ಯ ನುಡಿಯಲ್ಲ: ಸ್ವಲ್ಪ ಎಚ್ಚರಿಕೆಯಿಂದ, ಈ ದಿನಗಳು ಹೆಚ್ಚಾಗಿ ಸಾಮಾನ್ಯವಾಗಿಯೇ ಕಳೆದುಹೋಗುತ್ತವೆ.", "manage": ["ದಿನಚರಿಯನ್ನು ಉಳಿಸಿಕೊಳ್ಳಿ: ಸಾಧ್ಯವಾದಷ್ಟು ಈ ದಿನಗಳಲ್ಲಿ ಹೊಸ ಉದ್ಯಮಗಳು, ಪ್ರಮುಖ ಒಪ್ಪಂದಗಳು ಅಥವಾ ದೊಡ್ಡ ಹಣಕಾಸು ನಿರ್ಧಾರಗಳನ್ನು ತಪ್ಪಿಸಿ.", "ನಿಮ್ಮ ಮಾತುಗಳ ಬಗ್ಗೆ ಜಾಗರೂಕರಾಗಿರಿ: ತಪ್ಪು ತಿಳಿವಳಿಕೆಗಳು ಸುಲಭವಾಗಿ ಬರುತ್ತವೆ — ಹೆಚ್ಚು ಕೇಳಿ, ಕಡಿಮೆ ಪ್ರತಿಕ್ರಿಯಿಸಿ, ಬಿಸಿ ಸಂಭಾಷಣೆಗಳನ್ನು ಮುಂದೂಡಿ.", "ನಿಮ್ಮ ಶಕ್ತಿಯನ್ನು ಕಾಪಾಡಿಕೊಳ್ಳಿ: ಹಗುರ ವೇಳಾಪಟ್ಟಿ, ಹೆಚ್ಚು ವಿಶ್ರಾಂತಿ ಮತ್ತು ಸಾಕಷ್ಟು ನೀರು ಸಹಾಯ ಮಾಡುತ್ತವೆ; ಗರಿಷ್ಠ ಕ್ಷಣ ಹೆಚ್ಚಿನ ಕಾಳಜಿ ಕೇಳುತ್ತದೆ.", "ಒಳಮುಖವಾಗಿ ತಿರುಗಿ: ಚಿಂತನೆ, ಯೋಜನೆ ಮತ್ತು ಶಾಂತ ಅಭ್ಯಾಸಗಳು (ಧ್ಯಾನ ಅಥವಾ ನಿಧಾನ ಉಸಿರಾಟ) ಘರ್ಷಣೆಗಿಂತ ಈ ಸಮಯಕ್ಕೆ ಸೂಕ್ತ."], "pdf_title": "ಚಂದ್ರಾಷ್ಟಮ — ನಿಮ್ಮ 12 ತಿಂಗಳ ಮಾರ್ಗದರ್ಶಿ", "pdf_what": "ಚಂದ್ರಾಷ್ಟಮ ಎಂದರೇನು", "pdf_howmanage": "ಈ ದಿನಗಳನ್ನು ಹೇಗೆ ನಿಭಾಯಿಸುವುದು", "pdf_windows": "ನಿಮ್ಮ ಮುಂಬರುವ ಅವಧಿಗಳು (ಮುಂದಿನ 12 ತಿಂಗಳು)", "pdf_birthmoon": "ಜನ್ಮ ಚಂದ್ರ", "pdf_sensitive": "ಸೂಕ್ಷ್ಮ ರಾಶಿ (8ನೇ)", "pdf_times_in": "ಸಮಯಗಳು", "pdf_stars": "ನಕ್ಷತ್ರಗಳು", "cont": "ಮುಂದುವರಿಕೆ", "footer": "ಇದು ಸ್ವಯಂ-ಚಿಂತನೆಗಾಗಿ ಶೈಕ್ಷಣಿಕ ಸಮಯ ಮಾರ್ಗದರ್ಶಿ; ಭವಿಷ್ಯ ನುಡಿ ಅಥವಾ ವೃತ್ತಿಪರ ಸಲಹೆ ಅಲ್ಲ.  © 2026 AstroIndicators · astroindicators.com"}, "ML": {"title": "ചന്ദ്രാഷ്ടമം — നിങ്ങളുടെ ചന്ദ്രന്റെ മാസിക താഴ്ന്ന നില", "now": "ഇപ്പോൾ നടക്കുന്നു", "next": "അടുത്ത കാലയളവ്", "moon_in": "ചന്ദ്രൻ", "enters": "പ്രവേശനം", "star_path": "നക്ഷത്ര പാത", "peak": "ഏറ്റവും സൂക്ഷ്മമായ നിമിഷം", "ends": "അവസാനം", "manage_summary": "ഇത് എന്താണ് & എങ്ങനെ കൈകാര്യം ചെയ്യാം", "download": "12 മാസത്തെ വഴികാട്ടി ഡൗൺലോഡ് ചെയ്യുക (PDF)", "intro_line": "നിങ്ങളുടെ ജന്മ ചന്ദ്രൻ {s} രാശിയിൽ ആയതിനാൽ, ഓരോ മാസവും ചന്ദ്രൻ 8-ാം രാശിയായ {e} വഴി സഞ്ചരിക്കുമ്പോൾ സൂക്ഷ്മമായ കാലയളവ് ഉണ്ടാകുന്നു. സമയങ്ങൾ {tz} പ്രകാരം.", "intro": "ചന്ദ്രാഷ്ടമം എന്നത് ഓരോ മാസവും സഞ്ചരിക്കുന്ന ചന്ദ്രൻ നിങ്ങളുടെ ജന്മ രാശിയിൽ നിന്ന് 8-ാം രാശിയിലൂടെ കടന്നുപോകുന്ന ഏകദേശം 2.5 ദിവസത്തെ കാലയളവാണ്. ചന്ദ്രൻ മനസ്സിനെയും വികാരങ്ങളെയും ഭരിക്കുന്നതിനാൽ, ഈ ദിവസങ്ങൾ വികാരപരമായി താഴ്ന്ന നിലയുള്ളവയാണ് — വലിയ തീരുമാനങ്ങളെക്കാൾ വിശ്രമത്തിനും പതിവ് കാര്യങ്ങൾക്കും അനുയോജ്യം. ഇത് ഒരു മൃദുവായ സമയ വഴികാട്ടിയാണ്, പ്രവചനമല്ല: അൽപ്പം ജാഗ്രതയോടെ, ഈ ദിവസങ്ങൾ മിക്കവാറും സാധാരണമായി കടന്നുപോകും.", "manage": ["പതിവ് തുടരുക: കഴിയുന്നിടത്തോളം ഈ ദിവസങ്ങളിൽ പുതിയ സംരംഭങ്ങൾ, പ്രധാന കരാറുകൾ അല്ലെങ്കിൽ വലിയ സാമ്പത്തിക തീരുമാനങ്ങൾ ഒഴിവാക്കുക.", "വാക്കുകൾ ശ്രദ്ധിക്കുക: തെറ്റിദ്ധാരണകൾ എളുപ്പത്തിൽ ഉണ്ടാകും — കൂടുതൽ കേൾക്കുക, കുറച്ച് പ്രതികരിക്കുക, ചൂടുള്ള സംഭാഷണങ്ങൾ മാറ്റിവയ്ക്കുക.", "നിങ്ങളുടെ ഊർജ്ജം സംരക്ഷിക്കുക: ലഘുവായ ഷെഡ്യൂൾ, കൂടുതൽ വിശ്രമം, നല്ല ജലപാനം സഹായിക്കും; പാരമ്യ നിമിഷം ഏറ്റവും കൂടുതൽ ശ്രദ്ധ ആവശ്യപ്പെടുന്നു.", "ഉള്ളിലേക്ക് തിരിയുക: ചിന്ത, ആസൂത്രണം, ശാന്തമായ അഭ്യാസങ്ങൾ (ധ്യാനം അല്ലെങ്കിൽ പതുക്കെയുള്ള ശ്വസനം) സംഘർഷത്തെക്കാൾ ഈ സമയത്തിന് അനുയോജ്യം."], "pdf_title": "ചന്ദ്രാഷ്ടമം — നിങ്ങളുടെ 12 മാസത്തെ വഴികാട്ടി", "pdf_what": "ചന്ദ്രാഷ്ടമം എന്താണ്", "pdf_howmanage": "ഈ ദിവസങ്ങൾ എങ്ങനെ കൈകാര്യം ചെയ്യാം", "pdf_windows": "നിങ്ങളുടെ വരാനിരിക്കുന്ന കാലയളവുകൾ (അടുത്ത 12 മാസം)", "pdf_birthmoon": "ജന്മ ചന്ദ്രൻ", "pdf_sensitive": "സൂക്ഷ്മ രാശി (8-ാം)", "pdf_times_in": "സമയങ്ങൾ", "pdf_stars": "നക്ഷത്രങ്ങൾ", "cont": "തുടർച്ച", "footer": "ഇത് സ്വയം ചിന്തയ്ക്കുള്ള വിദ്യാഭ്യാസ സമയ വഴികാട്ടിയാണ്; പ്രവചനമോ പ്രൊഫഷണൽ ഉപദേശമോ അല്ല.  © 2026 AstroIndicators · astroindicators.com"}};
 
-const CHANDRA_MANAGE = [
-  "Keep it routine: where you can, avoid launching ventures, signing major agreements, or making big financial decisions on these days.",
-  "Guard your words: misunderstandings come more easily — listen more, react less, and postpone heated conversations.",
-  "Protect your energy: a lighter schedule, more rest and good hydration help; the peak point asks for the most care.",
-  "Turn it inward: reflection, planning and quiet practices (meditation or slow breathing) suit this tide better than confrontation."
-];
+const CH_LOCALE = { EN:"en-IN", TA:"ta-IN", TE:"te-IN", HI:"hi-IN", KA:"kn-IN", ML:"ml-IN" };
+const CH_PDF_FONT = { EN:"'Inter','Helvetica',sans-serif", TA:"'Noto Sans Tamil',sans-serif", TE:"'Noto Sans Telugu',sans-serif", HI:"'Noto Sans Devanagari',sans-serif", KA:"'Noto Sans Kannada',sans-serif", ML:"'Noto Sans Malayalam',sans-serif" };
+function _chT18(lang){ return CHANDRA_I18N[lang] || CHANDRA_I18N.EN; }
+function _chSign(s, lang){ try { return (typeof SIGN_NAMES!=="undefined" && SIGN_NAMES[lang] && SIGN_NAMES[lang][s]) || s; } catch(e){ return s; } }
+function _chNak(n, lang){ try { return (typeof NAK_NAMES!=="undefined" && NAK_NAMES[lang] && NAK_NAMES[lang][n]) || n; } catch(e){ return n; } }
+// Localised date from a Julian Day (UT), shown in IST. Intl gives native weekday/month names.
+function _chDate(jd, lang, withTime){
+  var d = new Date((jd - 2440587.5) * 86400000);
+  var opt = { timeZone:"Asia/Kolkata", weekday:"short", day:"numeric", month:"short", year:"numeric" };
+  if (withTime){ opt.hour = "2-digit"; opt.minute = "2-digit"; opt.hour12 = false; }
+  try { return new Intl.DateTimeFormat(CH_LOCALE[lang] || "en-IN", opt).format(d); }
+  catch(e){ try { return new Intl.DateTimeFormat("en-IN", opt).format(d); } catch(_){ return ""; } }
+}
 
 function renderChandrashtama(ch, data) {
   const host = document.getElementById("chandraCard");
   if (!host) return;
   if (!ch || !ch.windows || !ch.windows.length) { host.style.display = "none"; return; }
   host.style.display = "";
+  const lang = _chartLang();
+  const T = _chT18(lang);
   const now = _nowJD();
-  // Pick the current (in-progress) window if any, else the next upcoming one.
   let w = ch.windows.find(x => x.ingress.jd <= now && x.egress.jd >= now)
         || ch.windows.find(x => x.ingress.jd >= now) || ch.windows[0];
   const live = (w.ingress.jd <= now && w.egress.jd >= now);
   const badge = live
-    ? `<span style="background:#c0392b;color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px">Happening now</span>`
-    : `<span style="background:rgba(201,168,76,.18);color:var(--ai-gold,#b0821f);font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px">Next window</span>`;
-  const path = w.nakshatras.map(n => `<b>${n.name}</b> <span style="opacity:.7">(${n.at.split(", ")[0]})</span>`).join(" → ");
+    ? `<span style="background:#c0392b;color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px">${T.now}</span>`
+    : `<span style="background:rgba(201,168,76,.18);color:var(--ai-gold,#b0821f);font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px">${T.next}</span>`;
+  const sign = _chSign(w.sign, lang);
+  const path = w.nakshatras.map(n => `<b>${_chNak(n.name, lang)}</b> <span style="opacity:.7">(${_chDate(n.jd, lang, false)})</span>`).join(" \u2192 ");
+  const introLine = T.intro_line
+    .replace("{s}", "<b>" + _chSign(ch.natalMoonSign, lang) + "</b>")
+    .replace("{e}", "<b>" + _chSign(ch.eighthSign, lang) + "</b>")
+    .replace("{tz}", ch.tzLabel);
 
   host.innerHTML = `
-    <h3 class="card-title">Chandrashtama — your Moon's monthly low tide <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span> <span style="background:#1a7f4b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">FREE</span></h3>
-    <p class="card-body" style="margin-top:-4px">For your birth Moon in <b>${ch.natalMoonSign}</b>, the sensitive window each month is when the Moon transits the 8th sign, <b>${ch.eighthSign}</b>. Times shown in ${ch.tzLabel}.</p>
+    <h3 class="card-title">${T.title} <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span> <span style="background:#1a7f4b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">FREE</span></h3>
+    <p class="card-body" style="margin-top:-4px">${introLine}</p>
     <div style="border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:14px 16px;margin:10px 0 14px;background:rgba(201,168,76,.05)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Moon in ${w.sign}</b></div>
-      <div class="chandra-row"><span class="chandra-k">Enters ${w.sign}</span><span class="chandra-v">${w.ingress.at}</span></div>
-      <div class="chandra-row"><span class="chandra-k">Star path</span><span class="chandra-v">${path}</span></div>
-      <div class="chandra-row"><span class="chandra-k">★ Most sensitive point</span><span class="chandra-v"><b>${w.peak.at}</b> <span style="opacity:.7">(${w.peak.nakshatra})</span></span></div>
-      <div class="chandra-row"><span class="chandra-k">Ends</span><span class="chandra-v">${w.egress.at}</span></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>${T.moon_in} ${sign}</b></div>
+      <div class="chandra-row"><span class="chandra-k">${T.enters} ${sign}</span><span class="chandra-v">${_chDate(w.ingress.jd, lang, true)}</span></div>
+      <div class="chandra-row"><span class="chandra-k">${T.star_path}</span><span class="chandra-v">${path}</span></div>
+      <div class="chandra-row"><span class="chandra-k">\u2605 ${T.peak}</span><span class="chandra-v"><b>${_chDate(w.peak.jd, lang, true)}</b> <span style="opacity:.7">(${_chNak(w.peak.nakshatra, lang)})</span></span></div>
+      <div class="chandra-row"><span class="chandra-k">${T.ends}</span><span class="chandra-v">${_chDate(w.egress.jd, lang, true)}</span></div>
     </div>
     <details style="margin-bottom:12px">
-      <summary style="cursor:pointer;font-weight:600;color:var(--ai-gold,#b0821f)">What this is &amp; how to manage it</summary>
-      <p class="card-body" style="margin:8px 0">${CHANDRA_INTRO}</p>
-      <ul style="margin:0;padding-left:18px">${CHANDRA_MANAGE.map(x => `<li style="margin:4px 0">${x}</li>`).join("")}</ul>
+      <summary style="cursor:pointer;font-weight:600;color:var(--ai-gold,#b0821f)">${T.manage_summary}</summary>
+      <p class="card-body" style="margin:8px 0">${T.intro}</p>
+      <ul style="margin:0;padding-left:18px">${T.manage.map(x => `<li style="margin:4px 0">${x}</li>`).join("")}</ul>
     </details>
-    <button class="btn-primary" id="chandraPdfBtn" style="width:auto">Download 12-month guide (PDF)</button>
+    <button class="btn-primary" id="chandraPdfBtn" style="width:auto">${T.download}</button>
   `;
   const btn = document.getElementById("chandraPdfBtn");
   if (btn) btn.onclick = () => { try { downloadChandraPDF(ch, data); } catch (e) { alert("Could not build the PDF. Please refresh and retry."); } };
@@ -818,6 +830,14 @@ function renderChandrashtama(ch, data) {
 
 function downloadChandraPDF(ch, data) {
   if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
+  const lang = _chartLang();
+  if (lang === "EN") return downloadChandraPDF_EN(ch, data);
+  return downloadChandraPDF_Indic(ch, data, lang);
+}
+
+// English keeps the crisp native-vector PDF.
+function downloadChandraPDF_EN(ch, data) {
+  const T = CHANDRA_I18N.EN;
   const jsPDF = window.jspdf.jsPDF;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -826,7 +846,7 @@ function downloadChandraPDF(ch, data) {
   const name = (data && data.input && data.input.name) || "";
   function footer() {
     doc.setFontSize(8); doc.setTextColor(150); doc.setFont("helvetica", "italic");
-    doc.text("This is an educational timing guide for self-reflection, not a prediction or professional advice.  © 2026 AstroIndicators · astroindicators.com", M, H - 26, { maxWidth: W - M * 2 });
+    doc.text(T.footer, M, H - 26, { maxWidth: W - M * 2 });
   }
   function need(h) { if (y + h > H - 46) { footer(); doc.addPage(); y = 54; } }
   function para(txt, size, color, lh) {
@@ -834,53 +854,47 @@ function downloadChandraPDF(ch, data) {
     const lines = doc.splitTextToSize(txt, W - M * 2);
     for (const ln of lines) { need(lh); doc.text(ln, M, y); y += lh; }
   }
-  // Header
   doc.setFillColor(...GOLD); doc.rect(0, 0, W, 6, "F");
   y = 60; doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...GOLD);
   doc.text("AstroIndicators", M, y);
   y += 26; doc.setFontSize(16); doc.setTextColor(...INK);
-  doc.text("Chandrashtama — Your 12-Month Guide", M, y);
+  doc.text(T.pdf_title, M, y);
   y += 20; doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
-  doc.text(`${name ? name + "  ·  " : ""}Birth Moon: ${ch.natalMoonSign}  ·  Sensitive sign (8th): ${ch.eighthSign}  ·  Times in ${ch.tzLabel}`, M, y);
+  doc.text(`${name ? name + "  \u00b7  " : ""}${T.pdf_birthmoon}: ${ch.natalMoonSign}  \u00b7  ${T.pdf_sensitive}: ${ch.eighthSign}  \u00b7  ${T.pdf_times_in} ${ch.tzLabel}`, M, y);
   y += 24;
   doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.line(M, y, W - M, y); y += 20;
-  // Intro + manage
-  doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(...INK); need(16); doc.text("What Chandrashtama is", M, y); y += 16;
-  para(CHANDRA_INTRO, 10.5, INK, 15); y += 8;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(12); need(16); doc.text("How to manage these days", M, y); y += 16;
-  for (const b of CHANDRA_MANAGE) {
-    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); need(14); doc.text("•", M, y);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(...INK); need(16); doc.text(T.pdf_what, M, y); y += 16;
+  para(T.intro, 10.5, INK, 15); y += 8;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12); need(16); doc.text(T.pdf_howmanage, M, y); y += 16;
+  for (const b of T.manage) {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); need(14); doc.text("\u2022", M, y);
     doc.setFont("helvetica", "normal");
     const lines = doc.splitTextToSize(b, W - M * 2 - 14);
     for (let i = 0; i < lines.length; i++) { if (i) need(14); doc.text(lines[i], M + 14, y); if (i < lines.length - 1) y += 14; }
     y += 16;
   }
   y += 6;
-  // Windows table
   doc.setFont("helvetica", "bold"); doc.setFontSize(12); need(18); doc.setTextColor(...INK);
-  doc.text("Your upcoming windows (next 12 months)", M, y); y += 18;
+  doc.text(T.pdf_windows, M, y); y += 18;
   for (const w of ch.windows) {
     const colL = M + 14, colR = W / 2 + 6, rightW = W - M - colR;
-    // Measure the right column first so the card is tall enough and nothing overlaps.
     doc.setFontSize(9.5);
-    const msLines = doc.splitTextToSize(`${w.peak.at}  (${w.peak.nakshatra})`, rightW);
+    const msLines = doc.splitTextToSize(`${_chDate(w.peak.jd,"EN",true)}  (${w.peak.nakshatra})`, rightW);
     doc.setFontSize(8.5);
-    const starLines = doc.splitTextToSize("Stars: " + w.nakshatras.map(n => n.name).join("  >  "), rightW);
+    const starLines = doc.splitTextToSize(T.pdf_stars + ": " + w.nakshatras.map(n => n.name).join("  >  "), rightW);
     const rightBottom = 18 + 14 + msLines.length * 12 + 6 + starLines.length * 11;
     const leftBottom = 18 + 16 + 16;
     const cardH = Math.max(rightBottom, leftBottom) + 12;
     need(cardH + 8);
     doc.setFillColor(248, 244, 232); doc.roundedRect(M, y, W - M * 2, cardH, 5, 5, "F");
-    // Left column
     doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...INK);
-    doc.text(`Moon in ${w.sign}`, colL, y + 18);
+    doc.text(`${T.moon_in} ${w.sign}`, colL, y + 18);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
-    doc.text(`Enters:  ${w.ingress.at}`, colL, y + 36);
-    doc.text(`Ends:    ${w.egress.at}`, colL, y + 52);
-    // Right column
+    doc.text(`${T.enters}:  ${_chDate(w.ingress.jd,"EN",true)}`, colL, y + 36);
+    doc.text(`${T.ends}:    ${_chDate(w.egress.jd,"EN",true)}`, colL, y + 52);
     let ry = y + 18;
     doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(176, 96, 40);
-    doc.text("Most sensitive point", colR, ry); ry += 14;
+    doc.text(T.peak, colR, ry); ry += 14;
     doc.setFont("helvetica", "normal"); doc.setTextColor(...INK);
     doc.text(msLines, colR, ry); ry += msLines.length * 12 + 6;
     doc.setTextColor(...MUTE); doc.setFontSize(8.5);
@@ -890,6 +904,96 @@ function downloadChandraPDF(ch, data) {
   footer();
   const safe = (name || "chart").replace(/[^a-z0-9]/gi, "_");
   doc.save("AstroIndicators_Chandrashtama_" + safe + ".pdf");
+}
+
+// Indic scripts: render the page as an SVG (browser shapes the glyphs), rasterise, embed.
+var _chCanvas = null;
+function _chCtx(px, fontCss, bold){ if(!_chCanvas) _chCanvas = document.createElement("canvas"); var c = _chCanvas.getContext("2d"); c.font = (bold ? "700 " : "") + px + "px " + fontCss; return c; }
+function _chWrap(text, maxW, px, fontCss, bold){
+  var ctx = _chCtx(px, fontCss, bold); var words = String(text).split(" "); var lines = [], cur = "";
+  for (var i = 0; i < words.length; i++){ var t = cur ? cur + " " + words[i] : words[i]; if (ctx.measureText(t).width > maxW && cur){ lines.push(cur); cur = words[i]; } else cur = t; }
+  if (cur) lines.push(cur); return lines;
+}
+function _chEsc(s){ return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function _chTx(x, y, size, fill, str, o){ o = o || {}; return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" fill="' + fill + '"' + (o.a ? ' text-anchor="' + o.a + '"' : "") + (o.b ? ' font-weight="700"' : "") + (o.i ? ' font-style="italic"' : "") + '>' + _chEsc(str) + '</text>'; }
+function _chRc(x, y, w, h, fill, rx){ return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"' + (rx ? ' rx="' + rx + '"' : "") + ' fill="' + fill + '"/>'; }
+function _chLn(x1, y1, x2, y2, stroke, sw){ return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + stroke + '" stroke-width="' + sw + '"/>'; }
+function _chWrapSVG(W, H, inner, fontCss){ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><rect width="' + W + '" height="' + H + '" fill="#ffffff"/><g font-family="' + fontCss.replace(/"/g, "&quot;") + '">' + inner + '</g></svg>'; }
+function _chRaster(markup, wPt, hPt, scale){
+  return new Promise(function (resolve, reject){
+    try {
+      var s64 = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(markup)));
+      var img = new Image();
+      img.onload = function(){ var cv = document.createElement("canvas"); cv.width = Math.round(wPt * scale); cv.height = Math.round(hPt * scale); var ctx = cv.getContext("2d"); ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, cv.width, cv.height); ctx.drawImage(img, 0, 0, cv.width, cv.height); resolve(cv.toDataURL("image/png")); };
+      img.onerror = reject; img.src = s64;
+    } catch (e){ reject(e); }
+  });
+}
+function downloadChandraPDF_Indic(ch, data, lang){
+  var T = _chT18(lang), font = CH_PDF_FONT[lang] || CH_PDF_FONT.EN;
+  var W = 595, H = 842, M = 40, scale = 4, bottom = H - 50;
+  var GOLD = "#C9A84C", INK = "#282828", MUTE = "#6E6E6E", BROWN = "#B06028";
+  var name = (data && data.input && data.input.name) || "";
+  var pages = [], o = "", y = 0;
+  function flush(withFooter){ if (withFooter) o += _chTx(M, H - 28, 8, "#9a9a9a", T.footer); else o += _chTx(M, H - 28, 8, "#9a9a9a", "AstroIndicators \u00b7 astroindicators.com"); pages.push(_chWrapSVG(W, H, o, font)); o = ""; }
+  function newPage(){ flush(false); y = 50; }
+  // header
+  o += _chRc(0, 0, W, 6, GOLD);
+  y = 56; o += _chTx(M, y, 20, GOLD, "AstroIndicators", { b: 1 }); y += 24;
+  o += _chTx(M, y, 15, INK, T.pdf_title, { b: 1 }); y += 18;
+  var meta = (name ? name + "  \u00b7  " : "") + T.pdf_birthmoon + ": " + _chSign(ch.natalMoonSign, lang) + "  \u00b7  " + T.pdf_sensitive + ": " + _chSign(ch.eighthSign, lang) + "  \u00b7  " + T.pdf_times_in + " " + ch.tzLabel;
+  o += _chTx(M, y, 9, MUTE, meta); y += 14;
+  o += _chLn(M, y, W - M, y, GOLD, 0.8); y += 18;
+  // what
+  o += _chTx(M, y, 12, INK, T.pdf_what, { b: 1 }); y += 16;
+  _chWrap(T.intro, W - 2 * M, 10.5, font, false).forEach(function (ln){ o += _chTx(M, y, 10.5, INK, ln); y += 15; });
+  y += 8;
+  // manage
+  o += _chTx(M, y, 12, INK, T.pdf_howmanage, { b: 1 }); y += 16;
+  T.manage.forEach(function (b){
+    var lines = _chWrap(b, W - 2 * M - 14, 10, font, false);
+    o += _chTx(M, y, 10.5, INK, "\u2022", { b: 1 });
+    lines.forEach(function (ln, i){ o += _chTx(M + 14, y, 10, INK, ln); if (i < lines.length - 1) y += 14; });
+    y += 16;
+  });
+  y += 6;
+  // windows
+  o += _chTx(M, y, 12, INK, T.pdf_windows, { b: 1 }); y += 18;
+  ch.windows.forEach(function (w){
+    var colL = M + 12, colR = W / 2 + 4, rightW = W - M - colR;
+    var peakStr = _chDate(w.peak.jd, lang, true) + "  (" + _chNak(w.peak.nakshatra, lang) + ")";
+    var msLines = _chWrap(peakStr, rightW, 9, font, false);
+    var starsStr = T.pdf_stars + ": " + w.nakshatras.map(function (n){ return _chNak(n.name, lang); }).join("  >  ");
+    var starLines = _chWrap(starsStr, rightW, 8.5, font, false);
+    var rightBottom = 17 + msLines.length * 12 + 6 + starLines.length * 11;
+    var leftBottom = 17 + 16 + 16;
+    var cardH = Math.max(rightBottom, leftBottom) + 12;
+    if (y + cardH + 8 > bottom){ newPage(); o += _chTx(M, y, 12, INK, T.pdf_windows + " (" + T.cont + ")", { b: 1 }); y += 18; }
+    o += _chRc(M, y, W - 2 * M, cardH, "#F8F4E8", 5);
+    o += _chTx(colL, y + 17, 10.5, INK, T.moon_in + " " + _chSign(w.sign, lang), { b: 1 });
+    o += _chTx(colL, y + 34, 9.5, INK, T.enters + ":  " + _chDate(w.ingress.jd, lang, true));
+    o += _chTx(colL, y + 50, 9.5, INK, T.ends + ":  " + _chDate(w.egress.jd, lang, true));
+    var ry = y + 17;
+    o += _chTx(colR, ry, 9.5, BROWN, T.peak, { b: 1 }); ry += 13;
+    msLines.forEach(function (ln){ o += _chTx(colR, ry, 9, INK, ln); ry += 12; }); ry += 6;
+    starLines.forEach(function (ln){ o += _chTx(colR, ry, 8.5, MUTE, ln); ry += 11; });
+    y += cardH + 8;
+  });
+  flush(true);
+  function render(){
+    Promise.all(pages.map(function (pg){ return _chRaster(pg, W, H, scale); })).then(function (urls){
+      var pdf = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
+      urls.forEach(function (u, i){ if (i > 0) pdf.addPage(); pdf.addImage(u, "PNG", 0, 0, W, H, undefined, "FAST"); });
+      var safe = (name || "chart").replace(/[^a-z0-9\u0B80-\u0BFF\u0C00-\u0C7F\u0900-\u097F\u0C80-\u0CFF\u0D00-\u0D7F]+/gi, "_");
+      pdf.save("AstroIndicators_Chandrashtama_" + safe + "_" + lang + ".pdf");
+    }).catch(function (e){ alert("Could not build the PDF. Please try again."); console.error(e); });
+  }
+  try {
+    if (document.fonts && document.fonts.load){
+      var fam = font.split(",")[0].replace(/'/g, "");
+      Promise.all([document.fonts.load("12px '" + fam + "'"), document.fonts.load("700 12px '" + fam + "'")]).then(function (){ return document.fonts.ready; }).then(render).catch(render);
+    } else render();
+  } catch (e){ render(); }
 }
 window.downloadChandraPDF = downloadChandraPDF;
 function buildCombustSet(planets) {
