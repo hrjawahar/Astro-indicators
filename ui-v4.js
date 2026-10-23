@@ -2601,12 +2601,15 @@ const CONSULT_CONFIG = {
     o += svgT(M, y, 20, "#222236", "AstroIndicators", { b: 1 });
     o += svgT(M, y + 16, 10, "#787882", L(LANG, "sub")); y += 36;
     o += svgL(M, y, W - M, y, "#C9A84C", 1); y += 18;
-    o += svgT(M, y, 11, "#28283C", L(LANG, "native") + ": ", { b: 1 }); o += svgT(M + 64, y, 11, "#28283C", name); y += 16;
-    o += svgT(M, y, 11, "#28283C", L(LANG, "date") + ": ", { b: 1 }); o += svgT(M + 48, y, 11, "#28283C", dob + "    " + L(LANG, "time") + ": " + tob); y += 16;
-    o += svgT(M, y, 11, "#28283C", L(LANG, "place") + ": ", { b: 1 });
+    // value x-offset scales with label length so longer scripts (ML/KA/HI) never overlap
+    function voff(lbl, min) { return M + Math.max(min || 46, String(lbl).length * 8.5 + 12); }
+    var _nl = L(LANG, "native") + ": ", _dl = L(LANG, "date") + ": ", _pl = L(LANG, "place") + ": ";
+    o += svgT(M, y, 11, "#28283C", _nl, { b: 1 }); o += svgT(voff(_nl, 64), y, 11, "#28283C", name); y += 16;
+    o += svgT(M, y, 11, "#28283C", _dl, { b: 1 }); o += svgT(voff(_dl, 48), y, 11, "#28283C", dob + "    " + L(LANG, "time") + ": " + tob); y += 16;
+    o += svgT(M, y, 11, "#28283C", _pl, { b: 1 });
     var pl = wrapText(place, 78);
-    o += svgT(M + 46, y, 11, "#28283C", pl[0] || "");
-    if (pl[1]) { y += 14; o += svgT(M + 46, y, 11, "#28283C", pl[1]); }
+    o += svgT(voff(_pl, 46), y, 11, "#28283C", pl[0] || "");
+    if (pl[1]) { y += 14; o += svgT(voff(_pl, 46), y, 11, "#28283C", pl[1]); }
     y += 22;
     o += svgL(M, y, W - M, y, "#DEDEE3", 0.6); y += 16;
     var pairs = [
@@ -2732,7 +2735,7 @@ const CONSULT_CONFIG = {
 
   function buildPDF_Indic(JsPDF, CD, LANG) {
     LANG = LANG || "TA";
-    var W = 595.28, H = 841.89, scale = 3;
+    var W = 595.28, H = 841.89, scale = 4;
     var inp = CD.input || {};
     var name = inp.name || getField("inputName") || "\u2014";
     var dob = inp.dob || getField("inputDOB") || "\u2014";
