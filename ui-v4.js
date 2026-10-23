@@ -2461,6 +2461,47 @@ const CONSULT_CONFIG = {
   var FS_TA = { Y:"யோககாரகன்", B:"சாதகம்", M:"தீயது", N:"நடுநிலை" };
   var TA_FONT = "'Noto Sans Tamil','Nirmala UI','Latha','Tamil Sangam MN',system-ui,sans-serif";
 
+  // ── Multi-language PDF support (Tamil + Telugu + Hindi + Kannada + Malayalam) ──
+  // Reuses the vetted value maps already defined in app.js (exposed on window):
+  //   window.PLANET_NAMES (abbr) · window.SIGN_NAMES · window.SIGN_ABBRS ·
+  //   window.NAK_NAMES · window.LAGNA_ABBR. All five Noto fonts are loaded in
+  //   index.html. Only the compact UI labels + full planet names are authored here.
+  var PDF_FONT = {
+    EN: "'Inter','Helvetica',Arial,sans-serif",
+    TA: TA_FONT,
+    TE: "'Noto Sans Telugu','Nirmala UI',system-ui,sans-serif",
+    HI: "'Noto Sans Devanagari','Nirmala UI',system-ui,sans-serif",
+    KA: "'Noto Sans Kannada','Nirmala UI',system-ui,sans-serif",
+    ML: "'Noto Sans Malayalam','Nirmala UI',system-ui,sans-serif"
+  };
+  // Full planet names (the dasha page uses these). TA matches the original exactly.
+  var PLANET_FULL_ML = {
+    EN: { Sun:"Sun", Moon:"Moon", Mars:"Mars", Mercury:"Mercury", Jupiter:"Jupiter", Venus:"Venus", Saturn:"Saturn", Rahu:"Rahu", Ketu:"Ketu" },
+    TA: { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்", Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" },
+    TE: { Sun:"సూర్యుడు", Moon:"చంద్రుడు", Mars:"కుజుడు", Mercury:"బుధుడు", Jupiter:"గురువు", Venus:"శుక్రుడు", Saturn:"శని", Rahu:"రాహువు", Ketu:"కేతువు" },
+    HI: { Sun:"सूर्य", Moon:"चंद्र", Mars:"मंगल", Mercury:"बुध", Jupiter:"गुरु", Venus:"शुक्र", Saturn:"शनि", Rahu:"राहु", Ketu:"केतु" },
+    KA: { Sun:"ಸೂರ್ಯ", Moon:"ಚಂದ್ರ", Mars:"ಕುಜ", Mercury:"ಬುಧ", Jupiter:"ಗುರು", Venus:"ಶುಕ್ರ", Saturn:"ಶನಿ", Rahu:"ರಾಹು", Ketu:"ಕೇತು" },
+    ML: { Sun:"സൂര്യൻ", Moon:"ചന്ദ്രൻ", Mars:"ചൊവ്വ", Mercury:"ബുധൻ", Jupiter:"വ്യാഴം", Venus:"ശുക്രൻ", Saturn:"ശനി", Rahu:"രാഹു", Ketu:"കേതു" }
+  };
+  // Compact PDF UI labels. In-cell dignity/flag/relation markers stay Tamil for TA
+  // and use compact Latin for the other scripts (the legend spells them out in-language).
+  var PDFL = {
+    EN: { sub:"Birth Chart Sheet (D1 & D9)", native:"Native", date:"Date", time:"Time", place:"Place", moon:"Rashi (Moon)", d1lag:"D1 Lagna", d9lag:"D9 Lagna", nak:"Nakshatra", pada:"Pada", ayan:"Ayanamsha", d1head:"D1 — Rashi", d9head:"D9 — Navamsha", rashi:"Rashi", navamsha:"Navamsha", dig_ex:"Ex", dig_de:"De", dig_own:"Ow", fl_r:"R", fl_c:"c", fl_w:"w", rel_f:"F", rel_n:"N", rel_e:"E", leg_title:"Chart Legend", lg_pl:"Planets:", lg_dig:"Dignity:", lg_fl:"Flags:", lg_rel:"Relation:", lg_not:"Notation:", w_ex:"Exalted", w_de:"Debilitated", w_own:"Own", w_comb:"Combust", w_neu:"Neutral", w_retro:"Retrograde", w_war:"War", w_friend:"Friend", w_sama:"Neutral", w_enemy:"Enemy", w_vslord:"(vs sign-lord)", not_body:"= sign-lord placed in House 11", not_asc:"= Ascendant", dasha_title:"Vimshottari Dasha Periods", cont:"(continued)", mahadasha:"Mahadasha", cur_md:"Current Mahadasha", cur_ad:"Current Bhukti", yrs:"yr", fs_Y:"Yogakaraka", fs_B:"Benefic", fs_M:"Malefic", fs_N:"Neutral" },
+    TA: { sub:"ஜாதக விளக்கப் படிவம் (D1 & D9)", native:"ஜாதகர்", date:"தேதி", time:"நேரம்", place:"இடம்", moon:"ராசி", d1lag:"D1 லக்னம்", d9lag:"D9 லக்னம்", nak:"நட்சத்திரம்", pada:"பாதம்", ayan:"அயனாம்சம்", d1head:"D1 — ராசி", d9head:"D9 — நவாம்சம்", rashi:"ராசி", navamsha:"நவாம்சம்", dig_ex:"உச்", dig_de:"நீ", dig_own:"ஆ", fl_r:"வ", fl_c:"அ", fl_w:"யு", rel_f:"ந", rel_n:"ச", rel_e:"ப", leg_title:"விளக்கக் குறிப்பு", lg_pl:"கிரகங்கள்:", lg_dig:"நிலை:", lg_fl:"குறியீடு:", lg_rel:"உறவு:", lg_not:"குறிப்பு:", w_ex:"உச்சம்", w_de:"நீசம்", w_own:"ஆட்சி", w_comb:"அஸ்தமனம்", w_neu:"நடுநிலை", w_retro:"வக்ரம்", w_war:"யுத்தம்", w_friend:"நண்பன்", w_sama:"சமம்", w_enemy:"பகை", w_vslord:"(அதிபதியுடன்)", not_body:"= ராசி அதிபதி 11ம் வீட்டில்", not_asc:"= லக்னம்", dasha_title:"விம்ஷோத்தரி தசா காலங்கள்", cont:"(தொடர்ச்சி)", mahadasha:"மகா தசை", cur_md:"தற்போதைய மகா தசை", cur_ad:"தற்போதைய புக்தி", yrs:"ஆ", fs_Y:"யோககாரகன்", fs_B:"சாதகம்", fs_M:"தீயது", fs_N:"நடுநிலை" },
+    TE: { sub:"జన్మ కుండలి పత్రం (D1 & D9)", native:"జాతకుడు", date:"తేది", time:"సమయం", place:"స్థలం", moon:"రాశి", d1lag:"D1 లగ్నం", d9lag:"D9 లగ్నం", nak:"నక్షత్రం", pada:"పాదం", ayan:"అయనాంశం", d1head:"D1 — రాశి", d9head:"D9 — నవాంశం", rashi:"రాశి", navamsha:"నవాంశం", dig_ex:"Ex", dig_de:"De", dig_own:"Ow", fl_r:"R", fl_c:"c", fl_w:"w", rel_f:"F", rel_n:"N", rel_e:"E", leg_title:"సంకేత వివరణ", lg_pl:"గ్రహాలు:", lg_dig:"స్థితి:", lg_fl:"గుర్తులు:", lg_rel:"సంబంధం:", lg_not:"సూచన:", w_ex:"ఉచ్చం", w_de:"నీచం", w_own:"స్వక్షేత్రం", w_comb:"అస్తంగతం", w_neu:"సమం", w_retro:"వక్రం", w_war:"యుద్ధం", w_friend:"మిత్రుడు", w_sama:"సమం", w_enemy:"శత్రువు", w_vslord:"(అధిపతితో)", not_body:"= రాశి అధిపతి 11వ ఇంట్లో", not_asc:"= లగ్నం", dasha_title:"వింశోత్తరి దశా కాలాలు", cont:"(కొనసాగింపు)", mahadasha:"మహా దశ", cur_md:"ప్రస్తుత మహాదశ", cur_ad:"ప్రస్తుత భుక్తి", yrs:"సం", fs_Y:"యోగకారకుడు", fs_B:"శుభుడు", fs_M:"పాపి", fs_N:"సమం" },
+    HI: { sub:"जन्म कुंडली पत्रक (D1 & D9)", native:"जातक", date:"तारीख", time:"समय", place:"स्थान", moon:"राशि", d1lag:"D1 लग्न", d9lag:"D9 लग्न", nak:"नक्षत्र", pada:"पाद", ayan:"अयनांश", d1head:"D1 — राशि", d9head:"D9 — नवांश", rashi:"राशि", navamsha:"नवांश", dig_ex:"Ex", dig_de:"De", dig_own:"Ow", fl_r:"R", fl_c:"c", fl_w:"w", rel_f:"F", rel_n:"N", rel_e:"E", leg_title:"संकेत सूची", lg_pl:"ग्रह:", lg_dig:"स्थिति:", lg_fl:"चिह्न:", lg_rel:"संबंध:", lg_not:"टिप्पणी:", w_ex:"उच्च", w_de:"नीच", w_own:"स्वक्षेत्र", w_comb:"अस्त", w_neu:"सम", w_retro:"वक्री", w_war:"युद्ध", w_friend:"मित्र", w_sama:"सम", w_enemy:"शत्रु", w_vslord:"(राशि-स्वामी से)", not_body:"= राशि-स्वामी 11वें भाव में", not_asc:"= लग्न", dasha_title:"विंशोत्तरी दशा काल", cont:"(जारी)", mahadasha:"महादशा", cur_md:"वर्तमान महादशा", cur_ad:"वर्तमान भुक्ति", yrs:"व", fs_Y:"योगकारक", fs_B:"शुभ", fs_M:"पाप", fs_N:"सम" },
+    KA: { sub:"ಜನ್ಮ ಕುಂಡಲಿ ಹಾಳೆ (D1 & D9)", native:"ಜಾತಕ", date:"ದಿನಾಂಕ", time:"ಸಮಯ", place:"ಸ್ಥಳ", moon:"ರಾಶಿ", d1lag:"D1 ಲಗ್ನ", d9lag:"D9 ಲಗ್ನ", nak:"ನಕ್ಷತ್ರ", pada:"ಪಾದ", ayan:"ಅಯನಾಂಶ", d1head:"D1 — ರಾಶಿ", d9head:"D9 — ನವಾಂಶ", rashi:"ರಾಶಿ", navamsha:"ನವಾಂಶ", dig_ex:"Ex", dig_de:"De", dig_own:"Ow", fl_r:"R", fl_c:"c", fl_w:"w", rel_f:"F", rel_n:"N", rel_e:"E", leg_title:"ಸಂಕೇತ ವಿವರಣೆ", lg_pl:"ಗ್ರಹಗಳು:", lg_dig:"ಸ್ಥಿತಿ:", lg_fl:"ಗುರುತುಗಳು:", lg_rel:"ಸಂಬಂಧ:", lg_not:"ಸೂಚನೆ:", w_ex:"ಉಚ್ಚ", w_de:"ನೀಚ", w_own:"ಸ್ವಕ್ಷೇತ್ರ", w_comb:"ಅಸ್ತಂಗತ", w_neu:"ಸಮ", w_retro:"ವಕ್ರ", w_war:"ಯುದ್ಧ", w_friend:"ಮಿತ್ರ", w_sama:"ಸಮ", w_enemy:"ಶತ್ರು", w_vslord:"(ರಾಶ್ಯಧಿಪತಿಯೊಂದಿಗೆ)", not_body:"= ರಾಶ್ಯಧಿಪತಿ 11ನೇ ಮನೆಯಲ್ಲಿ", not_asc:"= ಲಗ್ನ", dasha_title:"ವಿಂಶೋತ್ತರಿ ದಶಾ ಕಾಲಗಳು", cont:"(ಮುಂದುವರಿಕೆ)", mahadasha:"ಮಹಾ ದಶಾ", cur_md:"ಪ್ರಸ್ತುತ ಮಹಾದಶಾ", cur_ad:"ಪ್ರಸ್ತುತ ಭುಕ್ತಿ", yrs:"ವ", fs_Y:"ಯೋಗಕಾರಕ", fs_B:"ಶುಭ", fs_M:"ಪಾಪ", fs_N:"ಸಮ" },
+    ML: { sub:"ജാതക പത്രിക (D1 & D9)", native:"ജാതകൻ", date:"തീയതി", time:"സമയം", place:"സ്ഥലം", moon:"രാശി", d1lag:"D1 ലഗ്നം", d9lag:"D9 ലഗ്നം", nak:"നക്ഷത്രം", pada:"പാദം", ayan:"അയനാംശം", d1head:"D1 — രാശി", d9head:"D9 — നവാംശം", rashi:"രാശി", navamsha:"നവാംശം", dig_ex:"Ex", dig_de:"De", dig_own:"Ow", fl_r:"R", fl_c:"c", fl_w:"w", rel_f:"F", rel_n:"N", rel_e:"E", leg_title:"സൂചനാ വിവരണം", lg_pl:"ഗ്രഹങ്ങൾ:", lg_dig:"സ്ഥിതി:", lg_fl:"അടയാളങ്ങൾ:", lg_rel:"ബന്ധം:", lg_not:"കുറിപ്പ്:", w_ex:"ഉച്ചം", w_de:"നീചം", w_own:"സ്വക്ഷേത്രം", w_comb:"അസ്തംഗതം", w_neu:"സമം", w_retro:"വക്രം", w_war:"യുദ്ധം", w_friend:"മിത്രൻ", w_sama:"സമം", w_enemy:"ശത്രു", w_vslord:"(രാശ്യധിപനോട്)", not_body:"= രാശ്യധിപൻ 11-ാം ഭാവത്തിൽ", not_asc:"= ലഗ്നം", dasha_title:"വിംശോത്തരി ദശാ കാലങ്ങൾ", cont:"(തുടർച്ച)", mahadasha:"മഹാ ദശ", cur_md:"നിലവിലെ മഹാദശ", cur_ad:"നിലവിലെ ഭുക്തി", yrs:"വ", fs_Y:"യോഗകാരകൻ", fs_B:"ശുഭൻ", fs_M:"പാപൻ", fs_N:"സമം" }
+  };
+  // Lookups (fall back to EN / raw English value so nothing ever renders blank).
+  function L(lang, key) { var m = PDFL[lang] || PDFL.EN; return (m[key] != null ? m[key] : (PDFL.EN[key] != null ? PDFL.EN[key] : key)); }
+  function PF(lang, p) { var m = PLANET_FULL_ML[lang] || PLANET_FULL_ML.EN; return m[p] || p; }
+  function PA(lang, p) { var m = (window.PLANET_NAMES && window.PLANET_NAMES[lang]); return (m && m[p]) || p.substr(0, 2); }
+  function SF(lang, s) { var m = (window.SIGN_NAMES && window.SIGN_NAMES[lang]); return (m && m[s]) || s; }
+  function SA(lang, s) { var m = (window.SIGN_ABBRS && window.SIGN_ABBRS[lang]); return (m && m[s]) || (SF(lang, s) || s).substr(0, 3); }
+  function NF(lang, n) { var m = (window.NAK_NAMES && window.NAK_NAMES[lang]); return (m && m[n]) || n; }
+  function LAG(lang) { var m = window.LAGNA_ABBR; return (m && m[lang]) || "ASC"; }
+
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function svgT(x, y, size, fill, str, o) {
     o = o || {};
@@ -2477,38 +2518,39 @@ const CONSULT_CONFIG = {
   }
 
   // One South-Indian chart as SVG markup (Tamil labels), at origin ox,oy, side S.
-  function taChartCells(ox, oy, S, lagnaSign, houses, planets, isD9) {
+  function taChartCells(ox, oy, S, lagnaSign, houses, planets, isD9, LANG) {
+    LANG = LANG || "TA";
     var cell = S / 4, pad = 4, li = SIGNS.indexOf(lagnaSign);
     var ph = planetHouseMap(houses), comb = combustSetOf(planets), war = warSetOf(planets);
     var o = svgR(ox, oy, S, S, "#FFFDF8");
     o += svgT(ox + S / 2, oy + S / 2 - 2, 9, "#C6AA78", isD9 ? "D9" : "D1", { a: "middle", b: 1 });
-    o += svgT(ox + S / 2, oy + S / 2 + 8, 6.5, "#C6AA78", isD9 ? "நவாம்சம்" : "ராசி", { a: "middle" });
+    o += svgT(ox + S / 2, oy + S / 2 + 8, 6.5, "#C6AA78", isD9 ? L(LANG, "navamsha") : L(LANG, "rashi"), { a: "middle" });
     for (var r = 0; r < 4; r++) for (var c = 0; c < 4; c++) {
       if ((r === 1 || r === 2) && (c === 1 || c === 2)) continue;
       var hN = CELL_HOUSE[r + "," + c]; if (!hN) continue;
       var sgnH = SIGNS[(li + hN - 1) % 12], isL = hN === 1, hl = SIGN_LORD[sgnH];
       var x = ox + c * cell, y = oy + r * cell;
       o += svgR(x, y, cell, cell, isL ? "#FAF3E2" : "#FFFFFF", isL ? "#C9A84C" : "#CEC4B0", isL ? 1.1 : 0.6);
-      o += svgT(x + pad, y + 9, 6.6, "#966420", SIGN_ABBR_TA[sgnH] || sgnH.substr(0, 3), { b: 1 });
+      o += svgT(x + pad, y + 9, 6.6, "#966420", SA(LANG, sgnH), { b: 1 });
       o += svgT(x + cell - pad, y + 9.5, 8.4, "#3C3C54", String(hN), { a: "end", b: 1 });
       var lh = ph[hl];
-      o += svgT(x + pad, y + cell - 4, 5.8, "#786C56", (PLANET_TA_ABBR[hl] || hl.substr(0, 2)) + (lh ? ">H" + lh : ""));
-      if (isL) o += svgT(x + cell - pad, y + cell - 4, 5.8, "#965F14", "லக்", { a: "end" });
+      o += svgT(x + pad, y + cell - 4, 5.8, "#786C56", PA(LANG, hl) + (lh ? ">H" + lh : ""));
+      if (isL) o += svgT(x + cell - pad, y + cell - 4, 5.8, "#965F14", LAG(LANG), { a: "end" });
       var pl = houses[hN] || houses[String(hN)] || [], py = y + 18;
       for (var k = 0; k < pl.length; k++) {
         if (py > y + cell - 9) break;
         var p = pl[k], pd = planets[p] || {}, sg = isD9 ? (pd.d9sign || sgnH) : sgnH, dg = getDignity(p, sg);
         var col = dg === "ex" ? "#1A6E3C" : dg === "de" ? "#8F1A1A" : dg === "own" ? "#1E4A8F" : "#2C3248";
         if (comb[p]) col = "#A05C00";
-        var lbl = (PLANET_TA_ABBR[p] || p.substr(0, 2));
-        if (dg) lbl += " " + (dg === "ex" ? "உச்" : dg === "de" ? "நீ" : "ஆ");
+        var lbl = PA(LANG, p);
+        if (dg) lbl += " " + (dg === "ex" ? L(LANG, "dig_ex") : dg === "de" ? L(LANG, "dig_de") : L(LANG, "dig_own"));
         lbl += " " + Math.round(pd.degree || 0) + "\u00B0";
         var fl = [];
-        if (pd.retrograde) fl.push("வ"); if (comb[p]) fl.push("அ"); if (war[p]) fl.push("யு");
+        if (pd.retrograde) fl.push(L(LANG, "fl_r")); if (comb[p]) fl.push(L(LANG, "fl_c")); if (war[p]) fl.push(L(LANG, "fl_w"));
         if (fl.length) lbl += " (" + fl.join("") + ")";
         o += svgT(x + pad, py, 7, col, lbl);
         var rt = relTag(hl, p);
-        if (rt) { var rc = rt === "F" ? "#1A6E3C" : rt === "E" ? "#8F1A1A" : "#969696"; var rl = rt === "F" ? "ந" : rt === "E" ? "ப" : "ச"; o += svgT(x + cell - pad, py, 6, rc, rl, { a: "end", b: 1 }); }
+        if (rt) { var rc = rt === "F" ? "#1A6E3C" : rt === "E" ? "#8F1A1A" : "#969696"; var rl = rt === "F" ? L(LANG, "rel_f") : rt === "E" ? L(LANG, "rel_e") : L(LANG, "rel_n"); o += svgT(x + cell - pad, py, 6, rc, rl, { a: "end", b: 1 }); }
         py += 8.6;
       }
     }
@@ -2520,62 +2562,60 @@ const CONSULT_CONFIG = {
   // Page 1 (Tamil) as a full A4 SVG string.
 
   // Legend drawn under the charts on page 1 (Tamil). Aligned label + column grid.
-  function taLegendSVG(x0, yTop, W) {
+  function taLegendSVG(x0, yTop, W, LANG) {
+    LANG = LANG || "TA";
     var pad = 10, w = W - 2 * x0, bx = x0 + pad, lineH = 12;
     var labelW = 80, vx = bx + labelW, cols = 5, colW = (w - 2 * pad - labelW) / cols;
     function colX(i) { return vx + i * colW; }
     var h = pad * 2 + lineH * 6 + 2;
     var o = svgR(x0, yTop, w, h, "#F8F6F0", "#DCD4BE", 0.6);
     var ty = yTop + pad + 5;
-    o += svgT(bx, ty, 8.3, "#967828", "\u0bb5\u0bbf\u0bb3\u0b95\u0bcd\u0b95\u0b95\u0bcd \u0b95\u0bc1\u0bb1\u0bbf\u0baa\u0bcd\u0baa\u0bc1", { b: 1 }); ty += lineH + 2;
-
+    o += svgT(bx, ty, 8.3, "#967828", L(LANG, "leg_title"), { b: 1 }); ty += lineH + 2;
     function lab(t) { o += svgT(bx, ty, 7, "#5A5037", t, { b: 1 }); }
-
-    lab("\u0b95\u0bbf\u0bb0\u0b95\u0b99\u0bcd\u0b95\u0bb3\u0bcd:");
-    o += svgT(vx, ty, 6.3, "#37374A", "\u0b9a\u0bc2 \u0b9a\u0bc2\u0bb0\u0bbf\u0baf\u0ba9\u0bcd \u00b7 \u0b9a\u0ba8\u0bcd \u0b9a\u0ba8\u0bcd\u0ba4\u0bbf\u0bb0\u0ba9\u0bcd \u00b7 \u0b9a\u0bc6\u0bb5\u0bcd \u0b9a\u0bc6\u0bb5\u0bcd\u0bb5\u0bbe\u0baf\u0bcd \u00b7 \u0baa\u0bc1 \u0baa\u0bc1\u0ba4\u0ba9\u0bcd \u00b7 \u0b95\u0bc1 \u0b95\u0bc1\u0bb0\u0bc1 \u00b7 \u0b9a\u0bc1\u0b95\u0bcd \u0b9a\u0bc1\u0b95\u0bcd\u0b95\u0bbf\u0bb0\u0ba9\u0bcd \u00b7 \u0b9a\u0ba9\u0bbf \u0b9a\u0ba9\u0bbf \u00b7 \u0bb0\u0bbe \u0bb0\u0bbe\u0b95\u0bc1 \u00b7 \u0b95\u0bc7 \u0b95\u0bc7\u0ba4\u0bc1"); ty += lineH;
-
-    lab("\u0ba8\u0bbf\u0bb2\u0bc8:");
-    var key = [["#1A6E3C","\u0b89\u0b9a\u0bcd \u0b89\u0b9a\u0bcd\u0b9a\u0bae\u0bcd"],["#8F1A1A","\u0ba8\u0bc0 \u0ba8\u0bc0\u0b9a\u0bae\u0bcd"],["#1E4A8F","\u0b86 \u0b86\u0b9f\u0bcd\u0b9a\u0bbf"],["#A05C00","\u0b85\u0bb8\u0bcd\u0ba4\u0bae\u0ba9\u0bae\u0bcd"],["#2C3248","\u0ba8\u0b9f\u0bc1\u0ba8\u0bbf\u0bb2\u0bc8"]];
+    lab(L(LANG, "lg_pl"));
+    var PL9 = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+    var plStr = PL9.map(function (q) { return PA(LANG, q) + " " + PF(LANG, q); }).join("  \u00b7  ");
+    o += svgT(vx, ty, 6.3, "#37374A", plStr); ty += lineH;
+    lab(L(LANG, "lg_dig"));
+    var key = [["#1A6E3C", L(LANG,"dig_ex")+" "+L(LANG,"w_ex")],["#8F1A1A", L(LANG,"dig_de")+" "+L(LANG,"w_de")],["#1E4A8F", L(LANG,"dig_own")+" "+L(LANG,"w_own")],["#A05C00", L(LANG,"w_comb")],["#2C3248", L(LANG,"w_neu")]];
     key.forEach(function (k, i) { var cx = colX(i); o += svgR(cx, ty - 6.5, 7, 7, k[0]); o += svgT(cx + 10, ty, 6.8, k[0], k[1]); });
     ty += lineH;
-
-    lab("\u0b95\u0bc1\u0bb1\u0bbf\u0baf\u0bc0\u0b9f\u0bc1:");
-    var fl = ["(\u0bb5) \u0bb5\u0b95\u0bcd\u0bb0\u0bae\u0bcd", "(\u0b85) \u0b85\u0bb8\u0bcd\u0ba4\u0bae\u0ba9\u0bae\u0bcd", "(\u0baf\u0bc1) \u0baf\u0bc1\u0ba4\u0bcd\u0ba4\u0bae\u0bcd"];
+    lab(L(LANG, "lg_fl"));
+    var fl = ["(" + L(LANG,"fl_r") + ") " + L(LANG,"w_retro"), "(" + L(LANG,"fl_c") + ") " + L(LANG,"w_comb"), "(" + L(LANG,"fl_w") + ") " + L(LANG,"w_war")];
     fl.forEach(function (f, i) { o += svgT(colX(i), ty, 6.8, "#37374A", f); });
     ty += lineH;
-
-    lab("\u0b89\u0bb1\u0bb5\u0bc1:");
-    var rel = [["#1A6E3C","\u0ba8 \u0ba8\u0ba3\u0bcd\u0baa\u0ba9\u0bcd"],["#787882","\u0b9a \u0b9a\u0bae\u0bae\u0bcd"],["#8F1A1A","\u0baa \u0baa\u0b95\u0bc8"]];
+    lab(L(LANG, "lg_rel"));
+    var rel = [["#1A6E3C", L(LANG,"rel_f")+" "+L(LANG,"w_friend")],["#787882", L(LANG,"rel_n")+" "+L(LANG,"w_sama")],["#8F1A1A", L(LANG,"rel_e")+" "+L(LANG,"w_enemy")]];
     rel.forEach(function (r, i) { o += svgT(colX(i), ty, 6.8, r[0], r[1]); });
-    o += svgT(colX(3), ty, 6.2, "#8C8C94", "(\u0b85\u0ba4\u0bbf\u0baa\u0ba4\u0bbf\u0baf\u0bc1\u0b9f\u0ba9\u0bcd)"); ty += lineH;
-
-    lab("\u0b95\u0bc1\u0bb1\u0bbf\u0baa\u0bcd\u0baa\u0bc1:");
-    o += svgT(vx, ty, 6.6, "#5A5A64", "\u0b9a\u0bc2>H11 = \u0bb0\u0bbe\u0b9a\u0bbf \u0b85\u0ba4\u0bbf\u0baa\u0ba4\u0bbf 11\u0bae\u0bcd \u0bb5\u0bc0\u0b9f\u0bcd\u0b9f\u0bbf\u0bb2\u0bcd          \u00b7          \u0bb2\u0b95\u0bcd = \u0bb2\u0b95\u0bcd\u0ba9\u0bae\u0bcd");
+    o += svgT(colX(3), ty, 6.2, "#8C8C94", L(LANG, "w_vslord")); ty += lineH;
+    lab(L(LANG, "lg_not"));
+    o += svgT(vx, ty, 6.6, "#5A5A64", PA(LANG,"Sun") + ">H11 " + L(LANG,"not_body") + "          \u00b7          " + LAG(LANG) + " " + L(LANG,"not_asc"));
     return o;
   }
 
-  function taPage1SVG(CD, name, dob, tob, place) {
+  function taPage1SVG(CD, name, dob, tob, place, LANG) {
+    LANG = LANG || "TA";
     var W = 595, H = 842, M = 36, y = 46;
     var planets = CD.planets, moon = planets.Moon || {};
     var o = "";
     o += svgT(M, y, 20, "#222236", "AstroIndicators", { b: 1 });
-    o += svgT(M, y + 16, 10, "#787882", "ஜாதக விளக்கப் படிவம் (D1 & D9)"); y += 36;
+    o += svgT(M, y + 16, 10, "#787882", L(LANG, "sub")); y += 36;
     o += svgL(M, y, W - M, y, "#C9A84C", 1); y += 18;
-    o += svgT(M, y, 11, "#28283C", "ஜாதகர்: ", { b: 1 }); o += svgT(M + 64, y, 11, "#28283C", name); y += 16;
-    o += svgT(M, y, 11, "#28283C", "தேதி: ", { b: 1 }); o += svgT(M + 48, y, 11, "#28283C", dob + "    நேரம்: " + tob); y += 16;
-    o += svgT(M, y, 11, "#28283C", "இடம்: ", { b: 1 });
+    o += svgT(M, y, 11, "#28283C", L(LANG, "native") + ": ", { b: 1 }); o += svgT(M + 64, y, 11, "#28283C", name); y += 16;
+    o += svgT(M, y, 11, "#28283C", L(LANG, "date") + ": ", { b: 1 }); o += svgT(M + 48, y, 11, "#28283C", dob + "    " + L(LANG, "time") + ": " + tob); y += 16;
+    o += svgT(M, y, 11, "#28283C", L(LANG, "place") + ": ", { b: 1 });
     var pl = wrapText(place, 78);
     o += svgT(M + 46, y, 11, "#28283C", pl[0] || "");
     if (pl[1]) { y += 14; o += svgT(M + 46, y, 11, "#28283C", pl[1]); }
     y += 22;
     o += svgL(M, y, W - M, y, "#DEDEE3", 0.6); y += 16;
     var pairs = [
-      ["ராசி", SIGN_TA[moon.sign] || moon.sign || "—"],
-      ["D1 லக்னம்", (SIGN_TA[CD.d1.lagnaSign] || CD.d1.lagnaSign) + (CD.d1.lagnaDegree != null ? " " + CD.d1.lagnaDegree.toFixed(1) + "\u00B0" : "")],
-      ["D9 லக்னம்", SIGN_TA[CD.d9.lagnaSign] || CD.d9.lagnaSign || "—"],
-      ["நட்சத்திரம்", (NAK_TA[moon.nakshatra] || moon.nakshatra || "—") + (moon.pada ? " பாதம் " + moon.pada : "")],
-      ["அயனாம்சம்", "Lahiri " + (CD.ayanamsha != null ? CD.ayanamsha.toFixed(4) + "\u00B0" : "—")],
-      ["ஜாதகர்", name]
+      [L(LANG, "moon"), SF(LANG, moon.sign) || moon.sign || "\u2014"],
+      [L(LANG, "d1lag"), (SF(LANG, CD.d1.lagnaSign) || CD.d1.lagnaSign) + (CD.d1.lagnaDegree != null ? " " + CD.d1.lagnaDegree.toFixed(1) + "\u00B0" : "")],
+      [L(LANG, "d9lag"), SF(LANG, CD.d9.lagnaSign) || CD.d9.lagnaSign || "\u2014"],
+      [L(LANG, "nak"), (NF(LANG, moon.nakshatra) || moon.nakshatra || "\u2014") + (moon.pada ? " " + L(LANG, "pada") + " " + moon.pada : "")],
+      [L(LANG, "ayan"), "Lahiri " + (CD.ayanamsha != null ? CD.ayanamsha.toFixed(4) + "\u00B0" : "\u2014")],
+      [L(LANG, "native"), name]
     ];
     var colX = [M, W / 2];
     pairs.forEach(function (pr, i) {
@@ -2587,40 +2627,39 @@ const CONSULT_CONFIG = {
     if (pairs.length % 2 === 1) y += 15;
     y += 12;
     var gap = 18, S = (W - M * 2 - gap) / 2;
-    o += svgT(M, y + 10, 11, "#28283C", "D1 — ராசி", { b: 1 });
-    o += svgT(M + S + gap, y + 10, 11, "#28283C", "D9 — நவாம்சம்", { b: 1 });
+    o += svgT(M, y + 10, 11, "#28283C", L(LANG, "d1head"), { b: 1 });
+    o += svgT(M + S + gap, y + 10, 11, "#28283C", L(LANG, "d9head"), { b: 1 });
     y += 18;
-    o += taChartCells(M, y, S, CD.d1.lagnaSign, CD.d1.houses, planets, false);
-    o += taChartCells(M + S + gap, y, S, CD.d9.lagnaSign, CD.d9.houses, planets, true);
-    o += taLegendSVG(M, y + S + 14, W);
-    o += svgT(M, H - 24, 8, "#969aa0", "Generated " + new Date().toLocaleString() + " · astroindicators.com");
-    return wrapSVG(W, H, o);
+    o += taChartCells(M, y, S, CD.d1.lagnaSign, CD.d1.houses, planets, false, LANG);
+    o += taChartCells(M + S + gap, y, S, CD.d9.lagnaSign, CD.d9.houses, planets, true, LANG);
+    o += taLegendSVG(M, y + S + 14, W, LANG);
+    o += svgT(M, H - 24, 8, "#969aa0", "Generated " + new Date().toLocaleString() + " \u00b7 astroindicators.com");
+    return wrapSVG(W, H, o, LANG);
   }
 
   // Page 2 (Tamil) — dasha periods — as one or more A4 SVG strings.
-  function taPage2SVGs(CD, name) {
+  function taPage2SVGs(CD, name, LANG) {
+    LANG = LANG || "TA";
     var W = 595, H = 842, M = 36, bottom = H - 40;
     var dasha = (CD && CD.dasha) || {}, dashas = dasha.dashas || [];
     var lagna = CD && CD.d1 ? CD.d1.lagnaSign : "";
     var today = new Date().toISOString().split("T")[0];
     var pages = [], o = "", y;
-
     function header(cont) {
       var s = "", yy = 48;
-      s += svgT(M, yy, 16, "#222236", cont ? "விம்ஷோத்தரி தசா காலங்கள் (தொடர்ச்சி)" : "விம்ஷோத்தரி தசா காலங்கள்", { b: 1 }); yy += 15;
+      s += svgT(M, yy, 16, "#222236", cont ? (L(LANG, "dasha_title") + " " + L(LANG, "cont")) : L(LANG, "dasha_title"), { b: 1 }); yy += 15;
       if (!cont) {
-        s += svgT(M, yy, 9, "#787882", (name ? name + "   ·   " : "") + "நட்சத்திரம்: " + (NAK_TA[dasha.nakshatra] || dasha.nakshatra || "-") +
-          (dasha.nakshataLord ? " (" + (PLANET_TA_FULL[dasha.nakshataLord] || dasha.nakshataLord) + ")" : "")); yy += 9;
+        s += svgT(M, yy, 9, "#787882", (name ? name + "   \u00b7   " : "") + L(LANG, "nak") + ": " + (NF(LANG, dasha.nakshatra) || dasha.nakshatra || "-") +
+          (dasha.nakshataLord ? " (" + PF(LANG, dasha.nakshataLord) + ")" : "")); yy += 9;
         s += svgL(M, yy, W - M, yy, "#C9A84C", 1); yy += 16;
         s += svgR(M, yy - 7, 9, 9, "#C9A84C");
-        s += svgT(M + 13, yy, 7.5, "#5A5A64", "தற்போதைய மகா தசை");
+        s += svgT(M + 13, yy, 7.5, "#5A5A64", L(LANG, "cur_md"));
         s += svgR(M + 200, yy - 7, 9, 9, "#FAEECD", "#C9A84C", 0.5);
-        s += svgT(M + 213, yy, 7.5, "#5A5A64", "தற்போதைய புக்தி"); yy += 16;
+        s += svgT(M + 213, yy, 7.5, "#5A5A64", L(LANG, "cur_ad")); yy += 16;
       } else { s += svgL(M, yy - 6, W - M, yy - 6, "#C9A84C", 1); yy += 10; }
       return { s: s, y: yy };
     }
     var hd = header(false); o = hd.s; y = hd.y;
-
     var curMD = null, curAD = null;
     dashas.forEach(function (d) {
       if (d.startDate <= today && today < d.endDate) {
@@ -2628,40 +2667,40 @@ const CONSULT_CONFIG = {
         (d.antarDasas || []).forEach(function (a) { if (a.startDate <= today && today < a.endDate) curAD = a.lord; });
       }
     });
-
     var colW = (W - 2 * M) / 3;
     dashas.forEach(function (d) {
       var ads = d.antarDasas || [], rows = Math.max(1, Math.ceil(ads.length / 3));
       var blockH = 17 + rows * 12 + 12;
-      if (y + blockH > bottom) { pages.push(wrapSVG(W, H, o)); var h2 = header(true); o = h2.s; y = h2.y; }
+      if (y + blockH > bottom) { pages.push(wrapSVG(W, H, o, LANG)); var h2 = header(true); o = h2.s; y = h2.y; }
       var isCurMD = d.lord === curMD && d.startDate <= today && today < d.endDate;
       var fs = (FS_MAP[lagna] && FS_MAP[lagna][d.lord]) || "N";
       if (isCurMD) { o += svgR(M, y - 10, W - 2 * M, 16, "#C9A84C"); }
       else { o += svgR(M, y - 10, W - 2 * M, 16, "#F3EFE6"); }
       var hc = isCurMD ? "#1A1F33" : "#2C2C40";
       if (isCurMD) o += '<circle cx="' + (M + 11) + '" cy="' + (y - 2) + '" r="2.3" fill="#1A1F33"/>';
-      o += svgT(M + (isCurMD ? 19 : 7), y + 1, 9.5, hc, (PLANET_TA_FULL[d.lord] || d.lord) + " மகா தசை", { b: 1 });
-      o += svgT(M + 165, y + 1, 8, hc, FS_TA[fs] || "");
-      o += svgT(W - M - 7, y + 1, 8, hc, fmtDate(d.startDate) + "  -  " + fmtDate(d.endDate) + "    " + d.years + " ஆ", { a: "end" });
+      o += svgT(M + (isCurMD ? 19 : 7), y + 1, 9.5, hc, PF(LANG, d.lord) + " " + L(LANG, "mahadasha"), { b: 1 });
+      o += svgT(M + 165, y + 1, 8, hc, L(LANG, "fs_" + fs) || "");
+      o += svgT(W - M - 7, y + 1, 8, hc, fmtDate(d.startDate) + "  -  " + fmtDate(d.endDate) + "    " + d.years + " " + L(LANG, "yrs"), { a: "end" });
       y += 17;
       ads.forEach(function (a, i) {
         var cc = i % 3, rr = Math.floor(i / 3), cx = M + cc * colW, cy = y + rr * 12;
         var isCurAD = isCurMD && a.lord === curAD && a.startDate <= today && today < a.endDate;
         if (isCurAD) o += svgR(cx + 2, cy - 8.5, colW - 4, 11, "#FAEECD", "#C9A84C", 0.5);
-        o += svgT(cx + 6, cy, 7.4, isCurAD ? "#785A14" : "#3C3C50", PLANET_TA_FULL[a.lord] || a.lord, { b: isCurAD ? 1 : 0 });
+        o += svgT(cx + 6, cy, 7.4, isCurAD ? "#785A14" : "#3C3C50", PF(LANG, a.lord), { b: isCurAD ? 1 : 0 });
         o += svgT(cx + 56, cy, 6.8, "#767680", fmtDate(a.startDate) + " - " + fmtDate(a.endDate));
       });
       y += rows * 12 + 12;
     });
-    o += svgT(M, H - 24, 8, "#969aa0", "Generated " + new Date().toLocaleString() + " · astroindicators.com");
-    pages.push(wrapSVG(W, H, o));
+    o += svgT(M, H - 24, 8, "#969aa0", "Generated " + new Date().toLocaleString() + " \u00b7 astroindicators.com");
+    pages.push(wrapSVG(W, H, o, LANG));
     return pages;
   }
 
-  function wrapSVG(W, H, inner) {
+  function wrapSVG(W, H, inner, LANG) {
+    var font = (PDF_FONT[LANG] || TA_FONT);
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' +
       '<rect width="' + W + '" height="' + H + '" fill="#ffffff"/>' +
-      '<g font-family="' + TA_FONT.replace(/"/g, "&quot;") + '">' + inner + '</g></svg>';
+      '<g font-family="' + font.replace(/"/g, "&quot;") + '">' + inner + '</g></svg>';
   }
   function wrapText(s, maxChars) {
     s = String(s || ""); if (s.length <= maxChars) return [s];
@@ -2691,27 +2730,35 @@ const CONSULT_CONFIG = {
     });
   }
 
-  function buildPDF_TA(JsPDF, CD) {
+  function buildPDF_Indic(JsPDF, CD, LANG) {
+    LANG = LANG || "TA";
     var W = 595.28, H = 841.89, scale = 3;
     var inp = CD.input || {};
-    var name = inp.name || getField("inputName") || "—";
-    var dob = inp.dob || getField("inputDOB") || "—";
-    var tob = inp.tob || getField("inputTOB") || "—";
-    var place = inp.place || getField("inputPlaceDisplay") || getField("inputPlace") || "—";
-
-    var p1 = taPage1SVG(CD, name === "—" ? "" : name, dob, tob, place);
-    var p2pages = taPage2SVGs(CD, name === "—" ? "" : name);
-
-    var jobs = [rasterizeSVG(p1, W, H, scale)].concat(p2pages.map(function (s) { return rasterizeSVG(s, W, H, scale); }));
-    Promise.all(jobs).then(function (urls) {
-      var pdf = new JsPDF({ unit: "pt", format: "a4" });
-      urls.forEach(function (u, i) {
-        if (i > 0) pdf.addPage();
-        pdf.addImage(u, "PNG", 0, 0, W, H, undefined, "FAST");
-      });
-      var safe = (name === "—" ? "chart" : name).replace(/[^a-z0-9\u0B80-\u0BFF]+/gi, "_");
-      pdf.save("AstroIndicators_" + safe + "_D1_D9_TA.pdf");
-    }).catch(function (e) { alert("Could not build the Tamil PDF. Please try again."); console.error(e); });
+    var name = inp.name || getField("inputName") || "\u2014";
+    var dob = inp.dob || getField("inputDOB") || "\u2014";
+    var tob = inp.tob || getField("inputTOB") || "\u2014";
+    var place = inp.place || getField("inputPlaceDisplay") || getField("inputPlace") || "\u2014";
+    function render() {
+      var p1 = taPage1SVG(CD, name === "\u2014" ? "" : name, dob, tob, place, LANG);
+      var p2pages = taPage2SVGs(CD, name === "\u2014" ? "" : name, LANG);
+      var jobs = [rasterizeSVG(p1, W, H, scale)].concat(p2pages.map(function (sv) { return rasterizeSVG(sv, W, H, scale); }));
+      Promise.all(jobs).then(function (urls) {
+        var pdf = new JsPDF({ unit: "pt", format: "a4" });
+        urls.forEach(function (u, i) {
+          if (i > 0) pdf.addPage();
+          pdf.addImage(u, "PNG", 0, 0, W, H, undefined, "FAST");
+        });
+        var safe = (name === "\u2014" ? "chart" : name).replace(/[^a-z0-9\u0B80-\u0BFF\u0C00-\u0C7F\u0900-\u097F\u0C80-\u0CFF\u0D00-\u0D7F]+/gi, "_");
+        pdf.save("AstroIndicators_" + safe + "_D1_D9_" + LANG + ".pdf");
+      }).catch(function (e) { alert("Could not build the PDF. Please try again."); console.error(e); });
+    }
+    try {
+      if (document.fonts && document.fonts.load) {
+        var fam = (PDF_FONT[LANG] || "").split(",")[0].replace(/'/g, "");
+        Promise.all([document.fonts.load("12px '" + fam + "'"), document.fonts.load("700 12px '" + fam + "'")])
+          .then(function () { return document.fonts.ready; }).then(render).catch(render);
+      } else { render(); }
+    } catch (e) { render(); }
   }
 
 
@@ -2770,8 +2817,8 @@ const CONSULT_CONFIG = {
 
     // Tamil sheet uses the SVG-raster path (jsPDF cannot shape Tamil); English
     // continues with the crisp native-vector path below.
-    var _ta = false; try { _ta = localStorage.getItem("jyotish-lang") === "TA"; } catch (e) {}
-    if (_ta) { buildPDF_TA(JsPDF, CD); return; }
+    var _lang = "EN"; try { _lang = localStorage.getItem("jyotish-lang") || "EN"; } catch (e) {}
+    if (["TA","TE","HI","KA","ML"].indexOf(_lang) !== -1) { buildPDF_Indic(JsPDF, CD, _lang); return; }
 
     var planets = CD.planets;
     var inp = CD.input || {};
