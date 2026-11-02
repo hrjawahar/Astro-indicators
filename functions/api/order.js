@@ -31,6 +31,8 @@
 //  Plus (for referral validation): D1 binding  DB = astro_paid  (same as report.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { hashCode, applyDiscount, discountLabel, DISCOUNT_ELIGIBLE_ITEMS } from "../utils/discount-lib.js";
+
 // Authoritative price list (GST-inclusive rupees), keyed by the EXACT `item`
 // string the browser sends to startPayment(). Mirror of config.js prices:
 //   config.prices.dasha       → "dasha"
@@ -84,32 +86,77 @@ function normalizeCode(raw) {
   return "AI-" + s.slice(0, 4) + "-" + s.slice(4);
 }
 
+// ── Discount codes (validated & applied HERE, server-side) ───────────────────
+// A discount code lowers the price of a REPORT purchase and still goes through
+// Razorpay. The browser sends { discountCode }; the amount is NEVER trusted from
+// the browser — it is recomputed here and stamped into the order notes, so
+// verify.js reads the real figures back from the order, not from the client.
+//   body.preview:true  → validate/price only; no Razorpay order is created.
+async function validateDiscount(env, code) {
+  // Returns { ok, kind, value, label, codeHash } or { ok:false, error }.
+  if (!env.DB) return { ok: false, error: "Discounts are temporarily unavailable. Please try without the code." };
+  const hash = await hashCode(code, env.DISCOUNT_PEPPER);
+  const row = await env.DB.prepare("SELECT * FROM discount_codes WHERE code_hash = ?").bind(hash).first();
+  const now = Date.now();
+  if (!row) return { ok: false, error: "This discount code is not valid." };
+  if (row.status !== "active") return { ok: false, error: "This discount code has been revoked." };
+  if (row.expires_at < now) return { ok: false, error: "This discount code has expired." };
+  if (row.max_uses != null && row.uses_count >= row.max_uses) return { ok: false, error: "This discount code has been fully used." };
+  return { ok: true, kind: row.kind, value: row.value, label: discountLabel(row.kind, row.value), codeHash: hash };
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
-
-  const keyId  = env.RAZORPAY_KEY_ID;
-  const secret = env.RAZORPAY_KEY_SECRET;
-
-  if (!keyId || !secret) {
-    return json({ error: "Razorpay keys not configured in Cloudflare environment variables." }, 500);
-  }
 
   let body;
   try { body = await request.json(); }
   catch { return json({ error: "Invalid request body." }, 400); }
 
-  // Only the item matters. The amount is decided server-side; any client-sent
-  // amount is intentionally ignored.
+  const preview = !!body.preview;
   const item = String(body.item || "");
-  const amount = PRICES[item];
-  if (amount == null) {
-    return json({ error: "Unknown item." }, 400);
+  const base = PRICES[item];
+  const discountCode = String(body.discountCode || "").trim();
+
+  // ── Discount validation (shared by preview and real orders) ──
+  let charged = base, disc = null, codeHash = "";
+  if (discountCode) {
+    const d = await validateDiscount(env, discountCode);
+    if (!d.ok) {
+      // The code was entered but can't be applied — tell the UI so it never
+      // silently charges full price when the buyer expected a discount.
+      return json({ error: d.error, discountInvalid: true }, 400);
+    }
+    // Generic validity (no item) still returns the code's terms, so the checkout
+    // "Apply" button can confirm the code before a product is chosen.
+    if (base != null && DISCOUNT_ELIGIBLE_ITEMS.has(item)) {
+      charged = applyDiscount(base, d.kind, d.value);
+      disc = { kind: d.kind, value: d.value, label: d.label, base, amount: charged };
+    } else if (base != null && !DISCOUNT_ELIGIBLE_ITEMS.has(item)) {
+      return json({ error: "This discount code applies to reports only, not this item.", discountInvalid: true }, 400);
+    } else {
+      // No concrete item (generic Apply) — report the terms only.
+      disc = { kind: d.kind, value: d.value, label: d.label };
+    }
+    codeHash = d.codeHash;
   }
 
-  // Razorpay expects the amount in paise (smallest unit): ₹750 → 75000
-  const amountPaise = Math.round(amount * 100);
+  // ── Preview: validate/price only, create no order ──
+  if (preview) {
+    if (discountCode && base == null) return json({ preview: true, valid: true, discount: disc });
+    if (base == null) return json({ error: "Unknown item." }, 400);
+    return json({ preview: true, item, base, amount: charged, discount: disc });
+  }
 
-  // Basic auth header: base64("key_id:secret")
+  // ── Real order ──
+  const keyId  = env.RAZORPAY_KEY_ID;
+  const secret = env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !secret) {
+    return json({ error: "Razorpay keys not configured in Cloudflare environment variables." }, 500);
+  }
+  if (base == null) return json({ error: "Unknown item." }, 400);
+
+  // Razorpay expects the amount in paise (smallest unit): ₹750 → 75000.
+  const amountPaise = Math.round(charged * 100);
   const auth = btoa(keyId + ":" + secret);
 
   const orderRes = await fetch("https://api.razorpay.com/v1/orders", {
@@ -122,8 +169,9 @@ export async function onRequestPost(context) {
       amount: amountPaise,
       currency: "INR",
       receipt: "rcpt_" + item + "_" + Date.now(),
-      // notes.item = the server-authoritative item verify.js reads back later.
-      notes: { item: item },
+      // Server-authoritative facts verify.js reads back later. notes.disc carries
+      // the code HASH (safe to expose) so verify.js can mark exactly that code used.
+      notes: { item: item, disc: codeHash || "", base: String(base), charged: String(charged) },
     }),
   });
 
@@ -134,7 +182,7 @@ export async function onRequestPost(context) {
 
   const order = await orderRes.json();
   // Return only what the browser needs — never the secret.
-  return json({ orderId: order.id, amount: order.amount, currency: order.currency, keyId: keyId });
+  return json({ orderId: order.id, amount: order.amount, currency: order.currency, keyId: keyId, base, discount: disc });
 }
 
 function json(obj, status = 200) {

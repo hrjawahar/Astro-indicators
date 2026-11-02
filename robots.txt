@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /owner-testcodes.html
+Disallow: /owner-discounts.html
 
 Sitemap: https://astroindicators.com/sitemap.xml
