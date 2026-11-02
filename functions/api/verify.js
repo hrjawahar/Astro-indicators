@@ -86,10 +86,14 @@ export async function onRequestPost(context) {
   // the referral — no notes, no referral.
   let paidItem = item;
   let refCode  = "";
+  let discHash = "", discBase = null, discCharged = null;
   if (chartId) {
     const notes = await fetchOrderNotes(env, razorpay_order_id);
     if (notes && notes.item) paidItem = notes.item;
     if (notes && notes.ref)  refCode  = notes.ref;
+    if (notes && notes.disc) discHash = notes.disc;
+    if (notes && notes.base != null) discBase = notes.base;
+    if (notes && notes.charged != null) discCharged = notes.charged;
   }
 
   // ── Record the paid report in D1 (so it persists across sessions) ──────────
@@ -157,6 +161,28 @@ export async function onRequestPost(context) {
       ).run();
     } catch (e) {
       // Customer storage is best-effort; never block a verified payment over it.
+    }
+  }
+
+  // ── Mark a used discount code (one-time / limited) + log the redemption ─────
+  // Runs only on a genuine, signature-verified payment. The code HASH came from
+  // the ORDER notes (order.js stamped it), so the browser can neither invent a
+  // redemption nor dodge one. The increment is atomic and capped at max_uses.
+  if (env.DB && discHash) {
+    try {
+      const now = Date.now();
+      await env.DB.prepare(
+        "UPDATE discount_codes SET uses_count = uses_count + 1, last_used_at = ? " +
+        "WHERE code_hash = ? AND status = 'active' AND (max_uses IS NULL OR uses_count < max_uses)"
+      ).bind(now, discHash).run();
+      await env.DB.prepare(
+        "INSERT INTO discount_redemptions (code_hash, chart_id, item, base, charged, payment_id, at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      ).bind(discHash, String(chartId || ""), String(paidItem || ""),
+             discBase != null ? Number(discBase) : null,
+             discCharged != null ? Number(discCharged) : null,
+             razorpay_payment_id, now).run();
+    } catch (e) {
+      // Best-effort; never block a verified payment over discount bookkeeping.
     }
   }
 
@@ -230,6 +256,9 @@ async function fetchOrderNotes(env, orderId) {
     return {
       item: n.item ? String(n.item) : "",
       ref:  n.ref  ? String(n.ref)  : "",
+      disc: n.disc ? String(n.disc) : "",
+      base: n.base != null ? n.base : null,
+      charged: n.charged != null ? n.charged : null,
     };
   } catch (e) {
     return null;

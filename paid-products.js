@@ -317,8 +317,54 @@
   };
   const DOMAIN_ITEM = (k) => "domain_" + k;   // paid_reports item string per domain
 
+  // Discount-code widget: validates a code (server-side preview) and remembers it
+  // on window._ai_disc so EVERY purchase (LAMP, domains, bundle) picks it up via
+  // window.AI_getDiscountCode, which payments.js reads. The price is always
+  // recomputed server-side in order.js — the browser never sets the amount.
+  window.AI_getDiscountCode = function () { return window._ai_disc || ""; };
+  function wireDiscountWidget(wrap) {
+    const inp = wrap.querySelector("#aiDiscInput");
+    const applyBtn = wrap.querySelector("#aiDiscApply");
+    const msg = wrap.querySelector("#aiDiscMsg");
+    function setApplied(code, label, confirmed) {
+      window._ai_disc = code || "";
+      window._ai_disc_ok = !!(code && confirmed);
+      if (inp) { inp.value = code || ""; inp.readOnly = !!code; }
+      if (applyBtn) applyBtn.textContent = code ? "Remove" : "Apply";
+      if (msg) { msg.style.color = code ? "#1a7f4b" : "#888"; msg.textContent = code ? ("\u2713 " + (label || "Discount applied") + " \u2014 shown at payment, on any report.") : ""; }
+    }
+    async function validate(code) {
+      const res = await fetch("/api/order", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discountCode: code, preview: true }) });
+      const d = await res.json().catch(() => ({}));
+      return { ok: res.ok && d && d.valid && d.discount, label: d && d.discount && d.discount.label, error: d && d.error };
+    }
+    if (!applyBtn) return;
+    // A code carried in from the ?disc= link (or a prior render) — confirm it once.
+    if (window._ai_disc && !window._ai_disc_ok) {
+      const pending = window._ai_disc;
+      if (msg) { msg.style.color = "#888"; msg.textContent = "Checking your code\u2026"; }
+      validate(pending).then(function (v) {
+        if (v.ok) setApplied(pending, v.label, true);
+        else { setApplied("", "", false); if (msg) { msg.style.color = "#c0392b"; msg.textContent = v.error || "That discount code is no longer valid."; } }
+      }).catch(function () { setApplied("", "", false); });
+    }
+    applyBtn.onclick = async () => {
+      if (window._ai_disc) { setApplied("", "", false); return; }        // Remove
+      const code = ((inp && inp.value) || "").trim();
+      if (!code) { if (msg) { msg.style.color = "#c0392b"; msg.textContent = "Enter a code first."; } return; }
+      applyBtn.disabled = true; if (msg) { msg.style.color = "#888"; msg.textContent = "Checking\u2026"; }
+      try {
+        const v = await validate(code);
+        if (v.ok) setApplied(code, v.label, true);
+        else if (msg) { msg.style.color = "#c0392b"; msg.textContent = v.error || "This code is not valid."; }
+      } catch (e) { if (msg) { msg.style.color = "#c0392b"; msg.textContent = "Couldn\u2019t check the code. Please try again."; } }
+      applyBtn.disabled = false;
+    };
+  }
+
   function renderDomainPicker() {
     const wrap = $("domainPicker"); if (!wrap) return;
+    try { var _u = new URLSearchParams(location.search).get("disc"); if (_u && !window._ai_disc) { window._ai_disc = _u.trim().toUpperCase(); window._ai_disc_ok = false; } } catch (e) {}
     const ready = !!(window.currentData && window.currentData.chart);
     if (!ready) { wrap.innerHTML = `<div class="pp-empty">Generate your chart first (Birth Data tab).</div>`; return; }
     const P = price;
@@ -341,7 +387,17 @@
         </div>
         <button class="pp-pay" data-domain-buy="all" style="flex:0 0 auto">₹${bundlePrice}</button>
       </div>`;
-    wrap.innerHTML = bundleCard + DOMAIN_KEYS.map(k => `
+    const _dc = window._ai_disc || "";
+    const discWidget = `
+      <div class="ai-disc-wrap" style="border:1px dashed rgba(201,168,76,.55);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:rgba(201,168,76,.05)">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-weight:600;color:var(--ai-gold,#b0821f);font-size:13px">Have a discount code?</span>
+          <input id="aiDiscInput" type="text" placeholder="AI-SAVE-XXXX-XXXX" value="${esc(_dc)}" ${_dc?"readonly":""} style="flex:1;min-width:150px;padding:6px 10px;border:1px solid #d8cba8;border-radius:7px;font-size:13px;text-transform:uppercase">
+          <button id="aiDiscApply" class="pp-pay ghost" style="flex:0 0 auto">${_dc?"Remove":"Apply"}</button>
+        </div>
+        <div id="aiDiscMsg" style="font-size:12px;margin-top:6px;color:${_dc?"#1a7f4b":"#888"}">${_dc?"\u2713 Code applied \u2014 your discount is shown at payment, on any report.":""}</div>
+      </div>`;
+    wrap.innerHTML = discWidget + bundleCard + DOMAIN_KEYS.map(k => `
       <div class="icc-pick" data-domain="${k}">
         <div class="icc-num">\u2726</div>
         <div style="flex:1">
@@ -350,6 +406,7 @@
         </div>
         <button class="pp-pay" data-domain-buy="${k}" style="flex:0 0 auto">\u20B9${P(DOMAIN_ITEM(k),750)}</button>
       </div>`).join("");
+    wireDiscountWidget(wrap);
     wrap.querySelectorAll("[data-domain-buy]").forEach(btn => {
       const k = btn.getAttribute("data-domain-buy");
       if (k === "all") {

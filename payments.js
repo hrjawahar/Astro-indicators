@@ -46,6 +46,11 @@
       chartId = chartId ? String(chartId) : null;
       const referralCode = fromRefUI(opts.referralCode, "getReferralCode");
       const mobile       = fromRefUI(opts.mobile, "getMobile");
+      // Discount code (optional): from opts, or an "applied" code the paid-products
+      // UI exposes via window.AI_getDiscountCode. order.js validates it server-side
+      // and recomputes the price — the browser never dictates the amount.
+      const discountCode = opts.discountCode ||
+        (typeof window.AI_getDiscountCode === "function" ? (window.AI_getDiscountCode() || "") : "");
 
       // 1. Ask our backend to create an order (secret stays server-side).
       //    referralCode + chartId ride along so order.js can validate the
@@ -58,6 +63,7 @@
           item: opts.item,
           chartId: chartId,
           referralCode: referralCode,
+          discountCode: discountCode,
         }),
       })
       .then(function (r) { return r.json(); })
