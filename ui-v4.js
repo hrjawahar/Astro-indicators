@@ -2159,9 +2159,10 @@ const CONSULT_CONFIG = {
 })();
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   OWNER-ONLY CHART PDF EXPORT  (v2 — vector redraw + Dasha page)
-   Adds a "Download Charts (PDF)" button on the Charts tab, visible ONLY when
-   owner mode is active.
+   CHART PDF EXPORT  (v2 — vector redraw + Dasha page)
+   Adds a "Download Charts (PDF)" button on the Charts tab, visible to the owner
+   AND to visitors who arrived with a valid discount link (?disc=CODE). The code
+   is validated server-side (preview, no use consumed) before the button shows.
 
    PAGE 1 — header (name/DOB/TOB/place) + lagna data + D1 & D9 charts.
             The charts are now drawn as NATIVE jsPDF VECTOR graphics (crisp text,
@@ -2179,6 +2180,34 @@ const CONSULT_CONFIG = {
   var OWNER_KEY = "own-kSfeE_BD9rv3_GSIKVpAA583";
   function isOwner() {
     try { return localStorage.getItem("ai_owner") === OWNER_KEY; } catch (e) { return false; }
+  }
+
+  // ── Discount-link visitors get this same chart download ────────────────────
+  // People we hand a discount link (?disc=CODE) should be able to download the
+  // D1/D9 + Dasha PDF for free, exactly like the owner. A code is only accepted
+  // after it is validated server-side via the SAME preview endpoint the checkout
+  // uses ({preview:true} never consumes a use) — so a made-up ?disc= value can't
+  // unlock it. window._ai_disc / _ai_disc_ok are the shared flags also set by the
+  // reports-page discount widget, so applying a code there unlocks this too.
+  function discOK() { return window._ai_disc_ok === true; }
+  var _discChecked = false;
+  function ensureDiscountChecked() {
+    if (window._ai_disc_ok === true) { _discChecked = true; return; } // already validated (e.g. by the reports widget)
+    if (_discChecked) return;
+    var code = window._ai_disc;
+    if (!code) {
+      try { var u = new URLSearchParams(location.search).get("disc"); if (u) code = u.trim().toUpperCase(); } catch (e) {}
+    }
+    if (!code) return;                       // no code yet — the interval re-checks if one is applied later
+    _discChecked = true;
+    window._ai_disc = code;
+    fetch("/api/order", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ discountCode: code, preview: true })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d && d.valid && d.discount) window._ai_disc_ok = true; })
+      .catch(function () {});
   }
 
   // ── Reference tables (mirror of the chart engine) ──────────────────────────
@@ -2903,9 +2932,10 @@ const CONSULT_CONFIG = {
     pdf.save("AstroIndicators_" + safe + "_D1_D9.pdf");
   }
 
-  // Inject the owner-only button into the Charts tab.
+  // Inject the chart-PDF button into the Charts tab (owner OR a valid discount link).
   function ensureButton() {
-    if (!isOwner()) {
+    ensureDiscountChecked();
+    if (!isOwner() && !discOK()) {
       var ex = document.getElementById("ownerChartPdfBtn");
       if (ex) ex.remove();
       return;
