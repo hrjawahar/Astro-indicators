@@ -814,6 +814,41 @@ function computeChandrashtama(natalMoonSidLon, nowJD, months, tzOffset) {
 //    4th from Moon  = Kantaka Shani · 8th = Ashtama Shani
 //    3rd/6th/11th   = favourable (upachaya) · 5/7/9/10 = neutral-mixed
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  ASHTAKAVARGA — Bhinnashtakavarga (BAV) per planet + Sarvashtakavarga (SAV).
+//  Standard Parashari (BPHS) benefic-place tables: for planet P, each reference
+//  R (the 7 planets + Lagna) contributes a bindu to the houses listed, counted
+//  FROM R's natal sign. A transiting planet moving through a sign with MANY of
+//  its own bindus gives strong results; few bindus, weak. Validated: each BAV
+//  sums to its canonical total (Sun 48, Moon 49, Mars 39, Mercury 54, Jupiter
+//  56, Venus 52, Saturn 39) and SAV totals 337 for any chart.
+// ─────────────────────────────────────────────────────────────────────────────
+const AV_REFS = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Lagna"];
+const AV_BINDU = {
+  Sun:     { Sun:[1,2,4,7,8,9,10,11], Moon:[3,6,10,11], Mars:[1,2,4,7,8,9,10,11], Mercury:[3,5,6,9,10,11,12], Jupiter:[5,6,9,11], Venus:[6,7,12], Saturn:[1,2,4,7,8,9,10,11], Lagna:[3,4,6,10,11,12] },
+  Moon:    { Sun:[3,6,7,8,10,11], Moon:[1,3,6,7,10,11], Mars:[2,3,5,6,9,10,11], Mercury:[1,3,4,5,7,8,10,11], Jupiter:[1,4,7,8,10,11,12], Venus:[3,4,5,7,9,10,11], Saturn:[3,5,6,11], Lagna:[3,6,10,11] },
+  Mars:    { Sun:[3,5,6,10,11], Moon:[3,6,11], Mars:[1,2,4,7,8,10,11], Mercury:[3,5,6,11], Jupiter:[6,10,11,12], Venus:[6,8,11,12], Saturn:[1,4,7,8,9,10,11], Lagna:[1,3,6,10,11] },
+  Mercury: { Sun:[5,6,9,11,12], Moon:[2,4,6,8,10,11], Mars:[1,2,4,7,8,9,10,11], Mercury:[1,3,5,6,9,10,11,12], Jupiter:[6,8,11,12], Venus:[1,2,3,4,5,8,9,11], Saturn:[1,2,4,7,8,9,10,11], Lagna:[1,2,4,6,8,10,11] },
+  Jupiter: { Sun:[1,2,3,4,7,8,9,10,11], Moon:[2,5,7,9,11], Mars:[1,2,4,7,8,10,11], Mercury:[1,2,4,5,6,9,10,11], Jupiter:[1,2,3,4,7,8,10,11], Venus:[2,5,6,9,10,11], Saturn:[3,5,6,12], Lagna:[1,2,4,5,6,7,9,10,11] },
+  Venus:   { Sun:[8,11,12], Moon:[1,2,3,4,5,8,9,11,12], Mars:[3,5,6,9,11,12], Mercury:[3,5,6,9,11], Jupiter:[5,8,9,10,11], Venus:[1,2,3,4,5,8,9,10,11], Saturn:[3,4,5,8,9,10,11], Lagna:[1,2,3,4,5,8,9,11] },
+  Saturn:  { Sun:[1,2,4,7,8,10,11], Moon:[3,6,11], Mars:[3,5,6,10,11,12], Mercury:[6,8,9,10,11,12], Jupiter:[5,6,11,12], Venus:[6,11,12], Saturn:[3,5,6,11], Lagna:[1,3,4,6,10,11] }
+};
+// signIdx = { Sun:0-11, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Lagna }.
+function computeAshtakavarga(signIdx) {
+  const bav = {}, sav = new Array(12).fill(0);
+  for (const P of Object.keys(AV_BINDU)) {
+    const row = new Array(12).fill(0);
+    for (const R of AV_REFS) {
+      const rs = signIdx[R];
+      if (rs == null) continue;
+      for (const h of AV_BINDU[P][R]) row[(rs + h - 1) % 12]++;
+    }
+    bav[P] = row;
+    for (let s = 0; s < 12; s++) sav[s] += row[s];
+  }
+  return { bav, sav };
+}
+
 const SAT_SIGNS = CH_SIGNS;
 function satSidLonAtJD(JD) {
   const T = (JD - 2451545.0) / 36525;
@@ -874,7 +909,7 @@ const SAT_MEANING = {
   11: "Saturn in the 11th from your Moon - favourable: gains, fulfilment of goals and income through persistence."
 };
 
-function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) {
+function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, av) {
   const tz = (tzOffset == null) ? 5.5 : tzOffset;
   const M = Math.floor(norm360(natalMoonSidLon) / 30);
   const L = Math.floor(norm360(natalAscSidLon) / 30);
@@ -882,6 +917,13 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
 
   const houseFromMoon  = (s) => ((s - M + 12) % 12) + 1;
   const houseFromLagna = (s) => ((s - L + 12) % 12) + 1;
+
+  // Ashtakavarga transit strength: Saturn's own bindus (0-8) in the transited
+  // sign. 5+ = strong/supported, 4 = moderate, <=3 = demanding.
+  const satBav = (av && av.bav && av.bav.Saturn) || null;
+  const savArr = (av && av.sav) || null;
+  const binduOf = (s) => satBav ? satBav[s] : null;
+  const strengthLabel = (b) => (b == null) ? null : (b >= 5 ? "strong" : b === 4 ? "moderate" : "demanding");
 
   const cur = runs.find(r => r.start <= nowJD && nowJD < r.end) || runs[runs.length - 1];
   const curHouse = houseFromMoon(cur.sign);
@@ -923,6 +965,9 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
       meaning: SAT_MEANING[curHouse],
       since: satFullDate(cur.start, tz), sinceMonth: satMonthYear(cur.start, tz),
       until: satFullDate(cur.end, tz),   untilMonth: satMonthYear(cur.end, tz),
+      bindu: binduOf(cur.sign),
+      savBindu: savArr ? savArr[cur.sign] : null,
+      strength: strengthLabel(binduOf(cur.sign)),
       aspects
     },
     sadeSati: arc ? {
@@ -931,13 +976,13 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
       start: satMonthYear(arc.r12.start, tz),
       end:   satMonthYear(arc.r2.end, tz),
       phases: [
-        { name: "Rising (12th from Moon)",  sign: SAT_SIGNS[sign12], start: satMonthYear(arc.r12.start, tz), end: satMonthYear(arc.r12.end, tz), isCurrent: curHouse === 12 },
-        { name: "Peak (over the Moon)",      sign: SAT_SIGNS[sign1],  start: satMonthYear(arc.r1.start, tz),  end: satMonthYear(arc.r1.end, tz),  isCurrent: curHouse === 1 },
-        { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  isCurrent: curHouse === 2 }
+        { name: "Rising (12th from Moon)",  sign: SAT_SIGNS[sign12], start: satMonthYear(arc.r12.start, tz), end: satMonthYear(arc.r12.end, tz), isCurrent: curHouse === 12, bindu: binduOf(sign12), strength: strengthLabel(binduOf(sign12)) },
+        { name: "Peak (over the Moon)",      sign: SAT_SIGNS[sign1],  start: satMonthYear(arc.r1.start, tz),  end: satMonthYear(arc.r1.end, tz),  isCurrent: curHouse === 1,  bindu: binduOf(sign1),  strength: strengthLabel(binduOf(sign1)) },
+        { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  isCurrent: curHouse === 2,  bindu: binduOf(sign2),  strength: strengthLabel(binduOf(sign2)) }
       ]
     } : null,
-    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end } : null,
-    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end } : null
+    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end, bindu: binduOf(kantakaSign) } : null,
+    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end, bindu: binduOf(ashtamaSign) } : null
   };
 }
 
@@ -1058,15 +1103,26 @@ export async function onRequestPost(context) {
       chandrashtama = computeChandrashtama(sidPositions.Moon.longitude, nowJD, 12, 5.5);
     } catch (_) { chandrashtama = null; }
 
+    // Ashtakavarga (BAV + SAV) — feeds transit strength. Additive, never throws.
+    let ashtakavarga = null;
+    try {
+      const avSign = {};
+      for (const p of ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"]) {
+        avSign[p] = Math.floor(norm360(sidPositions[p].longitude) / 30);
+      }
+      avSign.Lagna = Math.floor(norm360(siderealASC) / 30);
+      ashtakavarga = computeAshtakavarga(avSign);
+    } catch (_) { ashtakavarga = null; }
+
     // Saturn transit (Gochara) — Sade Sati / Kantaka / Ashtama + road ahead for
-    // this native, from the current date. Additive, never throws.
+    // this native, from the current date, with Ashtakavarga strength. Never throws.
     let saturnTransit = null;
     try {
       const nowJD2 = dateToJulianDay(
         new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, new Date().getUTCDate(),
         new Date().getUTCHours(), new Date().getUTCMinutes(), 0
       );
-      saturnTransit = computeSaturnTransit(sidPositions.Moon.longitude, siderealASC, nowJD2, 5.5);
+      saturnTransit = computeSaturnTransit(sidPositions.Moon.longitude, siderealASC, nowJD2, 5.5, ashtakavarga);
     } catch (_) { saturnTransit = null; }
 
     return Response.json({
@@ -1090,7 +1146,8 @@ export async function onRequestPost(context) {
       planets,
       dasha,
       chandrashtama,
-      saturnTransit
+      saturnTransit,
+      ashtakavarga
     });
 
   } catch (error) {

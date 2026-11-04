@@ -897,6 +897,13 @@ function renderSaturnTransit(st, data) {
   else                               head = `Saturn is in a <b>steady, neutral</b> transit for you right now.`;
   const badge = `<span style="background:${sh.cls};color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px">${sh.label}</span>`;
 
+  // Ashtakavarga strength of the current transit, in plain words (free teaser).
+  const SCOL = { strong: "#1a7f4b", moderate: "#b0821f", demanding: "#c0392b" };
+  const SLABEL = { strong: "Well supported", moderate: "Moderately supported", demanding: "Lightly supported" };
+  const strengthRow = (c.strength && c.bindu != null)
+    ? `<div class="chandra-row"><span class="chandra-k">Strength in your chart</span><span class="chandra-v"><b style="color:${SCOL[c.strength]}">${SLABEL[c.strength]}</b> <span style="opacity:.7">(${c.bindu}/8)</span></span></div>`
+    : "";
+
   // Road ahead, ordered soonest-first so the next thing to prepare for leads.
   // Each event carries a plain-language note.
   const SADE_DESC = "Saturn's ~7.5-year passage across the 12th, 1st and 2nd from your Moon — the chart's great cycle of maturity, responsibility and lasting change.";
@@ -940,12 +947,13 @@ function renderSaturnTransit(st, data) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Saturn in ${c.sign}</b> <span style="opacity:.7">(${_ordSuffix(c.houseFromMoon)} from Moon)</span></div>
       <p class="card-body" style="margin:4px 0 10px">${head} ${c.meaning}</p>
       <div class="chandra-row"><span class="chandra-k">Saturn in ${c.sign}</span><span class="chandra-v">${c.sinceMonth} – ${c.untilMonth}</span></div>
+      ${strengthRow}
       ${hook}
       ${ahead}
     </div>
     <details style="margin-bottom:4px">
       <summary style="cursor:pointer;font-weight:600;color:var(--ai-gold,#b0821f)">How to read this</summary>
-      <p class="card-body" style="margin:8px 0">Sade Sati is a period of maturation and consolidation, not misfortune — Saturn asks for patience, honest effort and simplification, and rewards them. Transit always works <b>under</b> your current Dasha: it fine-tunes the timing of what your birth chart and running period already allow, rather than overriding them. Dates are approximate (month-level) and shift slightly with Saturn's retrograde motion.</p>
+      <p class="card-body" style="margin:8px 0">Sade Sati is a period of maturation and consolidation, not misfortune — Saturn asks for patience, honest effort and simplification, and rewards them. Transit always works <b>under</b> your current Dasha: it fine-tunes the timing of what your birth chart and running period already allow, rather than overriding them. The strength score (out of 8) is your chart's own Ashtakavarga — higher means Saturn's passage through that sign is better supported for you, so its lessons tend to come more smoothly. Dates are approximate (month-level) and shift slightly with Saturn's retrograde motion.</p>
     </details>
   `;
   const buy = document.getElementById("transitBuyBtn");
