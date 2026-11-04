@@ -799,6 +799,148 @@ function computeChandrashtama(natalMoonSidLon, nowJD, months, tzOffset) {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  SATURN TRANSIT (Gochara) — Sade Sati / Kantaka Shani / Ashtama Shani + the
+//  road ahead, read from the natal Moon (primary) and Lagna (secondary). Uses the
+//  SAME ephemeris as the natal chart (saturnPosition / lahiriAyanamsha /
+//  toSidereal), so there is zero drift. Deterministic, additive, never throws.
+//
+//  Method: scan Saturn's sidereal sign across ~35 years, build "runs" (one visit
+//  per sign), and MERGE retrograde wobble — a dip back to the previous sign shows
+//  up as Y→X→Y and is collapsed, so each sign's net ingress/egress is clean and
+//  matches published panchanga dates. Sade Sati = Saturn through the 12th→1st→2nd
+//  from the Moon, which are three CONSECUTIVE signs, hence three consecutive runs.
+//    1st from Moon  = peak      · 12th = rising · 2nd = setting
+//    4th from Moon  = Kantaka Shani · 8th = Ashtama Shani
+//    3rd/6th/11th   = favourable (upachaya) · 5/7/9/10 = neutral-mixed
+// ─────────────────────────────────────────────────────────────────────────────
+const SAT_SIGNS = CH_SIGNS;
+function satSidLonAtJD(JD) {
+  const T = (JD - 2451545.0) / 36525;
+  return norm360(toSidereal(saturnPosition(T).longitude, lahiriAyanamsha(JD)));
+}
+function satSignAtJD(JD) { return Math.floor(satSidLonAtJD(JD) / 30); }
+// Exact boundary-crossing time in [a,b] where sidereal Saturn longitude == target.
+function satCrossTime(a, b, target) {
+  const f = (JD) => { let d = satSidLonAtJD(JD) - target; if (d > 180) d -= 360; if (d < -180) d += 360; return d; };
+  let fa = f(a);
+  for (let i = 0; i < 60; i++) { const m = (a + b) / 2, fm = f(m); if ((fa <= 0) === (fm <= 0)) { a = m; fa = fm; } else { b = m; } }
+  return (a + b) / 2;
+}
+function satMonthYear(JD, tz) { const p = chJdToParts(JD, tz); return CH_MON[p.mo - 1] + " " + p.y; }
+function satFullDate(JD, tz)  { const p = chJdToParts(JD, tz); return p.d + " " + CH_MON[p.mo - 1] + " " + p.y; }
+
+// Build Saturn's sign-occupancy segments across [scanStart, scanEnd] using the
+// FIRST forward ingress into each sign as the boundary — the convention panchangas
+// and Sade Sati tools publish. Retrograde dips back to the previous sign and the
+// subsequent re-entry are ignored (a sign is dated by its first arrival), so each
+// segment is one clean visit in the forward progression Pisces→Aries→Taurus→…
+function saturnSignRuns(scanStart, scanEnd) {
+  const STEP = 3; // days — far finer than Saturn's ~2.5yr/sign; catches every crossing
+  const startSign = satSignAtJD(scanStart);
+  const ingresses = [{ sign: startSign, jd: scanStart }];
+  let prevSign = startSign, progSign = startSign;
+  for (let JD = scanStart + STEP; JD <= scanEnd; JD += STEP) {
+    const s = satSignAtJD(JD);
+    if (s !== prevSign) {
+      // Record only the first forward step into the NEXT progression sign.
+      if (s === (progSign + 1) % 12) {
+        ingresses.push({ sign: s, jd: satCrossTime(JD - STEP, JD, (s * 30) % 360) });
+        progSign = s;
+      }
+      prevSign = s;
+    }
+  }
+  // Consecutive ingresses define the sign segments.
+  return ingresses.map((g, i) => ({
+    sign: g.sign,
+    start: g.jd,
+    end: (i + 1 < ingresses.length) ? ingresses[i + 1].jd : scanEnd
+  }));
+}
+
+const SAT_MEANING = {
+  12: "Saturn in the 12th from your Moon - the opening phase of Sade Sati: expenses, rest, letting go and quiet inner work.",
+  1:  "Saturn over your Moon - the peak of Sade Sati: responsibility, reckoning and slow, lasting consolidation.",
+  2:  "Saturn in the 2nd from your Moon - the closing phase of Sade Sati: finances, family and speech under review.",
+  3:  "Saturn in the 3rd from your Moon - a strong, favourable transit: courage, steady effort and initiative are rewarded.",
+  4:  "Saturn in the 4th from your Moon - Kantaka Shani: home, mother, property and peace of mind ask for care.",
+  5:  "Saturn in the 5th from your Moon - mixed: children, studies and speculation call for patience.",
+  6:  "Saturn in the 6th from your Moon - favourable: you overcome debts, rivals and obstacles through discipline.",
+  7:  "Saturn in the 7th from your Moon - mixed: partnership and marriage mature through responsibility.",
+  8:  "Saturn in the 8th from your Moon - Ashtama Shani: sudden change, health and shared resources ask for caution.",
+  9:  "Saturn in the 9th from your Moon - mixed: fortune and faith are tested; mentors and steadiness help.",
+  10: "Saturn in the 10th from your Moon - mixed-to-strong: career demands much, and recognition comes through hard work.",
+  11: "Saturn in the 11th from your Moon - favourable: gains, fulfilment of goals and income through persistence."
+};
+
+function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) {
+  const tz = (tzOffset == null) ? 5.5 : tzOffset;
+  const M = Math.floor(norm360(natalMoonSidLon) / 30);
+  const L = Math.floor(norm360(natalAscSidLon) / 30);
+  const runs = saturnSignRuns(nowJD - 9 * 365.25, nowJD + 26 * 365.25);
+
+  const houseFromMoon  = (s) => ((s - M + 12) % 12) + 1;
+  const houseFromLagna = (s) => ((s - L + 12) % 12) + 1;
+
+  const cur = runs.find(r => r.start <= nowJD && nowJD < r.end) || runs[runs.length - 1];
+  const curHouse = houseFromMoon(cur.sign);
+
+  let state, phase = null;
+  if (curHouse === 12 || curHouse === 1 || curHouse === 2) { state = "sade_sati"; phase = curHouse === 12 ? "rising" : curHouse === 1 ? "peak" : "setting"; }
+  else if (curHouse === 4) state = "kantaka";
+  else if (curHouse === 8) state = "ashtama";
+  else if (curHouse === 3 || curHouse === 6 || curHouse === 11) state = "favourable";
+  else state = "neutral";
+
+  const sign12 = (M + 11) % 12, sign1 = M, sign2 = (M + 1) % 12;
+  const kantakaSign = (M + 3) % 12, ashtamaSign = (M + 7) % 12;
+
+  // Sade Sati arc = three consecutive runs (12th, 1st, 2nd from Moon) whose end is still ahead.
+  let arc = null;
+  for (let i = 0; i + 2 < runs.length; i++) {
+    if (runs[i].sign === sign12 && runs[i + 1].sign === sign1 && runs[i + 2].sign === sign2 && runs[i + 2].end >= nowJD) {
+      arc = { r12: runs[i], r1: runs[i + 1], r2: runs[i + 2] }; break;
+    }
+  }
+  const nextRunOfSign = (sign) => { for (const r of runs) if (r.sign === sign && r.end >= nowJD) return r; return null; };
+  const kantaka = nextRunOfSign(kantakaSign);
+  const ashtama = nextRunOfSign(ashtamaSign);
+
+  // Saturn's special aspects: 3rd, 7th, 10th from its current sign.
+  const aspects = [2, 6, 9].map(off => { const s = (cur.sign + off) % 12; return { sign: SAT_SIGNS[s], houseFromMoon: houseFromMoon(s) }; });
+
+  return {
+    tzLabel: tz === 5.5 ? "IST" : ("UTC" + (tz >= 0 ? "+" : "") + tz),
+    asOf: satFullDate(nowJD, tz),
+    natalMoonSign: SAT_SIGNS[M],
+    natalLagnaSign: SAT_SIGNS[L],
+    current: {
+      sign: SAT_SIGNS[cur.sign],
+      houseFromMoon: curHouse,
+      houseFromLagna: houseFromLagna(cur.sign),
+      state, phase,
+      meaning: SAT_MEANING[curHouse],
+      since: satFullDate(cur.start, tz), sinceMonth: satMonthYear(cur.start, tz),
+      until: satFullDate(cur.end, tz),   untilMonth: satMonthYear(cur.end, tz),
+      aspects
+    },
+    sadeSati: arc ? {
+      isCurrent: arc.r12.start <= nowJD && nowJD < arc.r2.end,
+      startJD: arc.r12.start,
+      start: satMonthYear(arc.r12.start, tz),
+      end:   satMonthYear(arc.r2.end, tz),
+      phases: [
+        { name: "Rising (12th from Moon)",  sign: SAT_SIGNS[sign12], start: satMonthYear(arc.r12.start, tz), end: satMonthYear(arc.r12.end, tz), isCurrent: curHouse === 12 },
+        { name: "Peak (over the Moon)",      sign: SAT_SIGNS[sign1],  start: satMonthYear(arc.r1.start, tz),  end: satMonthYear(arc.r1.end, tz),  isCurrent: curHouse === 1 },
+        { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  isCurrent: curHouse === 2 }
+      ]
+    } : null,
+    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end } : null,
+    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end } : null
+  };
+}
+
 export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
@@ -916,6 +1058,17 @@ export async function onRequestPost(context) {
       chandrashtama = computeChandrashtama(sidPositions.Moon.longitude, nowJD, 12, 5.5);
     } catch (_) { chandrashtama = null; }
 
+    // Saturn transit (Gochara) — Sade Sati / Kantaka / Ashtama + road ahead for
+    // this native, from the current date. Additive, never throws.
+    let saturnTransit = null;
+    try {
+      const nowJD2 = dateToJulianDay(
+        new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, new Date().getUTCDate(),
+        new Date().getUTCHours(), new Date().getUTCMinutes(), 0
+      );
+      saturnTransit = computeSaturnTransit(sidPositions.Moon.longitude, siderealASC, nowJD2, 5.5);
+    } catch (_) { saturnTransit = null; }
+
     return Response.json({
       success: true,
       input: { name, dob, tob, place: geo.displayName, lat: geo.lat, lng: geo.lng, utcOffset: utcOff },
@@ -936,7 +1089,8 @@ export async function onRequestPost(context) {
       },
       planets,
       dasha,
-      chandrashtama
+      chandrashtama,
+      saturnTransit
     });
 
   } catch (error) {
