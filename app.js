@@ -957,7 +957,85 @@ function renderSaturnTransit(st, data) {
     </details>
   `;
   const buy = document.getElementById("transitBuyBtn");
-  if (buy) buy.onclick = () => { alert("Full Transit Report (₹299) — coming soon. Checkout is wired in a later phase."); };
+  if (buy) buy.onclick = () => { try { generateTransitReport(st, data); } catch (e) { alert("Could not open the report. Please refresh and retry."); } };
+}
+
+// ─── Transit Report generation (Phase 2b) ───────────────────────────────────
+// Assembles the grounded facts packet from the current chart and calls the
+// writer (/api/transit-report), then shows the report in a modal. Fresh each
+// click (transit content is perishable; never cached). Phase 4 gates this behind
+// the Rs.299 payment; for now the hook generates it directly for review.
+function _tEsc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+function _tMdLite(s) {
+  let out = "", inUl = false;
+  String(s || "").split("\n").forEach(ln => {
+    const t = ln.trim();
+    const esc = _tEsc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+    if (/^-\s+/.test(t)) { if (!inUl) { out += "<ul style='margin:6px 0;padding-left:20px'>"; inUl = true; } out += "<li style='margin:3px 0;line-height:1.55'>" + esc.replace(/^-\s+/, "") + "</li>"; }
+    else { if (inUl) { out += "</ul>"; inUl = false; } if (t) out += "<p style='margin:8px 0;line-height:1.6'>" + esc + "</p>"; }
+  });
+  if (inUl) out += "</ul>";
+  return out;
+}
+
+function _transitFacts(st, data) {
+  let maha = null, antar = null;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const ds = (data && data.dasha && data.dasha.dashas) || [];
+    for (const d of ds) {
+      if (d.startDate <= today && today < d.endDate) {
+        maha = { lord: d.lord, from: d.startDate, to: d.endDate };
+        for (const a of (d.antarDasas || [])) {
+          if (a.startDate <= today && today < a.endDate) { antar = { lord: a.lord, from: a.startDate, to: a.endDate }; break; }
+        }
+        break;
+      }
+    }
+  } catch (e) {}
+  return {
+    moonSign: st.natalMoonSign, lagnaSign: st.natalLagnaSign, asOf: st.asOf, tzLabel: st.tzLabel,
+    current: st.current, sadeSati: st.sadeSati, kantaka: st.kantaka, ashtama: st.ashtama,
+    dasha: { maha, antar }
+  };
+}
+
+function _transitModal() {
+  let ov = document.getElementById("transitModal");
+  if (ov) { ov.remove(); }
+  ov = document.createElement("div");
+  ov.id = "transitModal";
+  ov.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(5,7,15,.72);display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto";
+  ov.innerHTML = "<div id='transitModalBox' style='max-width:640px;width:100%;background:var(--bg-card,#141B33);border:1px solid rgba(201,168,76,.4);border-radius:14px;padding:20px 22px;margin:auto'></div>";
+  ov.addEventListener("click", e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  return ov;
+}
+
+function generateTransitReport(st, data) {
+  if (!st || !st.current) return;
+  const ov = _transitModal();
+  const box = ov.querySelector("#transitModalBox");
+  box.innerHTML = "<div style='text-align:center;padding:34px 0'><div style='font-weight:700;color:var(--ai-gold,#b0821f);font-size:16px;margin-bottom:8px'>Preparing your Transit Report…</div><div style='opacity:.7;font-size:13px'>Reading Saturn against your chart. This takes a few seconds.</div></div>";
+  const done = (html) => { box.innerHTML = html; const x = box.querySelector("#transitModalClose"); if (x) x.onclick = () => ov.remove(); };
+  fetch("/api/transit-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ facts: _transitFacts(st, data) }) })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.sections || !res.sections.length) throw new Error(res.error || "No report was returned.");
+      const secs = res.sections.map(s => `<h3 style='color:var(--ai-gold,#b0821f);font-size:16px;margin:18px 0 2px'>${_tEsc(s.heading || "")}</h3>${_tMdLite(s.body || "")}`).join("");
+      done(`<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px'>`
+        + `<div style='font-weight:800;font-size:18px;color:var(--text,#EDEBE4)'>Your Saturn Transit Report</div>`
+        + `<button id='transitModalClose' style='flex:0 0 auto;background:none;border:1px solid #3a4266;color:var(--text,#EDEBE4);border-radius:8px;padding:5px 11px;cursor:pointer'>Close</button></div>`
+        + `<div style='font-size:12px;opacity:.6;margin-bottom:10px'>For ${_tEsc(st.natalMoonSign)} Moon · as of ${_tEsc(st.asOf)} (${_tEsc(st.tzLabel)})</div>`
+        + secs
+        + `<div style='font-size:11px;opacity:.55;margin-top:20px;border-top:1px solid #2a3150;padding-top:10px'>Educational guidance for self-reflection, not a prediction or professional advice.</div>`);
+    })
+    .catch(err => {
+      done(`<div style='text-align:center;padding:26px 6px'><div style='color:#e07a6a;font-weight:700;margin-bottom:8px'>Couldn't generate the report</div>`
+        + `<div style='opacity:.75;font-size:13px;margin-bottom:16px'>${_tEsc(String(err.message || err))}</div>`
+        + `<button id='transitModalClose' class='btn-primary' style='width:auto'>Close</button></div>`);
+    });
 }
 
 function downloadChandraPDF(ch, data) {
