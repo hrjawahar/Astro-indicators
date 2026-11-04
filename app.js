@@ -768,6 +768,33 @@ function renderChartScreen(data) {
 
   // ── Saturn transit — Sade Sati & road ahead (Phase 1: on-screen panel) ──
   try { renderSaturnTransit(data.saturnTransit, data); } catch (e) {}
+
+  // ── "More below" jump bar so the free sections lower down are discoverable ──
+  try { renderSectionJump(); } catch (e) {}
+}
+
+// Builds a compact "More below" bar under the lagna bar with tap-to-scroll chips
+// for whichever extra sections are present (Chandrashtama, Saturn transit), so
+// people on the first screen know there is more and can jump straight to it.
+function renderSectionJump() {
+  const bar = document.getElementById("sectionJump");
+  if (!bar) return;
+  const defs = [
+    { id: "chandraCard", label: "Chandrashtama", badge: "FREE", bcl: "#1a7f4b" },
+    { id: "saturnCard",  label: "Saturn Transit", badge: "NEW",  bcl: "#c0392b" }
+  ];
+  const items = defs.filter(d => { const el = document.getElementById(d.id); return el && el.style.display !== "none"; });
+  if (!items.length) { bar.style.display = "none"; return; }
+  bar.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:2px 0 14px;padding:9px 12px;" +
+    "border:1px solid rgba(201,168,76,.35);border-radius:10px;background:rgba(201,168,76,.06)";
+  const chip = "display:inline-flex;align-items:center;gap:6px;background:var(--navy2,#141B33);color:var(--ink,#EDEBE4);" +
+    "border:1px solid rgba(201,168,76,.45);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer";
+  bar.innerHTML = `<span style="font-size:12.5px;color:var(--ai-gold,#b0821f);font-weight:700">More below ↓</span>` +
+    items.map(it => `<button type="button" data-jump="${it.id}" style="${chip}">${it.label}` +
+      `<span style="font-size:9px;font-weight:800;letter-spacing:.04em;background:${it.bcl};color:#fff;padding:1px 6px;border-radius:999px">${it.badge}</span></button>`).join("");
+  bar.querySelectorAll("[data-jump]").forEach(b => {
+    b.onclick = () => { const el = document.getElementById(b.getAttribute("data-jump")); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  });
 }
 
 // Julian Day (UT) for "now", to match the server's JD values on each window.
