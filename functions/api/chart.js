@@ -927,6 +927,7 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
     },
     sadeSati: arc ? {
       isCurrent: arc.r12.start <= nowJD && nowJD < arc.r2.end,
+      startJD: arc.r12.start,
       start: satMonthYear(arc.r12.start, tz),
       end:   satMonthYear(arc.r2.end, tz),
       phases: [
@@ -935,8 +936,8 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
         { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  isCurrent: curHouse === 2 }
       ]
     } : null,
-    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end } : null,
-    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end } : null
+    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end } : null,
+    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end } : null
   };
 }
 

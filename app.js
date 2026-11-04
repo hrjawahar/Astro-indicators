@@ -837,6 +837,11 @@ function renderChandrashtama(ch, data) {
 //     later phase gates behind the ₹299 Transit Report (the current-state headline
 //     stays the free teaser). English-only for now; localisation comes with the
 //     writer/PDF phase.
+function _ordSuffix(n) {
+  const v = n % 100; if (v >= 11 && v <= 13) return n + "th";
+  const s = n % 10; return n + (s === 1 ? "st" : s === 2 ? "nd" : s === 3 ? "rd" : "th");
+}
+
 function renderSaturnTransit(st, data) {
   const host = document.getElementById("saturnCard");
   if (!host) return;
@@ -845,49 +850,75 @@ function renderSaturnTransit(st, data) {
   const c = st.current;
 
   const STATE = {
-    sade_sati:  { label: "Sade Sati",      cls: "#c0392b" },
-    kantaka:    { label: "Kantaka Shani",  cls: "#c0392b" },
-    ashtama:    { label: "Ashtama Shani",  cls: "#c0392b" },
-    favourable: { label: "Favourable",     cls: "#1a7f4b" },
-    neutral:    { label: "Steady",         cls: "#b0821f" }
+    sade_sati:  { label: "Sade Sati",     cls: "#c0392b" },
+    kantaka:    { label: "Kantaka Shani", cls: "#c0392b" },
+    ashtama:    { label: "Ashtama Shani", cls: "#c0392b" },
+    favourable: { label: "Favourable",    cls: "#1a7f4b" },
+    neutral:    { label: "Steady",        cls: "#b0821f" }
   };
   const sh = STATE[c.state] || STATE.neutral;
   const phaseTxt = { rising: "the opening (rising) phase", peak: "the peak phase", setting: "the closing (setting) phase" };
   let head;
-  if (c.state === "sade_sati")      head = `You are currently in <b>Sade Sati</b> — ${phaseTxt[c.phase] || ""}.`;
-  else if (c.state === "kantaka")   head = `You are currently in <b>Kantaka Shani</b> (Saturn in your 4th from the Moon).`;
-  else if (c.state === "ashtama")   head = `You are currently in <b>Ashtama Shani</b> (Saturn in your 8th from the Moon).`;
-  else if (c.state === "favourable")head = `Saturn is in a <b>favourable</b> transit for you right now.`;
-  else                              head = `Saturn is in a <b>steady, neutral</b> transit for you right now.`;
+  if (c.state === "sade_sati")       head = `You are currently in <b>Sade Sati</b> — ${phaseTxt[c.phase] || ""}.`;
+  else if (c.state === "kantaka")    head = `You are currently in <b>Kantaka Shani</b> (Saturn in your 4th from the Moon).`;
+  else if (c.state === "ashtama")    head = `You are currently in <b>Ashtama Shani</b> (Saturn in your 8th from the Moon).`;
+  else if (c.state === "favourable") head = `Saturn is in a <b>favourable</b> transit for you right now.`;
+  else                               head = `Saturn is in a <b>steady, neutral</b> transit for you right now.`;
   const badge = `<span style="background:${sh.cls};color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px">${sh.label}</span>`;
 
-  // Road ahead (the paid part in a later phase)
-  let ahead = "";
+  // Road ahead, ordered soonest-first so the next thing to prepare for leads.
+  // Each event carries a plain-language note.
+  const SADE_DESC = "Saturn's ~7.5-year passage across the 12th, 1st and 2nd from your Moon — the chart's great cycle of maturity, responsibility and lasting change.";
+  const KANTAKA_DESC = "\"Kantaka\" means thorn. Saturn's ~2.5-year passage through the 4th from your Moon tests home, mother, property and peace of mind — caring for your base and keeping routines steady carries you through.";
+  const ASHTAMA_DESC = "\"Ashtama\" means eighth. Saturn's ~2.5-year passage through the 8th from your Moon brings change, endings and renewal — go gently with health, shared money and sudden shifts, and avoid forcing big moves.";
+  const note = (txt) => `<div style="font-size:12.5px;opacity:.78;margin:2px 0 8px;line-height:1.45">${txt}</div>`;
+
+  const events = [];
   if (st.sadeSati) {
     const ss = st.sadeSati;
     const title = ss.isCurrent ? "Your Sade Sati (full arc)" : "Your next Sade Sati";
-    ahead += `<div style="margin:10px 0 2px"><b>${title}:</b> ${ss.start} → ${ss.end}</div>`;
-    ahead += ss.phases.map(p => `<div class="chandra-row"><span class="chandra-k">${p.isCurrent ? "★ " : ""}${p.name} · ${p.sign}</span><span class="chandra-v">${p.start} – ${p.end}</span></div>`).join("");
+    let h = `<div style="margin:10px 0 2px"><b>${title}:</b> ${ss.start} → ${ss.end}</div>` + note(SADE_DESC);
+    h += ss.phases.map(p => `<div class="chandra-row"><span class="chandra-k">${p.isCurrent ? "★ " : ""}${p.name} · ${p.sign}</span><span class="chandra-v">${p.start} – ${p.end}</span></div>`).join("");
+    events.push({ jd: ss.startJD, html: h });
   }
-  if (st.kantaka) ahead += `<div class="chandra-row"><span class="chandra-k">Kantaka Shani (4th) · ${st.kantaka.sign}</span><span class="chandra-v">${st.kantaka.start} – ${st.kantaka.end}${st.kantaka.isCurrent ? " (now)" : ""}</span></div>`;
-  if (st.ashtama) ahead += `<div class="chandra-row"><span class="chandra-k">Ashtama Shani (8th) · ${st.ashtama.sign}</span><span class="chandra-v">${st.ashtama.start} – ${st.ashtama.end}${st.ashtama.isCurrent ? " (now)" : ""}</span></div>`;
-  const asp = (c.aspects || []).map(a => a.houseFromMoon + "th").join(", ");
+  if (st.kantaka) {
+    const k = st.kantaka;
+    events.push({ jd: k.startJD, html: `<div class="chandra-row" style="margin-top:10px"><span class="chandra-k">Kantaka Shani (4th) · ${k.sign}</span><span class="chandra-v">${k.start} – ${k.end}${k.isCurrent ? " (now)" : ""}</span></div>` + note(KANTAKA_DESC) });
+  }
+  if (st.ashtama) {
+    const a = st.ashtama;
+    events.push({ jd: a.startJD, html: `<div class="chandra-row" style="margin-top:10px"><span class="chandra-k">Ashtama Shani (8th) · ${a.sign}</span><span class="chandra-v">${a.start} – ${a.end}${a.isCurrent ? " (now)" : ""}</span></div>` + note(ASHTAMA_DESC) });
+  }
+  events.sort((x, y) => x.jd - y.jd);
+  const ahead = events.map(e => e.html).join("");
+
+  // Paywall hook: everything above is the free current-state teaser; the road
+  // ahead below is the paid Transit Report. Phase 4 wires this to checkout
+  // (item "transit_report", Rs.299) and locks the block below it.
+  const hook = `
+    <div id="transitHook" style="border:1px dashed rgba(201,168,76,.6);border-radius:10px;padding:12px 14px;margin:14px 0 6px;background:rgba(201,168,76,.08)">
+      <div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:13.5px;margin-bottom:3px">🔓 Your full Transit Report — ₹299</div>
+      <div style="font-size:12.5px;opacity:.85;line-height:1.5">Your complete Saturn road ahead with practical guidance for each phase — plus Jupiter, Rahu/Ketu and Mars, in your language, as a downloadable PDF.</div>
+      <button class="btn-primary" id="transitBuyBtn" style="width:auto;margin-top:10px">Unlock my Transit Report</button>
+    </div>`;
 
   host.innerHTML = `
     <h3 class="card-title">Saturn Transit — Sade Sati &amp; your road ahead <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span></h3>
     <p class="card-body" style="margin-top:-4px">For your birth Moon in <b>${st.natalMoonSign}</b>. Saturn is the slow planet whose transit (Gochara) is read from your Moon sign. <span style="opacity:.7">As of ${st.asOf} (${st.tzLabel}).</span></p>
     <div style="border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:14px 16px;margin:10px 0 14px;background:rgba(201,168,76,.05)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Saturn in ${c.sign}</b> <span style="opacity:.7">(${c.houseFromMoon}th from Moon)</span></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Saturn in ${c.sign}</b> <span style="opacity:.7">(${_ordSuffix(c.houseFromMoon)} from Moon)</span></div>
       <p class="card-body" style="margin:4px 0 10px">${head} ${c.meaning}</p>
       <div class="chandra-row"><span class="chandra-k">Saturn in ${c.sign}</span><span class="chandra-v">${c.sinceMonth} – ${c.untilMonth}</span></div>
+      ${hook}
       ${ahead}
-      <div class="chandra-row"><span class="chandra-k">Saturn's aspects (3·7·10)</span><span class="chandra-v">your ${asp} from the Moon</span></div>
     </div>
     <details style="margin-bottom:4px">
       <summary style="cursor:pointer;font-weight:600;color:var(--ai-gold,#b0821f)">How to read this</summary>
       <p class="card-body" style="margin:8px 0">Sade Sati is a period of maturation and consolidation, not misfortune — Saturn asks for patience, honest effort and simplification, and rewards them. Transit always works <b>under</b> your current Dasha: it fine-tunes the timing of what your birth chart and running period already allow, rather than overriding them. Dates are approximate (month-level) and shift slightly with Saturn's retrograde motion.</p>
     </details>
   `;
+  const buy = document.getElementById("transitBuyBtn");
+  if (buy) buy.onclick = () => { alert("Full Transit Report (₹299) — coming soon. Checkout is wired in a later phase."); };
 }
 
 function downloadChandraPDF(ch, data) {
