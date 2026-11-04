@@ -773,26 +773,30 @@ function renderChartScreen(data) {
   try { renderSectionJump(); } catch (e) {}
 }
 
-// Builds a compact "More below" bar under the lagna bar with tap-to-scroll chips
-// for whichever extra sections are present (Chandrashtama, Saturn transit), so
-// people on the first screen know there is more and can jump straight to it.
+// Appends compact "More below" tap-to-scroll chips to the RIGHT end of the lagna
+// bar (same row), for whichever extra sections are present (Chandrashtama, Saturn
+// transit), so people on the first screen know there is more without a separate
+// full-width strip competing with the charts.
 function renderSectionJump() {
-  const bar = document.getElementById("sectionJump");
+  const bar = document.getElementById("lagnaBar");
   if (!bar) return;
+  const old = document.getElementById("lagnaJump"); if (old) old.remove(); // re-render safe
   const defs = [
     { id: "chandraCard", label: "Chandrashtama", badge: "FREE", bcl: "#1a7f4b" },
     { id: "saturnCard",  label: "Saturn Transit", badge: "NEW",  bcl: "#c0392b" }
   ];
   const items = defs.filter(d => { const el = document.getElementById(d.id); return el && el.style.display !== "none"; });
-  if (!items.length) { bar.style.display = "none"; return; }
-  bar.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:2px 0 14px;padding:9px 12px;" +
-    "border:1px solid rgba(201,168,76,.35);border-radius:10px;background:rgba(201,168,76,.06)";
-  const chip = "display:inline-flex;align-items:center;gap:6px;background:var(--navy2,#141B33);color:var(--ink,#EDEBE4);" +
-    "border:1px solid rgba(201,168,76,.45);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer";
-  bar.innerHTML = `<span style="font-size:12.5px;color:var(--ai-gold,#b0821f);font-weight:700">More below ↓</span>` +
+  if (!items.length) return;
+  const wrap = document.createElement("div");
+  wrap.id = "lagnaJump";
+  wrap.style.cssText = "margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px";
+  const chip = "display:inline-flex;align-items:center;gap:6px;background:var(--bg-card,#141B33);color:var(--text,#EDEBE4);" +
+    "border:1px solid rgba(201,168,76,.45);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600;cursor:pointer";
+  wrap.innerHTML = `<span style="font-size:10.5px;color:var(--text-dim,#9aa0b8);font-weight:700;text-transform:uppercase;letter-spacing:.05em">More below ↓</span>` +
     items.map(it => `<button type="button" data-jump="${it.id}" style="${chip}">${it.label}` +
       `<span style="font-size:9px;font-weight:800;letter-spacing:.04em;background:${it.bcl};color:#fff;padding:1px 6px;border-radius:999px">${it.badge}</span></button>`).join("");
-  bar.querySelectorAll("[data-jump]").forEach(b => {
+  bar.appendChild(wrap);
+  wrap.querySelectorAll("[data-jump]").forEach(b => {
     b.onclick = () => { const el = document.getElementById(b.getAttribute("data-jump")); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
   });
 }
