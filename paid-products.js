@@ -409,7 +409,7 @@
         </div>
         <div id="aiDiscMsg" style="font-size:12px;margin-top:6px;color:${_dc?"#1a7f4b":"#888"}">${_dc?"\u2713 Code applied \u2014 your discount is shown at payment, on any report.":""}</div>
       </div>`;
-    wrap.innerHTML = discWidget + transitCard + bundleCard + DOMAIN_KEYS.map(k => `
+    wrap.innerHTML = discWidget + bundleCard + DOMAIN_KEYS.map(k => `
       <div class="icc-pick" data-domain="${k}">
         <div class="icc-num">\u2726</div>
         <div style="flex:1">
@@ -417,7 +417,7 @@
           <span class="icc-hint">${esc(DOMAIN_BLURB[k]||"")}</span>
         </div>
         <button class="pp-pay" data-domain-buy="${k}" style="flex:0 0 auto">\u20B9${P(DOMAIN_ITEM(k),750)}</button>
-      </div>`).join("");
+      </div>`).join("") + transitCard;
     wireDiscountWidget(wrap);
     wrap.querySelectorAll("[data-domain-buy]").forEach(btn => {
       const k = btn.getAttribute("data-domain-buy");
