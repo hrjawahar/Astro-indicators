@@ -436,16 +436,101 @@
   // Generated fresh each time (transit content is perishable; never cached), with
   // PDF + Word download — Word enables the Google-Translate path for any language,
   // the same model as every paid report.
-  function _trMd(s) {
-    let out = "", inUl = false;
-    String(s || "").split("\n").forEach(ln => {
-      const t = ln.trim();
-      const h = esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
-      if (/^-\s+/.test(t)) { if (!inUl) { out += "<ul style='margin:6px 0 10px;padding-left:20px'>"; inUl = true; } out += "<li style='margin:4px 0;line-height:1.6'>" + h.replace(/^-\s+/, "") + "</li>"; }
-      else { if (inUl) { out += "</ul>"; inUl = false; } if (t) out += "<p style='margin:9px 0;line-height:1.7'>" + h + "</p>"; }
-    });
-    if (inUl) out += "</ul>";
-    return out;
+  // Paginate transit sections into flipbook pages (same page classes/budget as the
+  // domain flipbook, with a transit cover and closing note; no domain comparison).
+  function transitSectionsToPages(sections, facts) {
+    const f0 = (window.currentData && window.currentData.form) || {};
+    const title = "Saturn & Planetary Transit Report";
+    const P = [];
+    P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
+      <div class="seal">◈</div>
+      <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
+      <div class="kick" style="color:var(--ai-gold)">Transit Report</div>
+      <h1>${esc(title)}</h1>
+      <div class="cover-sub">Your road ahead — Saturn, Jupiter, Mars, Rahu &amp; Ketu</div>
+      <div class="cover-meta" style="margin-top:14px;opacity:.85">${esc(facts.moonSign||"")} Moon · as of ${esc(facts.asOf||"")} (${esc(facts.tzLabel||"")})</div>
+      </div></div>`);
+    const _cc = clientCode();
+    P.push(`<div class="pg"><div class="kick">Birth Details</div><div class="rule"></div>
+      <ul class="toc bdl">
+        <li><b>Name</b><i>${esc(f0.name||"—")}</i></li>
+        <li><b>Date of birth</b><i>${esc(f0.dob||"—")}</i></li>
+        <li><b>Time of birth</b><i>${esc(f0.tob?f0.tob+" (24-hr)":"—")}</i></li>
+        <li><b>Place</b><i>${esc(f0.place||"—")}</i></li>
+        ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
+      </ul>
+      <span class="pnum">2</span></div>`);
+    P.push(readNotePage(3));
+    let n = 4;
+    const PAGE_BUDGET = 1050;
+    const emitSection = (sec) => {
+      const heading = esc(sec.heading||"");
+      const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+      const total = paras.reduce((a,p)=>a+p.length+2, 0);
+      const pagesNeeded = Math.max(1, Math.ceil(total / PAGE_BUDGET));
+      const targetPerPage = Math.ceil(total / pagesNeeded);
+      const chunks = []; let cur = "", curLen = 0;
+      for (const p of paras) { const add = p.length + 2; if (cur && curLen + add > targetPerPage && chunks.length < pagesNeeded - 1) { chunks.push(cur); cur = p; curLen = add; } else { cur = cur ? (cur + "\n\n" + p) : p; curLen += add; } }
+      if (cur) chunks.push(cur); if (!chunks.length) chunks.push("");
+      const many = chunks.length > 1;
+      chunks.forEach((chunk, ci) => {
+        const contHead = ci===0 ? heading : heading + (many ? " <span style=\"opacity:.55;font-size:.75em\">(continued)</span>" : "");
+        const bodyHtml = esc(chunk).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\n\n/g,"</p><p>").replace(/\n/g,"<br>");
+        P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
+          <h2>${contHead}</h2>
+          <div class="bd"><p>${bodyHtml}</p></div>
+          <span class="pnum">${n++}</span></div>`);
+      });
+    };
+    sections.forEach(emitSection);
+    const disc = "This transit reading offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.";
+    P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
+      <h2>A closing note</h2>
+      <div class="bd">${esc(disc)}</div>
+      <div class="foot" style="margin-top:12px">Transit always works under your current Dasha — read this alongside your running periods, and against your own lived experience.</div>
+      ${_cc ? `<div class="closing" style="margin-top:14px">Your Client ID<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>` : ""}
+      <span class="pnum">${n++}</span></div>`);
+    return P;
+  }
+
+  function renderTransitFlipbook(host, sections, facts) {
+    const P = transitSectionsToPages(sections, facts);
+    _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
+    host.innerHTML = `
+      <div class="stage"><div class="book" id="fbBook">
+        <div class="page" id="fbStatic"></div>
+        <div class="leaf" id="fbLeaf">
+          <div class="leaf-face" id="fbLeafFront"></div>
+          <div class="leaf-face leaf-back" id="fbLeafBack"></div>
+          <div class="shade" id="fbShade"></div>
+        </div></div></div>
+      <div class="controls"><button class="fb-nav" id="fbPrev">‹</button>
+        <div class="dots" id="fbDots"></div>
+        <button class="fb-nav" id="fbNext">›</button></div>
+      <div class="hint">Swipe, use ← → keys, or tap the dots</div>
+      <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
+        ${downloadDropdownHTML()}</div>`;
+    bindBook();
+    bookRender();
+    wireDownloadDropdown(
+      () => exportTransitPDF(sections, facts),
+      () => exportWordDoc("AstroIndicators_Transit_" + ((clientCode() || "report").replace(/[^a-z0-9]/gi, "_")),
+        "Saturn & Planetary Transit Report", "Your transit road ahead — " + (facts.moonSign||"") + " Moon, as of " + (facts.asOf||""), sections)
+    );
+    const fsBtn = $("fbFull");
+    if (fsBtn) fsBtn.onclick = () => {
+      const box = $("domainReport"); if (!box) return;
+      if (document.fullscreenElement) { document.exitFullscreen(); return; }
+      if (box.requestFullscreen) { box.classList.add("fb-fs"); box.requestFullscreen().catch(()=>{}); }
+    };
+    if (!window._aiDomFsBound) { window._aiDomFsBound = true;
+      document.addEventListener("fullscreenchange", () => {
+        const box = $("domainReport"); if (!box) return;
+        if (!document.fullscreenElement) box.classList.remove("fb-fs");
+        try { bookRender(); } catch (e) {}
+      });
+    }
+    try { requestAnimationFrame(function(){ var bar=document.querySelector("#domainReport .fb-dlbar"); if(bar) bar.scrollIntoView({behavior:"smooth",block:"center"}); }); } catch(e){}
   }
 
   async function openTransitReport() {
@@ -459,21 +544,7 @@
       const res = await fetch("/api/transit-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ facts }) });
       const data = await res.json();
       if (!data.success || !Array.isArray(data.sections) || !data.sections.length) throw new Error(data.error || "No report was returned.");
-      const sections = data.sections;
-      const body = sections.map(s => `<div style="margin:0 0 18px"><h3 style="color:var(--ai-gold,#b0821f);font-size:16px;margin:16px 0 4px">${esc(s.heading || "")}</h3><div style="font-size:14px;color:var(--text,#EDEBE4)">${_trMd(s.body || "")}</div></div>`).join("");
-      host.innerHTML = `<div style="max-width:720px;margin:0 auto">
-          <div style="font-weight:800;font-size:20px;color:var(--text,#EDEBE4)">Your Saturn &amp; Planetary Transit Report</div>
-          <div style="font-size:12.5px;opacity:.65;margin:3px 0 10px">For ${esc(facts.moonSign)} Moon · as of ${esc(facts.asOf)} (${esc(facts.tzLabel)})</div>
-          ${body}
-          <div style="font-size:11px;opacity:.55;margin:14px 0 4px;border-top:1px solid #2a3150;padding-top:10px">Educational guidance for self-reflection, not a prediction or professional advice.</div>
-          <div class="fb-dlbar">${downloadDropdownHTML()}</div>
-        </div>`;
-      wireDownloadDropdown(
-        () => exportTransitPDF(sections, facts),
-        () => exportWordDoc("AstroIndicators_Transit_" + ((clientCode() || "report").replace(/[^a-z0-9]/gi, "_")),
-          "Saturn & Planetary Transit Report", "Your transit road ahead — " + facts.moonSign + " Moon, as of " + facts.asOf, sections)
-      );
-      try { host.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (_) {}
+      renderTransitFlipbook(host, data.sections, facts);
     } catch (e) {
       host.innerHTML = `<div class="pp-empty">Couldn't generate the report: ${esc(String(e.message || e))}<br>Please try again in a moment.</div>`;
     }
