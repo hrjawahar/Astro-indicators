@@ -423,7 +423,7 @@
       const k = btn.getAttribute("data-domain-buy");
       if (k === "transit") {
         btn.onclick = () => payThenRun("transit_report", transitPrice, "Saturn & Planetary Transit Report",
-          () => { try { if (window.AI_generateTransitReport && window.currentData) window.AI_generateTransitReport(window.currentData.saturnTransit, window.currentData); } catch (e) {} });
+          () => { try { const cd = window.currentData && window.currentData.chart; if (window.AI_generateTransitReport && cd) window.AI_generateTransitReport(cd.saturnTransit, cd); } catch (e) {} });
       } else if (k === "all") {
         btn.onclick = () => payThenRun("domain_all", bundlePrice, "All Seven Domains — Complete Blueprint", () => openAllDomainsReport());
       } else {
