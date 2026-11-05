@@ -478,15 +478,36 @@
       <span class="pnum">3</span></div>`);
     let n = 4;
     const PAGE_BUDGET = 1050;
+    const PAGE_LINES = 19;   // content "line units" that comfortably fit a flipbook page
+    const lineCost = (p) => {
+      if (p.indexOf("### ") === 0) return 2.0;                                              // sub-heading
+      if (p.indexOf("» ") === 0) return 1.0;                                            // why line
+      if (p.indexOf("- ") === 0) return Math.max(1, Math.ceil((p.length - 2) / 58)) + 0.4;  // bullet
+      return Math.max(1, Math.ceil(p.length / 58)) + 0.7;                                   // paragraph
+    };
     const emitSection = (sec) => {
       const heading = esc(sec.heading||"");
-      const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
-      const total = paras.reduce((a,p)=>a+p.length+2, 0);
-      const pagesNeeded = Math.max(1, Math.ceil(total / PAGE_BUDGET));
-      const targetPerPage = Math.ceil(total / pagesNeeded);
-      const chunks = []; let cur = "", curLen = 0;
-      for (const p of paras) { const add = p.length + 2; if (cur && curLen + add > targetPerPage && chunks.length < pagesNeeded - 1) { chunks.push(cur); cur = p; curLen = add; } else { cur = cur ? (cur + "\n\n" + p) : p; curLen += add; } }
-      if (cur) chunks.push(cur); if (!chunks.length) chunks.push("");
+      const srcParas = String(sec.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+      if (!srcParas.length) return;   // skip empty sections — no blank pages
+      // Height-aware packing: fill a page up to PAGE_LINES, and never leave a
+      // sub-heading stranded at the bottom — carry it to the next page with its content.
+      const chunksArr = []; let curArr = [], curCost = 0, whyOpen = false;
+      for (const p of srcParas) {
+        let cost = lineCost(p);
+        const isWhy = p.indexOf("» ") === 0;
+        if (isWhy && !whyOpen) cost += 1.4;   // "Why this reading" box overhead
+        if (curArr.length && curCost + cost > PAGE_LINES) {
+          const carry = [];
+          while (curArr.length && curArr[curArr.length - 1].indexOf("### ") === 0) carry.unshift(curArr.pop());
+          if (curArr.length) chunksArr.push(curArr);
+          curArr = carry.concat([p]);
+          curCost = carry.reduce((a, x) => a + lineCost(x), 0) + cost;
+        } else { curArr.push(p); curCost += cost; }
+        whyOpen = isWhy;
+      }
+      if (curArr.length) chunksArr.push(curArr);
+      if (!chunksArr.length) return;
+      const chunks = chunksArr.map(a => a.join("\n\n"));
       const many = chunks.length > 1;
       chunks.forEach((chunk, ci) => {
         const contHead = ci===0 ? heading : heading + (many ? " <span style=\"opacity:.55;font-size:.75em\">(continued)</span>" : "");
@@ -556,7 +577,8 @@
       () => {
         // Word goes through Google Translate — make the "» " technical notes read
         // as a plain dash prefix rather than the on-screen marker.
-        const wsec = sections.map(s => ({ heading: s.heading, body: String(s.body || "").replace(/^»\s+/gm, "— ").replace(/^###\s+/gm, "") }));
+        const wsec = sections.map(s => ({ heading: s.heading, body: String(s.body || "").replace(/^»\s+/gm, "— ").replace(/^###\s+/gm, "") }))
+          .concat([{ heading: "A closing note", body: "Transit always works under your current Dasha — read this alongside your running periods, and above all against your own lived experience. Because the planets keep moving, this report reflects the sky as of its date; it is worth re-reading as each new window opens." }]);
         exportWordDoc("AstroIndicators_Transit_" + ((clientCode() || "report").replace(/[^a-z0-9]/gi, "_")),
           "Saturn & Planetary Transit Report", "Your transit road ahead — " + (facts.moonSign||"") + " Moon, as of " + (facts.asOf||""), wsec);
       }
@@ -638,7 +660,13 @@
       });
       y += 6;
     });
-    kbreak(44);
+    kbreak(56);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
+    doc.text("A closing note", M, y); y += 18;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48);
+    const closeTxt = "Transit always works under your current Dasha — read this alongside your running periods, and above all against your own lived experience, which is the truest test of any reading. Because the planets keep moving, this report reflects the sky as of the date above; it is worth re-reading as each new window opens.";
+    const cL = doc.splitTextToSize(closeTxt, W - M * 2); kbreak(cL.length * 15 + 14); doc.text(cL, M, y); y += cL.length * 15 + 14;
+    kbreak(30);
     doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(140, 140, 150);
     doc.text(doc.splitTextToSize("Educational guidance for self-reflection, not a prediction or professional advice.  © AstroIndicators · astroindicators.com", W - M * 2), M, y);
     const safe = ((clientCode && clientCode()) || "report").replace(/[^a-z0-9]/gi, "_");
