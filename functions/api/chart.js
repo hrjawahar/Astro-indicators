@@ -986,6 +986,48 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, 
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  GENERAL GOCHARA (transit) for the other slow planets — Jupiter, Mars, Rahu,
+//  Ketu — read from the natal Moon (primary) and Lagna (secondary). Simpler than
+//  Saturn (no Sade Sati phases): current sign, the window it occupies, the next
+//  sign, this planet's special aspects, and Ashtakavarga strength where it exists
+//  (Jupiter, Mars; the nodes have no Ashtakavarga). Direction-agnostic, so it
+//  handles the always-retrograde nodes and ordinary retrograde loops alike.
+//    aspectOffsets: 0-indexed house offsets of the planet's full aspects
+//      Jupiter 5/7/9 = [4,6,8] · Mars 4/7/8 = [3,6,7] · Rahu/Ketu 7th = [6]
+// ─────────────────────────────────────────────────────────────────────────────
+function computeGochara(posFn, aspectOffsets, bavKey, M, L, nowJD, tz, av) {
+  const sidLon = (JD) => { const T = (JD - 2451545.0) / 36525; return norm360(toSidereal(posFn(T).longitude, lahiriAyanamsha(JD))); };
+  const signAt = (JD) => Math.floor(sidLon(JD) / 30);
+  // Boundary time where the sign leaves signIn, between a point in signIn and one not.
+  const crossTimeSign = (tIn, tOut, signIn) => {
+    let a = tIn, b = tOut;
+    for (let i = 0; i < 50; i++) { const m = (a + b) / 2; if (signAt(m) === signIn) a = m; else b = m; }
+    return (a + b) / 2;
+  };
+  const s0 = signAt(nowJD);
+  // Entry into the current sign (scan back) and exit from it (scan forward).
+  let sinceJD = nowJD - 3650;
+  { let prev = nowJD; for (let i = 1; i <= 3650; i++) { const JD = nowJD - i; if (signAt(JD) !== s0) { sinceJD = crossTimeSign(prev, JD, s0); break; } prev = JD; } }
+  let untilJD = nowJD + 3650, nextSign = (s0 + 1) % 12;
+  { let prev = nowJD; for (let i = 1; i <= 3650; i++) { const JD = nowJD + i; const s = signAt(JD); if (s !== s0) { untilJD = crossTimeSign(prev, JD, s0); nextSign = s; break; } prev = JD; } }
+
+  const houseFromMoon = ((s0 - M + 12) % 12) + 1;
+  const houseFromLagna = ((s0 - L + 12) % 12) + 1;
+  const bav = (av && av.bav && bavKey && av.bav[bavKey]) || null;
+  const bindu = bav ? bav[s0] : null;
+  const strength = (bindu == null) ? null : (bindu >= 5 ? "strong" : bindu === 4 ? "moderate" : "demanding");
+  const aspects = aspectOffsets.map(off => { const s = (s0 + off) % 12; return { sign: SAT_SIGNS[s], houseFromMoon: ((s - M + 12) % 12) + 1 }; });
+
+  return {
+    sign: SAT_SIGNS[s0],
+    houseFromMoon, houseFromLagna,
+    since: satMonthYear(sinceJD, tz), until: satMonthYear(untilJD, tz),
+    nextSign: SAT_SIGNS[nextSign],
+    bindu, strength, aspects
+  };
+}
+
 export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
@@ -1125,6 +1167,24 @@ export async function onRequestPost(context) {
       saturnTransit = computeSaturnTransit(sidPositions.Moon.longitude, siderealASC, nowJD2, 5.5, ashtakavarga);
     } catch (_) { saturnTransit = null; }
 
+    // Jupiter / Mars / Rahu / Ketu transits (Gochara), from the same Moon & Lagna.
+    let transits = null;
+    try {
+      const M = Math.floor(norm360(sidPositions.Moon.longitude) / 30);
+      const L = Math.floor(norm360(siderealASC) / 30);
+      const nowJD3 = dateToJulianDay(
+        new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, new Date().getUTCDate(),
+        new Date().getUTCHours(), new Date().getUTCMinutes(), 0
+      );
+      const ketuFn = (T) => { const r = rahuPosition(T); return { longitude: r.longitude + 180, latitude: -r.latitude }; };
+      transits = {
+        jupiter: computeGochara(jupiterPosition, [4, 6, 8], "Jupiter", M, L, nowJD3, 5.5, ashtakavarga),
+        mars:    computeGochara(marsPosition,    [3, 6, 7], "Mars",    M, L, nowJD3, 5.5, ashtakavarga),
+        rahu:    computeGochara(rahuPosition,    [6],       null,      M, L, nowJD3, 5.5, ashtakavarga),
+        ketu:    computeGochara(ketuFn,          [6],       null,      M, L, nowJD3, 5.5, ashtakavarga)
+      };
+    } catch (_) { transits = null; }
+
     return Response.json({
       success: true,
       input: { name, dob, tob, place: geo.displayName, lat: geo.lat, lng: geo.lng, utcOffset: utcOff },
@@ -1147,6 +1207,7 @@ export async function onRequestPost(context) {
       dasha,
       chandrashtama,
       saturnTransit,
+      transits,
       ashtakavarga
     });
 

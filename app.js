@@ -1046,6 +1046,7 @@ function _transitFacts(st, data) {
   return {
     moonSign: st.natalMoonSign, lagnaSign: st.natalLagnaSign, asOf: st.asOf, tzLabel: st.tzLabel,
     current: st.current, sadeSati: st.sadeSati, kantaka: st.kantaka, ashtama: st.ashtama,
+    transits: (data && data.transits) || null,   // jupiter / mars / rahu / ketu
     dasha: { maha, antar }
   };
 }
