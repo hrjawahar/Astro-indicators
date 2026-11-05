@@ -146,6 +146,25 @@ const SAMPLES = {
     },
   },
 
+  // Transit Report sample — a representative chart in Sade Sati, used as the free
+  // hook on the Saturn card. The locked teaser names all five slow planets.
+  transit: {
+    EN: {
+      title: "Sample · Saturn Transit & Road Ahead",
+      example: "Example chart · Aquarius Moon · born 2 Feb 1985, 18:20, Hyderabad",
+      blocks: [
+        ["Where Saturn stands now", "Saturn is transiting Pisces, the 2nd sign from this person's Aquarius Moon — the closing (setting) phase of a 7.5-year Sade Sati that runs to mid-2027. In their chart this sign carries 4 of 8 strength points: a moderately supported passage, demanding but workable."],
+        ["What you may notice", "This phase tends to bring finances, family duties and the weight of long-standing commitments into focus. Spending and speech come under review, and there is a steady pull to settle old dues and simplify. The intensity of the peak has eased; through 2026–27 the dominant feeling is one of clearing the decks and consolidating."],
+        ["The road ahead", "Once Sade Sati closes in mid-2027, Saturn moves to a favourable 3rd-from-Moon passage — courage, steady effort and initiative are rewarded. Kantaka Shani (Saturn in the 4th from the Moon) follows around 2029, asking extra care for home, mother and peace of mind."],
+        ["Working with it", "Keep commitments realistic, finish what is already begun rather than starting anew, and protect rest and routine. Saturn rewards honesty, patience and simplification — this is a season to lay foundations, not to force fast moves."],
+      ],
+      locked: {
+        label: "🔓 Your full Transit Report unlocks:",
+        teaser: "The complete road ahead for YOUR Moon — Saturn, Jupiter, Mars, Rahu and Ketu — with exact dates and your chart's own strength score for each window · your Sade Sati phase by phase · what you will feel, notice and observe in each period · practical guidance for the months ahead · and how every transit reconciles with your current Dasha. In your language, as a downloadable PDF.",
+      },
+    },
+  },
+
 };
 
 if (typeof window !== "undefined") window.SAMPLES = SAMPLES;

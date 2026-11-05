@@ -936,12 +936,15 @@ function renderSaturnTransit(st, data) {
   const hook = `
     <div id="transitHook" style="border:1px dashed rgba(201,168,76,.6);border-radius:10px;padding:12px 14px;margin:14px 0 6px;background:rgba(201,168,76,.08)">
       <div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:13.5px;margin-bottom:3px">🔓 Your full Transit Report — ₹299</div>
-      <div style="font-size:12.5px;opacity:.85;line-height:1.5">Your complete Saturn road ahead with practical guidance for each phase — plus Jupiter, Rahu/Ketu and Mars, in your language, as a downloadable PDF.</div>
-      <button class="btn-primary" id="transitBuyBtn" style="width:auto;margin-top:10px">Unlock my Transit Report</button>
+      <div style="font-size:12.5px;opacity:.88;line-height:1.5">The complete road ahead for your Moon — <b>Saturn, Jupiter, Mars, Rahu &amp; Ketu</b> — with exact dates, your chart's own strength for each window, what you'll feel and notice, and how each transit meets your Dasha. In your language, as a downloadable PDF.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:11px">
+        <button id="transitSampleBtn" style="background:none;border:1px solid rgba(201,168,76,.55);color:var(--ai-gold,#b0821f);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer">See a sample</button>
+        <button class="btn-primary" id="transitBuyBtn" style="width:auto">Unlock my full report</button>
+      </div>
     </div>`;
 
   host.innerHTML = `
-    <h3 class="card-title">Saturn Transit — Sade Sati &amp; your road ahead <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span></h3>
+    <h3 class="card-title">Saturn Transit — Sade Sati &amp; your road ahead <span style="background:#2f6fb3;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span></h3>
     <p class="card-body" style="margin-top:-4px">For your birth Moon in <b>${st.natalMoonSign}</b>. Saturn is the slow planet whose transit (Gochara) is read from your Moon sign. <span style="opacity:.7">As of ${st.asOf} (${st.tzLabel}).</span></p>
     <div style="border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:14px 16px;margin:10px 0 14px;background:rgba(201,168,76,.05)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Saturn in ${c.sign}</b> <span style="opacity:.7">(${_ordSuffix(c.houseFromMoon)} from Moon)</span></div>
@@ -956,8 +959,18 @@ function renderSaturnTransit(st, data) {
       <p class="card-body" style="margin:8px 0">Sade Sati is a period of maturation and consolidation, not misfortune — Saturn asks for patience, honest effort and simplification, and rewards them. Transit always works <b>under</b> your current Dasha: it fine-tunes the timing of what your birth chart and running period already allow, rather than overriding them. The strength score (out of 8) is your chart's own Ashtakavarga — higher means Saturn's passage through that sign is better supported for you, so its lessons tend to come more smoothly. Dates are approximate (month-level) and shift slightly with Saturn's retrograde motion.</p>
     </details>
   `;
+  const sampleBtn = document.getElementById("transitSampleBtn");
+  if (sampleBtn) sampleBtn.onclick = () => { try { if (window.AI_openSample) window.AI_openSample("transit"); } catch (e) {} };
   const buy = document.getElementById("transitBuyBtn");
-  if (buy) buy.onclick = () => { try { generateTransitReport(st, data); } catch (e) { alert("Could not open the report. Please refresh and retry."); } };
+  if (buy) buy.onclick = () => {
+    // Route to the reports page so the buyer also sees the other reports.
+    // Phase 4 adds the Transit Report as a purchasable card there and runs
+    // generateTransitReport() after payment.
+    try {
+      if (window.goToTab) window.goToTab("domainReportTab");
+      else { const t = document.querySelector('.nav-tab[data-tab="domainReportTab"]'); if (t) t.click(); }
+    } catch (e) {}
+  };
 }
 
 // ─── Transit Report generation (Phase 2b) ───────────────────────────────────
