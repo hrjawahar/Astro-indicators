@@ -471,6 +471,7 @@
           <div style="font-size:12.5px;opacity:.85;line-height:1.5">a highlighted block like this gives the chart reasons behind the meaning — the planet, sign, house and strength. Read it for the "why", or skip it; the meaning stands on its own.</div>
         </div>
         <p style="margin:0 0 8px">Transit always works <b>under your current Dasha</b> (life period): it fine-tunes the timing of what your chart and running period already allow — it never overrides them. Sade Sati and the demanding passages are about <b>maturation and responsibility, not misfortune</b>. Dates are approximate and shift slightly with retrograde motion.</p>
+        <p style="margin:0 0 8px"><b>This report keeps pace with the sky.</b> The planets move on, so it reflects the transits as of the date on its cover — it is worth re-reading the current version from time to time, as each new window opens.</p>
         <p style="margin:0 0 8px">Prefer your own language? Download as <b>Word</b>, then upload it at translate.google.co.in → Documents — Google returns a translated copy.</p>
         <p style="margin:0">A mirror for reflection, not a verdict. Read it gently.</p>
       </div>
@@ -492,22 +493,28 @@
         // Plain-meaning paragraphs read normally; chart-technical notes (lines the
         // writer marks with "» ") are set apart as muted italics for readability.
         const paras = String(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
-        let bodyHtml = "", techBuf = [];
+        const mk = (x) => esc(x).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+        let bodyHtml = "", techBuf = [], ulBuf = [];
         const flushWhy = () => {
           if (!techBuf.length) return;
-          bodyHtml += `<div style="margin:11px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">`
+          bodyHtml += `<div style="margin:10px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">`
             + `<div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ai-gold,#b0821f);margin-bottom:4px">Why this reading</div>`
             + techBuf.map(t => `<div style="font-size:12.5px;opacity:.85;line-height:1.5;margin:3px 0">${t}</div>`).join("")
             + `</div>`;
           techBuf = [];
         };
+        const flushUl = () => {
+          if (!ulBuf.length) return;
+          bodyHtml += `<ul style="margin:6px 0 10px;padding-left:20px">` + ulBuf.map(li => `<li style="margin:4px 0;line-height:1.55">${li}</li>`).join("") + `</ul>`;
+          ulBuf = [];
+        };
         paras.forEach(p => {
-          const isT = p.indexOf("» ") === 0;
-          const inner = esc(isT ? p.slice(2) : p).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-          if (isT) techBuf.push(inner);
-          else { flushWhy(); bodyHtml += `<p style="margin:8px 0">${inner}</p>`; }
+          if (p.indexOf("» ") === 0) { flushUl(); techBuf.push(mk(p.slice(2))); }
+          else if (p.indexOf("### ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:1.03em;margin:13px 0 3px">${mk(p.slice(4))}</div>`; }
+          else if (p.indexOf("- ") === 0) { flushWhy(); ulBuf.push(mk(p.slice(2))); }
+          else { flushWhy(); flushUl(); bodyHtml += `<p style="margin:8px 0">${mk(p)}</p>`; }
         });
-        flushWhy();
+        flushWhy(); flushUl();
         P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
           <h2>${contHead}</h2>
           <div class="bd">${bodyHtml}</div>
@@ -549,7 +556,7 @@
       () => {
         // Word goes through Google Translate — make the "» " technical notes read
         // as a plain dash prefix rather than the on-screen marker.
-        const wsec = sections.map(s => ({ heading: s.heading, body: String(s.body || "").replace(/^»\s+/gm, "— ") }));
+        const wsec = sections.map(s => ({ heading: s.heading, body: String(s.body || "").replace(/^»\s+/gm, "— ").replace(/^###\s+/gm, "") }));
         exportWordDoc("AstroIndicators_Transit_" + ((clientCode() || "report").replace(/[^a-z0-9]/gi, "_")),
           "Saturn & Planetary Transit Report", "Your transit road ahead — " + (facts.moonSign||"") + " Moon, as of " + (facts.asOf||""), wsec);
       }
@@ -608,17 +615,25 @@
         const t = para.trim();
         if (!t) { if (!inWhy) y += 5; return; }
         const tech = t.indexOf("» ") === 0;
+        const sub = t.indexOf("### ") === 0;
+        const bull = t.indexOf("- ") === 0;
         if (tech && !inWhy) {
           kbreak(22);
           doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
           doc.text("WHY THIS READING", M, y); y += 12; inWhy = true;
         }
         if (!tech) inWhy = false;
-        const text = tech ? t.slice(2) : t;
+        if (sub) {
+          kbreak(22);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(150, 120, 40);
+          const Lh = doc.splitTextToSize(t.slice(4), W - M * 2); doc.text(Lh, M, y); y += Lh.length * 15 + 4;
+          return;
+        }
+        const text = tech ? t.slice(2) : (bull ? t.slice(2) : t);
         if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(110, 110, 120); }
         else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
-        const indent = tech ? 14 : 0;
-        const L = doc.splitTextToSize(text, W - M * 2 - indent);
+        const indent = tech ? 14 : (bull ? 12 : 0);
+        const L = doc.splitTextToSize((bull ? "• " : "") + text, W - M * 2 - indent);
         kbreak(L.length * 14 + 6); doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
       });
       y += 6;
