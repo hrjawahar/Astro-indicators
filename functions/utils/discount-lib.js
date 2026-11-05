@@ -12,6 +12,7 @@ export const DISCOUNT_ELIGIBLE_ITEMS = new Set([
   "domain_self", "domain_career", "domain_siblings", "domain_mother",
   "domain_children", "domain_health", "domain_marriage",
   "domain_all",
+  "transit_report",
 ]);
 
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // no 0/O/1/I

@@ -387,6 +387,18 @@
         </div>
         <button class="pp-pay" data-domain-buy="all" style="flex:0 0 auto">₹${bundlePrice}</button>
       </div>`;
+    // Saturn & Planetary Transit Report — highlighted so buyers arriving from the
+    // Saturn card's "Unlock my full report" know exactly which one to choose.
+    const transitPrice = P("transit_report", 299);
+    const transitCard = `
+      <div class="icc-pick" id="transitDomainCard" data-domain="transit" style="border:1.5px solid #2e7dff;background:rgba(46,125,255,.07)">
+        <div class="icc-num" style="color:#2e7dff">♄</div>
+        <div style="flex:1">
+          <div class="icc-q">Saturn &amp; Planetary Transit Report <span style="background:#2e7dff;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.03em">TRANSIT</span></div>
+          <span class="icc-hint">Your live road ahead — Saturn (Sade Sati), Jupiter, Mars, Rahu &amp; Ketu — with dates, your chart's strength for each window, and what you'll feel and notice.</span>
+        </div>
+        <button class="pp-pay" data-domain-buy="transit" style="flex:0 0 auto">₹${transitPrice}</button>
+      </div>`;
     const _dc = window._ai_disc || "";
     const discWidget = `
       <div class="ai-disc-wrap" style="border:1px dashed rgba(201,168,76,.55);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:rgba(201,168,76,.05)">
@@ -397,7 +409,7 @@
         </div>
         <div id="aiDiscMsg" style="font-size:12px;margin-top:6px;color:${_dc?"#1a7f4b":"#888"}">${_dc?"\u2713 Code applied \u2014 your discount is shown at payment, on any report.":""}</div>
       </div>`;
-    wrap.innerHTML = discWidget + bundleCard + DOMAIN_KEYS.map(k => `
+    wrap.innerHTML = discWidget + transitCard + bundleCard + DOMAIN_KEYS.map(k => `
       <div class="icc-pick" data-domain="${k}">
         <div class="icc-num">\u2726</div>
         <div style="flex:1">
@@ -409,7 +421,10 @@
     wireDiscountWidget(wrap);
     wrap.querySelectorAll("[data-domain-buy]").forEach(btn => {
       const k = btn.getAttribute("data-domain-buy");
-      if (k === "all") {
+      if (k === "transit") {
+        btn.onclick = () => payThenRun("transit_report", transitPrice, "Saturn & Planetary Transit Report",
+          () => { try { if (window.AI_generateTransitReport && window.currentData) window.AI_generateTransitReport(window.currentData.saturnTransit, window.currentData); } catch (e) {} });
+      } else if (k === "all") {
         btn.onclick = () => payThenRun("domain_all", bundlePrice, "All Seven Domains — Complete Blueprint", () => openAllDomainsReport());
       } else {
         btn.onclick = () => payThenRun(DOMAIN_ITEM(k), P(DOMAIN_ITEM(k),750),

@@ -54,6 +54,8 @@ const PRICES = {
   domain_health:   750,
   domain_marriage: 750,
   domain_all:      3999,
+  // Saturn & Planetary Transit Report (Gochara) — generated fresh after payment.
+  transit_report:  299,
 };
 
 // ⚠️ KEEP IN SYNC — friendlyCode()/normalizeCode() exist in FOUR places (no

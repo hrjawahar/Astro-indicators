@@ -965,17 +965,48 @@ function renderSaturnTransit(st, data) {
     </details>
   `;
   const sampleBtn = document.getElementById("transitSampleBtn");
-  if (sampleBtn) sampleBtn.onclick = () => { try { if (window.AI_openSample) window.AI_openSample("transit"); } catch (e) {} };
+  if (sampleBtn) sampleBtn.onclick = () => { try { openTransitSample(); } catch (e) {} };
   const buy = document.getElementById("transitBuyBtn");
   if (buy) buy.onclick = () => {
-    // Route to the reports page so the buyer also sees the other reports.
-    // Phase 4 adds the Transit Report as a purchasable card there and runs
-    // generateTransitReport() after payment.
+    // Route to the reports page and highlight the Transit Report card there, so
+    // the buyer sees the other reports but isn't confused about which to choose.
     try {
+      window._ai_focusTransit = true;
       if (window.goToTab) window.goToTab("domainReportTab");
       else { const t = document.querySelector('.nav-tab[data-tab="domainReportTab"]'); if (t) t.click(); }
+      setTimeout(() => {
+        const tc = document.getElementById("transitDomainCard");
+        if (tc) {
+          try { tc.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+          tc.style.transition = "box-shadow .5s"; tc.style.boxShadow = "0 0 0 3px rgba(46,125,255,.55)";
+          setTimeout(() => { tc.style.boxShadow = "none"; }, 2000);
+        }
+      }, 380);
     } catch (e) {}
   };
+}
+
+// Self-contained transit sample opener (does not depend on ui-v4 load order).
+function openTransitSample() {
+  const all = (window.SAMPLES && window.SAMPLES.transit) || null;
+  const lang = (typeof window._currentLang !== "undefined" && window._currentLang) ? window._currentLang : "EN";
+  const data = all ? (all[lang] || all.EN) : null;
+  const modal = document.getElementById("sampleModal");
+  const titleEl = document.getElementById("sampleModalTitle");
+  const bodyEl = document.getElementById("sampleModalBody");
+  if (!data || !modal || !bodyEl) return;
+  if (titleEl) titleEl.textContent = data.title || "Sample · Transit Report";
+  let html = "";
+  if (data.example) html += '<div class="sample-example">' + _tEsc(data.example) + "</div>";
+  (data.blocks || []).forEach(b => {
+    html += '<div class="sample-block"><div class="sample-block-h">' + _tEsc(b[0]) + '</div><div class="sample-block-p">' + _tEsc(b[1]) + "</div></div>";
+  });
+  if (data.locked) {
+    html += '<div class="sample-locked"><div class="sample-locked-label">' + _tEsc(data.locked.label) +
+            '</div><div class="sample-locked-teaser">' + _tEsc(data.locked.teaser) + "</div></div>";
+  }
+  bodyEl.innerHTML = html;
+  modal.style.display = "flex";
 }
 
 // ─── Transit Report generation (Phase 2b) ───────────────────────────────────
@@ -1055,6 +1086,8 @@ function generateTransitReport(st, data) {
         + `<button id='transitModalClose' class='btn-primary' style='width:auto'>Close</button></div>`);
     });
 }
+// Exposed so the reports page (paid-products.js) can deliver the report after payment.
+if (typeof window !== "undefined") window.AI_generateTransitReport = generateTransitReport;
 
 function downloadChandraPDF(ch, data) {
   if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
