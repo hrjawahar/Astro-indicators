@@ -153,10 +153,10 @@ const SAMPLES = {
       title: "Sample · Saturn Transit & Road Ahead",
       example: "Example chart · Aquarius Moon · born 2 Feb 1985, 18:20, Hyderabad",
       blocks: [
-        ["Where Saturn stands now", "Saturn is transiting Pisces, the 2nd sign from this person's Aquarius Moon — the closing (setting) phase of a 7.5-year Sade Sati that runs to mid-2027. In their chart this sign carries 4 of 8 strength points: a moderately supported passage, demanding but workable."],
-        ["What you may notice", "This phase tends to bring finances, family duties and the weight of long-standing commitments into focus. Spending and speech come under review, and there is a steady pull to settle old dues and simplify. The intensity of the peak has eased; through 2026–27 the dominant feeling is one of clearing the decks and consolidating."],
-        ["The road ahead", "Once Sade Sati closes in mid-2027, Saturn moves to a favourable 3rd-from-Moon passage — courage, steady effort and initiative are rewarded. Kantaka Shani (Saturn in the 4th from the Moon) follows around 2029, asking extra care for home, mother and peace of mind."],
-        ["Working with it", "Keep commitments realistic, finish what is already begun rather than starting anew, and protect rest and routine. Saturn rewards honesty, patience and simplification — this is a season to lay foundations, not to force fast moves."],
+        ["Saturn — your current phase", "Saturn is transiting Pisces, the 2nd sign from this Aquarius Moon — the closing (setting) phase of a 7.5-year Sade Sati running to mid-2027. In this chart the sign carries 4 of 8 strength points: demanding but workable. The themes are finances, family duty and settling what has built up; the pace is steadier than the peak, with a pull to consolidate and simplify."],
+        ["Jupiter — this year's support", "Jupiter transits the 5th from the Moon through 2026 — a warm, opening influence on learning, children, creativity and good counsel. Where Saturn asks for discipline, Jupiter offers relief and a sense of growth to balance it."],
+        ["Mars, Rahu & Ketu — the shorter triggers", "Mars crosses the 10th from the Moon in spring 2026, a brief burst of drive and visibility at work. The Rahu–Ketu axis sits across the 3rd and 9th, pulling between bold new ventures and settled beliefs — felt most strongly around the mid-year eclipses."],
+        ["What you'll notice & how to work with it", "Expect a year that asks you to finish rather than start, with money and family to the fore and quiet progress underneath. Keep commitments realistic, protect rest, and use Jupiter's lighter window for the moves that need optimism."],
       ],
       locked: {
         label: "🔓 Your full Transit Report unlocks:",

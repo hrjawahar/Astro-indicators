@@ -842,7 +842,7 @@ function renderChandrashtama(ch, data) {
     .replace("{tz}", ch.tzLabel);
 
   host.innerHTML = `
-    <h3 class="card-title">${T.title} <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span> <span style="background:#1a7f4b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">FREE</span></h3>
+    <h3 class="card-title">${T.title} <span style="background:#2e7dff;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span> <span style="background:#1a7f4b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">FREE</span></h3>
     <p class="card-body" style="margin-top:-4px">${introLine}</p>
     <div style="border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:14px 16px;margin:10px 0 14px;background:rgba(201,168,76,.05)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>${T.moon_in} ${sign}</b></div>
@@ -933,10 +933,15 @@ function renderSaturnTransit(st, data) {
   // Paywall hook: everything above is the free current-state teaser; the road
   // ahead below is the paid Transit Report. Phase 4 wires this to checkout
   // (item "transit_report", Rs.299) and locks the block below it.
+  const PCOV = [["♄", "Saturn"], ["♃", "Jupiter"], ["♂", "Mars"], ["☊", "Rahu"], ["☋", "Ketu"]];
+  const pcovChips = PCOV.map(p => `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(46,125,255,.14);color:var(--text,#EDEBE4);border:1px solid rgba(46,125,255,.42);border-radius:999px;padding:3px 9px;font-size:11.5px;font-weight:600">${p[0]} ${p[1]}</span>`).join("");
   const hook = `
     <div id="transitHook" style="border:1px dashed rgba(201,168,76,.6);border-radius:10px;padding:12px 14px;margin:14px 0 6px;background:rgba(201,168,76,.08)">
       <div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:13.5px;margin-bottom:3px">🔓 Your full Transit Report — ₹299</div>
-      <div style="font-size:12.5px;opacity:.88;line-height:1.5">The complete road ahead for your Moon — <b>Saturn, Jupiter, Mars, Rahu &amp; Ketu</b> — with exact dates, your chart's own strength for each window, what you'll feel and notice, and how each transit meets your Dasha. In your language, as a downloadable PDF.</div>
+      <div style="font-size:12.5px;opacity:.88;line-height:1.5">The complete road ahead for your Moon — with exact dates, your chart's own strength for each window, what you'll feel and notice, and how each transit meets your Dasha. In your language, as a downloadable PDF.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center">
+        <span style="font-size:10.5px;color:var(--text-dim,#9aa0b8);font-weight:700;text-transform:uppercase;letter-spacing:.05em">Covers</span>${pcovChips}
+      </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:11px">
         <button id="transitSampleBtn" style="background:none;border:1px solid rgba(201,168,76,.55);color:var(--ai-gold,#b0821f);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer">See a sample</button>
         <button class="btn-primary" id="transitBuyBtn" style="width:auto">Unlock my full report</button>
@@ -944,7 +949,7 @@ function renderSaturnTransit(st, data) {
     </div>`;
 
   host.innerHTML = `
-    <h3 class="card-title">Saturn Transit — Sade Sati &amp; your road ahead <span style="background:#2f6fb3;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span></h3>
+    <h3 class="card-title">Saturn Transit — Sade Sati &amp; your road ahead <span style="background:#2e7dff;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.04em">NEW</span></h3>
     <p class="card-body" style="margin-top:-4px">For your birth Moon in <b>${st.natalMoonSign}</b>. Saturn is the slow planet whose transit (Gochara) is read from your Moon sign. <span style="opacity:.7">As of ${st.asOf} (${st.tzLabel}).</span></p>
     <div style="border:1px solid rgba(201,168,76,.4);border-radius:12px;padding:14px 16px;margin:10px 0 14px;background:rgba(201,168,76,.05)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${badge}<b>Saturn in ${c.sign}</b> <span style="opacity:.7">(${_ordSuffix(c.houseFromMoon)} from Moon)</span></div>
