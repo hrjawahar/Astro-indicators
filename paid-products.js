@@ -460,7 +460,21 @@
         ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
       </ul>
       <span class="pnum">2</span></div>`);
-    P.push(readNotePage(3));
+    P.push(`<div class="pg"><div class="kick">How to Read This</div><div class="rule"></div>
+      <h2 style="font-size:1.28rem">How to read your Transit Report</h2>
+      <div class="bd" style="font-size:.95rem;line-height:1.62">
+        <p style="margin:0 0 10px;font-weight:600;color:#8a6d1f;font-size:1rem">This report tracks where the slow planets are moving now — Saturn (your headline, including Sade Sati), and Jupiter, Mars, Rahu and Ketu — all read from your Moon sign, and what they mean for the period ahead.</p>
+        <p style="margin:0 0 8px">Each section is written in <b>two parts</b>, so you never need to know astrology to get the value:</p>
+        <p style="margin:0 0 6px"><b>The meaning</b> — plain, everyday language: what this period tends to bring to your life and what helps. Read this straight through.</p>
+        <div style="margin:4px 0 12px;padding:8px 12px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">
+          <div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#8a6d1f;margin-bottom:3px">Why this reading</div>
+          <div style="font-size:12.5px;opacity:.85;line-height:1.5">a highlighted block like this gives the chart reasons behind the meaning — the planet, sign, house and strength. Read it for the "why", or skip it; the meaning stands on its own.</div>
+        </div>
+        <p style="margin:0 0 8px">Transit always works <b>under your current Dasha</b> (life period): it fine-tunes the timing of what your chart and running period already allow — it never overrides them. Sade Sati and the demanding passages are about <b>maturation and responsibility, not misfortune</b>. Dates are approximate and shift slightly with retrograde motion.</p>
+        <p style="margin:0 0 8px">Prefer your own language? Download as <b>Word</b>, then upload it at translate.google.co.in → Documents — Google returns a translated copy.</p>
+        <p style="margin:0">A mirror for reflection, not a verdict. Read it gently.</p>
+      </div>
+      <span class="pnum">3</span></div>`);
     let n = 4;
     const PAGE_BUDGET = 1050;
     const emitSection = (sec) => {
@@ -478,13 +492,22 @@
         // Plain-meaning paragraphs read normally; chart-technical notes (lines the
         // writer marks with "» ") are set apart as muted italics for readability.
         const paras = String(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
-        const bodyHtml = paras.map(p => {
-          const tech = p.indexOf("» ") === 0;
-          const inner = esc(tech ? p.slice(2) : p).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-          return tech
-            ? `<p style="font-style:italic;opacity:.68;font-size:.9em;margin:3px 0 11px">${inner}</p>`
-            : `<p style="margin:8px 0">${inner}</p>`;
-        }).join("");
+        let bodyHtml = "", techBuf = [];
+        const flushWhy = () => {
+          if (!techBuf.length) return;
+          bodyHtml += `<div style="margin:11px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">`
+            + `<div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ai-gold,#b0821f);margin-bottom:4px">Why this reading</div>`
+            + techBuf.map(t => `<div style="font-size:12.5px;opacity:.85;line-height:1.5;margin:3px 0">${t}</div>`).join("")
+            + `</div>`;
+          techBuf = [];
+        };
+        paras.forEach(p => {
+          const isT = p.indexOf("» ") === 0;
+          const inner = esc(isT ? p.slice(2) : p).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+          if (isT) techBuf.push(inner);
+          else { flushWhy(); bodyHtml += `<p style="margin:8px 0">${inner}</p>`; }
+        });
+        flushWhy();
         P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
           <h2>${contHead}</h2>
           <div class="bd">${bodyHtml}</div>
@@ -579,16 +602,24 @@
       kbreak(34);
       doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
       const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
-      const plain = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1");
-      plain.split("\n").forEach(para => {
+      const lines = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1").split("\n");
+      let inWhy = false;
+      lines.forEach(para => {
         const t = para.trim();
-        if (!t) { y += 5; return; }
+        if (!t) { if (!inWhy) y += 5; return; }
         const tech = t.indexOf("» ") === 0;
+        if (tech && !inWhy) {
+          kbreak(22);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
+          doc.text("WHY THIS READING", M, y); y += 12; inWhy = true;
+        }
+        if (!tech) inWhy = false;
         const text = tech ? t.slice(2) : t;
-        if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(10); doc.setTextColor(120, 120, 130); }
+        if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(110, 110, 120); }
         else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
-        const L = doc.splitTextToSize(text, W - M * 2);
-        kbreak(L.length * 15 + 6); doc.text(L, M, y); y += L.length * 15 + (tech ? 8 : 6);
+        const indent = tech ? 14 : 0;
+        const L = doc.splitTextToSize(text, W - M * 2 - indent);
+        kbreak(L.length * 14 + 6); doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
       });
       y += 6;
     });
