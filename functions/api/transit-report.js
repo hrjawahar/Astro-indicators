@@ -152,7 +152,13 @@ function buildSystemPrompt() {
     " 7. 'How to work with this period' — concrete, practical guidance that draws the threads together (Saturn's discipline balanced by Jupiter's support, Mars's timing, the nodal pull): what to lean into, what to go gently with, simple habits that help. Make this genuinely useful.",
     " 8. 'Reading this alongside your Dasha' — name the current Mahadasha + Antardasha and explain, in one short section, how these transits colour the timing of that period without overriding it.",
     "",
-    "OUTPUT FORMAT: return STRICT JSON and nothing else: {\"sections\":[{\"heading\":\"...\",\"body\":\"...\"}]}. The body is plain prose; use \\n between paragraphs and '- ' for any bullet lines. Keep each section tight (roughly 120-240 words). Use the reader's second person ('you', 'your'). Do not include any text outside the JSON."
+    "READABILITY — CRITICAL (this report is read by people with NO astrology knowledge):",
+    " - In every section, LEAD with the PLAIN meaning in everyday language — what it means for the person's life and what to do — with NO astrology jargon in those sentences. A reader who knows nothing about astrology must understand them completely.",
+    " - Put the astrological / chart BASIS (signs, houses-from-Moon, bindus/strength, aspects, Dasha names, Sanskrit terms) on SEPARATE short lines, each starting with the exact marker '» ', placed right AFTER the plain sentence it supports. Keep each '» ' note to one brief line — it is the 'why', for the curious.",
+    " - NEVER mix signs, house numbers, bindus or Sanskrit terms into the plain paragraphs; those paragraphs must read naturally on their own. The '» ' lines carry all the technical detail.",
+    " - Example of the two-line rhythm:\n   This is a steadying stretch for your home life — a time to tend your base and keep routines simple rather than make big moves.\n   » Saturn transits the 4th from your Moon (Kantaka Shani), at 3 of 8 Ashtakavarga strength.",
+    "",
+    "OUTPUT FORMAT: return STRICT JSON and nothing else: {\"sections\":[{\"heading\":\"...\",\"body\":\"...\"}]}. The body is plain prose; use \\n between paragraphs, put each '» ' technical note on its own line, and use '- ' for any bullet lines. Keep each section tight (roughly 120-240 words). Use the reader's second person ('you', 'your'). Do not include any text outside the JSON."
   ].join("\n");
 }
 

@@ -475,10 +475,19 @@
       const many = chunks.length > 1;
       chunks.forEach((chunk, ci) => {
         const contHead = ci===0 ? heading : heading + (many ? " <span style=\"opacity:.55;font-size:.75em\">(continued)</span>" : "");
-        const bodyHtml = esc(chunk).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\n\n/g,"</p><p>").replace(/\n/g,"<br>");
+        // Plain-meaning paragraphs read normally; chart-technical notes (lines the
+        // writer marks with "» ") are set apart as muted italics for readability.
+        const paras = String(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
+        const bodyHtml = paras.map(p => {
+          const tech = p.indexOf("» ") === 0;
+          const inner = esc(tech ? p.slice(2) : p).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+          return tech
+            ? `<p style="font-style:italic;opacity:.68;font-size:.9em;margin:3px 0 11px">${inner}</p>`
+            : `<p style="margin:8px 0">${inner}</p>`;
+        }).join("");
         P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
           <h2>${contHead}</h2>
-          <div class="bd"><p>${bodyHtml}</p></div>
+          <div class="bd">${bodyHtml}</div>
           <span class="pnum">${n++}</span></div>`);
       });
     };
@@ -514,8 +523,13 @@
     bookRender();
     wireDownloadDropdown(
       () => exportTransitPDF(sections, facts),
-      () => exportWordDoc("AstroIndicators_Transit_" + ((clientCode() || "report").replace(/[^a-z0-9]/gi, "_")),
-        "Saturn & Planetary Transit Report", "Your transit road ahead — " + (facts.moonSign||"") + " Moon, as of " + (facts.asOf||""), sections)
+      () => {
+        // Word goes through Google Translate — make the "» " technical notes read
+        // as a plain dash prefix rather than the on-screen marker.
+        const wsec = sections.map(s => ({ heading: s.heading, body: String(s.body || "").replace(/^»\s+/gm, "— ") }));
+        exportWordDoc("AstroIndicators_Transit_" + ((clientCode() || "report").replace(/[^a-z0-9]/gi, "_")),
+          "Saturn & Planetary Transit Report", "Your transit road ahead — " + (facts.moonSign||"") + " Moon, as of " + (facts.asOf||""), wsec);
+      }
     );
     const fsBtn = $("fbFull");
     if (fsBtn) fsBtn.onclick = () => {
@@ -565,12 +579,16 @@
       kbreak(34);
       doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
       const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
-      doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48);
       const plain = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1");
       plain.split("\n").forEach(para => {
-        if (!para.trim()) { y += 5; return; }
-        const L = doc.splitTextToSize(para.trim(), W - M * 2);
-        kbreak(L.length * 15 + 6); doc.text(L, M, y); y += L.length * 15 + 6;
+        const t = para.trim();
+        if (!t) { y += 5; return; }
+        const tech = t.indexOf("» ") === 0;
+        const text = tech ? t.slice(2) : t;
+        if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(10); doc.setTextColor(120, 120, 130); }
+        else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
+        const L = doc.splitTextToSize(text, W - M * 2);
+        kbreak(L.length * 15 + 6); doc.text(L, M, y); y += L.length * 15 + (tech ? 8 : 6);
       });
       y += 6;
     });
