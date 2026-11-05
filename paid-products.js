@@ -422,8 +422,7 @@
     wrap.querySelectorAll("[data-domain-buy]").forEach(btn => {
       const k = btn.getAttribute("data-domain-buy");
       if (k === "transit") {
-        btn.onclick = () => payThenRun("transit_report", transitPrice, "Saturn & Planetary Transit Report",
-          () => { try { const cd = window.currentData && window.currentData.chart; if (window.AI_generateTransitReport && cd) window.AI_generateTransitReport(cd.saturnTransit, cd); } catch (e) {} });
+        btn.onclick = () => payThenRun("transit_report", transitPrice, "Saturn & Planetary Transit Report", () => openTransitReport());
       } else if (k === "all") {
         btn.onclick = () => payThenRun("domain_all", bundlePrice, "All Seven Domains — Complete Blueprint", () => openAllDomainsReport());
       } else {
@@ -431,6 +430,88 @@
           DOMAIN_LABELS[k] + " Blueprint", () => openDomainReport(k));
       }
     });
+  }
+
+  // ── Transit Report (inline, like the domain reports) ───────────────────────
+  // Generated fresh each time (transit content is perishable; never cached), with
+  // PDF + Word download — Word enables the Google-Translate path for any language,
+  // the same model as every paid report.
+  function _trMd(s) {
+    let out = "", inUl = false;
+    String(s || "").split("\n").forEach(ln => {
+      const t = ln.trim();
+      const h = esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+      if (/^-\s+/.test(t)) { if (!inUl) { out += "<ul style='margin:6px 0 10px;padding-left:20px'>"; inUl = true; } out += "<li style='margin:4px 0;line-height:1.6'>" + h.replace(/^-\s+/, "") + "</li>"; }
+      else { if (inUl) { out += "</ul>"; inUl = false; } if (t) out += "<p style='margin:9px 0;line-height:1.7'>" + h + "</p>"; }
+    });
+    if (inUl) out += "</ul>";
+    return out;
+  }
+
+  async function openTransitReport() {
+    const host = $("domainReport"); if (!host) return;
+    host.innerHTML = `<div class="pp-empty">Preparing your Transit Report — reading Saturn, Jupiter, Mars, Rahu &amp; Ketu against your chart…<br><span style="opacity:.7">about 20–40 seconds · please don't refresh</span></div>`;
+    try { host.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (_) {}
+    let facts = null;
+    try { facts = window.AI_transitFacts && window.AI_transitFacts(); } catch (e) {}
+    if (!facts) { host.innerHTML = `<div class="pp-empty">Please generate your chart first (Birth Data tab), then try again.</div>`; return; }
+    try {
+      const res = await fetch("/api/transit-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ facts }) });
+      const data = await res.json();
+      if (!data.success || !Array.isArray(data.sections) || !data.sections.length) throw new Error(data.error || "No report was returned.");
+      const sections = data.sections;
+      const body = sections.map(s => `<div style="margin:0 0 18px"><h3 style="color:var(--ai-gold,#b0821f);font-size:16px;margin:16px 0 4px">${esc(s.heading || "")}</h3><div style="font-size:14px;color:var(--text,#EDEBE4)">${_trMd(s.body || "")}</div></div>`).join("");
+      host.innerHTML = `<div style="max-width:720px;margin:0 auto">
+          <div style="font-weight:800;font-size:20px;color:var(--text,#EDEBE4)">Your Saturn &amp; Planetary Transit Report</div>
+          <div style="font-size:12.5px;opacity:.65;margin:3px 0 10px">For ${esc(facts.moonSign)} Moon · as of ${esc(facts.asOf)} (${esc(facts.tzLabel)})</div>
+          ${body}
+          <div style="font-size:11px;opacity:.55;margin:14px 0 4px;border-top:1px solid #2a3150;padding-top:10px">Educational guidance for self-reflection, not a prediction or professional advice.</div>
+          <div class="fb-dlbar">${downloadDropdownHTML()}</div>
+        </div>`;
+      wireDownloadDropdown(
+        () => exportTransitPDF(sections, facts),
+        () => exportWordDoc("AstroIndicators_Transit_" + ((clientCode() || "report").replace(/[^a-z0-9]/gi, "_")),
+          "Saturn & Planetary Transit Report", "Your transit road ahead — " + facts.moonSign + " Moon, as of " + facts.asOf, sections)
+      );
+      try { host.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (_) {}
+    } catch (e) {
+      host.innerHTML = `<div class="pp-empty">Couldn't generate the report: ${esc(String(e.message || e))}<br>Please try again in a moment.</div>`;
+    }
+  }
+
+  function exportTransitPDF(sections, facts) {
+    if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
+    const jsPDF = window.jspdf.jsPDF;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 48;
+    let y = M;
+    const kbreak = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(30, 30, 40);
+    doc.text("Saturn & Planetary Transit Report", M, y); y += 24;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(120, 120, 130);
+    doc.text("For " + (facts.moonSign || "") + " Moon  |  as of " + (facts.asOf || "") + " (" + (facts.tzLabel || "") + ")", M, y); y += 22;
+    sections.forEach(s => {
+      kbreak(34);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
+      const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48);
+      const plain = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1");
+      plain.split("\n").forEach(para => {
+        if (!para.trim()) { y += 5; return; }
+        const L = doc.splitTextToSize(para.trim(), W - M * 2);
+        kbreak(L.length * 15 + 6); doc.text(L, M, y); y += L.length * 15 + 6;
+      });
+      y += 6;
+    });
+    kbreak(44);
+    doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(140, 140, 150);
+    doc.text(doc.splitTextToSize("Educational guidance for self-reflection, not a prediction or professional advice.  © AstroIndicators · astroindicators.com", W - M * 2), M, y);
+    const safe = ((clientCode && clientCode()) || "report").replace(/[^a-z0-9]/gi, "_");
+    try {
+      const blob = doc.output("blob"); const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "AstroIndicators_Transit_" + safe + ".pdf";
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    } catch (e) { doc.save("AstroIndicators_Transit_" + safe + ".pdf"); }
   }
 
   // All-Domains bundle: generate/fetch all 7 domains and render one combined book.

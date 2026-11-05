@@ -1088,7 +1088,14 @@ function generateTransitReport(st, data) {
     });
 }
 // Exposed so the reports page (paid-products.js) can deliver the report after payment.
-if (typeof window !== "undefined") window.AI_generateTransitReport = generateTransitReport;
+if (typeof window !== "undefined") {
+  window.AI_generateTransitReport = generateTransitReport;
+  // Facts packet for the reports-page (inline) transit report + its PDF/Word export.
+  window.AI_transitFacts = function () {
+    const cd = window.currentData && window.currentData.chart;
+    return (cd && cd.saturnTransit) ? _transitFacts(cd.saturnTransit, cd) : null;
+  };
+}
 
 function downloadChandraPDF(ch, data) {
   if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
