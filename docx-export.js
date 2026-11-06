@@ -214,11 +214,21 @@
   var CT = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">" +
     "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>" +
     "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>" +
-    "<Override PartName=\"/word/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"/></Types>";
+    "<Override PartName=\"/word/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"/>" +
+    "<Override PartName=\"/word/footer1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml\"/></Types>";
   var RELS = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" +
     "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/></Relationships>";
   var DOC_RELS = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" +
-    "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/></Relationships>";
+    "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>" +
+    "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer\" Target=\"footer1.xml\"/></Relationships>";
+  // Centred "PAGE of NUMPAGES" footer (field codes Word computes on open).
+  var FP = "<w:rPr><w:sz w:val=\"16\"/><w:szCs w:val=\"16\"/><w:color w:val=\"969696\"/></w:rPr>";
+  var FOOTER = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+    "<w:ftr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr>" +
+    "<w:r>" + FP + "<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>" + FP + "<w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r><w:r>" + FP + "<w:fldChar w:fldCharType=\"end\"/></w:r>" +
+    "<w:r>" + FP + "<w:t xml:space=\"preserve\"> of </w:t></w:r>" +
+    "<w:r>" + FP + "<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>" + FP + "<w:instrText xml:space=\"preserve\"> NUMPAGES </w:instrText></w:r><w:r>" + FP + "<w:fldChar w:fldCharType=\"end\"/></w:r>" +
+    "</w:p></w:ftr>";
 
   function buildFromHTML(html, opt) {
     opt = opt || {};
@@ -228,12 +238,13 @@
     var lang = (opt.lang || "").toLowerCase(); if (lang === "ka") lang = "kn";
     var bidi = TAG[lang] || TAG[detectLang(doc.body.textContent || "")] || "";
     var docXml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
-      "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>" + body +
-      "<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/><w:pgMar w:top=\"1134\" w:right=\"1134\" w:bottom=\"1134\" w:left=\"1134\" w:header=\"709\" w:footer=\"709\" w:gutter=\"0\"/></w:sectPr></w:body></w:document>";
+      "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:body>" + body +
+      "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rId2\"/><w:pgSz w:w=\"11906\" w:h=\"16838\"/><w:pgMar w:top=\"1134\" w:right=\"1134\" w:bottom=\"1134\" w:left=\"1134\" w:header=\"709\" w:footer=\"709\" w:gutter=\"0\"/></w:sectPr></w:body></w:document>";
     return zip([
       { name: "[Content_Types].xml", data: CT }, { name: "_rels/.rels", data: RELS },
       { name: "word/_rels/document.xml.rels", data: DOC_RELS },
       { name: "word/styles.xml", data: stylesXml(bidi) }, { name: "word/document.xml", data: docXml },
+      { name: "word/footer1.xml", data: FOOTER },
     ]);
   }
 

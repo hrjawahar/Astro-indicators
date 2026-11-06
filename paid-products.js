@@ -621,6 +621,19 @@
     }
   }
 
+  // Centred "N of M" footer on every page of a jsPDF doc.
+  function addPdfPageNumbers(doc) {
+    try {
+      const pc = doc.internal.getNumberOfPages();
+      const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
+      for (let i = 1; i <= pc; i++) {
+        doc.setPage(i);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(150, 150, 158);
+        doc.text(i + " of " + pc, pw / 2, ph - 22, { align: "center" });
+      }
+    } catch (_) {}
+  }
+
   function exportTransitPDF(sections, facts) {
     if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
     const jsPDF = window.jspdf.jsPDF;
@@ -684,15 +697,7 @@
     kbreak(30);
     doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(140, 140, 150);
     doc.text(doc.splitTextToSize("Educational guidance for self-reflection, not a prediction or professional advice.  © AstroIndicators · astroindicators.com", W - M * 2), M, y);
-    // Page numbers (centred footer) across every page.
-    try {
-      const pc = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pc; i++) {
-        doc.setPage(i);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(150, 150, 158);
-        doc.text(i + " of " + pc, W / 2, H - 22, { align: "center" });
-      }
-    } catch (_) {}
+    addPdfPageNumbers(doc);
     const safe = ((clientCode && clientCode()) || "report").replace(/[^a-z0-9]/gi, "_");
     try {
       const blob = doc.output("blob"); const url = URL.createObjectURL(blob);

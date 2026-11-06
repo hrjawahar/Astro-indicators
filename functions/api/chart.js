@@ -1112,7 +1112,7 @@ function computeMarsSequence(posFn, aspectOffsets, bavKey, M, L, nowJD, tz, av, 
       houseFromMoon: ((o.s0 - M + 12) % 12) + 1,
       houseFromLagna: ((o.s0 - L + 12) % 12) + 1,
       start: satMonthYear(o.sinceJD, tz), end: satMonthYear(o.untilJD, tz),
-      isCurrent: n === 0, bindu, strength, aspects
+      isCurrent: n === 0, retro: (o.untilJD - o.sinceJD) > 70, bindu, strength, aspects
     });
     cursor = o.untilJD + 10;
   }
