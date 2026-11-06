@@ -2543,7 +2543,7 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
   const howToTest = [
     "This page shows the chart's leaning — a starting point to check against your real working life, not a verdict.",
     "FIELD (what kind of work): look at the fields listed above, then think about the work that has actually energised you and produced your best results. Is it one of these fields, close to one, or clearly somewhere else? Trust your real track record over what merely sounds appealing.",
-    "MODE (how you work best): do your best results come when you are a hands-on specialist doing the deep work yourself (an Individual Contributor), or when you are leading and managing other people (People Management)? The chart's lean is stated above — check it against where you have actually delivered and felt most effective.",
+    "MODE (how you work best): think about where your best results have actually come from — doing the hands-on work yourself as a specialist, leading and coordinating other people, or guiding and advising from the side. The chart's lean is stated above; check it honestly against where you have delivered and felt most effective.",
     "Read FIELD and MODE separately — a strong field with a different working mode (or the reverse) is common and useful; don't blend them into one answer.",
     "Where the chart's lean and your own experience agree, trust it and lean in. Where they differ, that gap is the signal — either a strength you haven't stepped into yet, or a mismatch worth a closer look before your next move.",
     "Then use the Timing section of this report to decide WHEN to act."
