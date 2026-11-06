@@ -920,6 +920,11 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, 
 
   // Age (whole years) the native is at a given transit date — for year-wise reading.
   const ageAt = (jd) => (birthJD == null) ? null : Math.max(0, Math.floor((jd - birthJD) / 365.25));
+  // How many years ahead a period begins, and whether it is near enough to detail
+  // in full or far enough to summarise (keeps a report readable when the next big
+  // Saturn passage is decades away).
+  const yearsAway = (jd) => Math.round((jd - nowJD) / 365.25);
+  const horizonOf = (jd) => (yearsAway(jd) > 12 ? "far" : "near");
   // Saturn's special 3rd/7th/10th aspects from ANY sign s → which houses-from-Moon
   // it also influences during that passage.
   const aspectsOf = (s) => [2, 6, 9].map(off => { const t = (s + off) % 12; return { sign: SAT_SIGNS[t], houseFromMoon: houseFromMoon(t) }; });
@@ -983,14 +988,15 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, 
       start: satMonthYear(arc.r12.start, tz),
       end:   satMonthYear(arc.r2.end, tz),
       ageStart: ageAt(arc.r12.start), ageEnd: ageAt(arc.r2.end),
+      yearsAway: yearsAway(arc.r12.start), horizon: horizonOf(arc.r12.start),
       phases: [
         { name: "Rising (12th from Moon)",  sign: SAT_SIGNS[sign12], houseFromMoon: 12, start: satMonthYear(arc.r12.start, tz), end: satMonthYear(arc.r12.end, tz), ageStart: ageAt(arc.r12.start), ageEnd: ageAt(arc.r12.end), isCurrent: curHouse === 12, bindu: binduOf(sign12), strength: strengthLabel(binduOf(sign12)), aspects: aspectsOf(sign12) },
         { name: "Peak (over the Moon)",      sign: SAT_SIGNS[sign1],  houseFromMoon: 1,  start: satMonthYear(arc.r1.start, tz),  end: satMonthYear(arc.r1.end, tz),  ageStart: ageAt(arc.r1.start),  ageEnd: ageAt(arc.r1.end),  isCurrent: curHouse === 1,  bindu: binduOf(sign1),  strength: strengthLabel(binduOf(sign1)),  aspects: aspectsOf(sign1) },
         { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  houseFromMoon: 2,  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  ageStart: ageAt(arc.r2.start),  ageEnd: ageAt(arc.r2.end),  isCurrent: curHouse === 2,  bindu: binduOf(sign2),  strength: strengthLabel(binduOf(sign2)),  aspects: aspectsOf(sign2) }
       ]
     } : null,
-    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], houseFromMoon: 4, startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), ageStart: ageAt(kantaka.start), ageEnd: ageAt(kantaka.end), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end, bindu: binduOf(kantakaSign), strength: strengthLabel(binduOf(kantakaSign)), aspects: aspectsOf(kantakaSign) } : null,
-    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], houseFromMoon: 8, startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), ageStart: ageAt(ashtama.start), ageEnd: ageAt(ashtama.end), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end, bindu: binduOf(ashtamaSign), strength: strengthLabel(binduOf(ashtamaSign)), aspects: aspectsOf(ashtamaSign) } : null
+    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], houseFromMoon: 4, startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), ageStart: ageAt(kantaka.start), ageEnd: ageAt(kantaka.end), yearsAway: yearsAway(kantaka.start), horizon: horizonOf(kantaka.start), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end, bindu: binduOf(kantakaSign), strength: strengthLabel(binduOf(kantakaSign)), aspects: aspectsOf(kantakaSign) } : null,
+    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], houseFromMoon: 8, startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), ageStart: ageAt(ashtama.start), ageEnd: ageAt(ashtama.end), yearsAway: yearsAway(ashtama.start), horizon: horizonOf(ashtama.start), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end, bindu: binduOf(ashtamaSign), strength: strengthLabel(binduOf(ashtamaSign)), aspects: aspectsOf(ashtamaSign) } : null
   };
 }
 
@@ -1013,27 +1019,43 @@ function computeGochara(posFn, aspectOffsets, bavKey, M, L, nowJD, tz, av) {
     for (let i = 0; i < 50; i++) { const m = (a + b) / 2; if (signAt(m) === signIn) a = m; else b = m; }
     return (a + b) / 2;
   };
-  const s0 = signAt(nowJD);
-  // NET window of the current sign — the FULL span the planet occupies this sign,
+  // SANDHI (cusp) handling: if the planet has only just stepped into a new sign
+  // (< ~2°) and will retrograde back into the PREVIOUS sign within a few months,
+  // it is still effectively transiting that previous sign. Anchor the reading
+  // there, so the window reads as ONE clean, past-anchored passage (≈ the planet's
+  // normal dwell) rather than a confusing graze that spans two retrograde loops.
+  let anchorJD = nowJD;
+  {
+    const sNow = signAt(nowJD);
+    const degIn = sidLon(nowJD) - sNow * 30;         // degrees into the current sign
+    const prev = (sNow + 11) % 12;
+    if (degIn < 2 && signAt(nowJD - 25) === prev) {
+      let dipsBack = false;
+      for (let j = 10; j <= 150; j += 5) { if (signAt(nowJD + j) === prev) { dipsBack = true; break; } }
+      if (dipsBack) anchorJD = nowJD - 25;           // read from the sign it is about to return to
+    }
+  }
+  const s0 = signAt(anchorJD);
+  // NET window of the anchored sign — the FULL span the planet occupies this sign,
   // bridging brief retrograde dips out and back, so the dates show the ACTUAL
-  // duration (the "since" can be well in the past; "until" past a retrograde dip).
-  const RET = 220; // days: a return within this window counts as the same occupancy
+  // single passage (the "since" is usually well in the past, for flashing back).
+  const RET = 120; // days: a dip shorter than this (a retrograde wobble) is bridged; a longer stay in another sign is its own transit, not a dip
   const returnsWithin = (fromJD, dir) => { for (let j = 4; j <= RET; j += 4) if (signAt(fromJD + dir * j) === s0) return true; return false; };
-  let untilJD = nowJD + 4000, nextSign = (s0 + 1) % 12;
-  { let lastIn = nowJD;
+  let untilJD = anchorJD + 4000, nextSign = (s0 + 1) % 12;
+  { let lastIn = anchorJD;
     for (let i = 1; i <= 4000; i++) {
-      const JD = nowJD + i;
+      const JD = anchorJD + i;
       if (signAt(JD) === s0) { lastIn = JD; continue; }
-      if (returnsWithin(JD, +1)) { let k = JD + 4; while (k < JD + RET && signAt(k) !== s0) k += 4; i = Math.round(k - nowJD); lastIn = k; continue; }
+      if (returnsWithin(JD, +1)) { let k = JD + 4; while (k < JD + RET && signAt(k) !== s0) k += 4; i = Math.round(k - anchorJD); lastIn = k; continue; }
       untilJD = crossTimeSign(lastIn, JD, s0); nextSign = signAt(JD); break;
     }
   }
-  let sinceJD = nowJD - 4000;
-  { let firstIn = nowJD;
+  let sinceJD = anchorJD - 4000;
+  { let firstIn = anchorJD;
     for (let i = 1; i <= 4000; i++) {
-      const JD = nowJD - i;
+      const JD = anchorJD - i;
       if (signAt(JD) === s0) { firstIn = JD; continue; }
-      if (returnsWithin(JD, -1)) { let k = JD - 4; while (k > JD - RET && signAt(k) !== s0) k -= 4; i = Math.round(nowJD - k); firstIn = k; continue; }
+      if (returnsWithin(JD, -1)) { let k = JD - 4; while (k > JD - RET && signAt(k) !== s0) k -= 4; i = Math.round(anchorJD - k); firstIn = k; continue; }
       sinceJD = crossTimeSign(firstIn, JD, s0); break;
     }
   }

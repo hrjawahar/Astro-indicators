@@ -649,7 +649,7 @@
           inWhy = false;
           kbreak(26);
           doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
-          doc.text("★ THEME TO HOLD", M, y); y += 12;
+          doc.text("THEME TO HOLD", M, y); y += 12;
           doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(60, 48, 20);
           const Lt = doc.splitTextToSize(t.slice(2), W - M * 2); doc.text(Lt, M, y); y += Lt.length * 15 + 8;
           return;
