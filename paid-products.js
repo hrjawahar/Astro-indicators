@@ -158,11 +158,11 @@
   const READ_NOTE_TAG = "(Important)";
   const READ_NOTE_OPENER = "No knowledge in astrology is your worry? Cool — we thought of you. Please follow this short guideline, prepared to address exactly that apprehension.";
   const READ_NOTE_LINES = [
-    "This is a detailed Vedic analysis and it uses some traditional terms (planets, houses, and charts like D1, D9, D10). You do NOT need to understand every technical word to get the value from it.",
-    "First pass: read only the plain-language sections — 'What This Means For You', 'Timing', and 'The Bottom Line'. These carry the core insight.",
-    "Second pass: if you're curious, revisit the detailed sections — they show why the conclusions hold.",
+    "This is a detailed Vedic reading. It names a few traditional things (planets, houses, and the charts D1, D9, D10), but you do NOT need to understand any of them — the meaning is always written in plain words.",
+    "Just read it straight through. The plain text carries the insight; the small gold 'Why this reading' boxes hold the chart detail underneath, there only if you're curious — you can skip them entirely.",
+    "Each section ends with a short theme — a few words to carry with you from that part of the reading.",
+    "Where two or three charts independently agree, the signal is most reliable — those points are worth trusting most.",
     "Take your time. This isn't a one-read document; the insights land more deeply when you return to it over days, alongside your own life experience.",
-    "The convergences (where two charts independently agree) are the most reliable signals — those are worth trusting most.",
     "Prefer your own language? Download this report as WORD, then open translate.google.co.in, choose 'Documents', and upload the file — Google translates the whole report and gives you a copy to download in your language, with no copy-pasting. On a phone, first switch Chrome to 'Desktop site' (⋮ menu) so the Documents option appears.",
     "This report is a mirror for reflection, not a verdict. Read it gently."
   ];
@@ -171,8 +171,9 @@
     // Flipbook page has a fixed height — use a tightened version of the note here;
     // the PDF and Word carry the full note (they have flowing pages).
     const shortLines = [
-      "This is a detailed Vedic analysis with some traditional terms (planets, houses, D1/D9/D10). You do NOT need to understand every word to get the value.",
-      "First pass: read the plain-language parts — 'What This Means For You', 'Timing', 'The Bottom Line'. Second pass: revisit the detail for the 'why'. Take your time — it deepens as you return to it.",
+      "This is a detailed Vedic reading. It names a few traditional terms (planets, houses, D1/D9/D10), but you never need to understand them — the meaning is always written in plain words.",
+      "Read it straight through: the plain text carries the insight, and the small gold 'Why this reading' boxes hold the chart detail underneath — skip them unless you're curious. Each section ends with a short theme to carry with you.",
+      "Where two or three charts independently agree, the signal is most reliable. Take your time — it deepens as you return to it.",
       "Prefer your own language? Download as WORD, then upload it at translate.google.co.in → Documents (on a phone, switch Chrome to 'Desktop site' first) — Google returns a translated copy.",
       "A mirror for reflection, not a verdict. Read it gently."
     ];
