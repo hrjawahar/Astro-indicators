@@ -146,6 +146,25 @@ const SAMPLES = {
     },
   },
 
+  // Transit Report sample — a representative chart in Sade Sati, used as the free
+  // hook on the Saturn card. The locked teaser names all five slow planets.
+  transit: {
+    EN: {
+      title: "Sample · Saturn Transit & Road Ahead",
+      example: "Example chart · Aquarius Moon · born 2 Feb 1985, 18:20, Hyderabad",
+      blocks: [
+        ["Saturn — your current phase", "Saturn is transiting Pisces, the 2nd sign from this Aquarius Moon — the closing (setting) phase of a 7.5-year Sade Sati running to mid-2027. In this chart the sign carries 4 of 8 strength points: demanding but workable. The themes are finances, family duty and settling what has built up; the pace is steadier than the peak, with a pull to consolidate and simplify."],
+        ["Jupiter — this year's support", "Jupiter transits the 5th from the Moon through 2026 — a warm, opening influence on learning, children, creativity and good counsel. Where Saturn asks for discipline, Jupiter offers relief and a sense of growth to balance it."],
+        ["Mars, Rahu & Ketu — the shorter triggers", "Mars crosses the 10th from the Moon in spring 2026, a brief burst of drive and visibility at work. The Rahu–Ketu axis sits across the 3rd and 9th, pulling between bold new ventures and settled beliefs — felt most strongly around the mid-year eclipses."],
+        ["What you'll notice & how to work with it", "Expect a year that asks you to finish rather than start, with money and family to the fore and quiet progress underneath. Keep commitments realistic, protect rest, and use Jupiter's lighter window for the moves that need optimism."],
+      ],
+      locked: {
+        label: "🔓 Your full Transit Report unlocks:",
+        teaser: "The complete road ahead for YOUR Moon — Saturn, Jupiter, Mars, Rahu and Ketu — with exact dates and your chart's own strength score for each window · your Sade Sati phase by phase · what you will feel, notice and observe in each period · practical guidance for the months ahead · and how every transit reconciles with your current Dasha. In your language, as a downloadable PDF.",
+      },
+    },
+  },
+
 };
 
 if (typeof window !== "undefined") window.SAMPLES = SAMPLES;

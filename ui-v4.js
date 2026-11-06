@@ -315,6 +315,9 @@ const CONSULT_CONFIG = {
       modalBody.innerHTML = html;
       modal.style.display = "flex";
     }
+    // Expose so dynamically-rendered cards (e.g. the Saturn transit card) can
+    // open a sample without relying on load-time [data-sample] wiring.
+    window.AI_openSample = renderSample;
 
     document.querySelectorAll("[data-sample]").forEach(function (btn) {
       btn.addEventListener("click", function (e) {

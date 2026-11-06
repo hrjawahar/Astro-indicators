@@ -104,6 +104,10 @@
       const bodyHtml = (sections||[]).map(sec=>{
         if(sec._divider){ return `<h1 style="color:#8a6d1f;border-bottom:2px solid #c9a84c;padding-bottom:4px;margin-top:28px">${esc4doc(sec.heading||"")}</h1>`; }
         const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(p=>{
+          if(p.indexOf("★ ")===0){
+            const th = esc4doc(p.slice(2)).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+            return `<p style="margin:12px 0 10px;text-align:left"><span style="font-size:8.5pt;font-weight:bold;letter-spacing:.08em;color:#b0821f">★ THEME TO HOLD &nbsp;</span><span style="font-weight:bold;font-size:11.5pt;color:#3c3014">${th}</span></p>`;
+          }
           const html = esc4doc(p).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
           return `<p style="margin:0 0 10px;line-height:1.5;text-align:left">${html}</p>`;
         }).join("");
@@ -387,6 +391,18 @@
         </div>
         <button class="pp-pay" data-domain-buy="all" style="flex:0 0 auto">₹${bundlePrice}</button>
       </div>`;
+    // Saturn & Planetary Transit Report — highlighted so buyers arriving from the
+    // Saturn card's "Unlock my full report" know exactly which one to choose.
+    const transitPrice = P("transit_report", 299);
+    const transitCard = `
+      <div class="icc-pick" id="transitDomainCard" data-domain="transit" style="border:1.5px solid #2e7dff;background:rgba(46,125,255,.07)">
+        <div class="icc-num" style="color:#2e7dff">♄</div>
+        <div style="flex:1">
+          <div class="icc-q">Saturn &amp; Planetary Transit Report <span style="background:#2e7dff;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.03em">TRANSIT</span></div>
+          <span class="icc-hint">Your live road ahead — Saturn (Sade Sati), Jupiter, Mars, Rahu &amp; Ketu — with dates, your chart's strength for each window, and what you'll feel and notice.</span>
+        </div>
+        <button class="pp-pay" data-domain-buy="transit" style="flex:0 0 auto">₹${transitPrice}</button>
+      </div>`;
     const _dc = window._ai_disc || "";
     const discWidget = `
       <div class="ai-disc-wrap" style="border:1px dashed rgba(201,168,76,.55);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:rgba(201,168,76,.05)">
@@ -405,17 +421,289 @@
           <span class="icc-hint">${esc(DOMAIN_BLURB[k]||"")}</span>
         </div>
         <button class="pp-pay" data-domain-buy="${k}" style="flex:0 0 auto">\u20B9${P(DOMAIN_ITEM(k),750)}</button>
-      </div>`).join("");
+      </div>`).join("") + transitCard;
     wireDiscountWidget(wrap);
     wrap.querySelectorAll("[data-domain-buy]").forEach(btn => {
       const k = btn.getAttribute("data-domain-buy");
-      if (k === "all") {
+      if (k === "transit") {
+        btn.onclick = () => payThenRun("transit_report", transitPrice, "Saturn & Planetary Transit Report", () => openTransitReport());
+      } else if (k === "all") {
         btn.onclick = () => payThenRun("domain_all", bundlePrice, "All Seven Domains — Complete Blueprint", () => openAllDomainsReport());
       } else {
         btn.onclick = () => payThenRun(DOMAIN_ITEM(k), P(DOMAIN_ITEM(k),750),
           DOMAIN_LABELS[k] + " Blueprint", () => openDomainReport(k));
       }
     });
+  }
+
+  // ── Transit Report (inline, like the domain reports) ───────────────────────
+  // Generated fresh each time (transit content is perishable; never cached), with
+  // PDF + Word download — Word enables the Google-Translate path for any language,
+  // the same model as every paid report.
+  // Paginate transit sections into flipbook pages (same page classes/budget as the
+  // domain flipbook, with a transit cover and closing note; no domain comparison).
+  function transitSectionsToPages(sections, facts) {
+    const f0 = (window.currentData && window.currentData.form) || {};
+    const title = "Saturn & Planetary Transit Report";
+    const P = [];
+    P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
+      <div class="seal">◈</div>
+      <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
+      <div class="kick" style="color:var(--ai-gold)">Transit Report</div>
+      <h1>${esc(title)}</h1>
+      <div class="cover-sub">Your road ahead — Saturn, Jupiter, Mars, Rahu &amp; Ketu</div>
+      <div class="cover-meta" style="margin-top:14px;opacity:.85">${esc(facts.moonSign||"")} Moon · as of ${esc(facts.asOf||"")} (${esc(facts.tzLabel||"")})</div>
+      </div></div>`);
+    const _cc = clientCode();
+    P.push(`<div class="pg"><div class="kick">Birth Details</div><div class="rule"></div>
+      <ul class="toc bdl">
+        <li><b>Name</b><i>${esc(f0.name||"—")}</i></li>
+        <li><b>Date of birth</b><i>${esc(f0.dob||"—")}</i></li>
+        <li><b>Time of birth</b><i>${esc(f0.tob?f0.tob+" (24-hr)":"—")}</i></li>
+        <li><b>Place</b><i>${esc(f0.place||"—")}</i></li>
+        ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
+      </ul>
+      <span class="pnum">2</span></div>`);
+    P.push(`<div class="pg"><div class="kick">How to Read This</div><div class="rule"></div>
+      <h2 style="font-size:1.28rem">How to read your Transit Report</h2>
+      <div class="bd" style="font-size:.95rem;line-height:1.62">
+        <p style="margin:0 0 10px;font-weight:600;color:#8a6d1f;font-size:1rem">This report tracks where the slow planets are moving now — Saturn (your headline, including Sade Sati), and Jupiter, Mars, Rahu and Ketu — all read from your Moon sign, and what they mean for the period ahead.</p>
+        <p style="margin:0 0 8px">Each section is written in <b>two parts</b>, so you never need to know astrology to get the value:</p>
+        <p style="margin:0 0 6px"><b>The meaning</b> — plain, everyday language: what this period tends to bring to your life and what helps. Read this straight through.</p>
+        <div style="margin:4px 0 12px;padding:8px 12px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">
+          <div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#8a6d1f;margin-bottom:3px">Why this reading</div>
+          <div style="font-size:12.5px;opacity:.85;line-height:1.5">a highlighted block like this gives the chart reasons behind the meaning — the planet, sign, house and strength. Read it for the "why", or skip it; the meaning stands on its own.</div>
+        </div>
+        <p style="margin:0 0 8px">Transit always works <b>under your current Dasha</b> (life period): it fine-tunes the timing of what your chart and running period already allow — it never overrides them. Sade Sati and the demanding passages are about <b>maturation and responsibility, not misfortune</b>. Dates are approximate and shift slightly with retrograde motion.</p>
+        <p style="margin:0 0 8px"><b>This report keeps pace with the sky.</b> The planets move on, so it reflects the transits as of the date on its cover — it is worth re-reading the current version from time to time, as each new window opens.</p>
+        <p style="margin:0 0 8px">Prefer your own language? Download as <b>Word</b>, then upload it at translate.google.co.in → Documents — Google returns a translated copy.</p>
+        <p style="margin:0">A mirror for reflection, not a verdict. Read it gently.</p>
+      </div>
+      <span class="pnum">3</span></div>`);
+    let n = 4;
+    const PAGE_BUDGET = 1050;
+    const PAGE_LINES = 19;   // content "line units" that comfortably fit a flipbook page
+    const lineCost = (p) => {
+      if (p.indexOf("### ") === 0) return 2.0;                                              // sub-heading
+      if (p.indexOf("» ") === 0) return 1.0;                                            // why line
+      if (p.indexOf("- ") === 0) return Math.max(1, Math.ceil((p.length - 2) / 58)) + 0.4;  // bullet
+      if (p.indexOf("★ ") === 0) return 1.8;                                                // theme pill (with spacing)
+      return Math.max(1, Math.ceil(p.length / 58)) + 0.7;                                   // paragraph
+    };
+    const emitSection = (sec) => {
+      const heading = esc(sec.heading||"");
+      const srcParas = String(sec.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+      if (!srcParas.length) return;   // skip empty sections — no blank pages
+      // Height-aware packing: fill a page up to PAGE_LINES, and never leave a
+      // sub-heading stranded at the bottom — carry it to the next page with its content.
+      const chunksArr = []; let curArr = [], curCost = 0, whyOpen = false;
+      for (const p of srcParas) {
+        let cost = lineCost(p);
+        const isWhy = p.indexOf("» ") === 0;
+        if (isWhy && !whyOpen) cost += 1.4;   // "Why this reading" box overhead
+        if (curArr.length && curCost + cost > PAGE_LINES) {
+          const carry = [];
+          while (curArr.length && curArr[curArr.length - 1].indexOf("### ") === 0) carry.unshift(curArr.pop());
+          if (curArr.length) chunksArr.push(curArr);
+          curArr = carry.concat([p]);
+          curCost = carry.reduce((a, x) => a + lineCost(x), 0) + cost;
+        } else { curArr.push(p); curCost += cost; }
+        whyOpen = isWhy;
+      }
+      if (curArr.length) chunksArr.push(curArr);
+      if (!chunksArr.length) return;
+      const chunks = chunksArr.map(a => a.join("\n\n"));
+      const many = chunks.length > 1;
+      chunks.forEach((chunk, ci) => {
+        const contHead = ci===0 ? heading : heading + (many ? " <span style=\"opacity:.55;font-size:.75em\">(continued)</span>" : "");
+        // Plain-meaning paragraphs read normally; chart-technical notes (lines the
+        // writer marks with "» ") are set apart as muted italics for readability.
+        const paras = String(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
+        const mk = (x) => esc(x).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+        let bodyHtml = "", techBuf = [], ulBuf = [];
+        const flushWhy = () => {
+          if (!techBuf.length) return;
+          bodyHtml += `<div style="margin:10px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">`
+            + `<div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ai-gold,#b0821f);margin-bottom:4px">Why this reading</div>`
+            + techBuf.map(t => `<div style="font-size:12.5px;opacity:.85;line-height:1.5;margin:3px 0">${t}</div>`).join("")
+            + `</div>`;
+          techBuf = [];
+        };
+        const flushUl = () => {
+          if (!ulBuf.length) return;
+          bodyHtml += `<ul style="margin:6px 0 10px;padding-left:20px">` + ulBuf.map(li => `<li style="margin:4px 0;line-height:1.55">${li}</li>`).join("") + `</ul>`;
+          ulBuf = [];
+        };
+        paras.forEach(p => {
+          if (p.indexOf("» ") === 0) { flushUl(); techBuf.push(mk(p.slice(2))); }
+          else if (p.indexOf("### ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:1.03em;margin:13px 0 3px">${mk(p.slice(4))}</div>`; }
+          else if (p.indexOf("- ") === 0) { flushWhy(); ulBuf.push(mk(p.slice(2))); }
+          else if (p.indexOf("★ ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="margin:14px 0 6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ai-gold,#b0821f);opacity:.85">★ Theme to hold</span><span style="display:inline-block;padding:5px 13px;border-radius:999px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);font-weight:700;font-size:1.0em;color:inherit">${mk(p.slice(2))}</span></div>`; }
+          else { flushWhy(); flushUl(); bodyHtml += `<p style="margin:8px 0">${mk(p)}</p>`; }
+        });
+        flushWhy(); flushUl();
+        P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
+          <h2>${contHead}</h2>
+          <div class="bd">${bodyHtml}</div>
+          <span class="pnum">${n++}</span></div>`);
+      });
+    };
+    sections.forEach(emitSection);
+    const disc = "This transit reading offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes. Transit always works under your current Dasha; read it alongside your running periods, and against your own lived experience.";
+    P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
+      <h2 style="font-size:1.05em">A note on this reading</h2>
+      <div class="bd" style="opacity:.82;font-size:.95em">${esc(disc)}</div>
+      ${_cc ? `<div class="closing" style="margin-top:14px">Your Client ID<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>` : ""}
+      <span class="pnum">${n++}</span></div>`);
+    return P;
+  }
+
+  function renderTransitFlipbook(host, sections, facts) {
+    const P = transitSectionsToPages(sections, facts);
+    _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
+    host.innerHTML = `
+      <div class="stage"><div class="book" id="fbBook">
+        <div class="page" id="fbStatic"></div>
+        <div class="leaf" id="fbLeaf">
+          <div class="leaf-face" id="fbLeafFront"></div>
+          <div class="leaf-face leaf-back" id="fbLeafBack"></div>
+          <div class="shade" id="fbShade"></div>
+        </div></div></div>
+      <div class="controls"><button class="fb-nav" id="fbPrev">‹</button>
+        <div class="dots" id="fbDots"></div>
+        <button class="fb-nav" id="fbNext">›</button></div>
+      <div class="hint">Swipe, use ← → keys, or tap the dots</div>
+      <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
+        ${downloadDropdownHTML()}</div>`;
+    bindBook();
+    bookRender();
+    wireDownloadDropdown(
+      () => exportTransitPDF(sections, facts),
+      () => {
+        // Word goes through Google Translate — make the "» " technical notes read
+        // as a plain dash prefix rather than the on-screen marker.
+        const wsec = sections.map(s => ({ heading: s.heading, body: String(s.body || "").replace(/^»\s+/gm, "— ").replace(/^###\s+/gm, "") }))
+          .concat([{ heading: "A closing note", body: "Transit always works under your current Dasha — read this alongside your running periods, and above all against your own lived experience. Because the planets keep moving, this report reflects the sky as of its date; it is worth re-reading as each new window opens." }]);
+        exportWordDoc("AstroIndicators_Transit_" + ((clientCode() || "report").replace(/[^a-z0-9]/gi, "_")),
+          "Saturn & Planetary Transit Report", "Your transit road ahead — " + (facts.moonSign||"") + " Moon, as of " + (facts.asOf||""), wsec);
+      }
+    );
+    const fsBtn = $("fbFull");
+    if (fsBtn) fsBtn.onclick = () => {
+      const box = $("domainReport"); if (!box) return;
+      if (document.fullscreenElement) { document.exitFullscreen(); return; }
+      if (box.requestFullscreen) { box.classList.add("fb-fs"); box.requestFullscreen().catch(()=>{}); }
+    };
+    if (!window._aiDomFsBound) { window._aiDomFsBound = true;
+      document.addEventListener("fullscreenchange", () => {
+        const box = $("domainReport"); if (!box) return;
+        if (!document.fullscreenElement) box.classList.remove("fb-fs");
+        try { bookRender(); } catch (e) {}
+      });
+    }
+    try { requestAnimationFrame(function(){ var bar=document.querySelector("#domainReport .fb-dlbar"); if(bar) bar.scrollIntoView({behavior:"smooth",block:"center"}); }); } catch(e){}
+  }
+
+  async function openTransitReport() {
+    const host = $("domainReport"); if (!host) return;
+    host.innerHTML = `<div class="pp-empty">Preparing your Transit Report — reading Saturn, Jupiter, Mars, Rahu &amp; Ketu against your chart…<br><span style="opacity:.7">about 20–40 seconds · please don't refresh</span></div>`;
+    try { host.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (_) {}
+    let facts = null;
+    try { facts = window.AI_transitFacts && window.AI_transitFacts(); } catch (e) {}
+    if (!facts) { host.innerHTML = `<div class="pp-empty">Please generate your chart first (Birth Data tab), then try again.</div>`; return; }
+    try {
+      const res = await fetch("/api/transit-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ facts }) });
+      const data = await res.json();
+      if (!data.success || !Array.isArray(data.sections) || !data.sections.length) throw new Error(data.error || "No report was returned.");
+      renderTransitFlipbook(host, data.sections, facts);
+    } catch (e) {
+      host.innerHTML = `<div class="pp-empty">Couldn't generate the report: ${esc(String(e.message || e))}<br>Please try again in a moment.</div>`;
+    }
+  }
+
+  // Centred "N of M" footer on every page of a jsPDF doc.
+  function addPdfPageNumbers(doc) {
+    try {
+      const pc = doc.internal.getNumberOfPages();
+      const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
+      for (let i = 1; i <= pc; i++) {
+        doc.setPage(i);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(150, 150, 158);
+        doc.text(i + " of " + pc, pw / 2, ph - 22, { align: "center" });
+      }
+    } catch (_) {}
+  }
+
+  function exportTransitPDF(sections, facts) {
+    if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
+    const jsPDF = window.jspdf.jsPDF;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 48;
+    let y = M;
+    const kbreak = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(30, 30, 40);
+    doc.text("Saturn & Planetary Transit Report", M, y); y += 24;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(120, 120, 130);
+    doc.text("For " + (facts.moonSign || "") + " Moon  |  as of " + (facts.asOf || "") + " (" + (facts.tzLabel || "") + ")", M, y); y += 22;
+    sections.forEach(s => {
+      kbreak(34);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
+      const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
+      const lines = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1").split("\n");
+      let inWhy = false;
+      lines.forEach(para => {
+        const t = para.trim();
+        if (!t) { if (!inWhy) y += 5; return; }
+        const tech = t.indexOf("» ") === 0;
+        const sub = t.indexOf("### ") === 0;
+        const bull = t.indexOf("- ") === 0;
+        const theme = t.indexOf("★ ") === 0;
+        if (theme) {
+          inWhy = false;
+          kbreak(26);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
+          doc.text("THEME TO HOLD", M, y); y += 12;
+          doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(60, 48, 20);
+          const Lt = doc.splitTextToSize(t.slice(2), W - M * 2); doc.text(Lt, M, y); y += Lt.length * 15 + 8;
+          return;
+        }
+        if (tech && !inWhy) {
+          kbreak(22);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
+          doc.text("WHY THIS READING", M, y); y += 12; inWhy = true;
+        }
+        if (!tech) inWhy = false;
+        if (sub) {
+          kbreak(22);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(150, 120, 40);
+          const Lh = doc.splitTextToSize(t.slice(4), W - M * 2); doc.text(Lh, M, y); y += Lh.length * 15 + 4;
+          return;
+        }
+        const text = tech ? t.slice(2) : (bull ? t.slice(2) : t);
+        if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(110, 110, 120); }
+        else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
+        const indent = tech ? 14 : (bull ? 12 : 0);
+        const L = doc.splitTextToSize((bull ? "• " : "") + text, W - M * 2 - indent);
+        kbreak(L.length * 14 + 6); doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
+      });
+      y += 6;
+    });
+    kbreak(48);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(150, 120, 40);
+    doc.text("A note on this reading", M, y); y += 15;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(95, 95, 105);
+    const closeTxt = "Transit always works under your current Dasha — read this alongside your running periods, and above all against your own lived experience, which is the truest test of any reading. Because the planets keep moving, this report reflects the sky as of the date above; it is worth re-reading as each new window opens.";
+    const cL = doc.splitTextToSize(closeTxt, W - M * 2); kbreak(cL.length * 13 + 12); doc.text(cL, M, y); y += cL.length * 13 + 12;
+    kbreak(30);
+    doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(140, 140, 150);
+    doc.text(doc.splitTextToSize("Educational guidance for self-reflection, not a prediction or professional advice.  © AstroIndicators · astroindicators.com", W - M * 2), M, y);
+    addPdfPageNumbers(doc);
+    const safe = ((clientCode && clientCode()) || "report").replace(/[^a-z0-9]/gi, "_");
+    try {
+      const blob = doc.output("blob"); const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "AstroIndicators_Transit_" + safe + ".pdf";
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    } catch (e) { doc.save("AstroIndicators_Transit_" + safe + ".pdf"); }
   }
 
   // All-Domains bundle: generate/fetch all 7 domains and render one combined book.

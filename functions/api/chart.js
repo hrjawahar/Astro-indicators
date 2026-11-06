@@ -814,6 +814,41 @@ function computeChandrashtama(natalMoonSidLon, nowJD, months, tzOffset) {
 //    4th from Moon  = Kantaka Shani · 8th = Ashtama Shani
 //    3rd/6th/11th   = favourable (upachaya) · 5/7/9/10 = neutral-mixed
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  ASHTAKAVARGA — Bhinnashtakavarga (BAV) per planet + Sarvashtakavarga (SAV).
+//  Standard Parashari (BPHS) benefic-place tables: for planet P, each reference
+//  R (the 7 planets + Lagna) contributes a bindu to the houses listed, counted
+//  FROM R's natal sign. A transiting planet moving through a sign with MANY of
+//  its own bindus gives strong results; few bindus, weak. Validated: each BAV
+//  sums to its canonical total (Sun 48, Moon 49, Mars 39, Mercury 54, Jupiter
+//  56, Venus 52, Saturn 39) and SAV totals 337 for any chart.
+// ─────────────────────────────────────────────────────────────────────────────
+const AV_REFS = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Lagna"];
+const AV_BINDU = {
+  Sun:     { Sun:[1,2,4,7,8,9,10,11], Moon:[3,6,10,11], Mars:[1,2,4,7,8,9,10,11], Mercury:[3,5,6,9,10,11,12], Jupiter:[5,6,9,11], Venus:[6,7,12], Saturn:[1,2,4,7,8,9,10,11], Lagna:[3,4,6,10,11,12] },
+  Moon:    { Sun:[3,6,7,8,10,11], Moon:[1,3,6,7,10,11], Mars:[2,3,5,6,9,10,11], Mercury:[1,3,4,5,7,8,10,11], Jupiter:[1,4,7,8,10,11,12], Venus:[3,4,5,7,9,10,11], Saturn:[3,5,6,11], Lagna:[3,6,10,11] },
+  Mars:    { Sun:[3,5,6,10,11], Moon:[3,6,11], Mars:[1,2,4,7,8,10,11], Mercury:[3,5,6,11], Jupiter:[6,10,11,12], Venus:[6,8,11,12], Saturn:[1,4,7,8,9,10,11], Lagna:[1,3,6,10,11] },
+  Mercury: { Sun:[5,6,9,11,12], Moon:[2,4,6,8,10,11], Mars:[1,2,4,7,8,9,10,11], Mercury:[1,3,5,6,9,10,11,12], Jupiter:[6,8,11,12], Venus:[1,2,3,4,5,8,9,11], Saturn:[1,2,4,7,8,9,10,11], Lagna:[1,2,4,6,8,10,11] },
+  Jupiter: { Sun:[1,2,3,4,7,8,9,10,11], Moon:[2,5,7,9,11], Mars:[1,2,4,7,8,10,11], Mercury:[1,2,4,5,6,9,10,11], Jupiter:[1,2,3,4,7,8,10,11], Venus:[2,5,6,9,10,11], Saturn:[3,5,6,12], Lagna:[1,2,4,5,6,7,9,10,11] },
+  Venus:   { Sun:[8,11,12], Moon:[1,2,3,4,5,8,9,11,12], Mars:[3,5,6,9,11,12], Mercury:[3,5,6,9,11], Jupiter:[5,8,9,10,11], Venus:[1,2,3,4,5,8,9,10,11], Saturn:[3,4,5,8,9,10,11], Lagna:[1,2,3,4,5,8,9,11] },
+  Saturn:  { Sun:[1,2,4,7,8,10,11], Moon:[3,6,11], Mars:[3,5,6,10,11,12], Mercury:[6,8,9,10,11,12], Jupiter:[5,6,11,12], Venus:[6,11,12], Saturn:[3,5,6,11], Lagna:[1,3,4,6,10,11] }
+};
+// signIdx = { Sun:0-11, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Lagna }.
+function computeAshtakavarga(signIdx) {
+  const bav = {}, sav = new Array(12).fill(0);
+  for (const P of Object.keys(AV_BINDU)) {
+    const row = new Array(12).fill(0);
+    for (const R of AV_REFS) {
+      const rs = signIdx[R];
+      if (rs == null) continue;
+      for (const h of AV_BINDU[P][R]) row[(rs + h - 1) % 12]++;
+    }
+    bav[P] = row;
+    for (let s = 0; s < 12; s++) sav[s] += row[s];
+  }
+  return { bav, sav };
+}
+
 const SAT_SIGNS = CH_SIGNS;
 function satSidLonAtJD(JD) {
   const T = (JD - 2451545.0) / 36525;
@@ -874,7 +909,7 @@ const SAT_MEANING = {
   11: "Saturn in the 11th from your Moon - favourable: gains, fulfilment of goals and income through persistence."
 };
 
-function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) {
+function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, av, birthJD) {
   const tz = (tzOffset == null) ? 5.5 : tzOffset;
   const M = Math.floor(norm360(natalMoonSidLon) / 30);
   const L = Math.floor(norm360(natalAscSidLon) / 30);
@@ -882,6 +917,24 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
 
   const houseFromMoon  = (s) => ((s - M + 12) % 12) + 1;
   const houseFromLagna = (s) => ((s - L + 12) % 12) + 1;
+
+  // Age (whole years) the native is at a given transit date — for year-wise reading.
+  const ageAt = (jd) => (birthJD == null) ? null : Math.max(0, Math.floor((jd - birthJD) / 365.25));
+  // How many years ahead a period begins, and whether it is near enough to detail
+  // in full or far enough to summarise (keeps a report readable when the next big
+  // Saturn passage is decades away).
+  const yearsAway = (jd) => Math.round((jd - nowJD) / 365.25);
+  const horizonOf = (jd) => (yearsAway(jd) > 12 ? "far" : "near");
+  // Saturn's special 3rd/7th/10th aspects from ANY sign s → which houses-from-Moon
+  // it also influences during that passage.
+  const aspectsOf = (s) => [2, 6, 9].map(off => { const t = (s + off) % 12; return { sign: SAT_SIGNS[t], houseFromMoon: houseFromMoon(t) }; });
+
+  // Ashtakavarga transit strength: Saturn's own bindus (0-8) in the transited
+  // sign. 5+ = strong/supported, 4 = moderate, <=3 = demanding.
+  const satBav = (av && av.bav && av.bav.Saturn) || null;
+  const savArr = (av && av.sav) || null;
+  const binduOf = (s) => satBav ? satBav[s] : null;
+  const strengthLabel = (b) => (b == null) ? null : (b >= 5 ? "strong" : b === 4 ? "moderate" : "demanding");
 
   const cur = runs.find(r => r.start <= nowJD && nowJD < r.end) || runs[runs.length - 1];
   const curHouse = houseFromMoon(cur.sign);
@@ -908,7 +961,7 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
   const ashtama = nextRunOfSign(ashtamaSign);
 
   // Saturn's special aspects: 3rd, 7th, 10th from its current sign.
-  const aspects = [2, 6, 9].map(off => { const s = (cur.sign + off) % 12; return { sign: SAT_SIGNS[s], houseFromMoon: houseFromMoon(s) }; });
+  const aspects = aspectsOf(cur.sign);
 
   return {
     tzLabel: tz === 5.5 ? "IST" : ("UTC" + (tz >= 0 ? "+" : "") + tz),
@@ -923,6 +976,10 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
       meaning: SAT_MEANING[curHouse],
       since: satFullDate(cur.start, tz), sinceMonth: satMonthYear(cur.start, tz),
       until: satFullDate(cur.end, tz),   untilMonth: satMonthYear(cur.end, tz),
+      ageStart: ageAt(cur.start), ageEnd: ageAt(cur.end),
+      bindu: binduOf(cur.sign),
+      savBindu: savArr ? savArr[cur.sign] : null,
+      strength: strengthLabel(binduOf(cur.sign)),
       aspects
     },
     sadeSati: arc ? {
@@ -930,15 +987,136 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset) 
       startJD: arc.r12.start,
       start: satMonthYear(arc.r12.start, tz),
       end:   satMonthYear(arc.r2.end, tz),
+      ageStart: ageAt(arc.r12.start), ageEnd: ageAt(arc.r2.end),
+      yearsAway: yearsAway(arc.r12.start), horizon: horizonOf(arc.r12.start),
       phases: [
-        { name: "Rising (12th from Moon)",  sign: SAT_SIGNS[sign12], start: satMonthYear(arc.r12.start, tz), end: satMonthYear(arc.r12.end, tz), isCurrent: curHouse === 12 },
-        { name: "Peak (over the Moon)",      sign: SAT_SIGNS[sign1],  start: satMonthYear(arc.r1.start, tz),  end: satMonthYear(arc.r1.end, tz),  isCurrent: curHouse === 1 },
-        { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  isCurrent: curHouse === 2 }
+        { name: "Rising (12th from Moon)",  sign: SAT_SIGNS[sign12], houseFromMoon: 12, start: satMonthYear(arc.r12.start, tz), end: satMonthYear(arc.r12.end, tz), ageStart: ageAt(arc.r12.start), ageEnd: ageAt(arc.r12.end), isCurrent: curHouse === 12, bindu: binduOf(sign12), strength: strengthLabel(binduOf(sign12)), aspects: aspectsOf(sign12) },
+        { name: "Peak (over the Moon)",      sign: SAT_SIGNS[sign1],  houseFromMoon: 1,  start: satMonthYear(arc.r1.start, tz),  end: satMonthYear(arc.r1.end, tz),  ageStart: ageAt(arc.r1.start),  ageEnd: ageAt(arc.r1.end),  isCurrent: curHouse === 1,  bindu: binduOf(sign1),  strength: strengthLabel(binduOf(sign1)),  aspects: aspectsOf(sign1) },
+        { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  houseFromMoon: 2,  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  ageStart: ageAt(arc.r2.start),  ageEnd: ageAt(arc.r2.end),  isCurrent: curHouse === 2,  bindu: binduOf(sign2),  strength: strengthLabel(binduOf(sign2)),  aspects: aspectsOf(sign2) }
       ]
     } : null,
-    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end } : null,
-    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end } : null
+    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], houseFromMoon: 4, startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), ageStart: ageAt(kantaka.start), ageEnd: ageAt(kantaka.end), yearsAway: yearsAway(kantaka.start), horizon: horizonOf(kantaka.start), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end, bindu: binduOf(kantakaSign), strength: strengthLabel(binduOf(kantakaSign)), aspects: aspectsOf(kantakaSign) } : null,
+    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], houseFromMoon: 8, startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), ageStart: ageAt(ashtama.start), ageEnd: ageAt(ashtama.end), yearsAway: yearsAway(ashtama.start), horizon: horizonOf(ashtama.start), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end, bindu: binduOf(ashtamaSign), strength: strengthLabel(binduOf(ashtamaSign)), aspects: aspectsOf(ashtamaSign) } : null
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  GENERAL GOCHARA (transit) for the other slow planets — Jupiter, Mars, Rahu,
+//  Ketu — read from the natal Moon (primary) and Lagna (secondary). Simpler than
+//  Saturn (no Sade Sati phases): current sign, the window it occupies, the next
+//  sign, this planet's special aspects, and Ashtakavarga strength where it exists
+//  (Jupiter, Mars; the nodes have no Ashtakavarga). Direction-agnostic, so it
+//  handles the always-retrograde nodes and ordinary retrograde loops alike.
+//    aspectOffsets: 0-indexed house offsets of the planet's full aspects
+//      Jupiter 5/7/9 = [4,6,8] · Mars 4/7/8 = [3,6,7] · Rahu/Ketu 7th = [6]
+// ─────────────────────────────────────────────────────────────────────────────
+function computeGochara(posFn, aspectOffsets, bavKey, M, L, nowJD, tz, av) {
+  const sidLon = (JD) => { const T = (JD - 2451545.0) / 36525; return norm360(toSidereal(posFn(T).longitude, lahiriAyanamsha(JD))); };
+  const signAt = (JD) => Math.floor(sidLon(JD) / 30);
+  // Boundary time where the sign leaves signIn, between a point in signIn and one not.
+  const crossTimeSign = (tIn, tOut, signIn) => {
+    let a = tIn, b = tOut;
+    for (let i = 0; i < 50; i++) { const m = (a + b) / 2; if (signAt(m) === signIn) a = m; else b = m; }
+    return (a + b) / 2;
+  };
+  // SANDHI (cusp) handling: if the planet has only just stepped into a new sign
+  // (< ~2°) and will retrograde back into the PREVIOUS sign within a few months,
+  // it is still effectively transiting that previous sign. Anchor the reading
+  // there, so the window reads as ONE clean, past-anchored passage (≈ the planet's
+  // normal dwell) rather than a confusing graze that spans two retrograde loops.
+  let anchorJD = nowJD;
+  {
+    const sNow = signAt(nowJD);
+    const degIn = sidLon(nowJD) - sNow * 30;         // degrees into the current sign
+    const prev = (sNow + 11) % 12;
+    if (degIn < 2 && signAt(nowJD - 25) === prev) {
+      let dipsBack = false;
+      for (let j = 10; j <= 150; j += 5) { if (signAt(nowJD + j) === prev) { dipsBack = true; break; } }
+      if (dipsBack) anchorJD = nowJD - 25;           // read from the sign it is about to return to
+    }
+  }
+  const s0 = signAt(anchorJD);
+  // NET window of the anchored sign — the FULL span the planet occupies this sign,
+  // bridging brief retrograde dips out and back, so the dates show the ACTUAL
+  // single passage (the "since" is usually well in the past, for flashing back).
+  const RET = 120; // days: a dip shorter than this (a retrograde wobble) is bridged; a longer stay in another sign is its own transit, not a dip
+  const returnsWithin = (fromJD, dir) => { for (let j = 4; j <= RET; j += 4) if (signAt(fromJD + dir * j) === s0) return true; return false; };
+  let untilJD = anchorJD + 4000, nextSign = (s0 + 1) % 12;
+  { let lastIn = anchorJD;
+    for (let i = 1; i <= 4000; i++) {
+      const JD = anchorJD + i;
+      if (signAt(JD) === s0) { lastIn = JD; continue; }
+      if (returnsWithin(JD, +1)) { let k = JD + 4; while (k < JD + RET && signAt(k) !== s0) k += 4; i = Math.round(k - anchorJD); lastIn = k; continue; }
+      untilJD = crossTimeSign(lastIn, JD, s0); nextSign = signAt(JD); break;
+    }
+  }
+  let sinceJD = anchorJD - 4000;
+  { let firstIn = anchorJD;
+    for (let i = 1; i <= 4000; i++) {
+      const JD = anchorJD - i;
+      if (signAt(JD) === s0) { firstIn = JD; continue; }
+      if (returnsWithin(JD, -1)) { let k = JD - 4; while (k > JD - RET && signAt(k) !== s0) k -= 4; i = Math.round(anchorJD - k); firstIn = k; continue; }
+      sinceJD = crossTimeSign(firstIn, JD, s0); break;
+    }
+  }
+
+  const houseFromMoon = ((s0 - M + 12) % 12) + 1;
+  const houseFromLagna = ((s0 - L + 12) % 12) + 1;
+  const bav = (av && av.bav && bavKey && av.bav[bavKey]) || null;
+  const bindu = bav ? bav[s0] : null;
+  const strength = (bindu == null) ? null : (bindu >= 5 ? "strong" : bindu === 4 ? "moderate" : "demanding");
+  const aspects = aspectOffsets.map(off => { const s = (s0 + off) % 12; return { sign: SAT_SIGNS[s], houseFromMoon: ((s - M + 12) % 12) + 1 }; });
+
+  return {
+    sign: SAT_SIGNS[s0],
+    houseFromMoon, houseFromLagna,
+    since: satMonthYear(sinceJD, tz), until: satMonthYear(untilJD, tz),
+    nextSign: SAT_SIGNS[nextSign],
+    bindu, strength, aspects
+  };
+}
+
+// Mars moves fast (~45 days/sign, longer only when retrograde), so a single
+// current-sign window is too thin to be useful. This returns the CURRENT sign
+// plus the next few sign-transits as a short timeline the reader can plan around.
+function computeMarsSequence(posFn, aspectOffsets, bavKey, M, L, nowJD, tz, av, count) {
+  const sidLon = (JD) => { const T = (JD - 2451545.0) / 36525; return norm360(toSidereal(posFn(T).longitude, lahiriAyanamsha(JD))); };
+  const signAt = (JD) => Math.floor(sidLon(JD) / 30);
+  const crossTimeSign = (tIn, tOut, signIn) => { let a = tIn, b = tOut; for (let i = 0; i < 50; i++) { const m = (a + b) / 2; if (signAt(m) === signIn) a = m; else b = m; } return (a + b) / 2; };
+  const RET = 40; // Mars sits ~45d/sign; only a very brief wobble is the same occupancy
+  const occ = (anchorJD) => {
+    const s0 = signAt(anchorJD);
+    const back = (fromJD, dir) => { for (let j = 4; j <= RET; j += 4) if (signAt(fromJD + dir * j) === s0) return true; return false; };
+    let untilJD = anchorJD + 2000, nextSign = (s0 + 1) % 12;
+    { let lastIn = anchorJD;
+      for (let i = 1; i <= 2000; i++) { const JD = anchorJD + i; if (signAt(JD) === s0) { lastIn = JD; continue; }
+        if (back(JD, +1)) { let k = JD + 4; while (k < JD + RET && signAt(k) !== s0) k += 4; i = Math.round(k - anchorJD); lastIn = k; continue; }
+        untilJD = crossTimeSign(lastIn, JD, s0); nextSign = signAt(JD); break; } }
+    let sinceJD = anchorJD - 2000;
+    { let firstIn = anchorJD;
+      for (let i = 1; i <= 2000; i++) { const JD = anchorJD - i; if (signAt(JD) === s0) { firstIn = JD; continue; }
+        if (back(JD, -1)) { let k = JD - 4; while (k > JD - RET && signAt(k) !== s0) k -= 4; i = Math.round(anchorJD - k); firstIn = k; continue; }
+        sinceJD = crossTimeSign(firstIn, JD, s0); break; } }
+    return { s0, sinceJD, untilJD };
+  };
+  const out = [];
+  let cursor = nowJD;
+  for (let n = 0; n < count; n++) {
+    const o = occ(cursor);
+    const bav = (av && av.bav && bavKey && av.bav[bavKey]) || null;
+    const bindu = bav ? bav[o.s0] : null;
+    const strength = (bindu == null) ? null : (bindu >= 5 ? "strong" : bindu === 4 ? "moderate" : "demanding");
+    const aspects = aspectOffsets.map(off => { const s = (o.s0 + off) % 12; return { sign: SAT_SIGNS[s], houseFromMoon: ((s - M + 12) % 12) + 1 }; });
+    out.push({
+      sign: SAT_SIGNS[o.s0],
+      houseFromMoon: ((o.s0 - M + 12) % 12) + 1,
+      houseFromLagna: ((o.s0 - L + 12) % 12) + 1,
+      start: satMonthYear(o.sinceJD, tz), end: satMonthYear(o.untilJD, tz),
+      isCurrent: n === 0, retro: (o.untilJD - o.sinceJD) > 70, bindu, strength, aspects
+    });
+    cursor = o.untilJD + 10;
+  }
+  return out;
 }
 
 export async function onRequestPost(context) {
@@ -1058,16 +1236,45 @@ export async function onRequestPost(context) {
       chandrashtama = computeChandrashtama(sidPositions.Moon.longitude, nowJD, 12, 5.5);
     } catch (_) { chandrashtama = null; }
 
+    // Ashtakavarga (BAV + SAV) — feeds transit strength. Additive, never throws.
+    let ashtakavarga = null;
+    try {
+      const avSign = {};
+      for (const p of ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"]) {
+        avSign[p] = Math.floor(norm360(sidPositions[p].longitude) / 30);
+      }
+      avSign.Lagna = Math.floor(norm360(siderealASC) / 30);
+      ashtakavarga = computeAshtakavarga(avSign);
+    } catch (_) { ashtakavarga = null; }
+
     // Saturn transit (Gochara) — Sade Sati / Kantaka / Ashtama + road ahead for
-    // this native, from the current date. Additive, never throws.
+    // this native, from the current date, with Ashtakavarga strength. Never throws.
     let saturnTransit = null;
     try {
       const nowJD2 = dateToJulianDay(
         new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, new Date().getUTCDate(),
         new Date().getUTCHours(), new Date().getUTCMinutes(), 0
       );
-      saturnTransit = computeSaturnTransit(sidPositions.Moon.longitude, siderealASC, nowJD2, 5.5);
+      saturnTransit = computeSaturnTransit(sidPositions.Moon.longitude, siderealASC, nowJD2, 5.5, ashtakavarga, JD);
     } catch (_) { saturnTransit = null; }
+
+    // Jupiter / Mars / Rahu / Ketu transits (Gochara), from the same Moon & Lagna.
+    let transits = null;
+    try {
+      const M = Math.floor(norm360(sidPositions.Moon.longitude) / 30);
+      const L = Math.floor(norm360(siderealASC) / 30);
+      const nowJD3 = dateToJulianDay(
+        new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, new Date().getUTCDate(),
+        new Date().getUTCHours(), new Date().getUTCMinutes(), 0
+      );
+      const ketuFn = (T) => { const r = rahuPosition(T); return { longitude: r.longitude + 180, latitude: -r.latitude }; };
+      transits = {
+        jupiter: computeGochara(jupiterPosition, [4, 6, 8], "Jupiter", M, L, nowJD3, 5.5, ashtakavarga),
+        mars:    { sequence: computeMarsSequence(marsPosition, [3, 6, 7], "Mars", M, L, nowJD3, 5.5, ashtakavarga, 5) },
+        rahu:    computeGochara(rahuPosition,    [6],       null,      M, L, nowJD3, 5.5, ashtakavarga),
+        ketu:    computeGochara(ketuFn,          [6],       null,      M, L, nowJD3, 5.5, ashtakavarga)
+      };
+    } catch (_) { transits = null; }
 
     return Response.json({
       success: true,
@@ -1090,7 +1297,9 @@ export async function onRequestPost(context) {
       planets,
       dasha,
       chandrashtama,
-      saturnTransit
+      saturnTransit,
+      transits,
+      ashtakavarga
     });
 
   } catch (error) {
