@@ -1076,6 +1076,49 @@ function computeGochara(posFn, aspectOffsets, bavKey, M, L, nowJD, tz, av) {
   };
 }
 
+// Mars moves fast (~45 days/sign, longer only when retrograde), so a single
+// current-sign window is too thin to be useful. This returns the CURRENT sign
+// plus the next few sign-transits as a short timeline the reader can plan around.
+function computeMarsSequence(posFn, aspectOffsets, bavKey, M, L, nowJD, tz, av, count) {
+  const sidLon = (JD) => { const T = (JD - 2451545.0) / 36525; return norm360(toSidereal(posFn(T).longitude, lahiriAyanamsha(JD))); };
+  const signAt = (JD) => Math.floor(sidLon(JD) / 30);
+  const crossTimeSign = (tIn, tOut, signIn) => { let a = tIn, b = tOut; for (let i = 0; i < 50; i++) { const m = (a + b) / 2; if (signAt(m) === signIn) a = m; else b = m; } return (a + b) / 2; };
+  const RET = 40; // Mars sits ~45d/sign; only a very brief wobble is the same occupancy
+  const occ = (anchorJD) => {
+    const s0 = signAt(anchorJD);
+    const back = (fromJD, dir) => { for (let j = 4; j <= RET; j += 4) if (signAt(fromJD + dir * j) === s0) return true; return false; };
+    let untilJD = anchorJD + 2000, nextSign = (s0 + 1) % 12;
+    { let lastIn = anchorJD;
+      for (let i = 1; i <= 2000; i++) { const JD = anchorJD + i; if (signAt(JD) === s0) { lastIn = JD; continue; }
+        if (back(JD, +1)) { let k = JD + 4; while (k < JD + RET && signAt(k) !== s0) k += 4; i = Math.round(k - anchorJD); lastIn = k; continue; }
+        untilJD = crossTimeSign(lastIn, JD, s0); nextSign = signAt(JD); break; } }
+    let sinceJD = anchorJD - 2000;
+    { let firstIn = anchorJD;
+      for (let i = 1; i <= 2000; i++) { const JD = anchorJD - i; if (signAt(JD) === s0) { firstIn = JD; continue; }
+        if (back(JD, -1)) { let k = JD - 4; while (k > JD - RET && signAt(k) !== s0) k -= 4; i = Math.round(anchorJD - k); firstIn = k; continue; }
+        sinceJD = crossTimeSign(firstIn, JD, s0); break; } }
+    return { s0, sinceJD, untilJD };
+  };
+  const out = [];
+  let cursor = nowJD;
+  for (let n = 0; n < count; n++) {
+    const o = occ(cursor);
+    const bav = (av && av.bav && bavKey && av.bav[bavKey]) || null;
+    const bindu = bav ? bav[o.s0] : null;
+    const strength = (bindu == null) ? null : (bindu >= 5 ? "strong" : bindu === 4 ? "moderate" : "demanding");
+    const aspects = aspectOffsets.map(off => { const s = (o.s0 + off) % 12; return { sign: SAT_SIGNS[s], houseFromMoon: ((s - M + 12) % 12) + 1 }; });
+    out.push({
+      sign: SAT_SIGNS[o.s0],
+      houseFromMoon: ((o.s0 - M + 12) % 12) + 1,
+      houseFromLagna: ((o.s0 - L + 12) % 12) + 1,
+      start: satMonthYear(o.sinceJD, tz), end: satMonthYear(o.untilJD, tz),
+      isCurrent: n === 0, bindu, strength, aspects
+    });
+    cursor = o.untilJD + 10;
+  }
+  return out;
+}
+
 export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
@@ -1227,7 +1270,7 @@ export async function onRequestPost(context) {
       const ketuFn = (T) => { const r = rahuPosition(T); return { longitude: r.longitude + 180, latitude: -r.latitude }; };
       transits = {
         jupiter: computeGochara(jupiterPosition, [4, 6, 8], "Jupiter", M, L, nowJD3, 5.5, ashtakavarga),
-        mars:    computeGochara(marsPosition,    [3, 6, 7], "Mars",    M, L, nowJD3, 5.5, ashtakavarga),
+        mars:    { sequence: computeMarsSequence(marsPosition, [3, 6, 7], "Mars", M, L, nowJD3, 5.5, ashtakavarga, 5) },
         rahu:    computeGochara(rahuPosition,    [6],       null,      M, L, nowJD3, 5.5, ashtakavarga),
         ketu:    computeGochara(ketuFn,          [6],       null,      M, L, nowJD3, 5.5, ashtakavarga)
       };
