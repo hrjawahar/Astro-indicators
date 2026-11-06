@@ -106,7 +106,7 @@
         const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(p=>{
           if(p.indexOf("★ ")===0){
             const th = esc4doc(p.slice(2)).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
-            return `<p style="margin:12px 0 10px;text-align:left"><span style="font-size:8.5pt;font-weight:bold;letter-spacing:.08em;color:#2e7dff">THEME TO HOLD &nbsp;</span><span style="font-weight:bold;font-size:11.5pt;color:#1e1e3c">${th}</span></p>`;
+            return `<p style="margin:12px 0 10px;text-align:left"><span style="font-size:8.5pt;font-weight:bold;letter-spacing:.08em;color:#b0821f">★ THEME TO HOLD &nbsp;</span><span style="font-weight:bold;font-size:11.5pt;color:#3c3014">${th}</span></p>`;
           }
           const html = esc4doc(p).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
           return `<p style="margin:0 0 10px;line-height:1.5;text-align:left">${html}</p>`;
@@ -538,7 +538,7 @@
           if (p.indexOf("» ") === 0) { flushUl(); techBuf.push(mk(p.slice(2))); }
           else if (p.indexOf("### ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:1.03em;margin:13px 0 3px">${mk(p.slice(4))}</div>`; }
           else if (p.indexOf("- ") === 0) { flushWhy(); ulBuf.push(mk(p.slice(2))); }
-          else if (p.indexOf("★ ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="margin:14px 0 6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span style="font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#2e7dff">Theme to hold</span><span style="display:inline-block;padding:6px 14px;border-radius:999px;background:linear-gradient(135deg,rgba(46,125,255,.13),rgba(201,168,76,.15));border:1px solid rgba(46,125,255,.4);font-weight:700;font-size:1.02em;color:var(--ai-ink,#1a1a2e)">${mk(p.slice(2))}</span></div>`; }
+          else if (p.indexOf("★ ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="margin:14px 0 6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ai-gold,#b0821f);opacity:.85">★ Theme to hold</span><span style="display:inline-block;padding:5px 13px;border-radius:999px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);font-weight:700;font-size:1.0em;color:inherit">${mk(p.slice(2))}</span></div>`; }
           else { flushWhy(); flushUl(); bodyHtml += `<p style="margin:8px 0">${mk(p)}</p>`; }
         });
         flushWhy(); flushUl();
@@ -549,11 +549,10 @@
       });
     };
     sections.forEach(emitSection);
-    const disc = "This transit reading offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.";
+    const disc = "This transit reading offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes. Transit always works under your current Dasha; read it alongside your running periods, and against your own lived experience.";
     P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
-      <h2>A closing note</h2>
-      <div class="bd">${esc(disc)}</div>
-      <div class="foot" style="margin-top:12px">Transit always works under your current Dasha — read this alongside your running periods, and against your own lived experience.</div>
+      <h2 style="font-size:1.05em">A note on this reading</h2>
+      <div class="bd" style="opacity:.82;font-size:.95em">${esc(disc)}</div>
       ${_cc ? `<div class="closing" style="margin-top:14px">Your Client ID<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>` : ""}
       <span class="pnum">${n++}</span></div>`);
     return P;
@@ -649,9 +648,9 @@
         if (theme) {
           inWhy = false;
           kbreak(26);
-          doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(46, 125, 255);
-          doc.text("THEME TO HOLD", M, y); y += 12;
-          doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(30, 30, 60);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
+          doc.text("★ THEME TO HOLD", M, y); y += 12;
+          doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(60, 48, 20);
           const Lt = doc.splitTextToSize(t.slice(2), W - M * 2); doc.text(Lt, M, y); y += Lt.length * 15 + 8;
           return;
         }
@@ -676,12 +675,12 @@
       });
       y += 6;
     });
-    kbreak(56);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
-    doc.text("A closing note", M, y); y += 18;
-    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48);
+    kbreak(48);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(150, 120, 40);
+    doc.text("A note on this reading", M, y); y += 15;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(95, 95, 105);
     const closeTxt = "Transit always works under your current Dasha — read this alongside your running periods, and above all against your own lived experience, which is the truest test of any reading. Because the planets keep moving, this report reflects the sky as of the date above; it is worth re-reading as each new window opens.";
-    const cL = doc.splitTextToSize(closeTxt, W - M * 2); kbreak(cL.length * 15 + 14); doc.text(cL, M, y); y += cL.length * 15 + 14;
+    const cL = doc.splitTextToSize(closeTxt, W - M * 2); kbreak(cL.length * 13 + 12); doc.text(cL, M, y); y += cL.length * 13 + 12;
     kbreak(30);
     doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(140, 140, 150);
     doc.text(doc.splitTextToSize("Educational guidance for self-reflection, not a prediction or professional advice.  © AstroIndicators · astroindicators.com", W - M * 2), M, y);

@@ -1036,9 +1036,17 @@ function _transitFacts(st, data) {
       }
     }
   } catch (e) {}
+  // Order Saturn's sensitive periods the way the native actually lives them —
+  // earliest-starting first — so the report reads year-wise, not grouped by type.
+  const saturnOrder = [
+    st.kantaka ? { kind: "kantaka", jd: st.kantaka.startJD } : null,
+    st.ashtama ? { kind: "ashtama", jd: st.ashtama.startJD } : null,
+    st.sadeSati ? { kind: "sadeSati", jd: st.sadeSati.startJD } : null
+  ].filter(Boolean).sort((a, b) => a.jd - b.jd).map(x => x.kind);
   return {
     moonSign: st.natalMoonSign, lagnaSign: st.natalLagnaSign, asOf: st.asOf, tzLabel: st.tzLabel,
     current: st.current, sadeSati: st.sadeSati, kantaka: st.kantaka, ashtama: st.ashtama,
+    saturnOrder,                                  // chronological order of the Saturn periods
     transits: (data && data.transits) || null,   // jupiter / mars / rahu / ketu
     dasha: { maha, antar }
   };

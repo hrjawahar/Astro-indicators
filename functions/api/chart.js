@@ -909,7 +909,7 @@ const SAT_MEANING = {
   11: "Saturn in the 11th from your Moon - favourable: gains, fulfilment of goals and income through persistence."
 };
 
-function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, av) {
+function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, av, birthJD) {
   const tz = (tzOffset == null) ? 5.5 : tzOffset;
   const M = Math.floor(norm360(natalMoonSidLon) / 30);
   const L = Math.floor(norm360(natalAscSidLon) / 30);
@@ -917,6 +917,12 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, 
 
   const houseFromMoon  = (s) => ((s - M + 12) % 12) + 1;
   const houseFromLagna = (s) => ((s - L + 12) % 12) + 1;
+
+  // Age (whole years) the native is at a given transit date — for year-wise reading.
+  const ageAt = (jd) => (birthJD == null) ? null : Math.max(0, Math.floor((jd - birthJD) / 365.25));
+  // Saturn's special 3rd/7th/10th aspects from ANY sign s → which houses-from-Moon
+  // it also influences during that passage.
+  const aspectsOf = (s) => [2, 6, 9].map(off => { const t = (s + off) % 12; return { sign: SAT_SIGNS[t], houseFromMoon: houseFromMoon(t) }; });
 
   // Ashtakavarga transit strength: Saturn's own bindus (0-8) in the transited
   // sign. 5+ = strong/supported, 4 = moderate, <=3 = demanding.
@@ -950,7 +956,7 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, 
   const ashtama = nextRunOfSign(ashtamaSign);
 
   // Saturn's special aspects: 3rd, 7th, 10th from its current sign.
-  const aspects = [2, 6, 9].map(off => { const s = (cur.sign + off) % 12; return { sign: SAT_SIGNS[s], houseFromMoon: houseFromMoon(s) }; });
+  const aspects = aspectsOf(cur.sign);
 
   return {
     tzLabel: tz === 5.5 ? "IST" : ("UTC" + (tz >= 0 ? "+" : "") + tz),
@@ -965,6 +971,7 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, 
       meaning: SAT_MEANING[curHouse],
       since: satFullDate(cur.start, tz), sinceMonth: satMonthYear(cur.start, tz),
       until: satFullDate(cur.end, tz),   untilMonth: satMonthYear(cur.end, tz),
+      ageStart: ageAt(cur.start), ageEnd: ageAt(cur.end),
       bindu: binduOf(cur.sign),
       savBindu: savArr ? savArr[cur.sign] : null,
       strength: strengthLabel(binduOf(cur.sign)),
@@ -975,14 +982,15 @@ function computeSaturnTransit(natalMoonSidLon, natalAscSidLon, nowJD, tzOffset, 
       startJD: arc.r12.start,
       start: satMonthYear(arc.r12.start, tz),
       end:   satMonthYear(arc.r2.end, tz),
+      ageStart: ageAt(arc.r12.start), ageEnd: ageAt(arc.r2.end),
       phases: [
-        { name: "Rising (12th from Moon)",  sign: SAT_SIGNS[sign12], start: satMonthYear(arc.r12.start, tz), end: satMonthYear(arc.r12.end, tz), isCurrent: curHouse === 12, bindu: binduOf(sign12), strength: strengthLabel(binduOf(sign12)) },
-        { name: "Peak (over the Moon)",      sign: SAT_SIGNS[sign1],  start: satMonthYear(arc.r1.start, tz),  end: satMonthYear(arc.r1.end, tz),  isCurrent: curHouse === 1,  bindu: binduOf(sign1),  strength: strengthLabel(binduOf(sign1)) },
-        { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  isCurrent: curHouse === 2,  bindu: binduOf(sign2),  strength: strengthLabel(binduOf(sign2)) }
+        { name: "Rising (12th from Moon)",  sign: SAT_SIGNS[sign12], houseFromMoon: 12, start: satMonthYear(arc.r12.start, tz), end: satMonthYear(arc.r12.end, tz), ageStart: ageAt(arc.r12.start), ageEnd: ageAt(arc.r12.end), isCurrent: curHouse === 12, bindu: binduOf(sign12), strength: strengthLabel(binduOf(sign12)), aspects: aspectsOf(sign12) },
+        { name: "Peak (over the Moon)",      sign: SAT_SIGNS[sign1],  houseFromMoon: 1,  start: satMonthYear(arc.r1.start, tz),  end: satMonthYear(arc.r1.end, tz),  ageStart: ageAt(arc.r1.start),  ageEnd: ageAt(arc.r1.end),  isCurrent: curHouse === 1,  bindu: binduOf(sign1),  strength: strengthLabel(binduOf(sign1)),  aspects: aspectsOf(sign1) },
+        { name: "Setting (2nd from Moon)",   sign: SAT_SIGNS[sign2],  houseFromMoon: 2,  start: satMonthYear(arc.r2.start, tz),  end: satMonthYear(arc.r2.end, tz),  ageStart: ageAt(arc.r2.start),  ageEnd: ageAt(arc.r2.end),  isCurrent: curHouse === 2,  bindu: binduOf(sign2),  strength: strengthLabel(binduOf(sign2)),  aspects: aspectsOf(sign2) }
       ]
     } : null,
-    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end, bindu: binduOf(kantakaSign) } : null,
-    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end, bindu: binduOf(ashtamaSign) } : null
+    kantaka: kantaka ? { sign: SAT_SIGNS[kantakaSign], houseFromMoon: 4, startJD: kantaka.start, start: satMonthYear(kantaka.start, tz), end: satMonthYear(kantaka.end, tz), ageStart: ageAt(kantaka.start), ageEnd: ageAt(kantaka.end), isCurrent: kantaka.start <= nowJD && nowJD < kantaka.end, bindu: binduOf(kantakaSign), strength: strengthLabel(binduOf(kantakaSign)), aspects: aspectsOf(kantakaSign) } : null,
+    ashtama: ashtama ? { sign: SAT_SIGNS[ashtamaSign], houseFromMoon: 8, startJD: ashtama.start, start: satMonthYear(ashtama.start, tz), end: satMonthYear(ashtama.end, tz), ageStart: ageAt(ashtama.start), ageEnd: ageAt(ashtama.end), isCurrent: ashtama.start <= nowJD && nowJD < ashtama.end, bindu: binduOf(ashtamaSign), strength: strengthLabel(binduOf(ashtamaSign)), aspects: aspectsOf(ashtamaSign) } : null
   };
 }
 
@@ -1182,7 +1190,7 @@ export async function onRequestPost(context) {
         new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, new Date().getUTCDate(),
         new Date().getUTCHours(), new Date().getUTCMinutes(), 0
       );
-      saturnTransit = computeSaturnTransit(sidPositions.Moon.longitude, siderealASC, nowJD2, 5.5, ashtakavarga);
+      saturnTransit = computeSaturnTransit(sidPositions.Moon.longitude, siderealASC, nowJD2, 5.5, ashtakavarga, JD);
     } catch (_) { saturnTransit = null; }
 
     // Jupiter / Mars / Rahu / Ketu transits (Gochara), from the same Moon & Lagna.
