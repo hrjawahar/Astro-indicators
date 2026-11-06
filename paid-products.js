@@ -103,14 +103,20 @@
       </div>`;
       const bodyHtml = (sections||[]).map(sec=>{
         if(sec._divider){ return `<h1 style="color:#8a6d1f;border-bottom:2px solid #c9a84c;padding-bottom:4px;margin-top:28px">${esc4doc(sec.heading||"")}</h1>`; }
-        const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(p=>{
-          if(p.indexOf("★ ")===0){
-            const th = esc4doc(p.slice(2)).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
-            return `<p style="margin:12px 0 10px;text-align:left"><span style="font-size:8.5pt;font-weight:bold;letter-spacing:.08em;color:#b0821f">★ THEME TO HOLD &nbsp;</span><span style="font-weight:bold;font-size:11.5pt;color:#3c3014">${th}</span></p>`;
-          }
-          const html = esc4doc(p).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
-          return `<p style="margin:0 0 10px;line-height:1.5;text-align:left">${html}</p>`;
-        }).join("");
+        const mkw = (s)=>esc4doc(s).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+        const lines = String(sec.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean);
+        let paras = "", whyBuf=[], ulBuf=[];
+        const flushWhy=()=>{ if(!whyBuf.length)return;
+          paras += `<div style="background:#fbf7e9;border:1px solid #e2cf8f;padding:7px 11px;margin:9px 0"><b style="color:#b0821f">WHY THIS READING</b><br>`+whyBuf.map(t=>`<i>${t}</i>`).join("<br>")+`</div>`; whyBuf=[]; };
+        const flushUl=()=>{ if(!ulBuf.length)return; paras += `<ul>`+ulBuf.map(li=>`<li>${li}</li>`).join("")+`</ul>`; ulBuf=[]; };
+        lines.forEach(p=>{
+          if(p.indexOf("» ")===0){ flushUl(); whyBuf.push(mkw(p.slice(2))); }
+          else if(p.indexOf("### ")===0){ flushWhy(); flushUl(); paras += `<p style="margin:12px 0 4px;font-weight:bold;color:#b0821f;font-size:12pt">${mkw(p.slice(4))}</p>`; }
+          else if(p.indexOf("- ")===0){ flushWhy(); ulBuf.push(mkw(p.slice(2))); }
+          else if(p.indexOf("★ ")===0){ flushWhy(); flushUl(); paras += `<p style="margin:12px 0 10px;text-align:left"><span style="font-size:8.5pt;font-weight:bold;letter-spacing:.08em;color:#b0821f">★ THEME TO HOLD &nbsp;</span><span style="font-weight:bold;font-size:11.5pt;color:#3c3014">${mkw(p.slice(2))}</span></p>`; }
+          else { flushWhy(); flushUl(); paras += `<p style="margin:0 0 10px;line-height:1.5;text-align:left">${mkw(p)}</p>`; }
+        });
+        flushWhy(); flushUl();
         return `<h2 style="color:#b0821f;margin:18px 0 8px">${esc4doc(sec.heading||"")}</h2>${paras}`;
       }).join("");
       const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
@@ -440,6 +446,39 @@
   // Generated fresh each time (transit content is perishable; never cached), with
   // PDF + Word download — Word enables the Google-Translate path for any language,
   // the same model as every paid report.
+  // Shared body renderer for paid reports — turns a chunk of marked-up text into HTML.
+  // Markers (each at the START of a line): "» " a chart-basis note (grouped into a
+  // "Why this reading" box), "### " a sub-heading, "- " a bullet, "★ " a theme pill,
+  // and **bold** inline. Any other line is an ordinary paragraph. Used by the transit,
+  // domain and all-domains flipbooks so every paid report renders identically.
+  function reportBodyHtml(chunk) {
+    const paras = String(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
+    const mk = (x) => esc(x).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+    let bodyHtml = "", techBuf = [], ulBuf = [];
+    const flushWhy = () => {
+      if (!techBuf.length) return;
+      bodyHtml += `<div style="margin:10px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">`
+        + `<div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ai-gold,#b0821f);margin-bottom:4px">Why this reading</div>`
+        + techBuf.map(t => `<div style="font-size:12.5px;opacity:.85;line-height:1.5;margin:3px 0">${t}</div>`).join("")
+        + `</div>`;
+      techBuf = [];
+    };
+    const flushUl = () => {
+      if (!ulBuf.length) return;
+      bodyHtml += `<ul style="margin:6px 0 10px;padding-left:20px">` + ulBuf.map(li => `<li style="margin:4px 0;line-height:1.55">${li}</li>`).join("") + `</ul>`;
+      ulBuf = [];
+    };
+    paras.forEach(p => {
+      if (p.indexOf("» ") === 0) { flushUl(); techBuf.push(mk(p.slice(2))); }
+      else if (p.indexOf("### ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:1.03em;margin:13px 0 3px">${mk(p.slice(4))}</div>`; }
+      else if (p.indexOf("- ") === 0) { flushWhy(); ulBuf.push(mk(p.slice(2))); }
+      else if (p.indexOf("★ ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="margin:14px 0 6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ai-gold,#b0821f);opacity:.85">★ Theme to hold</span><span style="display:inline-block;padding:5px 13px;border-radius:999px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);font-weight:700;font-size:1.0em;color:inherit">${mk(p.slice(2))}</span></div>`; }
+      else { flushWhy(); flushUl(); bodyHtml += `<p style="margin:8px 0">${mk(p)}</p>`; }
+    });
+    flushWhy(); flushUl();
+    return bodyHtml;
+  }
+
   // Paginate transit sections into flipbook pages (same page classes/budget as the
   // domain flipbook, with a transit cover and closing note; no domain comparison).
   function transitSectionsToPages(sections, facts) {
@@ -516,32 +555,7 @@
       const many = chunks.length > 1;
       chunks.forEach((chunk, ci) => {
         const contHead = ci===0 ? heading : heading + (many ? " <span style=\"opacity:.55;font-size:.75em\">(continued)</span>" : "");
-        // Plain-meaning paragraphs read normally; chart-technical notes (lines the
-        // writer marks with "» ") are set apart as muted italics for readability.
-        const paras = String(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
-        const mk = (x) => esc(x).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-        let bodyHtml = "", techBuf = [], ulBuf = [];
-        const flushWhy = () => {
-          if (!techBuf.length) return;
-          bodyHtml += `<div style="margin:10px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">`
-            + `<div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ai-gold,#b0821f);margin-bottom:4px">Why this reading</div>`
-            + techBuf.map(t => `<div style="font-size:12.5px;opacity:.85;line-height:1.5;margin:3px 0">${t}</div>`).join("")
-            + `</div>`;
-          techBuf = [];
-        };
-        const flushUl = () => {
-          if (!ulBuf.length) return;
-          bodyHtml += `<ul style="margin:6px 0 10px;padding-left:20px">` + ulBuf.map(li => `<li style="margin:4px 0;line-height:1.55">${li}</li>`).join("") + `</ul>`;
-          ulBuf = [];
-        };
-        paras.forEach(p => {
-          if (p.indexOf("» ") === 0) { flushUl(); techBuf.push(mk(p.slice(2))); }
-          else if (p.indexOf("### ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:1.03em;margin:13px 0 3px">${mk(p.slice(4))}</div>`; }
-          else if (p.indexOf("- ") === 0) { flushWhy(); ulBuf.push(mk(p.slice(2))); }
-          else if (p.indexOf("★ ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="margin:14px 0 6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ai-gold,#b0821f);opacity:.85">★ Theme to hold</span><span style="display:inline-block;padding:5px 13px;border-radius:999px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);font-weight:700;font-size:1.0em;color:inherit">${mk(p.slice(2))}</span></div>`; }
-          else { flushWhy(); flushUl(); bodyHtml += `<p style="margin:8px 0">${mk(p)}</p>`; }
-        });
-        flushWhy(); flushUl();
+        const bodyHtml = reportBodyHtml(chunk);
         P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
           <h2>${contHead}</h2>
           <div class="bd">${bodyHtml}</div>
@@ -634,6 +648,55 @@
     } catch (_) {}
   }
 
+  // Render ONE report section (gold heading + marked-up body) into a jsPDF doc,
+  // honouring the "» / ### / - / ★ / **bold**" markers. Returns the new y cursor.
+  // Shared by the transit, domain and all-domains PDFs so they render identically.
+  function renderPdfSection(doc, s, W, H, M, y) {
+    const kbreak = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+    kbreak(34);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
+    const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
+    const lines = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1").split("\n");
+    let inWhy = false;
+    lines.forEach(para => {
+      const t = para.trim();
+      if (!t) { if (!inWhy) y += 5; return; }
+      const tech = t.indexOf("» ") === 0;
+      const sub = t.indexOf("### ") === 0;
+      const bull = t.indexOf("- ") === 0;
+      const theme = t.indexOf("★ ") === 0;
+      if (theme) {
+        inWhy = false;
+        kbreak(26);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
+        doc.text("THEME TO HOLD", M, y); y += 12;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(60, 48, 20);
+        const Lt = doc.splitTextToSize(t.slice(2), W - M * 2); doc.text(Lt, M, y); y += Lt.length * 15 + 8;
+        return;
+      }
+      if (tech && !inWhy) {
+        kbreak(22);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
+        doc.text("WHY THIS READING", M, y); y += 12; inWhy = true;
+      }
+      if (!tech) inWhy = false;
+      if (sub) {
+        kbreak(22);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(150, 120, 40);
+        const Lh = doc.splitTextToSize(t.slice(4), W - M * 2); doc.text(Lh, M, y); y += Lh.length * 15 + 4;
+        return;
+      }
+      const text = tech ? t.slice(2) : (bull ? t.slice(2) : t);
+      if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(110, 110, 120); }
+      else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
+      const indent = tech ? 14 : (bull ? 12 : 0);
+      const L = doc.splitTextToSize((bull ? "• " : "") + text, W - M * 2 - indent);
+      kbreak(L.length * 14 + 6); doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
+    });
+    y += 6;
+    return y;
+  }
+
   function exportTransitPDF(sections, facts) {
     if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF library not loaded. Refresh and retry."); return; }
     const jsPDF = window.jspdf.jsPDF;
@@ -645,49 +708,7 @@
     doc.text("Saturn & Planetary Transit Report", M, y); y += 24;
     doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(120, 120, 130);
     doc.text("For " + (facts.moonSign || "") + " Moon  |  as of " + (facts.asOf || "") + " (" + (facts.tzLabel || "") + ")", M, y); y += 22;
-    sections.forEach(s => {
-      kbreak(34);
-      doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
-      const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
-      const lines = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1").split("\n");
-      let inWhy = false;
-      lines.forEach(para => {
-        const t = para.trim();
-        if (!t) { if (!inWhy) y += 5; return; }
-        const tech = t.indexOf("» ") === 0;
-        const sub = t.indexOf("### ") === 0;
-        const bull = t.indexOf("- ") === 0;
-        const theme = t.indexOf("★ ") === 0;
-        if (theme) {
-          inWhy = false;
-          kbreak(26);
-          doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
-          doc.text("THEME TO HOLD", M, y); y += 12;
-          doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(60, 48, 20);
-          const Lt = doc.splitTextToSize(t.slice(2), W - M * 2); doc.text(Lt, M, y); y += Lt.length * 15 + 8;
-          return;
-        }
-        if (tech && !inWhy) {
-          kbreak(22);
-          doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
-          doc.text("WHY THIS READING", M, y); y += 12; inWhy = true;
-        }
-        if (!tech) inWhy = false;
-        if (sub) {
-          kbreak(22);
-          doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(150, 120, 40);
-          const Lh = doc.splitTextToSize(t.slice(4), W - M * 2); doc.text(Lh, M, y); y += Lh.length * 15 + 4;
-          return;
-        }
-        const text = tech ? t.slice(2) : (bull ? t.slice(2) : t);
-        if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(110, 110, 120); }
-        else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
-        const indent = tech ? 14 : (bull ? 12 : 0);
-        const L = doc.splitTextToSize((bull ? "• " : "") + text, W - M * 2 - indent);
-        kbreak(L.length * 14 + 6); doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
-      });
-      y += 6;
-    });
+    sections.forEach(s => { y = renderPdfSection(doc, s, W, H, M, y); });
     kbreak(48);
     doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(150, 120, 40);
     doc.text("A note on this reading", M, y); y += 15;
@@ -910,9 +931,9 @@
       const many=chunks.length>1;
       chunks.forEach((chunk,ci)=>{
         const hh = ci===0?heading:heading+(many?" <span style=\"opacity:.55;font-size:.75em\">(continued)</span>":"");
-        const bodyHtml = esc(chunk).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/\n\n/g,"</p><p>").replace(/\n/g,"<br>");
+        const bodyHtml = reportBodyHtml(chunk);
         P.push(`<div class="pg"><div class="kick">${esc(DOMAIN_LABELS[item._domain]||"")}</div><div class="rule"></div>
-          <h2>${hh}</h2><div class="bd"><p>${bodyHtml}</p></div>
+          <h2>${hh}</h2><div class="bd">${bodyHtml}</div>
           <span class="pnum">${n++}</span></div>`);
       });
     });
@@ -976,7 +997,19 @@
       const f0=(window.currentData&&window.currentData.form)||{};
       const newPage=()=>{doc.addPage();y=M;};
       const kbreak=(need)=>{if(y+need>H-M)newPage();};
+      let awInWhy=false;
       const bodyBlock=(t,size)=>{ String(t||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean).forEach(pg=>{
+        if (pg.indexOf("### ")===0){ awInWhy=false; doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5); doc.setTextColor(176,130,38);
+          const L=doc.splitTextToSize(pg.slice(4).replace(/\*\*/g,""),W-M*2); kbreak(L.length*(size+3)+8); doc.text(L,M,y); y+=L.length*(size+3)+5; return; }
+        if (pg.indexOf("★ ")===0){ awInWhy=false; kbreak(28); doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(150,120,40); doc.text("THEME TO HOLD",M,y); y+=11;
+          doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5); doc.setTextColor(90,68,20);
+          const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2); doc.text(L,M,y); y+=L.length*(size+3)+7; return; }
+        if (pg.indexOf("» ")===0){ if(!awInWhy){ kbreak(20); doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(150,120,40); doc.text("WHY THIS READING",M,y); y+=11; awInWhy=true; }
+          doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(110,110,120);
+          const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2-14); kbreak(L.length*(size+1)+4); doc.text(L,M+14,y); y+=L.length*(size+1)+4; return; }
+        awInWhy=false;
+        if (pg.indexOf("- ")===0){ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...INK);
+          const L=doc.splitTextToSize("• "+pg.slice(2).replace(/\*\*/g,""),W-M*2-12); kbreak(L.length*(size+2.5)+5); doc.text(L,M+12,y); y+=L.length*(size+2.5)+4; return; }
         const fullyBold=/^\*\*[^*]+\*\*$/.test(pg); const plain=pg.replace(/\*\*/g,"");
         doc.setFont("helvetica",fullyBold?"bold":"normal"); doc.setTextColor(...(fullyBold?[120,80,20]:INK)); doc.setFontSize(size);
         const L=doc.splitTextToSize(plain,W-M*2); kbreak(L.length*(size+2.5)+8); doc.text(L,M,y); y+=L.length*(size+2.5)+8; }); };
@@ -1063,13 +1096,10 @@
       const many = chunks.length > 1;
       chunks.forEach((chunk, ci) => {
         const contHead = ci===0 ? heading : heading + (many ? " <span style=\"opacity:.55;font-size:.75em\">(continued)</span>" : "");
-        // esc first (safety), then re-enable **bold** as <b> and paragraph breaks
-        const bodyHtml = esc(chunk)
-          .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
-          .replace(/\n\n/g,"</p><p>").replace(/\n/g,"<br>");
+        const bodyHtml = reportBodyHtml(chunk);
         P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
           <h2>${contHead}</h2>
-          <div class="bd"><p>${bodyHtml}</p></div>
+          <div class="bd">${bodyHtml}</div>
           <span class="pnum">${n++}</span></div>`);
       });
     };
@@ -1140,9 +1170,26 @@
       const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
       // paragraph-aware body: splits on newlines, adds space between paragraphs,
       // and renders **bold** spans in a bold weight for emphasis.
+      let inWhy=false;
       const bodyBlock=(t,size,gap)=>{
         const paras = String(t||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
         paras.forEach((pg,pi)=>{
+          // New shared markers: ### sub-heading, » why-line, - bullet, ★ theme.
+          if (pg.indexOf("### ")===0) { inWhy=false;
+            doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5); doc.setTextColor(176,130,38);
+            const L=doc.splitTextToSize(pg.slice(4).replace(/\*\*/g,""),W-M*2); kbreak(L.length*(size+3)+10); doc.text(L,M,y); y+=L.length*(size+3)+6; return; }
+          if (pg.indexOf("★ ")===0) { inWhy=false; kbreak(30);
+            doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("THEME TO HOLD",M,y); y+=12;
+            doc.setFont("helvetica","bold"); doc.setFontSize(size+1); doc.setTextColor(90,68,20);
+            const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2); doc.text(L,M,y); y+=L.length*(size+3)+8; return; }
+          if (pg.indexOf("» ")===0) {
+            if(!inWhy){ kbreak(22); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("WHY THIS READING",M,y); y+=12; inWhy=true; }
+            doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(110,110,120);
+            const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2-14); kbreak(L.length*(size+1)+5); doc.text(L,M+14,y); y+=L.length*(size+1)+5; return; }
+          inWhy=false;
+          if (pg.indexOf("- ")===0) {
+            doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...INK);
+            const L=doc.splitTextToSize("• "+pg.slice(2).replace(/\*\*/g,""),W-M*2-12); kbreak(L.length*(size+2.5)+6); doc.text(L,M+12,y); y+=L.length*(size+2.5)+5; return; }
           const parts = pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
           doc.setFontSize(size);
           if (parts.length>1) {
