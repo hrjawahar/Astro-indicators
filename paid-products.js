@@ -104,6 +104,10 @@
       const bodyHtml = (sections||[]).map(sec=>{
         if(sec._divider){ return `<h1 style="color:#8a6d1f;border-bottom:2px solid #c9a84c;padding-bottom:4px;margin-top:28px">${esc4doc(sec.heading||"")}</h1>`; }
         const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(p=>{
+          if(p.indexOf("★ ")===0){
+            const th = esc4doc(p.slice(2)).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+            return `<p style="margin:12px 0 10px;text-align:left"><span style="font-size:8.5pt;font-weight:bold;letter-spacing:.08em;color:#2e7dff">THEME TO HOLD &nbsp;</span><span style="font-weight:bold;font-size:11.5pt;color:#1e1e3c">${th}</span></p>`;
+          }
           const html = esc4doc(p).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
           return `<p style="margin:0 0 10px;line-height:1.5;text-align:left">${html}</p>`;
         }).join("");
@@ -483,6 +487,7 @@
       if (p.indexOf("### ") === 0) return 2.0;                                              // sub-heading
       if (p.indexOf("» ") === 0) return 1.0;                                            // why line
       if (p.indexOf("- ") === 0) return Math.max(1, Math.ceil((p.length - 2) / 58)) + 0.4;  // bullet
+      if (p.indexOf("★ ") === 0) return 1.8;                                                // theme pill (with spacing)
       return Math.max(1, Math.ceil(p.length / 58)) + 0.7;                                   // paragraph
     };
     const emitSection = (sec) => {
@@ -533,6 +538,7 @@
           if (p.indexOf("» ") === 0) { flushUl(); techBuf.push(mk(p.slice(2))); }
           else if (p.indexOf("### ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:1.03em;margin:13px 0 3px">${mk(p.slice(4))}</div>`; }
           else if (p.indexOf("- ") === 0) { flushWhy(); ulBuf.push(mk(p.slice(2))); }
+          else if (p.indexOf("★ ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="margin:14px 0 6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span style="font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#2e7dff">Theme to hold</span><span style="display:inline-block;padding:6px 14px;border-radius:999px;background:linear-gradient(135deg,rgba(46,125,255,.13),rgba(201,168,76,.15));border:1px solid rgba(46,125,255,.4);font-weight:700;font-size:1.02em;color:var(--ai-ink,#1a1a2e)">${mk(p.slice(2))}</span></div>`; }
           else { flushWhy(); flushUl(); bodyHtml += `<p style="margin:8px 0">${mk(p)}</p>`; }
         });
         flushWhy(); flushUl();
@@ -639,6 +645,16 @@
         const tech = t.indexOf("» ") === 0;
         const sub = t.indexOf("### ") === 0;
         const bull = t.indexOf("- ") === 0;
+        const theme = t.indexOf("★ ") === 0;
+        if (theme) {
+          inWhy = false;
+          kbreak(26);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(46, 125, 255);
+          doc.text("THEME TO HOLD", M, y); y += 12;
+          doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(30, 30, 60);
+          const Lt = doc.splitTextToSize(t.slice(2), W - M * 2); doc.text(Lt, M, y); y += Lt.length * 15 + 8;
+          return;
+        }
         if (tech && !inWhy) {
           kbreak(22);
           doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);

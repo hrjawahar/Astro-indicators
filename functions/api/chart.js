@@ -1006,11 +1006,29 @@ function computeGochara(posFn, aspectOffsets, bavKey, M, L, nowJD, tz, av) {
     return (a + b) / 2;
   };
   const s0 = signAt(nowJD);
-  // Entry into the current sign (scan back) and exit from it (scan forward).
-  let sinceJD = nowJD - 3650;
-  { let prev = nowJD; for (let i = 1; i <= 3650; i++) { const JD = nowJD - i; if (signAt(JD) !== s0) { sinceJD = crossTimeSign(prev, JD, s0); break; } prev = JD; } }
-  let untilJD = nowJD + 3650, nextSign = (s0 + 1) % 12;
-  { let prev = nowJD; for (let i = 1; i <= 3650; i++) { const JD = nowJD + i; const s = signAt(JD); if (s !== s0) { untilJD = crossTimeSign(prev, JD, s0); nextSign = s; break; } prev = JD; } }
+  // NET window of the current sign — the FULL span the planet occupies this sign,
+  // bridging brief retrograde dips out and back, so the dates show the ACTUAL
+  // duration (the "since" can be well in the past; "until" past a retrograde dip).
+  const RET = 220; // days: a return within this window counts as the same occupancy
+  const returnsWithin = (fromJD, dir) => { for (let j = 4; j <= RET; j += 4) if (signAt(fromJD + dir * j) === s0) return true; return false; };
+  let untilJD = nowJD + 4000, nextSign = (s0 + 1) % 12;
+  { let lastIn = nowJD;
+    for (let i = 1; i <= 4000; i++) {
+      const JD = nowJD + i;
+      if (signAt(JD) === s0) { lastIn = JD; continue; }
+      if (returnsWithin(JD, +1)) { let k = JD + 4; while (k < JD + RET && signAt(k) !== s0) k += 4; i = Math.round(k - nowJD); lastIn = k; continue; }
+      untilJD = crossTimeSign(lastIn, JD, s0); nextSign = signAt(JD); break;
+    }
+  }
+  let sinceJD = nowJD - 4000;
+  { let firstIn = nowJD;
+    for (let i = 1; i <= 4000; i++) {
+      const JD = nowJD - i;
+      if (signAt(JD) === s0) { firstIn = JD; continue; }
+      if (returnsWithin(JD, -1)) { let k = JD - 4; while (k > JD - RET && signAt(k) !== s0) k -= 4; i = Math.round(nowJD - k); firstIn = k; continue; }
+      sinceJD = crossTimeSign(firstIn, JD, s0); break;
+    }
+  }
 
   const houseFromMoon = ((s0 - M + 12) % 12) + 1;
   const houseFromLagna = ((s0 - L + 12) % 12) + 1;
