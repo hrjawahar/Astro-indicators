@@ -619,16 +619,34 @@
     try { requestAnimationFrame(function(){ var bar=document.querySelector("#domainReport .fb-dlbar"); if(bar) bar.scrollIntoView({behavior:"smooth",block:"center"}); }); } catch(e){}
   }
 
+  // The transit endpoint streams a heartbeat during the ~2-minute generation,
+  // then the final JSON after a marker — this keeps Cloudflare from 524-ing the
+  // long request. Read the whole stream and parse the payload after the marker.
+  async function fetchStreamedReport(url, payload) {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (!res.ok || !res.body) {
+      const t = await res.text().catch(() => "");
+      try { return JSON.parse(t); } catch (_) { throw new Error("Server error (" + res.status + ")."); }
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) { const { done, value } = await reader.read(); if (done) break; buf += dec.decode(value, { stream: true }); }
+    const MARK = "\u0000__RESULT__";
+    const i = buf.lastIndexOf(MARK);
+    const jsonStr = i >= 0 ? buf.slice(i + MARK.length) : buf.trim();
+    return JSON.parse(jsonStr);
+  }
+
   async function openTransitReport() {
     const host = $("domainReport"); if (!host) return;
-    host.innerHTML = `<div class="pp-empty">Preparing your Transit Report — reading Saturn, Jupiter, Mars, Rahu &amp; Ketu against your chart…<br><span style="opacity:.7">about 20–40 seconds · please don't refresh</span></div>`;
+    host.innerHTML = `<div class="pp-empty">Preparing your Transit Report — reading Saturn, Jupiter, Mars, Rahu &amp; Ketu against your chart…<br><span style="opacity:.7">this usually takes 1–2 minutes · please keep this page open</span></div>`;
     try { host.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (_) {}
     let facts = null;
     try { facts = window.AI_transitFacts && window.AI_transitFacts(); } catch (e) {}
     if (!facts) { host.innerHTML = `<div class="pp-empty">Please generate your chart first (Birth Data tab), then try again.</div>`; return; }
     try {
-      const res = await fetch("/api/transit-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ facts }) });
-      const data = await res.json();
+      const data = await fetchStreamedReport("/api/transit-report", { facts });
       if (!data.success || !Array.isArray(data.sections) || !data.sections.length) throw new Error(data.error || "No report was returned.");
       renderTransitFlipbook(host, data.sections, facts);
     } catch (e) {

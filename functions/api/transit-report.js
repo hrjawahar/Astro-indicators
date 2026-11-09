@@ -30,18 +30,38 @@ export async function onRequestPost(context) {
   const facts = body.facts;
   if (!facts || !facts.current) return json({ error: "Missing transit facts." }, 400);
 
-  try {
-    const sections = await writeTransitReport(env, facts);
-    return json({ success: true, sections });
-  } catch (e) {
-    return json({ error: e.message || "AI writer failure." }, 500);
-  }
+  // Stream a heartbeat while the (long) report generates, then send the final
+  // JSON after a "\n\u0000__RESULT__" marker. Returning the streaming Response
+  // immediately means Cloudflare sees response headers at once and never 524s.
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(enc.encode(" ")); // first byte right away
+      const beat = () => { try { controller.enqueue(enc.encode(" ")); } catch (_) {} };
+      let payload;
+      try {
+        const sections = await writeTransitReport(env, facts, beat);
+        payload = { success: true, sections };
+      } catch (e) {
+        payload = { error: e.message || "AI writer failure." };
+      }
+      try { controller.enqueue(enc.encode("\n\u0000__RESULT__" + JSON.stringify(payload))); } catch (_) {}
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" },
+  });
 }
 
-async function writeTransitReport(env, facts) {
+async function writeTransitReport(env, facts, onProgress) {
   const sys = buildSystemPrompt();
   const user = buildUserPrompt(facts);
 
+  // STREAM the completion. A full transit report takes ~2 minutes, which blows
+  // past Cloudflare's hard 100s edge limit (524) on a single blocking request.
+  // Streaming makes the Anthropic call return bytes continuously; onProgress()
+  // lets the caller forward a heartbeat to the client so the connection stays open.
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -52,6 +72,7 @@ async function writeTransitReport(env, facts) {
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 12000,
+      stream: true,
       system: sys,
       messages: [{ role: "user", content: user }],
     }),
@@ -61,8 +82,32 @@ async function writeTransitReport(env, facts) {
     const t = await res.text().catch(() => "");
     throw new Error("Anthropic API error " + res.status + ": " + t.slice(0, 300));
   }
-  const data = await res.json();
-  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let sseBuf = "", text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    sseBuf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = sseBuf.indexOf("\n")) >= 0) {
+      const line = sseBuf.slice(0, nl); sseBuf = sseBuf.slice(nl + 1);
+      if (line.startsWith("data:")) {
+        const payload = line.slice(5).trim();
+        if (payload && payload !== "[DONE]") {
+          try {
+            const ev = JSON.parse(payload);
+            if (ev.type === "content_block_delta" && ev.delta && ev.delta.text) text += ev.delta.text;
+            else if (ev.type === "error") throw new Error("Anthropic stream error: " + (ev.error && ev.error.message || "unknown"));
+          } catch (err) { if (/stream error/.test(err.message)) throw err; }
+        }
+      }
+    }
+    if (onProgress) { try { onProgress(); } catch (_) {} }
+  }
+  text = text.trim();
+  if (!text) throw new Error("The AI writer returned an empty response.");
 
   // Expected: { "sections": [ {heading, body}, ... ] }. Parse robustly, then
   // salvage, then a clean last resort — never dump raw JSON labels into the report.
