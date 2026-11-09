@@ -643,6 +643,8 @@
       const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
       for (let i = 1; i <= pc; i++) {
         doc.setPage(i);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.setTextColor(200, 30, 30);
+        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.", pw / 2, ph - 36, { align: "center" });
         doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(150, 150, 158);
         doc.text(i + " of " + pc, pw / 2, ph - 22, { align: "center" });
       }
@@ -1034,7 +1036,10 @@
       const disc="Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. All payments are final.";
       doc.text(doc.splitTextToSize(disc,W-M*2),M,y);
       const pages=doc.internal.getNumberOfPages();
-      for(let i=1;i<=pages;i++){ doc.setPage(i); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
+      for(let i=1;i<=pages;i++){ doc.setPage(i);
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(200,30,30);
+        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-40,{align:"center"});
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
         doc.text("(c) 2026 AstroIndicators · astroindicators.com",M,H-26);
         doc.text("Page "+i+" of "+pages,W-M,H-26,{align:"right"}); }
       const safe=(clientCode()||"report").replace(/[^a-z0-9]/gi,"_");
@@ -1310,7 +1315,10 @@
       const dL=doc.splitTextToSize(disc,W-M*2); doc.text(dL,M,y); y+=dL.length*11+4;
       doc.setFont("helvetica","normal");
       const pages=doc.internal.getNumberOfPages();
-      for(let i=1;i<=pages;i++){ doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
+      for(let i=1;i<=pages;i++){ doc.setPage(i);
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(200,30,30);
+        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-40,{align:"center"});
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
         doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-26);
         doc.text("Page "+i+" of "+pages, W-M, H-26, {align:"right"}); }
       const safe=(clientCode()||"report").replace(/[^a-z0-9]/gi,"_");
