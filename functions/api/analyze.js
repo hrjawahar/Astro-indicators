@@ -2523,20 +2523,30 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
     hcDom ? `Its house placement across the charts is most often ${hcDom.value==="visible"?"angular/visible":hcDom.value==="behind"?"in the 6/8/12 (depth) houses":hcDom.value==="relational"?"partnership/network houses":"supportive houses"} — pointing to ${CC_HOUSECLASS_NOTE[hcDom.value]}.` : null,
     `These two axes are read SEPARATELY: your field (Sector) and your mode of working (Role) can each lean a different way, and the chart does not blend them.`
   ].filter(Boolean);
+  // IC vs People-Management lean, grounded in where the 10th lord most often sits:
+  // visible (1/10) → leadership; relational (7/11) → people-facing leadership;
+  // behind (6/8/12) → specialist/IC; supportive → steady IC.
+  const ICM = {
+    visible:    { lean:"People Management / leadership", note:"your chart leans toward roles where you direct and lead others and carry visible authority over people and outcomes" },
+    relational: { lean:"People-facing leadership (teams, clients, partnerships)", note:"your chart leans toward leading through relationships — managing people, clients, and networks rather than working solo" },
+    behind:     { lean:"Individual Contributor / specialist", note:"your chart leans toward deep, hands-on, specialist work where your own mastery matters more than managing other people" },
+    supportive: { lean:"Individual Contributor (steady, foundational)", note:"your chart leans toward dependable hands-on work rather than front-line people management" }
+  };
   const roleFit = {
     leaning: roleBase ? roleBase.role : null,
     visibility: hcDom ? CC_HOUSECLASS_NOTE[hcDom.value] : null,
+    icVsManagement: hcDom ? ICM[hcDom.value] : null,
     consistency: roleCons.label, consistencyNote: roleCons.note, signals: roleSignals
   };
 
   // ── How to test it yourself (the reader runs the pass/fail against their own life) ──
   const howToTest = [
-    "This page gives the chart's structural LEANING — not a verdict. It becomes direction only when you test it against your own working life.",
-    "TEST 1 — Sector: take the sector leaning above and hold it against YOUR OWN field and experience. Does the field you work in (or are drawn to) sit INSIDE this leaning, ADJACENT to it, or OUTSIDE it? Judge by what work has actually energised you and produced real results — not by what merely sounds appealing.",
-    "TEST 2 — Role: take the role leaning above and hold it against how you ACTUALLY work best. In your real day-to-day, are you mostly BUILDING (starting new things), OPERATING (running and sustaining what exists), or ADVISING (guiding, connecting, translating)? Be honest about where your results have come from.",
-    "Read the two tests SEPARATELY — they do not average out. A clear sector with a mismatched role (or the reverse) is common and informative; do not merge them into a single answer.",
-    "Where the chart's leaning and your own field/experience AGREE, treat that as your confirmed direction — lean into it. Where they DIVERGE, the gap is itself the signal: either a genuine strength you have not yet moved into, or a mismatch worth re-examining before your next career step.",
-    "Then use the Timing section of this report to decide WHEN to act on what you have confirmed."
+    "This page shows the chart's leaning — a starting point to check against your real working life, not a verdict.",
+    "FIELD (what kind of work): look at the fields listed above, then think about the work that has actually energised you and produced your best results. Is it one of these fields, close to one, or clearly somewhere else? Trust your real track record over what merely sounds appealing.",
+    "MODE (how you work best): think about where your best results have actually come from — doing the hands-on work yourself as a specialist, leading and coordinating other people, or guiding and advising from the side. The chart's lean is stated above; check it honestly against where you have delivered and felt most effective.",
+    "Read FIELD and MODE separately — a strong field with a different working mode (or the reverse) is common and useful; don't blend them into one answer.",
+    "Where the chart's lean and your own experience agree, trust it and lean in. Where they differ, that gap is the signal — either a strength you haven't stepped into yet, or a mismatch worth a closer look before your next move.",
+    "Then use the Timing section of this report to decide WHEN to act."
   ];
 
   return { tenthLord:hLord, positions:P, coreNature, sectorFit, roleFit, howToTest,
