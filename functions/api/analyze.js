@@ -2527,10 +2527,10 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
   // visible (1/10) → leadership; relational (7/11) → people-facing leadership;
   // behind (6/8/12) → specialist/IC; supportive → steady IC.
   const ICM = {
-    visible:    { lean:"People Management / leadership", note:"your chart leans toward roles where you direct and lead others and carry visible authority over people and outcomes" },
-    relational: { lean:"People-facing leadership (teams, clients, partnerships)", note:"your chart leans toward leading through relationships — managing people, clients, and networks rather than working solo" },
-    behind:     { lean:"Individual Contributor / specialist", note:"your chart leans toward deep, hands-on, specialist work where your own mastery matters more than managing other people" },
-    supportive: { lean:"Individual Contributor (steady, foundational)", note:"your chart leans toward dependable hands-on work rather than front-line people management" }
+    visible:    { lean:"Managerial / leadership", note:"your chart leans toward managing and leading other people — directing teams and carrying visible authority over people and outcomes, rather than being the one who does the hands-on work" },
+    relational: { lean:"Managerial / people-facing leadership (teams, clients, partnerships)", note:"your chart leans toward leading through relationships — managing people, clients, and networks rather than working solo" },
+    behind:     { lean:"Subject-matter expert / specialist", note:"your chart leans toward being the deep specialist who does the expert work yourself — mastery of the craft matters more to you than managing other people" },
+    supportive: { lean:"Subject-matter expert (steady, hands-on)", note:"your chart leans toward dependable, hands-on specialist work rather than front-line people management" }
   };
   const roleFit = {
     leaning: roleBase ? roleBase.role : null,
@@ -2543,7 +2543,7 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
   const howToTest = [
     "This page shows the chart's leaning — a starting point to check against your real working life, not a verdict.",
     "FIELD (what kind of work): look at the fields listed above, then think about the work that has actually energised you and produced your best results. Is it one of these fields, close to one, or clearly somewhere else? Trust your real track record over what merely sounds appealing.",
-    "MODE (how you work best): think about where your best results have actually come from — doing the hands-on work yourself as a specialist, leading and coordinating other people, or guiding and advising from the side. The chart's lean is stated above; check it honestly against where you have delivered and felt most effective.",
+    "MODE (how you work best) — this is the big career-direction question, so be clear with yourself: do your best results come when you are (1) the deep expert who does the work yourself — a SUBJECT-MATTER EXPERT / specialist; (2) the one leading and managing other people — a MANAGERIAL / LEADERSHIP role; or (3) guiding and advising others from the side — a mentor / advisor? The chart's lean is stated above; check it honestly against where you have actually delivered and felt most effective.",
     "Read FIELD and MODE separately — a strong field with a different working mode (or the reverse) is common and useful; don't blend them into one answer.",
     "Where the chart's lean and your own experience agree, trust it and lean in. Where they differ, that gap is the signal — either a strength you haven't stepped into yet, or a mismatch worth a closer look before your next move.",
     "Then use the Timing section of this report to decide WHEN to act."
@@ -2847,14 +2847,14 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
             adWindows.push({ md:md.lord, ad:ad.lord, years:ayrs, upcoming,
               note:(ad.lord===hLord? ad.lord+" (your "+ordinalD(cfg.house)+"-lord) sub-period within "+md.lord+" — a concentrated window for this area"
                     : ad.lord===karakaPlanet? ad.lord+" (the "+cfg.karaka+") sub-period within "+md.lord+" — the domain significator activates here"
-                    : ad.lord+" sub-period within "+md.lord+" — this area is stirred") });
+                    : ad.lord+" sub-period within "+md.lord+" — an active window for this area, tending to bring new developments or demands") });
           }
           // RETROSPECTIVE (read-only): within the CURRENT MD, a PAST sub-period whose
           // lord is a genuine domain stressor was likely a testing window. This gives
           // the reader recognisable confirmation ("yes, that hard patch was then").
           if(isCurrentMD && aen!=null && aen<now && isStressor(ad.lord)){
             pastWindows.push({ md:md.lord, ad:ad.lord, years:ayrs,
-              note: ad.lord+" sub-period within "+md.lord+" — a period when "+cfg.focus+" was likely tested, stirred, or under pressure" });
+              note: ad.lord+" sub-period within "+md.lord+" — a period when "+cfg.focus+" was likely tested, under pressure, or going through real change" });
           }
         }
       }
