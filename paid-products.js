@@ -623,19 +623,26 @@
   // then the final JSON after a marker — this keeps Cloudflare from 524-ing the
   // long request. Read the whole stream and parse the payload after the marker.
   async function fetchStreamedReport(url, payload) {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!res.ok || !res.body) {
-      const t = await res.text().catch(() => "");
-      try { return JSON.parse(t); } catch (_) { throw new Error("Server error (" + res.status + ")."); }
-    }
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    for (;;) { const { done, value } = await reader.read(); if (done) break; buf += dec.decode(value, { stream: true }); }
     const MARK = "\u0000__RESULT__";
-    const i = buf.lastIndexOf(MARK);
-    const jsonStr = i >= 0 ? buf.slice(i + MARK.length) : buf.trim();
-    return JSON.parse(jsonStr);
+    const INTERRUPTED = "The connection dropped before the report finished. Please try again in a moment.";
+    const once = async () => {
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok || !res.body) {
+        const t = await res.text().catch(() => "");
+        try { return JSON.parse(t); } catch (_) { throw new Error("Server error (" + res.status + ")."); }
+      }
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      for (;;) { const { done, value } = await reader.read(); if (done) break; buf += dec.decode(value, { stream: true }); }
+      buf += dec.decode();
+      const i = buf.lastIndexOf(MARK);
+      const jsonStr = i >= 0 ? buf.slice(i + MARK.length).trim() : "";
+      if (!jsonStr) throw new Error(INTERRUPTED);   // stream cut before the final marker
+      return JSON.parse(jsonStr);
+    };
+    try { return await once(); }
+    catch (e) { if (String(e && e.message) === INTERRUPTED) return await once(); throw e; }  // one auto-retry on a dropped stream
   }
 
   async function openTransitReport() {

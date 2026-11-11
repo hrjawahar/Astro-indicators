@@ -1070,13 +1070,22 @@ function generateTransitReport(st, data) {
   const box = ov.querySelector("#transitModalBox");
   box.innerHTML = "<div style='text-align:center;padding:34px 0'><div style='font-weight:700;color:var(--ai-gold,#b0821f);font-size:16px;margin-bottom:8px'>Preparing your Transit Report…</div><div style='opacity:.7;font-size:13px'>Reading Saturn against your chart. This usually takes 1–2 minutes.</div></div>";
   const done = (html) => { box.innerHTML = html; const x = box.querySelector("#transitModalClose"); if (x) x.onclick = () => ov.remove(); };
-  (async () => {
+  const MARK = "\u0000__RESULT__";
+  const INTERRUPTED = "The connection dropped before the report finished. Please try again in a moment.";
+  const fetchTransit = async () => {
     const r = await fetch("/api/transit-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ facts: _transitFacts(st, data) }) });
     if (!r.ok || !r.body) { try { return await r.json(); } catch (_) { throw new Error("Server error (" + r.status + ")."); } }
     const rd = r.body.getReader(), de = new TextDecoder(); let b = "";
     for (;;) { const { done: d, value } = await rd.read(); if (d) break; b += de.decode(value, { stream: true }); }
-    const MARK = "\u0000__RESULT__", m = b.lastIndexOf(MARK);
-    return JSON.parse(m >= 0 ? b.slice(m + MARK.length) : b.trim());
+    b += de.decode();
+    const m = b.lastIndexOf(MARK);
+    const js = m >= 0 ? b.slice(m + MARK.length).trim() : "";
+    if (!js) throw new Error(INTERRUPTED);   // stream cut before the final marker
+    return JSON.parse(js);
+  };
+  (async () => {
+    try { return await fetchTransit(); }
+    catch (e) { if (String(e && e.message) === INTERRUPTED) return await fetchTransit(); throw e; }  // one auto-retry on a dropped stream
   })()
     .then(res => {
       if (!res.sections || !res.sections.length) throw new Error(res.error || "No report was returned.");

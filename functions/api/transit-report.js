@@ -36,8 +36,17 @@ export async function onRequestPost(context) {
   const enc = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      controller.enqueue(enc.encode(" ")); // first byte right away
       const beat = () => { try { controller.enqueue(enc.encode(" ")); } catch (_) {} };
+      beat(); // first byte right away
+      // Independent heartbeat on a timer: keep the connection alive even when the
+      // Anthropic stream is slow to start or pauses mid-way. The chunk-driven beat
+      // (passed to writeTransitReport) can go quiet during a stall; if that happens
+      // the idle connection is dropped and the client never receives the final
+      // marker → "Unexpected end of JSON input". A steady 4s pulse prevents that.
+      let alive = true;
+      const pulse = (async () => {
+        while (alive) { await new Promise(r => setTimeout(r, 4000)); if (alive) beat(); }
+      })();
       let payload;
       try {
         const sections = await writeTransitReport(env, facts, beat);
@@ -45,8 +54,10 @@ export async function onRequestPost(context) {
       } catch (e) {
         payload = { error: e.message || "AI writer failure." };
       }
+      alive = false;
       try { controller.enqueue(enc.encode("\n\u0000__RESULT__" + JSON.stringify(payload))); } catch (_) {}
       controller.close();
+      try { await pulse; } catch (_) {}
     },
   });
   return new Response(stream, {
