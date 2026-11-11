@@ -2391,7 +2391,7 @@ function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]|
 // dusthana. Descriptive only — does NOT affect severity scoring.
 const DUSTHANA_FLAVOUR = {
   6:  { theme:"obstacles, competition, daily struggle, and service", constructive:"this is a placement that builds resilience and problem-solving strength — progress here comes through effort and outlasting resistance, and can be genuinely productive", short:"struggle-but-productive" },
-  8:  { theme:"transformation, sudden change, hidden or research-oriented work, and depth", constructive:"this is not weakness but depth — mastery here comes through upheaval, reinvention, and working beneath the surface rather than on the visible stage", short:"transformation/upheaval" },
+  8:  { theme:"transformation, sudden change, hidden or research-oriented work, and depth", constructive:"this is not weakness but depth — mastery here comes through deep change, reinvention, and working behind the scenes rather than in the public eye", short:"transformation/deep change" },
   12: { theme:"loss, withdrawal, foreign or behind-the-scenes settings, and letting go", constructive:"this turns inward or outward-to-the-distant — strength here is found in solitude, spirituality, foreign or institutional settings, and releasing rather than grasping", short:"withdrawal/letting-go" }
 };
 function dusthanaReading(planet, placement, roleLabel){
