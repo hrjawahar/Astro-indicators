@@ -862,6 +862,18 @@
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
+  // Authentic Vedic names for the chart-comparison table. English zodiac/planet words
+  // (Cancer, Mercury, Virgo, 3-letter "Can"/"Lib") are mistranslated by machine translation
+  // — "Can"→"able to", "Cancer"→the disease, "Mercury"→the metal. The transliterated Sanskrit
+  // rasi/graha names survive translation intact and are the authentic terms for this audience.
+  const RASI_MAP = { Aries:"Mesha", Taurus:"Vrishabha", Gemini:"Mithuna", Cancer:"Karka",
+    Leo:"Simha", Virgo:"Kanya", Libra:"Tula", Scorpio:"Vrischika", Sagittarius:"Dhanu",
+    Capricorn:"Makara", Aquarius:"Kumbha", Pisces:"Meena" };
+  const GRAHA_MAP = { Sun:"Surya", Moon:"Chandra", Mars:"Mangala", Mercury:"Budha",
+    Jupiter:"Guru", Venus:"Shukra", Saturn:"Shani", Rahu:"Rahu", Ketu:"Ketu" };
+  const RASI  = (s)=> RASI_MAP[s] || (s||"");
+  const GRAHA = (p)=> GRAHA_MAP[p] || (p||"");
+
   // Comparison page: D1 · D9 · divisional side-by-side, per planet, with a short note.
   function domainComparisonPage(domainKey, pnum) {
     const facts = (window.currentData && window.currentData.analysis
@@ -890,10 +902,10 @@
     const rows = PLANETS.filter(p=>d1P[p]).map(p => {
       const a = d1P[p];
       const d9h = d9P[p] ? (ordK(d9P[p].house)) : "—";
-      const vh = (vP && vP[p]) ? (vP[p].sign+" "+ordK(vP[p].house)) : (domainKey==="marriage"?"(see D9)":"—");
+      const vh = (vP && vP[p]) ? (RASI(vP[p].sign)+" "+ordK(vP[p].house)) : (domainKey==="marriage"?"(see D9)":"—");
       return `<tr style="border-bottom:1px solid rgba(201,168,76,.12)">
-        <td style="font-weight:600;padding:2px 4px">${esc(p)}</td>
-        <td style="padding:2px 4px">${esc(a.sign)} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
+        <td style="font-weight:600;padding:2px 4px">${esc(GRAHA(p))}</td>
+        <td style="padding:2px 4px">${esc(RASI(a.sign))} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
         <td style="padding:2px 4px">${esc(d9h)}</td>
         <td style="padding:2px 4px">${esc(vh)}</td>
         <td style="opacity:.8;padding:2px 4px">${esc(NOTE(p))}</td>
@@ -909,7 +921,7 @@
           <th style="padding:3px 4px">Note</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="foot" style="margin-top:8px;font-size:.72rem">Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
+      <div class="foot" style="margin-top:8px;font-size:.72rem">Planet and sign names are shown in their traditional Vedic (Sanskrit) form. Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
@@ -1310,10 +1322,10 @@
           doc.setFont("helvetica","normal");
           for(const p of PLANETS){ const a=d1P[p]; if(!a) continue; kbreak(14);
             const d9h=d9P[p]?ordP(d9P[p].house):"—";
-            const vh=(vP&&vP[p])?(SGN3(vP[p].sign)+" "+ordP(vP[p].house)):(domainKey==="marriage"?"see D9":"—");
+            const vh=(vP&&vP[p])?(RASI(vP[p].sign)+" "+ordP(vP[p].house)):(domainKey==="marriage"?"see D9":"—");
             let note=""; if(a.dignity==="Exalted")note="strong asset"; else if(a.dignity==="Debilitated")note="under pressure"; else if(a.dignity==="Own sign")note="at home"; else if(p===facts.karakaPlanet)note=facts.karaka; else if(facts.d1.houseLord===p)note="rules "+facts.houseName;
-            const d1txt = SGN3(a.sign)+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
-            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(p,cP,y);
+            const d1txt = RASI(a.sign)+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
+            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(GRAHA(p),cP,y);
             doc.setFont("helvetica","normal"); doc.setTextColor(...MUTE);
             doc.text(d1txt, cD1, y);
             doc.text(String(d9h), cD9, y);
@@ -1321,7 +1333,9 @@
             doc.text(String(note), cN, y);
             y+=12.5;
           }
-          y+=12;
+          y+=4; kbreak(16); doc.setFontSize(7.5); doc.setTextColor(...MUTE); doc.setFont("helvetica","italic");
+          doc.text("Planet and sign names are shown in their traditional Vedic (Sanskrit) form.", M, y);
+          doc.setFont("helvetica","normal"); y+=12;
         } catch(_){}
       };
       sections.forEach((sec, si) => {
