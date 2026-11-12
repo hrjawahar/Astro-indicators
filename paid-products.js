@@ -862,40 +862,13 @@
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
-  // Authentic Vedic names for the chart-comparison table. English zodiac/planet words
-  // (Cancer, Mercury, Virgo, 3-letter "Can"/"Lib") are mistranslated by machine translation
-  // — "Can"→"able to", "Cancer"→the disease, "Mercury"→the metal. The transliterated Sanskrit
-  // rasi/graha names survive translation intact and are the authentic terms for this audience.
-  const RASI_MAP = { Aries:"Mesha", Taurus:"Vrishabha", Gemini:"Mithuna", Cancer:"Karka",
-    Leo:"Simha", Virgo:"Kanya", Libra:"Tula", Scorpio:"Vrischika", Sagittarius:"Dhanu",
-    Capricorn:"Makara", Aquarius:"Kumbha", Pisces:"Meena" };
-  const RASI  = (s)=> RASI_MAP[s] || (s||"");
-  // Planet names stay in ENGLISH in the chart table. (Sanskrit transliterations such as
-  // "Surya"/"Mangala" machine-translate to transliterated Sanskrit — ஸூர்யா, மங்களா —
-  // not the proper native words.) The authoritative native names below are kept for where
-  // the report renders natively; the English PDF cannot display Indic script (jsPDF font).
-  const PLANET_I18N = {
-    EN: { Sun:"Sun", Moon:"Moon", Mars:"Mars", Mercury:"Mercury", Jupiter:"Jupiter", Venus:"Venus", Saturn:"Saturn", Rahu:"Rahu", Ketu:"Ketu" },
-    TA: { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்", Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" },
-    ML: { Sun:"സൂര്യൻ", Moon:"ചന്ദ്രൻ", Mars:"ചൊവ്വ", Mercury:"ബുധൻ", Jupiter:"വ്യാഴം", Venus:"ശുക്രൻ", Saturn:"ശനി", Rahu:"രാഹു", Ketu:"കേതു" },
-    HI: { Sun:"सूर्य", Moon:"चंद्रमा", Mars:"मंगल", Mercury:"बुध", Jupiter:"बृहस्पति", Venus:"शुक्र", Saturn:"शनि", Rahu:"राहु", Ketu:"केतु" },
-    TE: { Sun:"సూర్యుడు", Moon:"చంద్రుడు", Mars:"కుజుడు", Mercury:"బుధుడు", Jupiter:"గురుడు", Venus:"శుక్రుడు", Saturn:"శని", Rahu:"రాహువు", Ketu:"కేతువు" },
-    KA: { Sun:"ಸೂರ್ಯ", Moon:"ಚಂದ್ರ", Mars:"ಮಂಗಳ", Mercury:"ಬುಧ", Jupiter:"ಗುರು", Venus:"ಶುಕ್ರ", Saturn:"ಶನಿ", Rahu:"ರಾಹು", Ketu:"ಕೇತು" },
-  };
-  const GRAHA = (p)=> (PLANET_I18N.EN[p] || p);  // flipbook + PDF: English planet names
-  // Sign names per language. EN uses the Sanskrit rasi (matches the flipbook/PDF); the native
-  // scripts are the standard rasi names. The Word chart renders names in the reader's selected
-  // language so Google Translate leaves them intact (English "Mercury"→"Ford", Sanskrit "Karka"
-  // →"கர்கா" both come out wrong; the native word சுக்கிரன்/கடகம் is passed through untouched).
-  const SIGN_I18N = {
-    EN: RASI_MAP,
-    TA: { Aries:"மேஷம்", Taurus:"ரிஷபம்", Gemini:"மிதுனம்", Cancer:"கடகம்", Leo:"சிம்மம்", Virgo:"கன்னி", Libra:"துலாம்", Scorpio:"விருச்சிகம்", Sagittarius:"தனுசு", Capricorn:"மகரம்", Aquarius:"கும்பம்", Pisces:"மீனம்" },
-  };
-  // Only a language with BOTH a planet and a sign map is localised; others fall back to EN.
-  // (Tamil first — adding TE/HI/KA/ML signs here auto-activates them.)
-  const chartLang = () => { try { const L=(localStorage.getItem("jyotish-lang")||window._currentLang||"EN").toUpperCase(); return (PLANET_I18N[L]&&SIGN_I18N[L])?L:"EN"; } catch(_){ return "EN"; } };
-  const GRAHA_L = (p)=> (PLANET_I18N[chartLang()][p] || PLANET_I18N.EN[p] || p);  // Word chart: reader's language
-  const RASI_L  = (s)=> (SIGN_I18N[chartLang()][s] || RASI_MAP[s] || s);           // Word chart: reader's language
+  // Chart names are full ENGLISH (Sun, Moon, …; Cancer, Virgo, …). The Word chart renders
+  // them as readable LINES rather than isolated table cells, so machine translation keeps the
+  // context and produces the correct native words — e.g. "Mercury — Pisces — 1st house" →
+  // "புதன் — மீனம் — 1 ஆம் வீடு". Isolated table cells lose that context, so Google guesses
+  // ("Mercury" → "Ford", the sign "Meena" → "மீனா"). Lines fix this for every language, free.
+  const GRAHA = (p)=> (p||"");  // full English planet name
+  const RASI  = (s)=> (s||"");  // full English sign name
 
   // Comparison page: D1 · D9 · divisional side-by-side, per planet, with a short note.
   function domainComparisonPage(domainKey, pnum) {
@@ -945,7 +918,7 @@
           <th style="padding:3px 4px">Note</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="foot" style="margin-top:8px;font-size:.72rem">Sign names are shown in their traditional Vedic (Sanskrit) form. Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
+      <div class="foot" style="margin-top:8px;font-size:.72rem">Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
@@ -973,27 +946,20 @@
       if (facts.d1.houseLord === p) return "rules your "+facts.houseName+" house";
       return "";
     };
-    const cell = 'style="padding:3px 7px;border:1px solid #e2cf8f"';
-    const rows = PLANETS.filter(p=>d1P[p]).map(p=>{
+    // LINE format (not a table). Full sentences give machine translation the context it needs
+    // to render planet/sign names correctly in every language — "Mercury — Pisces, 1st house"
+    // → "புதன் — மீனம், 1 ஆம் வீடு". (Isolated table cells lost that and produced "Ford"/"மீனா".)
+    const lines = PLANETS.filter(p=>d1P[p]).map(p=>{
       const a=d1P[p];
-      const d9h = d9P[p] ? ordK(d9P[p].house) : "—";
-      const vh = (vP && vP[p]) ? (RASI_L(vP[p].sign)+" "+ordK(vP[p].house)) : "—";
-      return `<tr>
-        <td ${cell}><b>${esc(GRAHA_L(p))}</b></td>
-        <td ${cell}>${esc(RASI_L(a.sign))} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
-        <td ${cell}>${esc(d9h)}</td>
-        ${showVarga?`<td ${cell}>${esc(vh)}</td>`:""}
-        <td ${cell}>${esc(NOTE(p))}</td>
-      </tr>`;
+      const dig = (a.dignity && a.dignity!=="Neutral") ? " ("+a.dignity+")" : "";
+      const d9h = d9P[p] ? (" · D9 "+ordK(d9P[p].house)+" house") : "";
+      const vh  = (showVarga && vP && vP[p]) ? (" · "+vLabel+" "+vP[p].sign+" "+ordK(vP[p].house)) : "";
+      const note = NOTE(p) ? (" — "+NOTE(p)) : "";
+      return `<p style="margin:3px 0;font-size:10.5pt"><b>${esc(p)}</b> — ${esc(a.sign)}, ${esc(ordK(a.house))} house${esc(dig)}${esc(d9h)}${esc(vh)}${esc(note)}</p>`;
     }).join("");
-    const th = 'style="padding:3px 7px;border:1px solid #e2cf8f;text-align:left;background:#fbf6e6;color:#8a6d1f"';
     return `<h2 style="color:#b0821f;margin:18px 0 6px">Chart Comparison — D1 · D9${showVarga?" · "+esc(vLabel):""}</h2>
-      <p style="margin:0 0 8px;font-size:10pt;color:#555">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading.</p>
-      <table style="border-collapse:collapse;font-size:10pt;width:100%">
-        <thead><tr><th ${th}>Planet</th><th ${th}>D1 (birth)</th><th ${th}>D9</th>${showVarga?`<th ${th}>${esc(vLabel)}</th>`:""}<th ${th}>Note</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <p style="margin:6px 0 0;font-size:9pt;color:#777;font-style:italic">Sign names are shown in their traditional Vedic (Sanskrit) form. Houses are counted from each chart's own ascendant.</p>`;
+      <p style="margin:0 0 8px;font-size:10pt;color:#555">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading. Houses are counted from each chart's own ascendant.</p>
+      ${lines}`;
   }
 
   function allDomainsToPages(combined) {
@@ -1405,9 +1371,7 @@
             doc.text(String(note), cNote, y);
             y+=12.5;
           }
-          y+=4; kbreak(16); doc.setFontSize(7.5); doc.setTextColor(...MUTE); doc.setFont("helvetica","italic");
-          doc.text("Sign names are shown in their traditional Vedic (Sanskrit) form.", M, y);
-          doc.setFont("helvetica","normal"); y+=12;
+          y+=12;
         } catch(_){}
       };
       sections.forEach((sec, si) => {
