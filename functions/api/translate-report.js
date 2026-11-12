@@ -67,8 +67,8 @@ ABSOLUTE RULES:
 4. NEVER output a stray single letter or orphan character — e.g. a lone "ஈ", "E", "A", or a leftover list label — at the start of a line or sentence. If the English has a lone letter, bullet label, or symbol you do not understand, drop it rather than transliterating it. Every line must read as natural prose.
 5. Translate planet names and sign names to their standard ${name} forms.${gloss}
 6. Output ONLY a JSON object of this exact shape, nothing else (no commentary, no code fences):
-   { "sections": [ { "heading": "...", "body": "..." }, ... ] }
-   Same number of sections, same order. Translate each heading and body. If a heading or body is empty, keep it empty.`;
+   { "heading": "...", "body": "..." }
+   Translate the heading and the body of the one section given. If either is empty, keep it empty.`;
 }
 
 export async function onRequestPost(context) {
@@ -115,70 +115,50 @@ export async function onRequestPost(context) {
   });
 }
 
+// Translate section-by-section with bounded concurrency. One long single call was
+// exceeding ~3 min and getting cut; many small parallel calls finish in well under a
+// minute. A section that fails to translate falls back to its English text, so a single
+// hiccup never fails the whole report.
 async function translateSections(env, lang, slim, onProgress) {
   const sys = buildSystemPrompt(lang);
-  const user = "Translate this report. Return only the JSON object.\n\n" + JSON.stringify({ sections: slim });
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 16000,
-      stream: true,
-      system: sys,
-      messages: [{ role: "user", content: user }],
-    }),
-  });
-
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error("Anthropic API error " + res.status + ": " + t.slice(0, 300));
-  }
-
-  const reader = res.body.getReader();
-  const dec = new TextDecoder();
-  let sseBuf = "", text = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    sseBuf += dec.decode(value, { stream: true });
-    let nl;
-    while ((nl = sseBuf.indexOf("\n")) >= 0) {
-      const line = sseBuf.slice(0, nl); sseBuf = sseBuf.slice(nl + 1);
-      if (line.startsWith("data:")) {
-        const p = line.slice(5).trim();
-        if (p && p !== "[DONE]") {
-          try {
-            const ev = JSON.parse(p);
-            if (ev.type === "content_block_delta" && ev.delta && ev.delta.text) text += ev.delta.text;
-            else if (ev.type === "error") throw new Error("Anthropic stream error: " + (ev.error && ev.error.message || "unknown"));
-          } catch (err) { if (/stream error/.test(err.message)) throw err; }
-        }
-      }
+  const CONCURRENCY = 6;
+  const out = new Array(slim.length);
+  let next = 0;
+  async function worker() {
+    for (;;) {
+      const i = next++;
+      if (i >= slim.length) return;
+      out[i] = await translateOne(env, sys, slim[i]);
+      if (onProgress) { try { onProgress(); } catch (_) {} }
     }
-    if (onProgress) { try { onProgress(); } catch (_) {} }
   }
-  text = text.trim();
-  if (!text) throw new Error("The translator returned an empty response.");
+  const n = Math.min(CONCURRENCY, slim.length);
+  await Promise.all(Array.from({ length: n }, () => worker()));
+  return out;
+}
 
-  let clean = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-  const first = clean.indexOf("{"), last = clean.lastIndexOf("}");
-  const block = (first !== -1 && last > first) ? clean.slice(first, last + 1) : clean;
-  let parsed = null;
-  try { parsed = JSON.parse(clean); } catch (_) { try { parsed = JSON.parse(block); } catch (__) {} }
-  const out = parsed && Array.isArray(parsed.sections) ? parsed.sections : null;
-  if (!out || !out.length) throw new Error("The translation could not be parsed.");
-
-  // Normalise to {heading, body}, and guard length: if the model dropped/added
-  // sections, pad/truncate to the input length so the client merge stays aligned.
-  const norm = out.map((s) => ({ heading: String(s && s.heading || ""), body: String(s && s.body || "") }));
-  if (norm.length < slim.length) {
-    for (let i = norm.length; i < slim.length; i++) norm.push({ heading: slim[i].heading, body: slim[i].body });
+async function translateOne(env, sys, section) {
+  // Nothing to translate (e.g. a divider with an empty body) — skip the call.
+  if (!String(section.heading || "").trim() && !String(section.body || "").trim()) return { heading: section.heading, body: section.body };
+  const user = "Translate this ONE section. Return only the JSON object { \"heading\": \"...\", \"body\": \"...\" }.\n\n" + JSON.stringify({ heading: section.heading, body: section.body });
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: MODEL, max_tokens: 4000, system: sys, messages: [{ role: "user", content: user }] }),
+    });
+    if (!res.ok) throw new Error("API " + res.status);
+    const data = await res.json();
+    let text = (data && data.content && data.content[0] && data.content[0].text || "").trim();
+    if (!text) throw new Error("empty");
+    text = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    const first = text.indexOf("{"), last = text.lastIndexOf("}");
+    const block = (first !== -1 && last > first) ? text.slice(first, last + 1) : text;
+    let parsed = null;
+    try { parsed = JSON.parse(text); } catch (_) { try { parsed = JSON.parse(block); } catch (__) {} }
+    if (!parsed) throw new Error("parse");
+    return { heading: String(parsed.heading != null ? parsed.heading : section.heading), body: String(parsed.body != null ? parsed.body : section.body) };
+  } catch (_) {
+    return { heading: section.heading, body: section.body };  // fall back to English for this section
   }
-  return norm.slice(0, slim.length);
 }

@@ -1250,8 +1250,8 @@
   // ── In-report language picker (AI translation) ───────────────────────────────
   function langSelectHTML(){
     const opts = UI_LANGS.map(l=>`<option value="${l.code}"${l.code===_reportLang?" selected":""}>${esc(l.label)}</option>`).join("");
-    return `<label class="fb-langpick" style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;color:#c9a84c;font-size:.9rem;white-space:nowrap">🌐
-      <select id="fbLang" title="Read in your language" style="padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.06);color:#f0e6c8;border:1px solid rgba(201,168,76,.45);font-size:.9rem;cursor:pointer;max-width:190px">${opts}</select></label>`;
+    return `<label class="fb-langpick" style="display:inline-flex;align-items:center;gap:7px;align-self:flex-start;color:#c9a84c;font-size:.9rem;white-space:nowrap">🌐 <span style="font-weight:600">Read in</span>
+      <select id="fbLang" title="Translate this report into your language" style="padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.06);color:#f0e6c8;border:1px solid rgba(201,168,76,.45);font-size:.9rem;cursor:pointer;max-width:190px">${opts}</select></label>`;
   }
   function wireLangSelect(host, domainKey){
     const sel = $("fbLang"); if(!sel) return;
