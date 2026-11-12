@@ -858,17 +858,58 @@
         host.innerHTML = `<div class="pp-empty">This report has no content yet. Please try opening it again.</div>`;
         return;
       }
+      _reportLang = "EN";
+      _domCtx = { domainKey, host, cache: { EN: sections } };   // English source for the language picker
       renderDomainFlipbook(host, domainKey, sections);
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
-  // Chart names are full ENGLISH (Sun, Moon, …; Cancer, Virgo, …). The Word chart renders
-  // them as readable LINES rather than isolated table cells, so machine translation keeps the
-  // context and produces the correct native words — e.g. "Mercury — Pisces — 1st house" →
-  // "புதன் — மீனம் — 1 ஆம் வீடு". Isolated table cells lose that context, so Google guesses
-  // ("Mercury" → "Ford", the sign "Meena" → "மீனா"). Lines fix this for every language, free.
-  const GRAHA = (p)=> (p||"");  // full English planet name
-  const RASI  = (s)=> (s||"");  // full English sign name
+  // ── Chart glossary (AI-translation era) ──────────────────────────────────────
+  // The report's PROSE is translated in context by the API; the chart TABLE is
+  // rendered from this deterministic glossary so the structured terms are always the
+  // owner-approved native words (not a translator's guess). _reportLang is set by the
+  // in-report language picker; "EN" renders plain English. Only a handful of standard
+  // astrological terms per language — small enough to verify by hand.
+  let _reportLang = "EN";
+  let _domCtx = null;   // { domainKey, host, cache:{ EN:[sections], TA:[...] } } for the open domain report
+  // Languages offered in the in-report picker. Add the four others once their chart
+  // glossary (CHART_I18N) is filled in — the picker reads from CHART_I18N presence.
+  const UI_LANGS = [{ code:"EN", label:"English" }, { code:"TA", label:"தமிழ் · Tamil" }];
+  const CHART_I18N = {
+    TA: {
+      planets: { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்", Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" },
+      signs: { Aries:"மேஷம்", Taurus:"ரிஷபம்", Gemini:"மிதுனம்", Cancer:"கடகம்", Leo:"சிம்மம்", Virgo:"கன்னி", Libra:"துலாம்", Scorpio:"விருச்சிகம்", Sagittarius:"தனுசு", Capricorn:"மகரம்", Aquarius:"கும்பம்", Pisces:"மீனம்" },
+      dignity: { Exalted:"உச்சம்", Debilitated:"நீசம்", "Own sign":"ஆட்சி" },
+      house: (n)=> n+"-ஆம் வீடு",
+      col: { planet:"கிரகம்", d1:"D1 (பிறப்பு)", d9:"D9", note:"குறிப்பு" },
+      title: (v)=> "ஜாதக ஒப்பீடு — D1 · D9"+(v?" · "+v:""),
+      intro: "ஒரு கிரகம் ஒன்றுக்கு மேற்பட்ட ஜாதகங்களில் வலிமையுடன் இருக்கும்போது, அந்த ஒற்றுமையே உங்கள் பலனில் மிகவும் நம்பகமான சமிக்ஞை. வீடுகள் அந்தந்த ஜாதகத்தின் லக்னத்திலிருந்து எண்ணப்படுகின்றன.",
+      foot: "“—” என்பது அந்தக் கிரகத்தின் அம்ச நிலை இந்தத் துறைக்கு முக்கியமில்லை என்பதைக் குறிக்கிறது.",
+      note: { exalted:"வலிமையானது — உண்மையான பலம்", debilitated:"அழுத்தத்தில் — கவனம் தேவை", own:"ஆட்சியில் — நம்பகமான பலம்", karaka:(k)=>"உங்கள் "+k+" — இத்துறையின் முக்கிய கிரகம்", lord:"இந்தத் துறையின் வீட்டை ஆளும் கிரகம்" },
+    },
+  };
+  const _cl = () => CHART_I18N[_reportLang] || null;            // active chart locale, or null for EN
+  const GP = (p)=> { const g=_cl(); return (g && g.planets[p]) || p; };       // planet name
+  const GS = (s)=> { const g=_cl(); return (g && g.signs[s]) || s; };         // sign name
+  const GDIG = (d)=> { const g=_cl(); return (g && g.dignity[d]) || d; };     // dignity word
+  const GHOUSE = (n)=> { const g=_cl(); return g ? g.house(n) : ordK(n); };   // "8th" / "8-ஆம் வீடு"
+  // Legacy aliases used by the on-screen flipbook table (now language-aware):
+  const GRAHA = (p)=> GP(p);
+  const RASI  = (s)=> GS(s);
+  // Shared, language-aware chart text (used by both the flipbook and Word tables).
+  const chartNote = (p, d1P, facts) => {
+    const a = d1P[p]; if (!a) return ""; const g=_cl();
+    if (a.dignity==="Exalted")     return g? g.note.exalted     : "strong — a genuine asset here";
+    if (a.dignity==="Debilitated") return g? g.note.debilitated : "under pressure — handle with care";
+    if (a.dignity==="Own sign")    return g? g.note.own         : "at home — reliable strength";
+    if (p===facts.karakaPlanet)    return g? g.note.karaka(facts.karaka) : "your "+facts.karaka+" — key to this domain";
+    if (facts.d1.houseLord===p)    return g? g.note.lord        : "rules your "+facts.houseName+" house";
+    return "";
+  };
+  const chartCol     = (k)=> { const g=_cl(); const en={planet:"Planet",d1:"D1 (birth)",d9:"D9",note:"Note"}; return (g && g.col[k]) || en[k]; };
+  const chartHeading = (vLabel,showVarga)=> { const g=_cl(); const v=showVarga?vLabel:""; return g? g.title(v) : ("Chart Comparison — D1 · D9"+(showVarga?" · "+vLabel:"")); };
+  const chartIntro   = ()=> { const g=_cl(); return g? g.intro : "Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading. Houses are counted from each chart's own ascendant."; };
+  const chartFoot    = ()=> { const g=_cl(); return g? g.foot : "“—” means the planet's divisional position isn't a focus for this domain."; };
 
   // Comparison page: D1 · D9 · divisional side-by-side, per planet, with a short note.
   function domainComparisonPage(domainKey, pnum) {
@@ -885,40 +926,30 @@
     }
     const vP = (facts.vargaChart && facts.vargaChart.placements) || null;
     const vLabel = facts.divisional || (domainKey==="marriage"?"D9":"—");
-    // short per-planet note anchored to the domain
-    const NOTE = (p) => {
-      const a = d1P[p]; if (!a) return "";
-      if (a.dignity === "Exalted") return "strong — a genuine asset here";
-      if (a.dignity === "Debilitated") return "under pressure — handle with care";
-      if (a.dignity === "Own sign") return "at home — reliable strength";
-      if (p === facts.karakaPlanet) return "your "+facts.karaka+" — key to this domain";
-      if (facts.d1.houseLord === p) return "rules your "+facts.houseName+" house";
-      return "";
-    };
     const showVarga = domainKey !== "marriage";  // marriage's divisional IS D9 — drop the redundant 4th column
     const rows = PLANETS.filter(p=>d1P[p]).map(p => {
       const a = d1P[p];
-      const d9h = d9P[p] ? (ordK(d9P[p].house)) : "—";
-      const vh = (vP && vP[p]) ? (RASI(vP[p].sign)+" "+ordK(vP[p].house)) : "—";
+      const d9h = d9P[p] ? GHOUSE(d9P[p].house) : "—";
+      const vh = (vP && vP[p]) ? (GS(vP[p].sign)+" "+GHOUSE(vP[p].house)) : "—";
       return `<tr style="border-bottom:1px solid rgba(201,168,76,.12)">
-        <td style="font-weight:600;padding:2px 4px">${esc(GRAHA(p))}</td>
-        <td style="padding:2px 4px">${esc(RASI(a.sign))} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
+        <td style="font-weight:600;padding:2px 4px">${esc(GP(p))}</td>
+        <td style="padding:2px 4px">${esc(GS(a.sign))} ${esc(GHOUSE(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(GDIG(a.dignity)):""}</td>
         <td style="padding:2px 4px">${esc(d9h)}</td>
         ${showVarga?`<td style="padding:2px 4px">${esc(vh)}</td>`:""}
-        <td style="opacity:.8;padding:2px 4px">${esc(NOTE(p))}</td>
+        <td style="opacity:.8;padding:2px 4px">${esc(chartNote(p,d1P,facts))}</td>
       </tr>`;
     }).join("");
-    return `<div class="pg"><div class="kick">Chart Comparison</div><div class="rule"></div>
-      <h2 style="font-size:1.15rem">D1 · D9${showVarga?" · "+esc(vLabel):""} at a glance</h2>
-      <div class="bd" style="margin-bottom:6px;font-size:.82rem">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading.</div>
+    return `<div class="pg"><div class="rule"></div>
+      <h2 style="font-size:1.15rem">${esc(chartHeading(vLabel,showVarga))}</h2>
+      <div class="bd" style="margin-bottom:6px;font-size:.82rem">${esc(chartIntro())}</div>
       <table class="cmp-table" style="width:100%;border-collapse:collapse;font-size:.72rem;line-height:1.25">
         <thead><tr style="color:var(--ai-gold);text-align:left;border-bottom:1px solid rgba(201,168,76,.4)">
-          <th style="padding:3px 4px">Planet</th><th style="padding:3px 4px">D1 (birth)</th>
-          <th style="padding:3px 4px">D9</th>${showVarga?`<th style="padding:3px 4px">${esc(vLabel)}</th>`:""}
-          <th style="padding:3px 4px">Note</th></tr></thead>
+          <th style="padding:3px 4px">${esc(chartCol('planet'))}</th><th style="padding:3px 4px">${esc(chartCol('d1'))}</th>
+          <th style="padding:3px 4px">${esc(chartCol('d9'))}</th>${showVarga?`<th style="padding:3px 4px">${esc(vLabel)}</th>`:""}
+          <th style="padding:3px 4px">${esc(chartCol('note'))}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="foot" style="margin-top:8px;font-size:.72rem">Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
+      <div class="foot" style="margin-top:8px;font-size:.72rem">${esc(chartFoot())}</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
@@ -937,29 +968,43 @@
     const vP = (facts.vargaChart && facts.vargaChart.placements) || null;
     const vLabel = facts.divisional || (domainKey==="marriage"?"D9":"—");
     const showVarga = domainKey !== "marriage";
-    const NOTE = (p) => {
-      const a = d1P[p]; if (!a) return "";
-      if (a.dignity === "Exalted") return "strong — a genuine asset here";
-      if (a.dignity === "Debilitated") return "under pressure — handle with care";
-      if (a.dignity === "Own sign") return "at home — reliable strength";
-      if (p === facts.karakaPlanet) return "your "+facts.karaka+" — key to this domain";
-      if (facts.d1.houseLord === p) return "rules your "+facts.houseName+" house";
-      return "";
-    };
-    // LINE format (not a table). Full sentences give machine translation the context it needs
-    // to render planet/sign names correctly in every language — "Mercury — Pisces, 1st house"
-    // → "புதன் — மீனம், 1 ஆம் வீடு". (Isolated table cells lost that and produced "Ford"/"மீனா".)
-    const lines = PLANETS.filter(p=>d1P[p]).map(p=>{
+    // ENGLISH Word may still be run through Google Translate by the reader, so it uses the
+    // context-safe LINE format (isolated cells become "Ford"/"மீனா"). The AI-translated path
+    // (picker) renders a proper TABLE from the glossary — nothing context-blind touches it.
+    if (_reportLang === "EN") {
+      const lines = PLANETS.filter(p=>d1P[p]).map(p=>{
+        const a=d1P[p];
+        const dig = (a.dignity && a.dignity!=="Neutral") ? " ("+a.dignity+")" : "";
+        const d9h = d9P[p] ? (" · D9 "+ordK(d9P[p].house)+" house") : "";
+        const vh  = (showVarga && vP && vP[p]) ? (" · "+vLabel+" "+vP[p].sign+" "+ordK(vP[p].house)) : "";
+        const nt = chartNote(p,d1P,facts); const note = nt ? (" — "+nt) : "";
+        return `<p style="margin:3px 0;font-size:10.5pt"><b>${esc(p)}</b> — ${esc(a.sign)}, ${esc(ordK(a.house))} house${esc(dig)}${esc(d9h)}${esc(vh)}${esc(note)}</p>`;
+      }).join("");
+      return `<h2 style="color:#b0821f;margin:18px 0 6px">Chart Comparison — D1 · D9${showVarga?" · "+esc(vLabel):""}</h2>
+        <p style="margin:0 0 8px;font-size:10pt;color:#555">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading. Houses are counted from each chart's own ascendant.</p>
+        ${lines}`;
+    }
+    const cell = 'style="padding:3px 7px;border:1px solid #e2cf8f"';
+    const th = 'style="padding:3px 7px;border:1px solid #e2cf8f;text-align:left;background:#fbf6e6;color:#8a6d1f"';
+    const rows = PLANETS.filter(p=>d1P[p]).map(p=>{
       const a=d1P[p];
-      const dig = (a.dignity && a.dignity!=="Neutral") ? " ("+a.dignity+")" : "";
-      const d9h = d9P[p] ? (" · D9 "+ordK(d9P[p].house)+" house") : "";
-      const vh  = (showVarga && vP && vP[p]) ? (" · "+vLabel+" "+vP[p].sign+" "+ordK(vP[p].house)) : "";
-      const note = NOTE(p) ? (" — "+NOTE(p)) : "";
-      return `<p style="margin:3px 0;font-size:10.5pt"><b>${esc(p)}</b> — ${esc(a.sign)}, ${esc(ordK(a.house))} house${esc(dig)}${esc(d9h)}${esc(vh)}${esc(note)}</p>`;
+      const d9h = d9P[p] ? GHOUSE(d9P[p].house) : "—";
+      const vh = (vP && vP[p]) ? (GS(vP[p].sign)+" "+GHOUSE(vP[p].house)) : "—";
+      return `<tr>
+        <td ${cell}><b>${esc(GP(p))}</b></td>
+        <td ${cell}>${esc(GS(a.sign))} ${esc(GHOUSE(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(GDIG(a.dignity)):""}</td>
+        <td ${cell}>${esc(d9h)}</td>
+        ${showVarga?`<td ${cell}>${esc(vh)}</td>`:""}
+        <td ${cell}>${esc(chartNote(p,d1P,facts))}</td>
+      </tr>`;
     }).join("");
-    return `<h2 style="color:#b0821f;margin:18px 0 6px">Chart Comparison — D1 · D9${showVarga?" · "+esc(vLabel):""}</h2>
-      <p style="margin:0 0 8px;font-size:10pt;color:#555">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading. Houses are counted from each chart's own ascendant.</p>
-      ${lines}`;
+    return `<h2 style="color:#b0821f;margin:18px 0 6px">${esc(chartHeading(vLabel,showVarga))}</h2>
+      <p style="margin:0 0 8px;font-size:10pt;color:#555">${esc(chartIntro())}</p>
+      <table style="border-collapse:collapse;font-size:10pt;width:100%">
+        <thead><tr><th ${th}>${esc(chartCol('planet'))}</th><th ${th}>${esc(chartCol('d1'))}</th><th ${th}>${esc(chartCol('d9'))}</th>${showVarga?`<th ${th}>${esc(vLabel)}</th>`:""}<th ${th}>${esc(chartCol('note'))}</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin:6px 0 0;font-size:9pt;color:#777;font-style:italic">${esc(chartFoot())}</p>`;
   }
 
   function allDomainsToPages(combined) {
@@ -1200,6 +1245,52 @@
     return P;
   }
 
+  // ── In-report language picker (AI translation) ───────────────────────────────
+  function langSelectHTML(){
+    const opts = UI_LANGS.map(l=>`<option value="${l.code}"${l.code===_reportLang?" selected":""}>${esc(l.label)}</option>`).join("");
+    return `<select id="fbLang" class="pp-pay ghost" style="padding:7px 10px" title="Read in your language">${opts}</select>`;
+  }
+  function wireLangSelect(host, domainKey){
+    const sel = $("fbLang"); if(!sel) return;
+    sel.value = _reportLang;
+    sel.onchange = ()=> onDomainLang(host, domainKey, sel.value);
+  }
+  function showTranslateOverlay(host, lang){
+    const label = (UI_LANGS.find(l=>l.code===lang)||{}).label || lang;
+    host.style.position = host.style.position || "relative";
+    let ov = document.getElementById("fbXlateOv");
+    if(!ov){ ov = document.createElement("div"); ov.id="fbXlateOv";
+      ov.style.cssText="position:absolute;inset:0;background:rgba(20,16,30,.82);display:flex;align-items:center;justify-content:center;z-index:60;border-radius:inherit";
+      host.appendChild(ov); }
+    ov.innerHTML = `<div style="text-align:center;color:#f0e6c8;max-width:340px;padding:24px">
+      <div style="font-size:1.6rem;margin-bottom:12px">🌐</div>
+      <div style="font-weight:600;margin-bottom:8px">Translating to ${esc(label)}…</div>
+      <div style="font-size:.85rem;opacity:.82;line-height:1.5">This takes about a minute. The report is translated in context, so the astrological meaning stays right.</div></div>`;
+  }
+  function hideTranslateOverlay(){ const ov=document.getElementById("fbXlateOv"); if(ov) ov.remove(); }
+
+  async function onDomainLang(host, domainKey, lang){
+    if (!_domCtx || lang === _reportLang) return;
+    const enSecs = _domCtx.cache.EN;
+    if (lang === "EN"){ _reportLang = "EN"; renderDomainFlipbook(host, domainKey, enSecs); return; }
+    if (_domCtx.cache[lang]){ _reportLang = lang; renderDomainFlipbook(host, domainKey, _domCtx.cache[lang]); return; }
+    showTranslateOverlay(host, lang);
+    try {
+      const slim = enSecs.map(s=>({ heading: String(s.heading||""), body: String(s.body||"") }));
+      const data = await fetchStreamedReport("/api/translate-report", { sections: slim, lang });
+      if (!data || data.error || !Array.isArray(data.sections)) throw new Error((data && data.error) || "No translation returned.");
+      const t = data.sections;
+      const merged = enSecs.map((s,i)=> ({ ...s, heading: (t[i] && t[i].heading) || s.heading, body: (t[i] && t[i].body) || s.body }));
+      _domCtx.cache[lang] = merged;
+      _reportLang = lang;
+      renderDomainFlipbook(host, domainKey, merged);   // rebuilds host → removes the overlay
+    } catch(e){
+      hideTranslateOverlay();
+      const sel = $("fbLang"); if(sel) sel.value = _reportLang;
+      alert("Couldn't translate the report right now: " + (e.message||e) + "\nThe English version is still shown.");
+    }
+  }
+
   function renderDomainFlipbook(host, domainKey, sections) {
     const P = domainSectionsToPages(domainKey, sections);
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
@@ -1215,11 +1306,16 @@
         <div class="dots" id="fbDots"></div>
         <button class="fb-nav" id="fbNext">›</button></div>
       <div class="hint">Swipe, use ← → keys, or tap the dots</div>
-      <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
+      <div class="fb-dlbar">${langSelectHTML()}<button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
         ${downloadDropdownHTML()}</div>`;
     bindBook();
     bookRender();
-    wireDownloadDropdown(()=>exportDomainPDF(domainKey, sections), ()=>exportWordDoc("AstroIndicators_"+domainKey+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), (DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint", "A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||""), sections, domainChartTableHtml(domainKey)));
+    const enSecs = (_domCtx && _domCtx.cache && _domCtx.cache.EN) || sections;
+    wireDownloadDropdown(
+      ()=>exportDomainPDF(domainKey, enSecs),   // PDF stays English (jsPDF can't render Indic script)
+      ()=>exportWordDoc("AstroIndicators_"+domainKey+(_reportLang!=="EN"?"_"+_reportLang:"")+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), (DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint", "A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||""), sections, domainChartTableHtml(domainKey))
+    );
+    wireLangSelect(host, domainKey);
     const fsBtn = $("fbFull");
     if (fsBtn) fsBtn.onclick = () => {
       const box = $("domainReport"); if (!box) return;
@@ -1360,10 +1456,10 @@
           doc.setFont("helvetica","normal");
           for(const p of PLANETS){ const a=d1P[p]; if(!a) continue; kbreak(14);
             const d9h=d9P[p]?ordP(d9P[p].house):"—";
-            const vh=(vP&&vP[p])?(RASI(vP[p].sign)+" "+ordP(vP[p].house)):"—";
+            const vh=(vP&&vP[p])?(vP[p].sign+" "+ordP(vP[p].house)):"—";  // PDF stays ENGLISH (jsPDF can't render Indic)
             let note=""; if(a.dignity==="Exalted")note="strong asset"; else if(a.dignity==="Debilitated")note="under pressure"; else if(a.dignity==="Own sign")note="at home"; else if(p===facts.karakaPlanet)note=facts.karaka; else if(facts.d1.houseLord===p)note="rules "+facts.houseName;
-            const d1txt = RASI(a.sign)+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
-            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(GRAHA(p),cP,y);
+            const d1txt = a.sign+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
+            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(p,cP,y);
             doc.setFont("helvetica","normal"); doc.setTextColor(...MUTE);
             doc.text(d1txt, cD1, y);
             doc.text(String(d9h), cD9, y);
