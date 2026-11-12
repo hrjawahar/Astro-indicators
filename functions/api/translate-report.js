@@ -29,6 +29,15 @@ const GLOSSARY = {
   TA: {
     planets: "Sun=சூரியன், Moon=சந்திரன், Mars=செவ்வாய், Mercury=புதன், Jupiter=குரு, Venus=சுக்கிரன், Saturn=சனி, Rahu=ராகு, Ketu=கேது",
     signs: "Aries=மேஷம், Taurus=ரிஷபம், Gemini=மிதுனம், Cancer=கடகம், Leo=சிம்மம், Virgo=கன்னி, Libra=துலாம், Scorpio=விருச்சிகம், Sagittarius=தனுசு, Capricorn=மகரம், Aquarius=கும்பம், Pisces=மீனம்",
+    // Preferred renderings for words that otherwise come out vague or wrong in Tamil.
+    terms: [
+      "“partnership” / “a partnership” (the marriage or romantic bond) → கூட்டாண்மை, or உறவு when it means the relationship. NEVER கூட்டுறவு (that reads as a cooperative society/bank).",
+      "“signal” / “sign” / “indicator” (an astrological indication) → அறிகுறி. NOT சமிக்ஞை (that is a hand-gesture/signal).",
+      "“communication” (between partners) → கருத்துப் பரிமாற்றம், or தொடர்பு கொள்ளுதல். NOT தொடர்புத்திறன் (that reads as telecom connectivity).",
+      "“build” / “built” (a relationship, trust, a foundation) → கட்டியெழுப்பு / உருவாக்கு / வளர்த்தெடு as fits. NOT the bare கட்டு (that means tie/bundle).",
+      "“friction” (between people) → உரசல், or கருத்து வேறுபாடு. NOT உராய்வு (that is physical friction).",
+      "Prefer natural, warm, everyday Tamil over literal word-for-word choices or technical vocabulary.",
+    ].join("\n   - "),
   },
 };
 
@@ -44,6 +53,7 @@ function buildSystemPrompt(lang) {
   const g = GLOSSARY[lang];
   const gloss = g
     ? `\n\nUSE EXACTLY THESE TERMS (do not substitute synonyms):\n- Planets: ${g.planets}\n- Signs: ${g.signs}`
+      + (g.terms ? `\n\nWORD CHOICE — prefer these natural renderings, avoid the wrong ones:\n   - ${g.terms}` : "")
     : "";
   return `You are a professional translator localising a Vedic astrology report from English into ${name} for an Indian reader with little astrology background. Translate faithfully and naturally — warm, clear, everyday ${name}, not stiff or literal.
 
@@ -54,8 +64,9 @@ ABSOLUTE RULES:
    - Translate idioms by their sense, not literally.
 2. PRESERVE STRUCTURE AND MARKERS EXACTLY. Keep every line's leading marker in place and untouched — "### " (subheading), "- " (bullet), "» " (why-line), "★ " (theme) — and keep "**...**" bold spans around the same (now translated) words. Keep blank lines and line breaks as they are. Only the human-readable text changes.
 3. DO NOT TRANSLATE these tokens — leave them verbatim: D1, D2, D3, D9, D10, D12, D24, D60 and any "D<number>"; "Darakaraka", "Atmakaraka" and other karaka names; all numbers, years, ages, degrees, and ordinals' digits.
-4. Translate planet names and sign names to their standard ${name} forms.${gloss}
-5. Output ONLY a JSON object of this exact shape, nothing else (no commentary, no code fences):
+4. NEVER output a stray single letter or orphan character — e.g. a lone "ஈ", "E", "A", or a leftover list label — at the start of a line or sentence. If the English has a lone letter, bullet label, or symbol you do not understand, drop it rather than transliterating it. Every line must read as natural prose.
+5. Translate planet names and sign names to their standard ${name} forms.${gloss}
+6. Output ONLY a JSON object of this exact shape, nothing else (no commentary, no code fences):
    { "sections": [ { "heading": "...", "body": "..." }, ... ] }
    Same number of sections, same order. Translate each heading and body. If a heading or body is empty, keep it empty.`;
 }

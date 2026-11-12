@@ -186,10 +186,12 @@
       <span class="pnum">${pnum}</span></div>`;
   }
 
-  function downloadDropdownHTML(){
+  function downloadDropdownHTML(hasPicker){
+    const wordSub = hasPicker ? "" : ` <span class="dl-sub">(for translation)</span>`;
+    const pickerTip = `💡 To read this in another language, use the <b>language selector</b> above — it translates the whole report in context. <b>Word</b> downloads in the language you've chosen; the <b>PDF</b> stays in English.`;
     return `<div style="text-align:center">
-      <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word <span class="dl-sub">(for translation)</span></button></div></div>
-      <div class="dl-tip">${window.AI_DOCX ? AI_DOCX.translateTipHTML() : "💡 To read this in your language, use the <b>Word</b> file (not the PDF — it translates far more cleanly): upload it to <b>translate.google.com → Documents</b>."}</div>
+      <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word${wordSub}</button></div></div>
+      <div class="dl-tip">${hasPicker ? pickerTip : window.AI_DOCX ? AI_DOCX.translateTipHTML() :"💡 To read this in your language, use the <b>Word</b> file (not the PDF — it translates far more cleanly): upload it to <b>translate.google.com → Documents</b>."}</div>
     </div>`;
   }
 
@@ -1248,7 +1250,8 @@
   // ── In-report language picker (AI translation) ───────────────────────────────
   function langSelectHTML(){
     const opts = UI_LANGS.map(l=>`<option value="${l.code}"${l.code===_reportLang?" selected":""}>${esc(l.label)}</option>`).join("");
-    return `<select id="fbLang" class="pp-pay ghost" style="padding:7px 10px" title="Read in your language">${opts}</select>`;
+    return `<label class="fb-langpick" style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;color:#c9a84c;font-size:.9rem;white-space:nowrap">🌐
+      <select id="fbLang" title="Read in your language" style="padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.06);color:#f0e6c8;border:1px solid rgba(201,168,76,.45);font-size:.9rem;cursor:pointer;max-width:190px">${opts}</select></label>`;
   }
   function wireLangSelect(host, domainKey){
     const sel = $("fbLang"); if(!sel) return;
@@ -1307,7 +1310,7 @@
         <button class="fb-nav" id="fbNext">›</button></div>
       <div class="hint">Swipe, use ← → keys, or tap the dots</div>
       <div class="fb-dlbar">${langSelectHTML()}<button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
-        ${downloadDropdownHTML()}</div>`;
+        ${downloadDropdownHTML(true)}</div>`;
     bindBook();
     bookRender();
     const enSecs = (_domCtx && _domCtx.cache && _domCtx.cache.EN) || sections;
