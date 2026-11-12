@@ -263,9 +263,9 @@
   function appLang() { try { return (localStorage.getItem("jyotish-lang") || window._currentLang || "EN").toUpperCase(); } catch (e) { return "EN"; } }
   function translateUrl(lang) { return "https://translate.google.co.in/?sl=en&tl=" + (GT[(lang || appLang()).toUpperCase()] || "ta") + "&op=docs"; }
   function translateTipHTML(lang) {
-    return "💡 Tip: download as <b>Word</b>, then " +
+    return "💡 To read this in your language, use the <b>Word</b> file — not the PDF (the PDF loses its layout and shrinks when translated). Download <b>Word</b>, then " +
       "<a href=\"" + translateUrl(lang) + "\" target=\"_blank\" rel=\"noopener\" class=\"gt-tip-link\" style=\"color:inherit;font-weight:700;text-decoration:underline\">open Google Translate&nbsp;↗</a>" +
-      " → upload the file → <b>Download translation</b> to read it in your own language." +
+      " → upload the file → <b>Download translation</b>." +
       "<br><small style=\"opacity:.85\">On a phone? In Chrome tap ⋮ → <b>Desktop site</b> first — Google shows document upload only in desktop view.</small>";
   }
 

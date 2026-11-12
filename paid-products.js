@@ -189,7 +189,7 @@
   function downloadDropdownHTML(){
     return `<div style="text-align:center">
       <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word <span class="dl-sub">(for translation)</span></button></div></div>
-      <div class="dl-tip">${window.AI_DOCX ? AI_DOCX.translateTipHTML() : "💡 Tip: download as <b>Word</b>, then upload it to <b>translate.google.com → Documents</b> to read in your own language."}</div>
+      <div class="dl-tip">${window.AI_DOCX ? AI_DOCX.translateTipHTML() : "💡 To read this in your language, use the <b>Word</b> file (not the PDF — it translates far more cleanly): upload it to <b>translate.google.com → Documents</b>."}</div>
     </div>`;
   }
 
@@ -876,13 +876,26 @@
   // the report renders natively; the English PDF cannot display Indic script (jsPDF font).
   const PLANET_I18N = {
     EN: { Sun:"Sun", Moon:"Moon", Mars:"Mars", Mercury:"Mercury", Jupiter:"Jupiter", Venus:"Venus", Saturn:"Saturn", Rahu:"Rahu", Ketu:"Ketu" },
-    TA: { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்", Jupiter:"வியாழன்", Venus:"வெள்ளி", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" },
+    TA: { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்", Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" },
     ML: { Sun:"സൂര്യൻ", Moon:"ചന്ദ്രൻ", Mars:"ചൊവ്വ", Mercury:"ബുധൻ", Jupiter:"വ്യാഴം", Venus:"ശുക്രൻ", Saturn:"ശനി", Rahu:"രാഹു", Ketu:"കേതു" },
     HI: { Sun:"सूर्य", Moon:"चंद्रमा", Mars:"मंगल", Mercury:"बुध", Jupiter:"बृहस्पति", Venus:"शुक्र", Saturn:"शनि", Rahu:"राहु", Ketu:"केतु" },
     TE: { Sun:"సూర్యుడు", Moon:"చంద్రుడు", Mars:"కుజుడు", Mercury:"బుధుడు", Jupiter:"గురుడు", Venus:"శుక్రుడు", Saturn:"శని", Rahu:"రాహువు", Ketu:"కేతువు" },
     KA: { Sun:"ಸೂರ್ಯ", Moon:"ಚಂದ್ರ", Mars:"ಮಂಗಳ", Mercury:"ಬುಧ", Jupiter:"ಗುರು", Venus:"ಶುಕ್ರ", Saturn:"ಶನಿ", Rahu:"ರಾಹು", Ketu:"ಕೇತು" },
   };
-  const GRAHA = (p)=> (PLANET_I18N.EN[p] || p);  // chart shows English names (rolled back from Sanskrit)
+  const GRAHA = (p)=> (PLANET_I18N.EN[p] || p);  // flipbook + PDF: English planet names
+  // Sign names per language. EN uses the Sanskrit rasi (matches the flipbook/PDF); the native
+  // scripts are the standard rasi names. The Word chart renders names in the reader's selected
+  // language so Google Translate leaves them intact (English "Mercury"→"Ford", Sanskrit "Karka"
+  // →"கர்கா" both come out wrong; the native word சுக்கிரன்/கடகம் is passed through untouched).
+  const SIGN_I18N = {
+    EN: RASI_MAP,
+    TA: { Aries:"மேஷம்", Taurus:"ரிஷபம்", Gemini:"மிதுனம்", Cancer:"கடகம்", Leo:"சிம்மம்", Virgo:"கன்னி", Libra:"துலாம்", Scorpio:"விருச்சிகம்", Sagittarius:"தனுசு", Capricorn:"மகரம்", Aquarius:"கும்பம்", Pisces:"மீனம்" },
+  };
+  // Only a language with BOTH a planet and a sign map is localised; others fall back to EN.
+  // (Tamil first — adding TE/HI/KA/ML signs here auto-activates them.)
+  const chartLang = () => { try { const L=(localStorage.getItem("jyotish-lang")||window._currentLang||"EN").toUpperCase(); return (PLANET_I18N[L]&&SIGN_I18N[L])?L:"EN"; } catch(_){ return "EN"; } };
+  const GRAHA_L = (p)=> (PLANET_I18N[chartLang()][p] || PLANET_I18N.EN[p] || p);  // Word chart: reader's language
+  const RASI_L  = (s)=> (SIGN_I18N[chartLang()][s] || RASI_MAP[s] || s);           // Word chart: reader's language
 
   // Comparison page: D1 · D9 · divisional side-by-side, per planet, with a short note.
   function domainComparisonPage(domainKey, pnum) {
@@ -964,10 +977,10 @@
     const rows = PLANETS.filter(p=>d1P[p]).map(p=>{
       const a=d1P[p];
       const d9h = d9P[p] ? ordK(d9P[p].house) : "—";
-      const vh = (vP && vP[p]) ? (RASI(vP[p].sign)+" "+ordK(vP[p].house)) : "—";
+      const vh = (vP && vP[p]) ? (RASI_L(vP[p].sign)+" "+ordK(vP[p].house)) : "—";
       return `<tr>
-        <td ${cell}><b>${esc(GRAHA(p))}</b></td>
-        <td ${cell}>${esc(RASI(a.sign))} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
+        <td ${cell}><b>${esc(GRAHA_L(p))}</b></td>
+        <td ${cell}>${esc(RASI_L(a.sign))} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
         <td ${cell}>${esc(d9h)}</td>
         ${showVarga?`<td ${cell}>${esc(vh)}</td>`:""}
         <td ${cell}>${esc(NOTE(p))}</td>
