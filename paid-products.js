@@ -97,9 +97,9 @@
       const f0 = (window.currentData && window.currentData.form) || {};
       const cc = clientCode();
       const noteHtml = `<div style="background:#fbf6e6;border:1px solid #e2cf8f;border-radius:8px;padding:12px 14px;margin:14px 0">
-        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f">${esc4doc(READ_NOTE_TITLE)} <span style="color:#c0392b">${esc4doc(READ_NOTE_TAG)}</span></p>
-        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f;font-size:10.5pt">${esc4doc(READ_NOTE_OPENER)}</p>
-        ${READ_NOTE_LINES.map(l=>`<p style="margin:0 0 7px;line-height:1.45;font-size:10.5pt">${esc4doc(l)}</p>`).join("")}
+        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f">${esc4doc(SC("readTitle",READ_NOTE_TITLE))} <span style="color:#c0392b">${esc4doc(SC("readTag",READ_NOTE_TAG))}</span></p>
+        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f;font-size:10.5pt">${esc4doc(SC("readOpener",READ_NOTE_OPENER))}</p>
+        ${SC("fullLines",READ_NOTE_LINES).map(l=>`<p style="margin:0 0 7px;line-height:1.45;font-size:10.5pt">${esc4doc(l)}</p>`).join("")}
       </div>`;
       const bodyHtml = (sections||[]).map(sec=>{
         if(sec._divider){ return `<h1 style="color:#8a6d1f;border-bottom:2px solid #c9a84c;padding-bottom:4px;margin-top:28px">${esc4doc(sec.heading||"")}</h1>`; }
@@ -163,25 +163,26 @@
     "Each section ends with a short theme — a few words to carry with you from that part of the reading.",
     "Where two or three charts independently agree, the signal is most reliable — those points are worth trusting most.",
     "Take your time. This isn't a one-read document; the insights land more deeply when you return to it over days, alongside your own life experience.",
-    "Prefer your own language? Download this report as WORD, then open translate.google.co.in, choose 'Documents', and upload the file — Google translates the whole report and gives you a copy to download in your language, with no copy-pasting. On a phone, first switch Chrome to 'Desktop site' (⋮ menu) so the Documents option appears.",
+    "Prefer your own language? Use the '🌐 Read in' menu below the report to translate the whole thing into your language in context — the on-screen report and the Word download both come out translated, with nothing to copy-paste.",
     "This report is a mirror for reflection, not a verdict. Read it gently."
+  ];
+  // Flipbook 'How to read' page (tightened; the fixed-height page can't hold the full note).
+  const SHORT_LINES = [
+    "This is a detailed Vedic reading. It names a few traditional terms (planets, houses, D1/D9/D10), but you never need to understand them — the meaning is always written in plain words.",
+    "Read it straight through: the plain text carries the insight, and the small gold 'Why this reading' boxes hold the chart detail underneath — skip them unless you're curious. Each section ends with a short theme to carry with you.",
+    "Where two or three charts independently agree, the signal is most reliable. Take your time — it deepens as you return to it.",
+    "Prefer your own language? Use the '🌐 Read in' menu below the report to translate the whole report into your language instantly.",
+    "A mirror for reflection, not a verdict. Read it gently."
   ];
 
   function readNotePage(pnum){
-    // Flipbook page has a fixed height — use a tightened version of the note here;
-    // the PDF and Word carry the full note (they have flowing pages).
-    const shortLines = [
-      "This is a detailed Vedic reading. It names a few traditional terms (planets, houses, D1/D9/D10), but you never need to understand them — the meaning is always written in plain words.",
-      "Read it straight through: the plain text carries the insight, and the small gold 'Why this reading' boxes hold the chart detail underneath — skip them unless you're curious. Each section ends with a short theme to carry with you.",
-      "Where two or three charts independently agree, the signal is most reliable. Take your time — it deepens as you return to it.",
-      "Prefer your own language? Download as WORD, then upload it at translate.google.co.in → Documents (on a phone, switch Chrome to 'Desktop site' first) — Google returns a translated copy.",
-      "A mirror for reflection, not a verdict. Read it gently."
-    ];
-    return `<div class="pg"><div class="kick">How to Read This</div><div class="rule"></div>
-      <h2 style="font-size:1.28rem">${esc(READ_NOTE_TITLE)} <span style="color:#c0392b;font-size:.78em">${esc(READ_NOTE_TAG)}</span></h2>
+    // Localised when a language is active (SC falls back to English).
+    const lines = SC("shortLines", SHORT_LINES);
+    return `<div class="pg"><div class="kick">${esc(SC("readKick","How to Read This"))}</div><div class="rule"></div>
+      <h2 style="font-size:1.28rem">${esc(SC("readTitle",READ_NOTE_TITLE))} <span style="color:#c0392b;font-size:.78em">${esc(SC("readTag",READ_NOTE_TAG))}</span></h2>
       <div class="bd" style="font-size:.95rem;line-height:1.6">
-        <p style="margin:0 0 10px;font-weight:600;color:#8a6d1f;font-size:1rem">${esc(READ_NOTE_OPENER)}</p>
-        ${shortLines.map(l=>`<p style="margin:0 0 9px">${esc(l)}</p>`).join("")}
+        <p style="margin:0 0 10px;font-weight:600;color:#8a6d1f;font-size:1rem">${esc(SC("readOpener",READ_NOTE_OPENER))}</p>
+        ${lines.map(l=>`<p style="margin:0 0 9px">${esc(l)}</p>`).join("")}
       </div>
       <span class="pnum">${pnum}</span></div>`;
   }
@@ -576,6 +577,7 @@
   }
 
   function renderTransitFlipbook(host, sections, facts) {
+    _reportLang = "EN"; _domCtx = null;   // transit has no language picker yet; avoid stale state
     const P = transitSectionsToPages(sections, facts);
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
     host.innerHTML = `
@@ -877,6 +879,26 @@
   // Languages offered in the in-report picker. Add the four others once their chart
   // glossary (CHART_I18N) is filled in — the picker reads from CHART_I18N presence.
   const UI_LANGS = [{ code:"EN", label:"English" }, { code:"TA", label:"தமிழ் · Tamil" }];
+  // Scaffold string getter: translated value for the active report language, else English.
+  function SC(key, en){
+    const t = _domCtx && _domCtx.scaffoldT && _domCtx.scaffoldT[_reportLang];
+    return (t && t[key] != null) ? t[key] : en;
+  }
+  // The fixed (non-AI) strings on the cover, birth-details, how-to-read and re-read pages.
+  // Translated alongside the report so a non-English report reads fully in-language.
+  function scaffoldEN(domainKey){
+    const L = DOMAIN_LABELS[domainKey] || "";
+    return {
+      coverKick: L + " Report",
+      title: (L || "Domain") + " Blueprint",
+      coverSub: "A Vedic reading of your " + L,
+      birthTitle: "Birth Details",
+      lblName: "Name", lblDob: "Date of birth", lblTob: "Time of birth", lblPlace: "Place", lblClient: "Client ID",
+      readKick: "How to Read This", readTitle: READ_NOTE_TITLE, readTag: READ_NOTE_TAG, readOpener: READ_NOTE_OPENER,
+      shortLines: SHORT_LINES, fullLines: READ_NOTE_LINES,
+      reRead: "Re-reading reveals its deeper meaning.",
+    };
+  }
   const CHART_I18N = {
     TA: {
       planets: { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்", Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" },
@@ -1078,6 +1100,7 @@
   };
 
   function renderAllDomainsFlipbook(host, combined) {
+    _reportLang = "EN"; _domCtx = null;   // all-domains has no language picker yet; avoid stale state
     const P = allDomainsToPages(combined);
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
     host.innerHTML = `
@@ -1178,20 +1201,20 @@
     P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
       <div class="seal">◈</div>
       <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
-      <div class="kick" style="color:var(--ai-gold)">${esc(DOMAIN_LABELS[domainKey]||"")} Report</div>
-      <h1>${esc(title)}</h1>
-      <div class="cover-sub">A Vedic reading of your ${esc(DOMAIN_LABELS[domainKey]||"")}</div>
+      <div class="kick" style="color:var(--ai-gold)">${esc(SC("coverKick",(DOMAIN_LABELS[domainKey]||"")+" Report"))}</div>
+      <h1>${esc(SC("title",title))}</h1>
+      <div class="cover-sub">${esc(SC("coverSub","A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||"")))}</div>
       <div class="cover-meta" style="margin-top:14px;opacity:.85">${esc(fmtDOB(f0.dob,f0.tob)||"")} · ${esc(f0.place||"")}</div>
       </div></div>`);
     // Birth details
     const _cc = clientCode();
-    P.push(`<div class="pg"><div class="kick">Birth Details</div><div class="rule"></div>
+    P.push(`<div class="pg"><div class="kick">${esc(SC("birthTitle","Birth Details"))}</div><div class="rule"></div>
       <ul class="toc bdl">
-        <li><b>Name</b><i>${esc(f0.name||"—")}</i></li>
-        <li><b>Date of birth</b><i>${esc(f0.dob||"—")}</i></li>
-        <li><b>Time of birth</b><i>${esc(f0.tob?f0.tob+" (24-hr)":"—")}</i></li>
-        <li><b>Place</b><i>${esc(f0.place||"—")}</i></li>
-        ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
+        <li><b>${esc(SC("lblName","Name"))}</b><i>${esc(f0.name||"—")}</i></li>
+        <li><b>${esc(SC("lblDob","Date of birth"))}</b><i>${esc(f0.dob||"—")}</i></li>
+        <li><b>${esc(SC("lblTob","Time of birth"))}</b><i>${esc(f0.tob?f0.tob+" (24-hr)":"—")}</i></li>
+        <li><b>${esc(SC("lblPlace","Place"))}</b><i>${esc(f0.place||"—")}</i></li>
+        ${_cc?`<li><b>${esc(SC("lblClient","Client ID"))}</b><i>${esc(_cc)}</i></li>`:""}
       </ul>
       <span class="pnum">2</span></div>`);
     P.push(readNotePage(3));
@@ -1279,12 +1302,30 @@
     if (_domCtx.cache[lang]){ _reportLang = lang; renderDomainFlipbook(host, domainKey, _domCtx.cache[lang]); return; }
     showTranslateOverlay(host, lang);
     try {
-      const slim = enSecs.map(s=>({ heading: String(s.heading||""), body: String(s.body||"") }));
+      const reportSlim = enSecs.map(s=>({ heading: String(s.heading||""), body: String(s.body||"") }));
+      // Bundle the fixed scaffold strings so the cover, how-to-read and re-read lines translate too.
+      const scEN = scaffoldEN(domainKey);
+      const scMap = [], scStrings = [];
+      for (const k of Object.keys(scEN)) {
+        const v = scEN[k];
+        if (Array.isArray(v)) v.forEach((s,i)=>{ scMap.push({ k, i }); scStrings.push(String(s)); });
+        else { scMap.push({ k, i:-1 }); scStrings.push(String(v)); }
+      }
+      const slim = reportSlim.concat(scStrings.map(s=>({ heading:"", body:s })));
       const data = await fetchStreamedReport("/api/translate-report", { sections: slim, lang });
       if (!data || data.error || !Array.isArray(data.sections)) throw new Error((data && data.error) || "No translation returned.");
       const t = data.sections;
       const merged = enSecs.map((s,i)=> ({ ...s, heading: (t[i] && t[i].heading) || s.heading, body: (t[i] && t[i].body) || s.body }));
+      // Rebuild the translated scaffold from the tail of the results.
+      const scT = {};
+      scMap.forEach((m, idx)=>{
+        const r = t[reportSlim.length + idx];
+        const val = (r && r.body != null && r.body !== "") ? r.body : scStrings[idx];
+        if (m.i === -1) scT[m.k] = val; else { (scT[m.k] = scT[m.k] || [])[m.i] = val; }
+      });
       _domCtx.cache[lang] = merged;
+      _domCtx.scaffoldT = _domCtx.scaffoldT || {};
+      _domCtx.scaffoldT[lang] = scT;
       _reportLang = lang;
       renderDomainFlipbook(host, domainKey, merged);   // rebuilds host → removes the overlay
     } catch(e){
@@ -1316,9 +1357,11 @@
     const enSecs = (_domCtx && _domCtx.cache && _domCtx.cache.EN) || sections;
     wireDownloadDropdown(
       ()=>exportDomainPDF(domainKey, enSecs),   // PDF stays English (jsPDF can't render Indic script)
-      ()=>exportWordDoc("AstroIndicators_"+domainKey+(_reportLang!=="EN"?"_"+_reportLang:"")+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), (DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint", "A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||""), sections, domainChartTableHtml(domainKey))
+      ()=>exportWordDoc("AstroIndicators_"+domainKey+(_reportLang!=="EN"?"_"+_reportLang:"")+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), SC("title",(DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint"), SC("coverSub","A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||"")), sections, domainChartTableHtml(domainKey))
     );
     wireLangSelect(host, domainKey);
+    // Localise the per-page re-reading reminder (CSS ::after on .pg) for the active language.
+    try { host.style.setProperty("--reread", '"↻ ' + String(SC("reRead","Re-reading reveals its deeper meaning.")).replace(/["\\]/g,"'") + '"'); } catch(_){}
     const fsBtn = $("fbFull");
     if (fsBtn) fsBtn.onclick = () => {
       const box = $("domainReport"); if (!box) return;
