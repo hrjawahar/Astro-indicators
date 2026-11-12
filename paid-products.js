@@ -119,7 +119,7 @@
         flushWhy(); flushUl();
         return `<h2 style="color:#b0821f;margin:18px 0 8px">${esc4doc(sec.heading||"")}</h2>${paras}`;
       }).join("");
-      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${chartTableHtml||""}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
+      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${chartTableHtml||""}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">${esc4doc(SC("wordDisc","This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice."))} \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
       // Real .docx (not HTML-renamed-.doc): opens correctly on phones and in Google Translate \u2192 Documents.
       window.AI_DOCX.downloadHTML(doc, fileBase + ".docx");
     }catch(e){ alert("Sorry \u2014 the Word file could not be generated. Please try the PDF instead."); }
@@ -897,6 +897,13 @@
       readKick: "How to Read This", readTitle: READ_NOTE_TITLE, readTag: READ_NOTE_TAG, readOpener: READ_NOTE_OPENER,
       shortLines: SHORT_LINES, fullLines: READ_NOTE_LINES,
       reRead: "Re-reading reveals its deeper meaning.",
+      closeTitle: "A closing note",
+      closeDisc: (domainKey==="health")
+        ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
+        : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.",
+      closeFoot: "You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint.",
+      lblClientId: "Your Client ID",
+      wordDisc: "This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice.",
     };
   }
   const CHART_I18N = {
@@ -1261,11 +1268,11 @@
     const disc = (domainKey==="health")
       ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
       : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.";
-    P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
-      <h2>A closing note</h2>
-      <div class="bd">${esc(disc)}</div>
-      <div class="foot" style="margin-top:12px">You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint.</div>
-      ${(function(){ const _cc = clientCode(); return _cc ? `<div class="closing" style="margin-top:14px">Your Client ID<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>` : ""; })()}
+    P.push(`<div class="pg"><div class="kick">${esc(SC("title",title))}</div><div class="rule"></div>
+      <h2>${esc(SC("closeTitle","A closing note"))}</h2>
+      <div class="bd">${esc(SC("closeDisc",disc))}</div>
+      <div class="foot" style="margin-top:12px">${esc(SC("closeFoot","You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint."))}</div>
+      ${(function(){ const _cc = clientCode(); return _cc ? `<div class="closing" style="margin-top:14px">${esc(SC("lblClientId","Your Client ID"))}<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>` : ""; })()}
       <span class="pnum">${n++}</span></div>`);
     return P;
   }

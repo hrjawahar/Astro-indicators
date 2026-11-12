@@ -32,7 +32,7 @@ const GLOSSARY = {
     // Preferred renderings for words that otherwise come out vague or wrong in Tamil.
     terms: [
       "“house” / “bhava” (an astrological house) → ALWAYS வீடு. NEVER பாவம் or பாவத்தில் — பாவம் means SIN in Tamil and completely changes the meaning. e.g. “the energy in this house” → இந்த வீட்டில் உள்ள சக்தி.",
-      "“chart” / “the chart” (the horoscope) → ஜாதகம். NEVER transliterate it as சார்ட். “birth chart” → பிறப்பு ஜாதகம், “navamsa chart” → நவாம்ச ஜாதகம்.",
+      "“chart” → வரைபடம். CRITICAL: D1, D9, D10 are DIVISIONAL charts of the SAME person's one horoscope — NOT separate people's horoscopes. So “birth chart (D1)” → பிறப்பு வரைபடம், “navamsa (D9)” → நவாம்ச வரைபடம், and “two/three charts agree” / “both charts” → இரண்டு/மூன்று வரைபடங்களும் (or name them: D1, D9). NEVER use the plural ஜாதகங்கள் for D1/D9/D10 — it reads as several DIFFERENT people's horoscopes, which is wrong. Never transliterate as சார்ட். Use ஜாதகம் only for the one whole horoscope spoken of in the singular.",
       "“turbulent” / “turbulence” / “stormy” / “upheaval” → ஏற்ற இறக்கமான, or கலக்கமான, or சவாலான as fits the sense. NEVER கொந்தளிப்பு / கொந்தளிப்பான (too harsh — it means churning/roiling water).",
       "“partnership” / “a partnership” (the marriage or romantic bond) → கூட்டாண்மை, or உறவு when it means the relationship. NEVER கூட்டுறவு (that reads as a cooperative society/bank).",
       "“signal” / “sign” / “indicator” (an astrological indication) → அறிகுறி. NOT சமிக்ஞை (that is a hand-gesture/signal).",
