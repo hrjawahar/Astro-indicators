@@ -175,7 +175,7 @@
   .pg .ref { flex:0 0 auto; margin-top:12px; border-top:1px solid rgba(138,110,47,.6); padding-top:9px;
     font-size:.82rem; color:#4A3A0E; font-weight:500; } .pg .ref b { display:block; color:#23252E; margin-top:2px; font-weight:700; }
   .pg .pnum { position:absolute; bottom:13px; left:0; right:0; text-align:center; font-size:.7rem; color:#9A9382; }
-  .pg::after { content:"↻ Re-reading reveals its deeper meaning."; position:absolute; bottom:25px; left:0; right:0;
+  .pg::after { content:var(--reread, "↻ Re-reading reveals its deeper meaning."); position:absolute; bottom:25px; left:0; right:0;
     text-align:center; font-size:.58rem; letter-spacing:.02em; color:#b5321f; opacity:.82; padding:0 18px; pointer-events:none; }
   .pg.cover::after, .pg.sec-divider::after { content:none; }
   .pg.cover, .pg.sec-divider { background:linear-gradient(165deg,var(--ai-pink),var(--ai-navy)); color:var(--ai-ink);
@@ -307,6 +307,7 @@
   .fb-dlbar { display:flex !important; justify-content:center; align-items:flex-start; gap:16px; margin:14px 0 24px; flex-wrap:wrap; }
   #domainReport .fb-dlbar, #liBook .fb-dlbar { position:relative; z-index:5; }
   .fb-dlbar #fbFull { align-self:flex-start; height:auto; }
+  .fb-dlbar .dl-col { flex-basis:100%; }  /* Download + tip on their own centred row, so the tip centres to the page */
   .dl-wrap { position:relative; display:inline-block; }
   .dl-menu { display:none; position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
     background:#0F1024; border:1px solid rgba(201,168,76,.5); border-radius:10px; padding:6px;
@@ -315,7 +316,7 @@
     padding:10px 12px; border-radius:7px; cursor:pointer; font-size:.95rem; }
   .dl-item:hover { background:rgba(201,168,76,.15); }
   .dl-sub { color:#a8b0c2; font-size:.8em; }
-  .dl-tip { margin-top:8px; font-size:.78rem; color:#a8b0c2; max-width:420px; line-height:1.45; }
+  .dl-tip { margin:8px auto 0; font-size:.78rem; color:#a8b0c2; max-width:420px; line-height:1.45; text-align:center; }
   .dl-tip b { color:#c9a84c; }
   #domainReport:not(.fb-fs), #liBook:not(.fb-fs) { overflow:visible; }
   

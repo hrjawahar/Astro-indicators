@@ -97,9 +97,9 @@
       const f0 = (window.currentData && window.currentData.form) || {};
       const cc = clientCode();
       const noteHtml = `<div style="background:#fbf6e6;border:1px solid #e2cf8f;border-radius:8px;padding:12px 14px;margin:14px 0">
-        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f">${esc4doc(READ_NOTE_TITLE)} <span style="color:#c0392b">${esc4doc(READ_NOTE_TAG)}</span></p>
-        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f;font-size:10.5pt">${esc4doc(READ_NOTE_OPENER)}</p>
-        ${READ_NOTE_LINES.map(l=>`<p style="margin:0 0 7px;line-height:1.45;font-size:10.5pt">${esc4doc(l)}</p>`).join("")}
+        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f">${esc4doc(SC("readTitle",READ_NOTE_TITLE))} <span style="color:#c0392b">${esc4doc(SC("readTag",READ_NOTE_TAG))}</span></p>
+        <p style="margin:0 0 8px;font-weight:bold;color:#8a6d1f;font-size:10.5pt">${esc4doc(SC("readOpener",READ_NOTE_OPENER))}</p>
+        ${SC("fullLines",READ_NOTE_LINES).map(l=>`<p style="margin:0 0 7px;line-height:1.45;font-size:10.5pt">${esc4doc(l)}</p>`).join("")}
       </div>`;
       const bodyHtml = (sections||[]).map(sec=>{
         if(sec._divider){ return `<h1 style="color:#8a6d1f;border-bottom:2px solid #c9a84c;padding-bottom:4px;margin-top:28px">${esc4doc(sec.heading||"")}</h1>`; }
@@ -119,7 +119,7 @@
         flushWhy(); flushUl();
         return `<h2 style="color:#b0821f;margin:18px 0 8px">${esc4doc(sec.heading||"")}</h2>${paras}`;
       }).join("");
-      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${chartTableHtml||""}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
+      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${chartTableHtml||""}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">${esc4doc(SC("wordDisc","This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice."))} \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
       // Real .docx (not HTML-renamed-.doc): opens correctly on phones and in Google Translate \u2192 Documents.
       window.AI_DOCX.downloadHTML(doc, fileBase + ".docx");
     }catch(e){ alert("Sorry \u2014 the Word file could not be generated. Please try the PDF instead."); }
@@ -163,33 +163,36 @@
     "Each section ends with a short theme — a few words to carry with you from that part of the reading.",
     "Where two or three charts independently agree, the signal is most reliable — those points are worth trusting most.",
     "Take your time. This isn't a one-read document; the insights land more deeply when you return to it over days, alongside your own life experience.",
-    "Prefer your own language? Download this report as WORD, then open translate.google.co.in, choose 'Documents', and upload the file — Google translates the whole report and gives you a copy to download in your language, with no copy-pasting. On a phone, first switch Chrome to 'Desktop site' (⋮ menu) so the Documents option appears.",
+    "Prefer your own language? Use the '🌐 Read in' menu below the report to translate the whole thing into your language in context — the on-screen report and the Word download both come out translated, with nothing to copy-paste.",
     "This report is a mirror for reflection, not a verdict. Read it gently."
+  ];
+  // Flipbook 'How to read' page (tightened; the fixed-height page can't hold the full note).
+  const SHORT_LINES = [
+    "This is a detailed Vedic reading. It names a few traditional terms (planets, houses, D1/D9/D10), but you never need to understand them — the meaning is always written in plain words.",
+    "Read it straight through: the plain text carries the insight, and the small gold 'Why this reading' boxes hold the chart detail underneath — skip them unless you're curious. Each section ends with a short theme to carry with you.",
+    "Where two or three charts independently agree, the signal is most reliable. Take your time — it deepens as you return to it.",
+    "Prefer your own language? Use the '🌐 Read in' menu below the report to translate the whole report into your language instantly.",
+    "A mirror for reflection, not a verdict. Read it gently."
   ];
 
   function readNotePage(pnum){
-    // Flipbook page has a fixed height — use a tightened version of the note here;
-    // the PDF and Word carry the full note (they have flowing pages).
-    const shortLines = [
-      "This is a detailed Vedic reading. It names a few traditional terms (planets, houses, D1/D9/D10), but you never need to understand them — the meaning is always written in plain words.",
-      "Read it straight through: the plain text carries the insight, and the small gold 'Why this reading' boxes hold the chart detail underneath — skip them unless you're curious. Each section ends with a short theme to carry with you.",
-      "Where two or three charts independently agree, the signal is most reliable. Take your time — it deepens as you return to it.",
-      "Prefer your own language? Download as WORD, then upload it at translate.google.co.in → Documents (on a phone, switch Chrome to 'Desktop site' first) — Google returns a translated copy.",
-      "A mirror for reflection, not a verdict. Read it gently."
-    ];
-    return `<div class="pg"><div class="kick">How to Read This</div><div class="rule"></div>
-      <h2 style="font-size:1.28rem">${esc(READ_NOTE_TITLE)} <span style="color:#c0392b;font-size:.78em">${esc(READ_NOTE_TAG)}</span></h2>
+    // Localised when a language is active (SC falls back to English).
+    const lines = SC("shortLines", SHORT_LINES);
+    return `<div class="pg"><div class="kick">${esc(SC("readKick","How to Read This"))}</div><div class="rule"></div>
+      <h2 style="font-size:1.28rem">${esc(SC("readTitle",READ_NOTE_TITLE))} <span style="color:#c0392b;font-size:.78em">${esc(SC("readTag",READ_NOTE_TAG))}</span></h2>
       <div class="bd" style="font-size:.95rem;line-height:1.6">
-        <p style="margin:0 0 10px;font-weight:600;color:#8a6d1f;font-size:1rem">${esc(READ_NOTE_OPENER)}</p>
-        ${shortLines.map(l=>`<p style="margin:0 0 9px">${esc(l)}</p>`).join("")}
+        <p style="margin:0 0 10px;font-weight:600;color:#8a6d1f;font-size:1rem">${esc(SC("readOpener",READ_NOTE_OPENER))}</p>
+        ${lines.map(l=>`<p style="margin:0 0 9px">${esc(l)}</p>`).join("")}
       </div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
-  function downloadDropdownHTML(){
-    return `<div style="text-align:center">
-      <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word <span class="dl-sub">(for translation)</span></button></div></div>
-      <div class="dl-tip">${window.AI_DOCX ? AI_DOCX.translateTipHTML() : "💡 To read this in your language, use the <b>Word</b> file (not the PDF — it translates far more cleanly): upload it to <b>translate.google.com → Documents</b>."}</div>
+  function downloadDropdownHTML(hasPicker){
+    const wordSub = hasPicker ? "" : ` <span class="dl-sub">(for translation)</span>`;
+    const pickerTip = `💡 To read this in another language, pick your language from the <b>🌐 Read in</b> menu above — it translates the whole report in context. <b>Word</b> downloads in the language you've chosen; the <b>PDF</b> stays in English.`;
+    return `<div style="text-align:center" class="dl-col">
+      <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word${wordSub}</button></div></div>
+      <div class="dl-tip">${hasPicker ? pickerTip : window.AI_DOCX ? AI_DOCX.translateTipHTML() :"💡 To read this in your language, use the <b>Word</b> file (not the PDF — it translates far more cleanly): upload it to <b>translate.google.com → Documents</b>."}</div>
     </div>`;
   }
 
@@ -574,6 +577,7 @@
   }
 
   function renderTransitFlipbook(host, sections, facts) {
+    _reportLang = "EN"; _domCtx = null;   // transit has no language picker yet; avoid stale state
     const P = transitSectionsToPages(sections, facts);
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
     host.innerHTML = `
@@ -858,17 +862,85 @@
         host.innerHTML = `<div class="pp-empty">This report has no content yet. Please try opening it again.</div>`;
         return;
       }
+      _reportLang = "EN";
+      _domCtx = { domainKey, host, cache: { EN: sections } };   // English source for the language picker
       renderDomainFlipbook(host, domainKey, sections);
     } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
-  // Chart names are full ENGLISH (Sun, Moon, …; Cancer, Virgo, …). The Word chart renders
-  // them as readable LINES rather than isolated table cells, so machine translation keeps the
-  // context and produces the correct native words — e.g. "Mercury — Pisces — 1st house" →
-  // "புதன் — மீனம் — 1 ஆம் வீடு". Isolated table cells lose that context, so Google guesses
-  // ("Mercury" → "Ford", the sign "Meena" → "மீனா"). Lines fix this for every language, free.
-  const GRAHA = (p)=> (p||"");  // full English planet name
-  const RASI  = (s)=> (s||"");  // full English sign name
+  // ── Chart glossary (AI-translation era) ──────────────────────────────────────
+  // The report's PROSE is translated in context by the API; the chart TABLE is
+  // rendered from this deterministic glossary so the structured terms are always the
+  // owner-approved native words (not a translator's guess). _reportLang is set by the
+  // in-report language picker; "EN" renders plain English. Only a handful of standard
+  // astrological terms per language — small enough to verify by hand.
+  let _reportLang = "EN";
+  let _domCtx = null;   // { domainKey, host, cache:{ EN:[sections], TA:[...] } } for the open domain report
+  // Languages offered in the in-report picker. Add the four others once their chart
+  // glossary (CHART_I18N) is filled in — the picker reads from CHART_I18N presence.
+  const UI_LANGS = [{ code:"EN", label:"English" }, { code:"TA", label:"தமிழ் · Tamil" }];
+  // Scaffold string getter: translated value for the active report language, else English.
+  function SC(key, en){
+    const t = _domCtx && _domCtx.scaffoldT && _domCtx.scaffoldT[_reportLang];
+    return (t && t[key] != null) ? t[key] : en;
+  }
+  // The fixed (non-AI) strings on the cover, birth-details, how-to-read and re-read pages.
+  // Translated alongside the report so a non-English report reads fully in-language.
+  function scaffoldEN(domainKey){
+    const L = DOMAIN_LABELS[domainKey] || "";
+    return {
+      coverKick: L + " Report",
+      title: (L || "Domain") + " Blueprint",
+      coverSub: "A Vedic reading of your " + L,
+      birthTitle: "Birth Details",
+      lblName: "Name", lblDob: "Date of birth", lblTob: "Time of birth", lblPlace: "Place", lblClient: "Client ID",
+      readKick: "How to Read This", readTitle: READ_NOTE_TITLE, readTag: READ_NOTE_TAG, readOpener: READ_NOTE_OPENER,
+      shortLines: SHORT_LINES, fullLines: READ_NOTE_LINES,
+      reRead: "Re-reading reveals its deeper meaning.",
+      closeTitle: "A closing note",
+      closeDisc: (domainKey==="health")
+        ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
+        : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.",
+      closeFoot: "You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint.",
+      lblClientId: "Your Client ID",
+      wordDisc: "This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice.",
+    };
+  }
+  const CHART_I18N = {
+    TA: {
+      planets: { Sun:"சூரியன்", Moon:"சந்திரன்", Mars:"செவ்வாய்", Mercury:"புதன்", Jupiter:"குரு", Venus:"சுக்கிரன்", Saturn:"சனி", Rahu:"ராகு", Ketu:"கேது" },
+      signs: { Aries:"மேஷம்", Taurus:"ரிஷபம்", Gemini:"மிதுனம்", Cancer:"கடகம்", Leo:"சிம்மம்", Virgo:"கன்னி", Libra:"துலாம்", Scorpio:"விருச்சிகம்", Sagittarius:"தனுசு", Capricorn:"மகரம்", Aquarius:"கும்பம்", Pisces:"மீனம்" },
+      dignity: { Exalted:"உச்சம்", Debilitated:"நீசம்", "Own sign":"ஆட்சி" },
+      house: (n)=> n+"-ஆம் வீடு",
+      col: { planet:"கிரகம்", d1:"D1 (பிறப்பு)", d9:"D9", note:"குறிப்பு" },
+      title: (v)=> "ஜாதக ஒப்பீடு — D1 · D9"+(v?" · "+v:""),
+      intro: "ஒரு கிரகம் ஒன்றுக்கு மேற்பட்ட ஜாதகங்களில் வலிமையுடன் இருக்கும்போது, அந்த ஒற்றுமையே உங்கள் பலனில் மிகவும் நம்பகமான சமிக்ஞை. வீடுகள் அந்தந்த ஜாதகத்தின் லக்னத்திலிருந்து எண்ணப்படுகின்றன.",
+      foot: "“—” என்பது அந்தக் கிரகத்தின் அம்ச நிலை இந்தத் துறைக்கு முக்கியமில்லை என்பதைக் குறிக்கிறது.",
+      note: { exalted:"வலிமையானது — உண்மையான பலம்", debilitated:"அழுத்தத்தில் — கவனம் தேவை", own:"ஆட்சியில் — நம்பகமான பலம்", karaka:(k)=>"உங்கள் "+k+" — இத்துறையின் முக்கிய கிரகம்", lord:"இந்தத் துறையின் வீட்டை ஆளும் கிரகம்" },
+    },
+  };
+  const _cl = () => CHART_I18N[_reportLang] || null;            // active chart locale, or null for EN
+  const GP = (p)=> { const g=_cl(); return (g && g.planets[p]) || p; };       // planet name
+  const GS = (s)=> { const g=_cl(); return (g && g.signs[s]) || s; };         // sign name
+  const GDIG = (d)=> { const g=_cl(); return (g && g.dignity[d]) || d; };     // dignity word
+  const GHOUSE = (n)=> { const g=_cl(); return g ? g.house(n) : ordK(n); };   // "8th" / "8-ஆம் வீடு"
+  // Legacy aliases used by the on-screen flipbook table (now language-aware):
+  const GRAHA = (p)=> GP(p);
+  const RASI  = (s)=> GS(s);
+  // Shared, language-aware chart text (used by both the flipbook and Word tables).
+  const chartNote = (p, d1P, facts) => {
+    const a = d1P[p]; if (!a) return ""; const g=_cl();
+    if (a.dignity==="Exalted")     return g? g.note.exalted     : "strong — a genuine asset here";
+    if (a.dignity==="Debilitated") return g? g.note.debilitated : "under pressure — handle with care";
+    if (a.dignity==="Own sign")    return g? g.note.own         : "at home — reliable strength";
+    if (p===facts.karakaPlanet)    return g? g.note.karaka(facts.karaka) : "your "+facts.karaka+" — key to this domain";
+    if (facts.d1.houseLord===p)    return g? g.note.lord        : "rules your "+facts.houseName+" house";
+    return "";
+  };
+  const chartCol     = (k)=> { const g=_cl(); const en={planet:"Planet",d1:"D1 (birth)",d9:"D9",note:"Note"}; return (g && g.col[k]) || en[k]; };
+  const chartHeading = (vLabel,showVarga)=> { const g=_cl(); const v=showVarga?vLabel:""; return g? g.title(v) : ("Chart Comparison — D1 · D9"+(showVarga?" · "+vLabel:"")); };
+  const chartIntro   = ()=> { const g=_cl(); return g? g.intro : "Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading. Houses are counted from each chart's own ascendant."; };
+  const chartFoot    = ()=> { const g=_cl(); return g? g.foot : "“—” means the planet's divisional position isn't a focus for this domain."; };
 
   // Comparison page: D1 · D9 · divisional side-by-side, per planet, with a short note.
   function domainComparisonPage(domainKey, pnum) {
@@ -885,40 +957,30 @@
     }
     const vP = (facts.vargaChart && facts.vargaChart.placements) || null;
     const vLabel = facts.divisional || (domainKey==="marriage"?"D9":"—");
-    // short per-planet note anchored to the domain
-    const NOTE = (p) => {
-      const a = d1P[p]; if (!a) return "";
-      if (a.dignity === "Exalted") return "strong — a genuine asset here";
-      if (a.dignity === "Debilitated") return "under pressure — handle with care";
-      if (a.dignity === "Own sign") return "at home — reliable strength";
-      if (p === facts.karakaPlanet) return "your "+facts.karaka+" — key to this domain";
-      if (facts.d1.houseLord === p) return "rules your "+facts.houseName+" house";
-      return "";
-    };
     const showVarga = domainKey !== "marriage";  // marriage's divisional IS D9 — drop the redundant 4th column
     const rows = PLANETS.filter(p=>d1P[p]).map(p => {
       const a = d1P[p];
-      const d9h = d9P[p] ? (ordK(d9P[p].house)) : "—";
-      const vh = (vP && vP[p]) ? (RASI(vP[p].sign)+" "+ordK(vP[p].house)) : "—";
+      const d9h = d9P[p] ? GHOUSE(d9P[p].house) : "—";
+      const vh = (vP && vP[p]) ? (GS(vP[p].sign)+" "+GHOUSE(vP[p].house)) : "—";
       return `<tr style="border-bottom:1px solid rgba(201,168,76,.12)">
-        <td style="font-weight:600;padding:2px 4px">${esc(GRAHA(p))}</td>
-        <td style="padding:2px 4px">${esc(RASI(a.sign))} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
+        <td style="font-weight:600;padding:2px 4px">${esc(GP(p))}</td>
+        <td style="padding:2px 4px">${esc(GS(a.sign))} ${esc(GHOUSE(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(GDIG(a.dignity)):""}</td>
         <td style="padding:2px 4px">${esc(d9h)}</td>
         ${showVarga?`<td style="padding:2px 4px">${esc(vh)}</td>`:""}
-        <td style="opacity:.8;padding:2px 4px">${esc(NOTE(p))}</td>
+        <td style="opacity:.8;padding:2px 4px">${esc(chartNote(p,d1P,facts))}</td>
       </tr>`;
     }).join("");
-    return `<div class="pg"><div class="kick">Chart Comparison</div><div class="rule"></div>
-      <h2 style="font-size:1.15rem">D1 · D9${showVarga?" · "+esc(vLabel):""} at a glance</h2>
-      <div class="bd" style="margin-bottom:6px;font-size:.82rem">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading.</div>
+    return `<div class="pg"><div class="rule"></div>
+      <h2 style="font-size:1.15rem">${esc(chartHeading(vLabel,showVarga))}</h2>
+      <div class="bd" style="margin-bottom:6px;font-size:.82rem">${esc(chartIntro())}</div>
       <table class="cmp-table" style="width:100%;border-collapse:collapse;font-size:.72rem;line-height:1.25">
         <thead><tr style="color:var(--ai-gold);text-align:left;border-bottom:1px solid rgba(201,168,76,.4)">
-          <th style="padding:3px 4px">Planet</th><th style="padding:3px 4px">D1 (birth)</th>
-          <th style="padding:3px 4px">D9</th>${showVarga?`<th style="padding:3px 4px">${esc(vLabel)}</th>`:""}
-          <th style="padding:3px 4px">Note</th></tr></thead>
+          <th style="padding:3px 4px">${esc(chartCol('planet'))}</th><th style="padding:3px 4px">${esc(chartCol('d1'))}</th>
+          <th style="padding:3px 4px">${esc(chartCol('d9'))}</th>${showVarga?`<th style="padding:3px 4px">${esc(vLabel)}</th>`:""}
+          <th style="padding:3px 4px">${esc(chartCol('note'))}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="foot" style="margin-top:8px;font-size:.72rem">Houses are counted from each chart's own ascendant. “—” means the planet's divisional position isn't a focus for this domain.</div>
+      <div class="foot" style="margin-top:8px;font-size:.72rem">${esc(chartFoot())}</div>
       <span class="pnum">${pnum}</span></div>`;
   }
 
@@ -937,29 +999,43 @@
     const vP = (facts.vargaChart && facts.vargaChart.placements) || null;
     const vLabel = facts.divisional || (domainKey==="marriage"?"D9":"—");
     const showVarga = domainKey !== "marriage";
-    const NOTE = (p) => {
-      const a = d1P[p]; if (!a) return "";
-      if (a.dignity === "Exalted") return "strong — a genuine asset here";
-      if (a.dignity === "Debilitated") return "under pressure — handle with care";
-      if (a.dignity === "Own sign") return "at home — reliable strength";
-      if (p === facts.karakaPlanet) return "your "+facts.karaka+" — key to this domain";
-      if (facts.d1.houseLord === p) return "rules your "+facts.houseName+" house";
-      return "";
-    };
-    // LINE format (not a table). Full sentences give machine translation the context it needs
-    // to render planet/sign names correctly in every language — "Mercury — Pisces, 1st house"
-    // → "புதன் — மீனம், 1 ஆம் வீடு". (Isolated table cells lost that and produced "Ford"/"மீனா".)
-    const lines = PLANETS.filter(p=>d1P[p]).map(p=>{
+    // ENGLISH Word may still be run through Google Translate by the reader, so it uses the
+    // context-safe LINE format (isolated cells become "Ford"/"மீனா"). The AI-translated path
+    // (picker) renders a proper TABLE from the glossary — nothing context-blind touches it.
+    if (_reportLang === "EN") {
+      const lines = PLANETS.filter(p=>d1P[p]).map(p=>{
+        const a=d1P[p];
+        const dig = (a.dignity && a.dignity!=="Neutral") ? " ("+a.dignity+")" : "";
+        const d9h = d9P[p] ? (" · D9 "+ordK(d9P[p].house)+" house") : "";
+        const vh  = (showVarga && vP && vP[p]) ? (" · "+vLabel+" "+vP[p].sign+" "+ordK(vP[p].house)) : "";
+        const nt = chartNote(p,d1P,facts); const note = nt ? (" — "+nt) : "";
+        return `<p style="margin:3px 0;font-size:10.5pt"><b>${esc(p)}</b> — ${esc(a.sign)}, ${esc(ordK(a.house))} house${esc(dig)}${esc(d9h)}${esc(vh)}${esc(note)}</p>`;
+      }).join("");
+      return `<h2 style="color:#b0821f;margin:18px 0 6px">Chart Comparison — D1 · D9${showVarga?" · "+esc(vLabel):""}</h2>
+        <p style="margin:0 0 8px;font-size:10pt;color:#555">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading. Houses are counted from each chart's own ascendant.</p>
+        ${lines}`;
+    }
+    const cell = 'style="padding:3px 7px;border:1px solid #e2cf8f"';
+    const th = 'style="padding:3px 7px;border:1px solid #e2cf8f;text-align:left;background:#fbf6e6;color:#8a6d1f"';
+    const rows = PLANETS.filter(p=>d1P[p]).map(p=>{
       const a=d1P[p];
-      const dig = (a.dignity && a.dignity!=="Neutral") ? " ("+a.dignity+")" : "";
-      const d9h = d9P[p] ? (" · D9 "+ordK(d9P[p].house)+" house") : "";
-      const vh  = (showVarga && vP && vP[p]) ? (" · "+vLabel+" "+vP[p].sign+" "+ordK(vP[p].house)) : "";
-      const note = NOTE(p) ? (" — "+NOTE(p)) : "";
-      return `<p style="margin:3px 0;font-size:10.5pt"><b>${esc(p)}</b> — ${esc(a.sign)}, ${esc(ordK(a.house))} house${esc(dig)}${esc(d9h)}${esc(vh)}${esc(note)}</p>`;
+      const d9h = d9P[p] ? GHOUSE(d9P[p].house) : "—";
+      const vh = (vP && vP[p]) ? (GS(vP[p].sign)+" "+GHOUSE(vP[p].house)) : "—";
+      return `<tr>
+        <td ${cell}><b>${esc(GP(p))}</b></td>
+        <td ${cell}>${esc(GS(a.sign))} ${esc(GHOUSE(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(GDIG(a.dignity)):""}</td>
+        <td ${cell}>${esc(d9h)}</td>
+        ${showVarga?`<td ${cell}>${esc(vh)}</td>`:""}
+        <td ${cell}>${esc(chartNote(p,d1P,facts))}</td>
+      </tr>`;
     }).join("");
-    return `<h2 style="color:#b0821f;margin:18px 0 6px">Chart Comparison — D1 · D9${showVarga?" · "+esc(vLabel):""}</h2>
-      <p style="margin:0 0 8px;font-size:10pt;color:#555">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading. Houses are counted from each chart's own ascendant.</p>
-      ${lines}`;
+    return `<h2 style="color:#b0821f;margin:18px 0 6px">${esc(chartHeading(vLabel,showVarga))}</h2>
+      <p style="margin:0 0 8px;font-size:10pt;color:#555">${esc(chartIntro())}</p>
+      <table style="border-collapse:collapse;font-size:10pt;width:100%">
+        <thead><tr><th ${th}>${esc(chartCol('planet'))}</th><th ${th}>${esc(chartCol('d1'))}</th><th ${th}>${esc(chartCol('d9'))}</th>${showVarga?`<th ${th}>${esc(vLabel)}</th>`:""}<th ${th}>${esc(chartCol('note'))}</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin:6px 0 0;font-size:9pt;color:#777;font-style:italic">${esc(chartFoot())}</p>`;
   }
 
   function allDomainsToPages(combined) {
@@ -1031,6 +1107,7 @@
   };
 
   function renderAllDomainsFlipbook(host, combined) {
+    _reportLang = "EN"; _domCtx = null;   // all-domains has no language picker yet; avoid stale state
     const P = allDomainsToPages(combined);
     _book.pages = P; _book.idx = 0; _book.animating = false; _book.target = 0;
     host.innerHTML = `
@@ -1131,20 +1208,20 @@
     P.push(`<div class="pg cover"><div class="frame"></div><div class="in">
       <div class="seal">◈</div>
       <div class="logo" style="margin:10px 0 16px">Astro<span>Indicators</span></div>
-      <div class="kick" style="color:var(--ai-gold)">${esc(DOMAIN_LABELS[domainKey]||"")} Report</div>
-      <h1>${esc(title)}</h1>
-      <div class="cover-sub">A Vedic reading of your ${esc(DOMAIN_LABELS[domainKey]||"")}</div>
+      <div class="kick" style="color:var(--ai-gold)">${esc(SC("coverKick",(DOMAIN_LABELS[domainKey]||"")+" Report"))}</div>
+      <h1>${esc(SC("title",title))}</h1>
+      <div class="cover-sub">${esc(SC("coverSub","A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||"")))}</div>
       <div class="cover-meta" style="margin-top:14px;opacity:.85">${esc(fmtDOB(f0.dob,f0.tob)||"")} · ${esc(f0.place||"")}</div>
       </div></div>`);
     // Birth details
     const _cc = clientCode();
-    P.push(`<div class="pg"><div class="kick">Birth Details</div><div class="rule"></div>
+    P.push(`<div class="pg"><div class="kick">${esc(SC("birthTitle","Birth Details"))}</div><div class="rule"></div>
       <ul class="toc bdl">
-        <li><b>Name</b><i>${esc(f0.name||"—")}</i></li>
-        <li><b>Date of birth</b><i>${esc(f0.dob||"—")}</i></li>
-        <li><b>Time of birth</b><i>${esc(f0.tob?f0.tob+" (24-hr)":"—")}</i></li>
-        <li><b>Place</b><i>${esc(f0.place||"—")}</i></li>
-        ${_cc?`<li><b>Client ID</b><i>${esc(_cc)}</i></li>`:""}
+        <li><b>${esc(SC("lblName","Name"))}</b><i>${esc(f0.name||"—")}</i></li>
+        <li><b>${esc(SC("lblDob","Date of birth"))}</b><i>${esc(f0.dob||"—")}</i></li>
+        <li><b>${esc(SC("lblTob","Time of birth"))}</b><i>${esc(f0.tob?f0.tob+" (24-hr)":"—")}</i></li>
+        <li><b>${esc(SC("lblPlace","Place"))}</b><i>${esc(f0.place||"—")}</i></li>
+        ${_cc?`<li><b>${esc(SC("lblClient","Client ID"))}</b><i>${esc(_cc)}</i></li>`:""}
       </ul>
       <span class="pnum">2</span></div>`);
     P.push(readNotePage(3));
@@ -1191,13 +1268,78 @@
     const disc = (domainKey==="health")
       ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
       : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.";
-    P.push(`<div class="pg"><div class="kick">${esc(title)}</div><div class="rule"></div>
-      <h2>A closing note</h2>
-      <div class="bd">${esc(disc)}</div>
-      <div class="foot" style="margin-top:12px">You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint.</div>
-      ${(function(){ const _cc = clientCode(); return _cc ? `<div class="closing" style="margin-top:14px">Your Client ID<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>` : ""; })()}
+    P.push(`<div class="pg"><div class="kick">${esc(SC("title",title))}</div><div class="rule"></div>
+      <h2>${esc(SC("closeTitle","A closing note"))}</h2>
+      <div class="bd">${esc(SC("closeDisc",disc))}</div>
+      <div class="foot" style="margin-top:12px">${esc(SC("closeFoot","You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint."))}</div>
+      ${(function(){ const _cc = clientCode(); return _cc ? `<div class="closing" style="margin-top:14px">${esc(SC("lblClientId","Your Client ID"))}<br><b style="font-size:1.3em;letter-spacing:.1em">${esc(_cc)}</b><br><span style="opacity:.85">astroindicators.com</span></div>` : ""; })()}
       <span class="pnum">${n++}</span></div>`);
     return P;
+  }
+
+  // ── In-report language picker (AI translation) ───────────────────────────────
+  function langSelectHTML(){
+    const opts = UI_LANGS.map(l=>`<option value="${l.code}"${l.code===_reportLang?" selected":""}>${esc(l.label)}</option>`).join("");
+    return `<label class="fb-langpick" style="display:inline-flex;align-items:center;gap:7px;align-self:flex-start;color:#c9a84c;font-size:.9rem;white-space:nowrap">🌐 <span style="font-weight:600">Read in</span>
+      <select id="fbLang" title="Translate this report into your language" style="padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.06);color:#f0e6c8;border:1px solid rgba(201,168,76,.45);font-size:.9rem;cursor:pointer;max-width:190px">${opts}</select></label>`;
+  }
+  function wireLangSelect(host, domainKey){
+    const sel = $("fbLang"); if(!sel) return;
+    sel.value = _reportLang;
+    sel.onchange = ()=> onDomainLang(host, domainKey, sel.value);
+  }
+  function showTranslateOverlay(host, lang){
+    const label = (UI_LANGS.find(l=>l.code===lang)||{}).label || lang;
+    host.style.position = host.style.position || "relative";
+    let ov = document.getElementById("fbXlateOv");
+    if(!ov){ ov = document.createElement("div"); ov.id="fbXlateOv";
+      ov.style.cssText="position:absolute;inset:0;background:rgba(20,16,30,.82);display:flex;align-items:center;justify-content:center;z-index:60;border-radius:inherit";
+      host.appendChild(ov); }
+    ov.innerHTML = `<div style="text-align:center;color:#f0e6c8;max-width:340px;padding:24px">
+      <div style="font-size:1.6rem;margin-bottom:12px">🌐</div>
+      <div style="font-weight:600;margin-bottom:8px">Translating to ${esc(label)}…</div>
+      <div style="font-size:.85rem;opacity:.82;line-height:1.5">This takes about a minute. The report is translated in context, so the astrological meaning stays right.</div></div>`;
+  }
+  function hideTranslateOverlay(){ const ov=document.getElementById("fbXlateOv"); if(ov) ov.remove(); }
+
+  async function onDomainLang(host, domainKey, lang){
+    if (!_domCtx || lang === _reportLang) return;
+    const enSecs = _domCtx.cache.EN;
+    if (lang === "EN"){ _reportLang = "EN"; renderDomainFlipbook(host, domainKey, enSecs); return; }
+    if (_domCtx.cache[lang]){ _reportLang = lang; renderDomainFlipbook(host, domainKey, _domCtx.cache[lang]); return; }
+    showTranslateOverlay(host, lang);
+    try {
+      const reportSlim = enSecs.map(s=>({ heading: String(s.heading||""), body: String(s.body||"") }));
+      // Bundle the fixed scaffold strings so the cover, how-to-read and re-read lines translate too.
+      const scEN = scaffoldEN(domainKey);
+      const scMap = [], scStrings = [];
+      for (const k of Object.keys(scEN)) {
+        const v = scEN[k];
+        if (Array.isArray(v)) v.forEach((s,i)=>{ scMap.push({ k, i }); scStrings.push(String(s)); });
+        else { scMap.push({ k, i:-1 }); scStrings.push(String(v)); }
+      }
+      const slim = reportSlim.concat(scStrings.map(s=>({ heading:"", body:s })));
+      const data = await fetchStreamedReport("/api/translate-report", { sections: slim, lang });
+      if (!data || data.error || !Array.isArray(data.sections)) throw new Error((data && data.error) || "No translation returned.");
+      const t = data.sections;
+      const merged = enSecs.map((s,i)=> ({ ...s, heading: (t[i] && t[i].heading) || s.heading, body: (t[i] && t[i].body) || s.body }));
+      // Rebuild the translated scaffold from the tail of the results.
+      const scT = {};
+      scMap.forEach((m, idx)=>{
+        const r = t[reportSlim.length + idx];
+        const val = (r && r.body != null && r.body !== "") ? r.body : scStrings[idx];
+        if (m.i === -1) scT[m.k] = val; else { (scT[m.k] = scT[m.k] || [])[m.i] = val; }
+      });
+      _domCtx.cache[lang] = merged;
+      _domCtx.scaffoldT = _domCtx.scaffoldT || {};
+      _domCtx.scaffoldT[lang] = scT;
+      _reportLang = lang;
+      renderDomainFlipbook(host, domainKey, merged);   // rebuilds host → removes the overlay
+    } catch(e){
+      hideTranslateOverlay();
+      const sel = $("fbLang"); if(sel) sel.value = _reportLang;
+      alert("Couldn't translate the report right now: " + (e.message||e) + "\nThe English version is still shown.");
+    }
   }
 
   function renderDomainFlipbook(host, domainKey, sections) {
@@ -1215,11 +1357,18 @@
         <div class="dots" id="fbDots"></div>
         <button class="fb-nav" id="fbNext">›</button></div>
       <div class="hint">Swipe, use ← → keys, or tap the dots</div>
-      <div class="fb-dlbar"><button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
-        ${downloadDropdownHTML()}</div>`;
+      <div class="fb-dlbar">${langSelectHTML()}<button id="fbFull" class="pp-pay ghost">⛶ Full screen</button>
+        ${downloadDropdownHTML(true)}</div>`;
     bindBook();
     bookRender();
-    wireDownloadDropdown(()=>exportDomainPDF(domainKey, sections), ()=>exportWordDoc("AstroIndicators_"+domainKey+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), (DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint", "A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||""), sections, domainChartTableHtml(domainKey)));
+    const enSecs = (_domCtx && _domCtx.cache && _domCtx.cache.EN) || sections;
+    wireDownloadDropdown(
+      ()=>exportDomainPDF(domainKey, enSecs),   // PDF stays English (jsPDF can't render Indic script)
+      ()=>exportWordDoc("AstroIndicators_"+domainKey+(_reportLang!=="EN"?"_"+_reportLang:"")+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), SC("title",(DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint"), SC("coverSub","A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||"")), sections, domainChartTableHtml(domainKey))
+    );
+    wireLangSelect(host, domainKey);
+    // Localise the per-page re-reading reminder (CSS ::after on .pg) for the active language.
+    try { host.style.setProperty("--reread", '"↻ ' + String(SC("reRead","Re-reading reveals its deeper meaning.")).replace(/["\\]/g,"'") + '"'); } catch(_){}
     const fsBtn = $("fbFull");
     if (fsBtn) fsBtn.onclick = () => {
       const box = $("domainReport"); if (!box) return;
@@ -1360,10 +1509,10 @@
           doc.setFont("helvetica","normal");
           for(const p of PLANETS){ const a=d1P[p]; if(!a) continue; kbreak(14);
             const d9h=d9P[p]?ordP(d9P[p].house):"—";
-            const vh=(vP&&vP[p])?(RASI(vP[p].sign)+" "+ordP(vP[p].house)):"—";
+            const vh=(vP&&vP[p])?(vP[p].sign+" "+ordP(vP[p].house)):"—";  // PDF stays ENGLISH (jsPDF can't render Indic)
             let note=""; if(a.dignity==="Exalted")note="strong asset"; else if(a.dignity==="Debilitated")note="under pressure"; else if(a.dignity==="Own sign")note="at home"; else if(p===facts.karakaPlanet)note=facts.karaka; else if(facts.d1.houseLord===p)note="rules "+facts.houseName;
-            const d1txt = RASI(a.sign)+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
-            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(GRAHA(p),cP,y);
+            const d1txt = a.sign+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
+            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(p,cP,y);
             doc.setFont("helvetica","normal"); doc.setTextColor(...MUTE);
             doc.text(d1txt, cD1, y);
             doc.text(String(d9h), cD9, y);
