@@ -92,7 +92,7 @@
   // ── Word (.doc) export: HTML-as-doc, opens in Word/Google Docs, editable for
   //    translation. Zero dependencies. ──
   function esc4doc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-  function exportWordDoc(fileBase, title, subtitle, sections){
+  function exportWordDoc(fileBase, title, subtitle, sections, chartTableHtml){
     try{
       const f0 = (window.currentData && window.currentData.form) || {};
       const cc = clientCode();
@@ -119,7 +119,7 @@
         flushWhy(); flushUl();
         return `<h2 style="color:#b0821f;margin:18px 0 8px">${esc4doc(sec.heading||"")}</h2>${paras}`;
       }).join("");
-      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
+      const doc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc4doc(title)}</title></head><body style="font-family:Calibri,Arial,sans-serif;color:#282828;font-size:11pt"><div style="text-align:center;margin-bottom:6px"><span style="color:#c9a84c;font-size:20pt;font-weight:bold">AstroIndicators</span></div><h1 style="text-align:center;margin:2px 0">${esc4doc(title)}</h1>${subtitle?`<p style="text-align:center;color:#666;margin:2px 0">${esc4doc(subtitle)}</p>`:""}<p style="text-align:center;color:#666;font-size:9pt">${esc4doc(fmtDOB(f0.dob,f0.tob)||"")} \u00b7 ${esc4doc(f0.place||"")}${cc?" \u00b7 Client ID "+esc4doc(cc):""}</p><hr style="border:none;border-top:1px solid #c9a84c">${noteHtml}${chartTableHtml||""}${bodyHtml}<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"><p style="font-size:8pt;color:#888;font-style:italic">This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. \u00a9 2026 AstroIndicators \u00b7 astroindicators.com</p></body></html>`;
       // Real .docx (not HTML-renamed-.doc): opens correctly on phones and in Google Translate \u2192 Documents.
       window.AI_DOCX.downloadHTML(doc, fileBase + ".docx");
     }catch(e){ alert("Sorry \u2014 the Word file could not be generated. Please try the PDF instead."); }
@@ -936,6 +936,53 @@
       <span class="pnum">${pnum}</span></div>`;
   }
 
+  // Chart-comparison table as standalone HTML for the Word export. Word renders it
+  // cleanly and Word→Google Translate keeps the table intact (unlike the PDF, whose
+  // layout Google mangles). Mirrors domainComparisonPage's data and column logic.
+  function domainChartTableHtml(domainKey){
+    const facts = (window.currentData && window.currentData.analysis
+                  && window.currentData.analysis.domainFacts
+                  && window.currentData.analysis.domainFacts[domainKey]) || null;
+    if (!facts || !facts.d1 || !facts.d1.placements) return "";
+    const PLANETS = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+    const d1P = facts.d1.placements;
+    const d9P = {};
+    if (facts.d9 && facts.d9.houses) { for (const h of Object.keys(facts.d9.houses)) for (const p of (facts.d9.houses[h]||[])) d9P[p] = { house:+h }; }
+    const vP = (facts.vargaChart && facts.vargaChart.placements) || null;
+    const vLabel = facts.divisional || (domainKey==="marriage"?"D9":"—");
+    const showVarga = domainKey !== "marriage";
+    const NOTE = (p) => {
+      const a = d1P[p]; if (!a) return "";
+      if (a.dignity === "Exalted") return "strong — a genuine asset here";
+      if (a.dignity === "Debilitated") return "under pressure — handle with care";
+      if (a.dignity === "Own sign") return "at home — reliable strength";
+      if (p === facts.karakaPlanet) return "your "+facts.karaka+" — key to this domain";
+      if (facts.d1.houseLord === p) return "rules your "+facts.houseName+" house";
+      return "";
+    };
+    const cell = 'style="padding:3px 7px;border:1px solid #e2cf8f"';
+    const rows = PLANETS.filter(p=>d1P[p]).map(p=>{
+      const a=d1P[p];
+      const d9h = d9P[p] ? ordK(d9P[p].house) : "—";
+      const vh = (vP && vP[p]) ? (RASI(vP[p].sign)+" "+ordK(vP[p].house)) : "—";
+      return `<tr>
+        <td ${cell}><b>${esc(GRAHA(p))}</b></td>
+        <td ${cell}>${esc(RASI(a.sign))} ${esc(ordK(a.house))}${a.dignity&&a.dignity!=="Neutral"?" · "+esc(a.dignity):""}</td>
+        <td ${cell}>${esc(d9h)}</td>
+        ${showVarga?`<td ${cell}>${esc(vh)}</td>`:""}
+        <td ${cell}>${esc(NOTE(p))}</td>
+      </tr>`;
+    }).join("");
+    const th = 'style="padding:3px 7px;border:1px solid #e2cf8f;text-align:left;background:#fbf6e6;color:#8a6d1f"';
+    return `<h2 style="color:#b0821f;margin:18px 0 6px">Chart Comparison — D1 · D9${showVarga?" · "+esc(vLabel):""}</h2>
+      <p style="margin:0 0 8px;font-size:10pt;color:#555">Where a planet holds strength across more than one chart, that agreement is the most reliable signal in your reading.</p>
+      <table style="border-collapse:collapse;font-size:10pt;width:100%">
+        <thead><tr><th ${th}>Planet</th><th ${th}>D1 (birth)</th><th ${th}>D9</th>${showVarga?`<th ${th}>${esc(vLabel)}</th>`:""}<th ${th}>Note</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin:6px 0 0;font-size:9pt;color:#777;font-style:italic">Sign names are shown in their traditional Vedic (Sanskrit) form. Houses are counted from each chart's own ascendant.</p>`;
+  }
+
   function allDomainsToPages(combined) {
     const f0 = (window.currentData && window.currentData.form) || {};
     const _cc = clientCode();
@@ -1193,7 +1240,7 @@
         ${downloadDropdownHTML()}</div>`;
     bindBook();
     bookRender();
-    wireDownloadDropdown(()=>exportDomainPDF(domainKey, sections), ()=>exportWordDoc("AstroIndicators_"+domainKey+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), (DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint", "A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||""), sections));
+    wireDownloadDropdown(()=>exportDomainPDF(domainKey, sections), ()=>exportWordDoc("AstroIndicators_"+domainKey+"_"+((clientCode()||"report").replace(/[^a-z0-9]/gi,"_")), (DOMAIN_LABELS[domainKey]||"Domain")+" Blueprint", "A Vedic reading of your "+(DOMAIN_LABELS[domainKey]||""), sections, domainChartTableHtml(domainKey)));
     const fsBtn = $("fbFull");
     if (fsBtn) fsBtn.onclick = () => {
       const box = $("domainReport"); if (!box) return;
