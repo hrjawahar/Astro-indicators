@@ -31,12 +31,15 @@ const GLOSSARY = {
     signs: "Aries=மேஷம், Taurus=ரிஷபம், Gemini=மிதுனம், Cancer=கடகம், Leo=சிம்மம், Virgo=கன்னி, Libra=துலாம், Scorpio=விருச்சிகம், Sagittarius=தனுசு, Capricorn=மகரம், Aquarius=கும்பம், Pisces=மீனம்",
     // Preferred renderings for words that otherwise come out vague or wrong in Tamil.
     terms: [
+      "“house” / “bhava” (an astrological house) → ALWAYS வீடு. NEVER பாவம் or பாவத்தில் — பாவம் means SIN in Tamil and completely changes the meaning. e.g. “the energy in this house” → இந்த வீட்டில் உள்ள சக்தி.",
+      "“chart” / “the chart” (the horoscope) → ஜாதகம். NEVER transliterate it as சார்ட். “birth chart” → பிறப்பு ஜாதகம், “navamsa chart” → நவாம்ச ஜாதகம்.",
+      "“turbulent” / “turbulence” / “stormy” / “upheaval” → ஏற்ற இறக்கமான, or கலக்கமான, or சவாலான as fits the sense. NEVER கொந்தளிப்பு / கொந்தளிப்பான (too harsh — it means churning/roiling water).",
       "“partnership” / “a partnership” (the marriage or romantic bond) → கூட்டாண்மை, or உறவு when it means the relationship. NEVER கூட்டுறவு (that reads as a cooperative society/bank).",
       "“signal” / “sign” / “indicator” (an astrological indication) → அறிகுறி. NOT சமிக்ஞை (that is a hand-gesture/signal).",
       "“communication” (between partners) → கருத்துப் பரிமாற்றம், or தொடர்பு கொள்ளுதல். NOT தொடர்புத்திறன் (that reads as telecom connectivity).",
       "“build” / “built” (a relationship, trust, a foundation) → கட்டியெழுப்பு / உருவாக்கு / வளர்த்தெடு as fits. NOT the bare கட்டு (that means tie/bundle).",
       "“friction” (between people) → உரசல், or கருத்து வேறுபாடு. NOT உராய்வு (that is physical friction).",
-      "Prefer natural, warm, everyday Tamil over literal word-for-word choices or technical vocabulary.",
+      "Prefer natural, warm, everyday Tamil that an ordinary reader speaks — not literal word-for-word renderings, hyphenated coinages (e.g. avoid உணர்வு-தூண்டல்), or technical vocabulary. If a literal rendering would read awkwardly, rephrase it so the MEANING comes through clearly.",
     ].join("\n   - "),
   },
 };

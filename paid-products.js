@@ -188,8 +188,8 @@
 
   function downloadDropdownHTML(hasPicker){
     const wordSub = hasPicker ? "" : ` <span class="dl-sub">(for translation)</span>`;
-    const pickerTip = `💡 To read this in another language, use the <b>language selector</b> above — it translates the whole report in context. <b>Word</b> downloads in the language you've chosen; the <b>PDF</b> stays in English.`;
-    return `<div style="text-align:center">
+    const pickerTip = `💡 To read this in another language, pick your language from the <b>🌐 Read in</b> menu above — it translates the whole report in context. <b>Word</b> downloads in the language you've chosen; the <b>PDF</b> stays in English.`;
+    return `<div style="text-align:center" class="dl-col">
       <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word${wordSub}</button></div></div>
       <div class="dl-tip">${hasPicker ? pickerTip : window.AI_DOCX ? AI_DOCX.translateTipHTML() :"💡 To read this in your language, use the <b>Word</b> file (not the PDF — it translates far more cleanly): upload it to <b>translate.google.com → Documents</b>."}</div>
     </div>`;

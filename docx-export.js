@@ -222,7 +222,7 @@
     "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>" +
     "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer\" Target=\"footer1.xml\"/></Relationships>";
   // Centred "PAGE of NUMPAGES" footer (field codes Word computes on open).
-  var FP = "<w:rPr><w:sz w:val=\"16\"/><w:szCs w:val=\"16\"/><w:color w:val=\"969696\"/></w:rPr>";
+  var FP = "<w:rPr><w:b/><w:sz w:val=\"20\"/><w:szCs w:val=\"20\"/><w:color w:val=\"444444\"/></w:rPr>";
   var FOOTER = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
     "<w:ftr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr>" +
     "<w:r>" + FP + "<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>" + FP + "<w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r><w:r>" + FP + "<w:fldChar w:fldCharType=\"end\"/></w:r>" +
