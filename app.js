@@ -586,7 +586,7 @@ function getForm() {
     name:      document.getElementById("inputName").value.trim(),
     dob:       document.getElementById("inputDOB").value,
     tob:       document.getElementById("inputTOB").value,
-    gender:    document.getElementById("inputGender")?.value || "unspecified",
+    gender:    document.getElementById("inputGender")?.value || "",
     callName:  (document.getElementById("inputCallName")?.value || "").trim(),
     place:     _selectedPlace?.displayName || (placeDisplay ? placeDisplay.value.trim() : ""),
     lat:       _selectedPlace?.lat     || null,
@@ -626,6 +626,10 @@ async function generate() {
 
   if (!form.dob || !form.tob || !form.place) {
     showError("Please enter date of birth, time of birth, and select a place of birth from the dropdown.");
+    return;
+  }
+  if (!form.gender) {
+    showError("Please select a gender — it is used for the classical spouse-significator rules in the marriage reading. Choose 'Rather not say' if you prefer not to specify.");
     return;
   }
   if (!isFinite(parseFloat(form.lat)) || !isFinite(parseFloat(form.lng))) {
