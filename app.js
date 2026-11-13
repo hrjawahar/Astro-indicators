@@ -666,6 +666,7 @@ async function generate() {
       d9: { lagnaSign: chartData.d9.lagnaSign, houses: chartData.d9.houses, degrees: chartData.d9.degrees, latitudes: chartData.d9.latitudes || {} },
       dashas:    chartData.dasha?.dashas    || null,
       birthDate: form.dob                  || null,
+      gender:    form.gender               || "unspecified",
     };
 
     const analysisRes = await fetch("/api/analyze", {

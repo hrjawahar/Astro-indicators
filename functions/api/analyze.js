@@ -2554,7 +2554,80 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
     framing:"structural leaning, tested by the reader against their own field and experience — not a prediction" };
 }
 
-function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap){
+// ── Future Compass (all domains) ───────────────────────────────────────────────
+// The engine produces many AD sub-windows (dashaTiming.keyWindows). The owner rule:
+// the BACKEND keeps that full detail, but the REPORT consolidates to the 2-3 strongest
+// upcoming bands — each weighted, named by nature (supportive / testing / mixed), with
+// the PRECURSOR condition (what effort or circumstance it asks for) stated, plus a
+// single "relief from ongoing stress" window that applies to every domain. No new
+// ephemeris: this is pure consolidation over the dasha windows already computed.
+const FC_BENEFIC = new Set(["Jupiter","Venus","Mercury","Moon"]);
+const FC_MALEFIC = new Set(["Saturn","Mars","Rahu","Ketu","Sun"]);
+function fcStartYr(y){ const m=String(y||"").match(/(\d{4})/); return m?parseInt(m[1],10):null; }
+function fcEndYr(y){ const m=String(y||"").match(/(\d{4})\s*$/); return m?parseInt(m[1],10):null; }
+function buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1P, occupants){
+  if(!dashaTiming || !Array.isArray(dashaTiming.keyWindows) || !dashaTiming.keyWindows.length) return null;
+  const nowYr = new Date().getFullYear();
+  const occPlanets = new Set((occupants||[]).map(o=>o.planet));
+  // Forward-only: a compass of the road ahead keeps current + future windows and drops
+  // any band that has already fully passed (its end year is before this year).
+  const forwardWindows = dashaTiming.keyWindows.filter(w=>{ const ey=fcEndYr(w.years); return ey==null || ey>=nowYr; });
+  if(!forwardWindows.length) return null;
+  // Score every window.
+  const scored = forwardWindows.map(w=>{
+    const lord=w.ad; const pp=d1P[lord]||{};
+    let score=0; const roles=[];
+    if(lord===karakaPlanet){ score+=3; roles.push("significator"); }
+    if(lord===hLord){ score+=3; roles.push(ordinalD(cfg.house)+"-lord"); }
+    if(occPlanets.has(lord)){ score+=2; roles.push("domain-house planet"); }
+    if(!roles.length) score+=1;
+    if(pp.dignity==="Exalted"||pp.dignity==="Own sign") score+=2;
+    else if(pp.dignity==="Debilitated") score-=1;
+    else if(pp.dignity==="Combust") score-=1;
+    if(FC_BENEFIC.has(lord)) score+=1;
+    const sy=fcStartYr(w.years), ey=fcEndYr(w.years)||sy;
+    if(sy!=null){ const d=sy-nowYr; if(d<=5) score+=2; else if(d<=10) score+=1; }
+    const beneficIsh = FC_BENEFIC.has(lord) && pp.dignity!=="Debilitated" && pp.dignity!=="Combust";
+    const testingIsh = FC_MALEFIC.has(lord) || pp.dignity==="Debilitated" || [6,8,12].includes(pp.house);
+    const nature = (beneficIsh && !testingIsh) ? "supportive" : (testingIsh && !beneficIsh) ? "testing" : "mixed";
+    return { w, lord, score, roles, sy, ey, nature, upcoming:!!w.upcoming };
+  });
+  // Consolidate: sort by score (then soonest), greedily pick up to 3 non-overlapping bands.
+  const ranked=[...scored].sort((a,b)=> (b.score-a.score) || ((a.sy||9999)-(b.sy||9999)));
+  const picks=[]; const overlaps=(a,b)=> a.sy!=null&&b.sy!=null && !(a.ey<b.sy || b.ey<a.sy);
+  for(const s of ranked){ if(picks.length>=3) break; if(picks.some(p=>overlaps(p,s))) continue; picks.push(s); }
+  picks.sort((a,b)=>(a.sy||9999)-(b.sy||9999));  // chronological for reading
+  const isMarriage = domainKey==="marriage", isCareer = domainKey==="career";
+  const themeFor=(nature)=>{
+    if(isMarriage) return nature==="supportive" ? "a genuine opening for partnership — a meeting, a commitment, or a decisive step forward"
+                        : nature==="testing" ? "a period that tests or reshapes the partnership, maturing the bond through patience"
+                        : "an active, mixed window for partnership — real movement, with conscious effort required";
+    if(isCareer)   return nature==="supportive" ? "a doorway in your working life — a rise, a move, or a chance to step up"
+                        : nature==="testing" ? "a demanding stretch in work — obstacles, transitions or disruption that reshape the path"
+                        : "a mixed but active career window — progress alongside real challenges";
+    return nature==="supportive" ? ("a supportive, opening window for "+cfg.focus)
+         : nature==="testing" ? ("a testing, consolidating window for "+cfg.focus)
+         : ("an active, mixed window for "+cfg.focus);
+  };
+  const precursorFor=(nature)=>{
+    if(nature==="supportive") return "It opens most fully when you are ready to meet it — prepared, available, and willing to act when the moment comes.";
+    if(nature==="testing")    return "It rewards patience and steady effort — not forcing the timeline, keeping commitments honest, and meeting friction with maturity rather than reaction.";
+    return "It mixes opening and testing — prepare the ground with real effort, then let timing do its part.";
+  };
+  const bands = picks.map(p=>{
+    // co-occurring drivers: other scored windows that overlap this band
+    const drivers = [...new Set(scored.filter(s=>overlaps(s,p)).map(s=>s.lord))];
+    return { years:p.w.years, nature:p.nature, roles:p.roles, drivers, theme:themeFor(p.nature), precursor:precursorFor(p.nature) };
+  });
+  // Relief window — nearest UPCOMING supportive band (applies to every domain).
+  const reliefCand = scored.filter(s=>s.nature==="supportive" && s.sy!=null && s.sy>=nowYr).sort((a,b)=>a.sy-b.sy)[0];
+  const relief = reliefCand ? { years:reliefCand.w.years, driver:reliefCand.lord,
+    note:"A lifting of pressure and a more supportive stretch — the point where ongoing strain in this area tends to ease." } : null;
+  if(!bands.length && !relief) return null;
+  return { bands, relief, horizonNote:("Read to "+(nowYr+20)+" (a 20-year horizon).") };
+}
+
+function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap, gender){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
   if(!d1P) return null;
@@ -2693,6 +2766,96 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const afflicted = ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak) || !!d9LordCaution;
     flags.marriageAfflicted=!!afflicted;
     flags.remarriageIndicated=!!(ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak));
+
+    // ── Spouse significator + partner profile (gender-aware) ─────────────────────
+    // Classical rule: for a WOMAN the husband-significator is Jupiter; for a MAN the
+    // wife-significator is Venus. When gender is not given we fall back to Darakaraka
+    // (the chara-karaka spouse significator) and tell the writer gender was withheld
+    // so it speaks of "your partner" rather than husband/wife.
+    const g = String(gender||"unspecified").toLowerCase();
+    const genderKnown = (g==="male"||g==="female");
+    const darakaraka=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Darakaraka")||{}).planet:null;
+    const sigPlanet = g==="female" ? "Jupiter" : g==="male" ? "Venus" : darakaraka;
+    const spouseWord = g==="female" ? "husband" : g==="male" ? "wife" : "partner";
+    const sigRole = g==="female" ? "Jupiter — the classical significator of the husband for a woman"
+                  : g==="male"   ? "Venus — the classical significator of the wife for a man"
+                  : (darakaraka ? (darakaraka+" — your Darakaraka, the chart's own spouse significator") : null);
+    const SIGN_TEMPERAMENT = {
+      Aries:"direct, energetic, independent and quick to act",
+      Taurus:"steady, patient, comfort-loving and security-minded",
+      Gemini:"talkative, curious, versatile and mentally quick",
+      Cancer:"caring, emotional, home-loving and protective",
+      Leo:"warm, proud, generous and wanting to be respected",
+      Virgo:"practical, discerning, helpful and detail-minded",
+      Libra:"gracious, fair-minded, partnership-focused and refined",
+      Scorpio:"intense, private, loyal and emotionally deep",
+      Sagittarius:"optimistic, freedom-loving, principled and candid",
+      Capricorn:"serious, responsible, ambitious and self-disciplined",
+      Aquarius:"independent, unconventional, friendly and idealistic",
+      Pisces:"gentle, imaginative, compassionate and adaptable",
+    };
+    const HOUSE_ARENA = {
+      1:"someone who strongly shapes your sense of self — the partnership sits front-and-centre in your life",
+      2:"someone connected to family, finances, or a settled home life",
+      3:"someone met through your own circle, communication, or close to where you live",
+      4:"someone tied to home, roots, property or family — a domestic, nurturing bond",
+      5:"someone met through romance, creativity or a love-first path",
+      6:"a partnership that carries duty, service or friction to work through — it rewards patience",
+      7:"the marriage house itself — partnership is a central, defining life theme",
+      8:"a bond of depth, intimacy and transformation; shared matters loom large, and some turbulence is possible",
+      9:"someone from a different background, place, faith or culture — a values-and-growth match",
+      10:"someone linked to career, status or public life — marriage tied to your standing and work",
+      11:"someone met through friends, networks or community — a goals-and-gains partnership",
+      12:"someone from far away or a private setting — an inward, giving bond that asks for conscious boundaries",
+    };
+    let partnerProfile=null;
+    if(sigPlanet && d1P[sigPlanet]){
+      const sp=d1P[sigPlanet];
+      let d9House=null; if(d9Houses){ for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(sigPlanet)){ d9House=h; break; } } }
+      const dig=sp.dignity;
+      const strength = (dig==="Exalted"||dig==="Own sign") ? "strongly placed — a well-defined, supportive partner indication"
+                     : dig==="Debilitated" ? "weakly placed — the partner theme asks for conscious effort; qualities can feel muted, delayed, or tested before they settle"
+                     : dig==="Combust" ? "close to the Sun (combust) — the partner theme can be overshadowed early and needs room to come into its own"
+                     : "moderately placed";
+      const retro = !!(retroMap && retroMap[sigPlanet]);
+      partnerProfile={
+        genderKnown, nativeGender:g, spouseWord,
+        significator:sigPlanet, significatorRole:sigRole,
+        sign:sp.sign, house:sp.house, dignity:dig, retro, d9House,
+        temperament: SIGN_TEMPERAMENT[sp.sign] || null,
+        arena: HOUSE_ARENA[sp.house] || null,
+        strength,
+        retroNote: retro ? "The significator is retrograde — the partner may come into life in a non-linear way: re-met, from the past, or after a meaningful delay." : null,
+        d9Note: (d9House && [6,8,12].includes(d9House)) ? "In the D9 (the marriage chart proper), the significator sits in a testing house — a sign the bond deepens through patience and conscious work rather than arriving effortlessly." : null,
+        seventhLord: hLord, seventhLordDignity: lordPlacement?lordPlacement.dignity:null, seventhLordHouse: lordPlacement?lordPlacement.house:null,
+        darakaraka,
+      };
+    }
+    flags.partnerProfile=partnerProfile;
+
+    // ── Marital-status inference (soft, age + chart) ─────────────────────────────
+    // Owner rule: infer a LIKELY status from age and chart so the report speaks to the
+    // reader's probable situation — with soft thresholds and gentle, non-presuming
+    // wording. Branches: likely-not-yet-married → focus on the spouse-to-come & timing;
+    // transitional → dual framing; likely-married → focus on navigating the marriage.
+    const AGE = flags.currentAge;
+    let maritalInference=null;
+    if(AGE!=null){
+      let status, focus, statusNote=null;
+      if(AGE < 28){
+        status="likely-not-yet-married";
+        focus=`the character, background and arrival of the ${spouseWord} to come — how to recognise the right partnership and prepare for it, plus the periods that most favour marriage`;
+      } else if(AGE<=32){
+        status="transitional";
+        focus=`read both ways — if marriage has not yet happened, the kind of ${spouseWord} and the timing ahead; if it is recent, how to settle and strengthen the early years`;
+      } else {
+        status="likely-married";
+        focus=`navigating and strengthening an existing marriage — understanding the ${spouseWord}'s nature and the periods that test or support the bond`;
+        if(afflicted||flags.remarriageIndicated) statusNote=`If the marriage has met real strain, distance, or a chapter has closed, the reading speaks to that possibility with care — without assuming it has happened.`;
+      }
+      maritalInference={ age:AGE, nativeGender:g, spouseWord, status, focus, statusNote, soft:true };
+    }
+    flags.maritalInference=maritalInference;
   }
   if(domainKey==="children"){
     const fifthAfflicted=(lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house)))
@@ -2889,6 +3052,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
   }
 
+  // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
+  let futureCompass=null;
+  try{ futureCompass = buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1P, occupants); }catch(_){ futureCompass=null; }
+
   // ── Remedy facts — dasha-triggered "alignment practices" for weak focus planets ──
   // A focus planet (domain karaka, house-lord, or domain-house occupant) that is weak
   // (debilitated or in 6/8/12) AND whose dasha is active or opening within the horizon
@@ -2937,7 +3104,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
     d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
-    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, remedyFacts
+    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, futureCompass, remedyFacts
   };
 }
 
@@ -2979,6 +3146,7 @@ export async function onRequestPost(context) {
     let statements = null;
     const dashas    = body?.dashas    || null;
     const birthDate = body?.birthDate || null;
+    const gender    = String(body?.gender || "unspecified").toLowerCase();
     if (dashas && birthDate) {
       statements = buildAllStatements(d1, d9, domains, dashas, birthDate, yogasD1, yogasD9);
     }
@@ -3019,7 +3187,7 @@ export async function onRequestPost(context) {
         if (li >= 0) ascLon = li * 30 + 15; // last-resort fallback
       }
       for (const key of Object.keys(DOMAIN_REPORT_CONFIG)) {
-        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null));
+        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null), gender);
       }
     }
 
