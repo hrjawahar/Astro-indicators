@@ -3210,9 +3210,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const _curL  = dashaTiming.current  && dashaTiming.current.lord;
     const _curAD = dashaTiming.currentAD && dashaTiming.currentAD.ad;
     if(_curL==="Rahu" || _curAD==="Rahu"){
+      // Rahu's dasha takes its shape from WHERE Rahu sits and what it disposits/aspects, so
+      // its distortion shows up differently for each chart — NOT always "new contacts". Lead
+      // with the general amplify-and-distort principle; offer the forms only as examples.
       flags.rahuPhaseCaution = (domainKey==="marriage")
-        ? "You are in a Rahu period, which amplifies whatever is new and can blur judgment. A new attraction, contact, or outside influence can feel unusually compelling right now yet prove illusory or destabilising — a stretch to stay grounded, to avoid irreversible decisions driven by intensity, and not to mistake novelty or excitement for something real in your closest bond."
-        : "You are in a Rahu period, which amplifies whatever is new and can blur judgment — new contacts, networks, ventures or habits can feel unusually compelling now yet prove illusory or unstable. Stay grounded, verify before committing, and avoid irreversible decisions taken from a place of restlessness or hype.";
+        ? "You are in a Rahu period, which magnifies and can distort whatever this area of life is most drawn to — and its pull takes a different shape for each chart. It might surface as over-indulging something you already crave, fixating on one thing, a restless dissatisfaction, idealising more than is real, or being drawn by a new attraction or outside influence. The common thread is that something can feel unusually compelling right now yet prove illusory or destabilising. A stretch to stay grounded, avoid irreversible decisions driven by the intensity, and not mistake the pull for the truth."
+        : "You are in a Rahu period, which magnifies and can distort whatever this area is most drawn to — its shape differs by chart: over-indulgence, fixation, restlessness, chasing novelty, or being pulled by a new venture, contact or influence. The common thread is that something feels unusually compelling now yet may prove illusory or unstable. Stay grounded, verify before committing, and avoid irreversible decisions taken from a place of restlessness or hype.";
     }
   }
 
