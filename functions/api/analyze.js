@@ -2632,7 +2632,7 @@ function buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1
   return { bands, relief, horizonNote:("Read to "+(nowYr+20)+" (a 20-year horizon).") };
 }
 
-function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap, gender){
+function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap, gender, maritalStatus){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
   if(!d1P) return null;
@@ -2885,8 +2885,27 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // transitional → dual framing; likely-married → focus on navigating the marriage.
     const AGE = flags.currentAge;
     const spouseNeutral = "spouse";   // general/hedging prose uses the neutral word; the gendered spouseWord is reserved for the partner-character section
+    // An EXPLICIT marital status (declared at intake, optional) OVERRIDES the age inference
+    // and lets the report drop its hedging and speak directly to the reader's real situation.
+    const declared = String(maritalStatus||"").toLowerCase();
+    const declaredKnown = ["unmarried","married","separated_divorced"].includes(declared);
     let maritalInference=null;
-    if(AGE!=null){
+    if(declaredKnown){
+      let status, focus, statusNote=null;
+      if(declared==="unmarried"){
+        status="unmarried";
+        focus=`the character, background and arrival of the ${spouseNeutral} to come — how to recognise the right partnership and prepare for it, plus the periods that most favour marriage`;
+      } else if(declared==="married"){
+        status="married";
+        focus=`navigating and strengthening your existing marriage — understanding your ${spouseNeutral}'s nature and the periods that test or support the bond`;
+        if(afflicted||flags.remarriageIndicated) statusNote=`The chart shows periods of real testing in the marriage; the reading names them honestly so you can meet them with care — never as a verdict on the bond.`;
+      } else {
+        status="separated_divorced";
+        focus=`making sense of what the marriage chapter held and what a renewed or second bond can look like — spoken to your situation directly, with dignity and hope`;
+        statusNote=`You have told us this chapter has been difficult or has closed; the reading speaks to that directly and to what can come next, without re-opening old ground needlessly.`;
+      }
+      maritalInference={ age:AGE, nativeGender:g, spouseWord, spouseNeutral, status, focus, statusNote, soft:false, declared:true };
+    } else if(AGE!=null){
       let status, focus, statusNote=null;
       if(AGE < 28){
         status="likely-not-yet-married";
@@ -2899,7 +2918,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         focus=`navigating and strengthening an existing marriage — understanding the ${spouseNeutral}'s nature and the periods that test or support the bond`;
         if(afflicted||flags.remarriageIndicated) statusNote=`If the marriage has met real strain, distance, or a chapter has closed, the reading speaks to that possibility with care — without assuming it has happened.`;
       }
-      maritalInference={ age:AGE, nativeGender:g, spouseWord, spouseNeutral, status, focus, statusNote, soft:true };
+      maritalInference={ age:AGE, nativeGender:g, spouseWord, spouseNeutral, status, focus, statusNote, soft:true, declared:false };
     }
     flags.maritalInference=maritalInference;
   }
@@ -3100,20 +3119,31 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // have come to fruition (e.g. married), not only when it was tested. adWindows already
     // holds domain-relevant sub-periods; we pick the most recent past one led by a karaka
     // or house-lord (a fruition signature), preferring benefic lords.
-    let likelyFruitionWindow=null;
+    let likelyFruitionWindow=null; let likelyFruitionWindows=[];
     try{
       const benef = new Set(["Jupiter","Venus","Mercury","Moon"]);
       const pastDomain = adWindows.filter(w=>{ const ey=yearOfEnd(w.years); return ey!=null && ey< new Date().getFullYear(); })
         .filter(ageGate)
         .filter(w=> w.ad===karakaPlanet || w.ad===hLord || benef.has(w.ad));
-      // earliest ADULT such window — the first strong activation after marriageable age is
-      // the likeliest first-marriage/commitment time, which is what Looking Back should name.
+      // earliest ADULT such windows — the first strong activation after marriageable age is
+      // the likeliest MEETING/commitment time; a later distinct one is when it most likely
+      // FORMALISED (marriage). Looking Back names both so a married reader can connect the
+      // chart to their actual history (meeting → marriage).
       pastDomain.sort((a,b)=> (startYearOf(a.years)||0) - (startYearOf(b.years)||0));
-      if(pastDomain.length){ const w=pastDomain[0];
-        likelyFruitionWindow={ years:w.years, lord:w.ad, md:w.md,
-          note:(w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a benefic activation of this area")) }; }
+      const noteOf=(w)=> w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a benefic activation of this area");
+      // pick up to 2 windows that are a few years apart (so they read as two life events)
+      const picked=[];
+      for(const w of pastDomain){
+        const sy=startYearOf(w.years);
+        if(!picked.length){ picked.push(w); continue; }
+        if(sy!=null && (startYearOf(picked[picked.length-1].years)||0) !== sy && Math.abs(sy-(startYearOf(picked[0].years)||0))>=2){ picked.push(w); }
+        if(picked.length>=2) break;
+      }
+      likelyFruitionWindows = picked.map((w,i)=>({ years:w.years, lord:w.ad, md:w.md, note:noteOf(w),
+        role: i===0 ? "the most likely window for meeting and a defining commitment" : "the most likely window for that commitment to have formalised into marriage or deepened decisively" }));
+      likelyFruitionWindow = likelyFruitionWindows[0] || null;   // kept for back-compat
     }catch(_){}
-    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, forwardADs:fw, likelyFruitionWindow, realTermAge, realTermYear };
+    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, forwardADs:fw, likelyFruitionWindow, likelyFruitionWindows, realTermAge, realTermYear };
     // now that timing exists, enrich the watch-out-for with the nearest key window
     if(flags.watchOutFor && dashaTiming.keyWindows && dashaTiming.keyWindows[0]){
       const w=dashaTiming.keyWindows[0];
@@ -3242,6 +3272,7 @@ export async function onRequestPost(context) {
     const dashas    = body?.dashas    || null;
     const birthDate = body?.birthDate || null;
     const gender    = String(body?.gender || "unspecified").toLowerCase();
+    const maritalStatus = String(body?.maritalStatus || "").toLowerCase();
     if (dashas && birthDate) {
       statements = buildAllStatements(d1, d9, domains, dashas, birthDate, yogasD1, yogasD9);
     }
@@ -3282,7 +3313,7 @@ export async function onRequestPost(context) {
         if (li >= 0) ascLon = li * 30 + 15; // last-resort fallback
       }
       for (const key of Object.keys(DOMAIN_REPORT_CONFIG)) {
-        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null), gender);
+        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null), gender, maritalStatus);
       }
     }
 

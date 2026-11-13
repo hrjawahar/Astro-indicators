@@ -461,7 +461,7 @@
     let bodyHtml = "", techBuf = [], ulBuf = [];
     const flushWhy = () => {
       if (!techBuf.length) return;
-      bodyHtml += `<div style="margin:10px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">`
+      bodyHtml += `<div style="margin:10px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0;break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid">`
         + `<div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ai-gold,#b0821f);margin-bottom:4px">Why this reading</div>`
         + techBuf.map(t => `<div style="font-size:12.5px;opacity:.85;line-height:1.5;margin:3px 0">${t}</div>`).join("")
         + `</div>`;
@@ -1407,14 +1407,28 @@
           if (pg.indexOf("### ")===0) { inWhy=false;
             doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5); doc.setTextColor(176,130,38);
             const L=doc.splitTextToSize(pg.slice(4).replace(/\*\*/g,""),W-M*2); kbreak(L.length*(size+3)+10); doc.text(L,M,y); y+=L.length*(size+3)+6; return; }
-          if (pg.indexOf("★ ")===0) { inWhy=false; kbreak(30);
+          if (pg.indexOf("★ ")===0) { inWhy=false;
+            // Keep the label AND the (possibly multi-line) theme together on one page.
+            doc.setFontSize(size+1); const Lt=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2);
+            kbreak(12 + Lt.length*(size+3) + 16);
             doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("THEME TO HOLD",M,y); y+=12;
             doc.setFont("helvetica","bold"); doc.setFontSize(size+1); doc.setTextColor(90,68,20);
-            const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2); doc.text(L,M,y); y+=L.length*(size+3)+8; return; }
+            doc.text(Lt,M,y); y+=Lt.length*(size+3)+8; return; }
           if (pg.indexOf("» ")===0) {
-            if(!inWhy){ kbreak(22); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("WHY THIS READING",M,y); y+=12; inWhy=true; }
+            if(!inWhy){
+              // Measure the WHOLE consecutive why-block (header + every » line) and break
+              // ONCE, so a gold 'Why this reading' box is never split across a page.
+              doc.setFontSize(size-1.5);
+              let need = 14;
+              for(let k=pi; k<paras.length && paras[k].indexOf("» ")===0; k++){
+                const LL=doc.splitTextToSize(paras[k].slice(2).replace(/\*\*/g,""),W-M*2-14);
+                need += LL.length*(size+1)+5;
+              }
+              kbreak(Math.min(need, H-M*2-4));
+              doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("WHY THIS READING",M,y); y+=12; inWhy=true;
+            }
             doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(110,110,120);
-            const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2-14); kbreak(L.length*(size+1)+5); doc.text(L,M+14,y); y+=L.length*(size+1)+5; return; }
+            const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2-14); doc.text(L,M+14,y); y+=L.length*(size+1)+5; return; }
           inWhy=false;
           if (pg.indexOf("- ")===0) {
             doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...INK);
