@@ -1,3 +1,4 @@
+import { PLANET_REMEDIES, GENERAL_TEMPLES } from "./remedies-data.js";
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
@@ -2867,7 +2868,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     if(realTermAge!=null && birthDate){ try{ realTermYear = new Date(birthDate).getFullYear() + realTermAge; }catch(_){}}
     const yearOfEnd = (yrs)=>{ if(!yrs) return null; const m=String(yrs).match(/(\d{4})\s*$/); return m?parseInt(m[1],10):null; };
     const ageGate = (w)=>{ if(realTermYear==null) return true; const ey=yearOfEnd(w.years); return ey==null || ey>=realTermYear; };
-    const kw = adWindows.filter(ageGate).slice(0,8);
+    // 20-YEAR FORWARD CAP (owner rule): read nothing beyond report year + 20 — saves
+    // length/tokens and removes the far-future "nothing until old age" frustration.
+    const capYear20 = new Date().getFullYear() + 20;
+    const startYearOf = (yrs)=>{ const m=String(yrs||"").match(/(\d{4})/); return m?parseInt(m[1],10):null; };
+    const within20 = (w)=>{ const sy=startYearOf(w.years); return sy==null || sy<=capYear20; };
+    const kw = adWindows.filter(ageGate).filter(within20).slice(0,8);
     const pw = pastWindows.filter(ageGate).slice(0,4);
     dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, realTermAge, realTermYear };
     // now that timing exists, enrich the watch-out-for with the nearest key window
@@ -2883,12 +2889,53 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
   }
 
+  // ── Remedy facts — dasha-triggered "alignment practices" for weak focus planets ──
+  // A focus planet (domain karaka, house-lord, or domain-house occupant) that is weak
+  // (debilitated or in 6/8/12) AND whose dasha is active or opening within the horizon
+  // gets its remedy bundle from the KB. Dignity-aware: the 'avoid' line leads when weak.
+  let remedyFacts=null;
+  try {
+    const kw2 = (dashaTiming && dashaTiming.keyWindows) || [];
+    const curLord = (dashaTiming && dashaTiming.current) ? dashaTiming.current.lord : null;
+    const curAD = (dashaTiming && dashaTiming.currentAD) ? dashaTiming.currentAD : null;
+    const focusSet = [...new Set([karakaPlanet, hLord, ...occupants.map(o=>o.planet)].filter(Boolean))];
+    const picks=[];
+    for(const p of focusSet){
+      const pp=d1P[p]; if(!pp || !PLANET_REMEDIES[p]) continue;
+      const inDusthana=[6,8,12].includes(pp.house);
+      const deb = pp.dignity==="Debilitated";
+      if(!deb && !inDusthana) continue;                        // only remedy a genuinely weak focus planet
+      const win = kw2.find(w=>w.ad===p||w.md===p);
+      const activeNow = curLord===p || (curAD && (curAD.ad===p||curAD.md===p));
+      if(!win && !activeNow) continue;                         // only when its period is active or upcoming
+      const kb=PLANET_REMEDIES[p];
+      const domTemple = (kb.temples && (kb.temples[domainKey] || kb.temples.marriage)) || "";
+      picks.push({
+        planet:p,
+        reason: deb ? (p+" is debilitated (weak) in your chart") : (p+" sits in your "+ordinalD(pp.house)+" house, a house of testing"),
+        role: p===karakaPlanet ? ("the "+cfg.karaka+", your "+cfg.focus+" significator")
+              : p===hLord ? ("the ruler of your "+ordinalD(cfg.house)+" house of "+cfg.focus)
+              : ("placed in your "+ordinalD(cfg.house)+" house of "+cfg.focus),
+        window: win? win.years : (activeNow ? (curAD?curAD.years:(dashaTiming.current?dashaTiming.current.years:"")) : ""),
+        active: !!activeNow,
+        behavioral: kb.behavioral,
+        avoid: (deb||inDusthana) ? (kb.whenWeak||"") : "",     // dignity-aware: lead with 'avoid' when weak
+        daan: kb.daan, anchor: kb.anchor,
+        navagrahaTemple: kb.navagrahaTemple,
+        secondTemple: domTemple,
+        bodyAreas: kb.bodyAreas,
+      });
+    }
+    picks.sort((a,b)=> (a.reason.includes("debilitated")?0:1) - (b.reason.includes("debilitated")?0:1));
+    if(picks.length) remedyFacts={ focus:picks.slice(0,2), general:GENERAL_TEMPLES };  // 1–2 remedies
+  } catch(_){}
+
   return {
     domainKey, title:cfg.title, focus:cfg.focus, house:cfg.house, houseName:ordinalD(cfg.house),
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
     d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
-    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass
+    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, remedyFacts
   };
 }
 
