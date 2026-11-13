@@ -3141,7 +3141,13 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // holds domain-relevant sub-periods; we pick the most recent past one led by a karaka
     // or house-lord (a fruition signature), preferring benefic lords.
     let likelyFruitionWindow=null; let likelyFruitionWindows=[];
-    try{
+    // Fruition windows only make sense for domains whose life-area produces discrete,
+    // dateable EVENTS (meeting/marriage, a career step, a child, a sibling milestone, a
+    // home/property move). For HEALTH and SELF there is no "when it came to fruition"
+    // event — those are ongoing/constitutional — so we skip the two-window Looking-Back
+    // there and let that section rest on pastWindows + the forward compass instead.
+    const FRUITION_DOMAINS = new Set(["marriage","career","children","siblings","mother"]);
+    if(FRUITION_DOMAINS.has(domainKey)) try{
       const benef = new Set(["Jupiter","Venus","Mercury","Moon"]);
       const nowYear = new Date().getFullYear();
       const birthYr = birthDate ? new Date(birthDate).getFullYear() : null;
@@ -3165,10 +3171,14 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       const roleFirst = domainKey==="marriage" ? "the most likely window for meeting and a defining commitment"
         : domainKey==="career" ? "the most likely window for a first major step or launch in your working life"
         : domainKey==="children" ? "the most likely window for a first child or a major creative beginning"
+        : domainKey==="siblings" ? "the most likely window for a defining development with siblings or in your own initiative and courage"
+        : domainKey==="mother" ? "the most likely window for a significant home, property, or family turning point"
         : "the window when this area most likely first came to fruition";
       const roleSecond = domainKey==="marriage" ? "the most likely window for that commitment to have formalised into marriage or deepened decisively"
         : domainKey==="career" ? "the most likely window for a major advance, change, or consolidation in your career"
         : domainKey==="children" ? "the most likely window for a further child or a decisive development"
+        : domainKey==="siblings" ? "the most likely window for a further significant development in this area"
+        : domainKey==="mother" ? "the most likely window for another major home or family development"
         : "the most recent window of significant development in this area";
       // Two windows that read as the arc of a real life: the EARLIEST adult activator window
       // (meeting / defining commitment) and the LATEST significant past one (the culminating
@@ -3250,7 +3260,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       const inDusthana=[6,8,12].includes(pp.house);
       const deb = pp.dignity==="Debilitated";
       const weak = deb || inDusthana;
-      const domTemple = (kb.temples && (kb.temples[domainKey] || kb.temples.marriage)) || "";
+      // Use ONLY this domain's temple — never fall back to the marriage temple, which would
+      // surface a marriage temple inside a children/siblings/mother report. Empty is fine
+      // (the navagraha + general temples still carry the section).
+      const domTemple = (kb.temples && kb.temples[domainKey]) || "";
       // upcoming window for this planet (never a past one)
       const upWin = kw2.find(w=>(w.ad===p||w.md===p) && w.upcoming);
       return {
