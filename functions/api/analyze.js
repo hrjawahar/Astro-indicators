@@ -3021,28 +3021,31 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   let dashaTiming=null;
   if(dashas && Array.isArray(dashas) && dashas.length){
     let keyPlanets = new Set([hLord, karakaPlanet, ...occupants.map(o=>o.planet)].filter(Boolean));
-    // For health, the "when to be vigilant" windows are driven by the STRESSED
-    // significators (Ascendant lord, malefics on Asc, afflicted Mars/Moon/Mercury,
-    // 6th/8th lords), so add them so keyWindows highlight the right MD/AD.
+    // DOMAIN TIMING SUPPORT — real-life events rarely fire on the primary house-lord and
+    // karaka alone. Classical timing runs on a domain's SUPPORTING houses and natural
+    // karakas too (marriage on the 2–5–11 axis + Venus/Jupiter; career on 6/11 + Sun/
+    // Saturn/Mercury/Jupiter; children on the 5–9 santana axis + Jupiter; and so on). The
+    // SCORING engine already uses these multi-house sets — this mirrors them into TIMING so
+    // keyWindows, the likely-event window, and the dasha reads detect genuine events (e.g. a
+    // Saturn-2nd-lord MD / Mars-5th-lord AD marriage that the 7th-lord alone would miss).
+    const DOMAIN_TIMING_SUPPORT = {
+      self:     { houses: [],        karakas: ["Sun","Moon"] },
+      career:   { houses: [6, 11],   karakas: ["Sun","Saturn","Mercury","Jupiter"] },
+      siblings: { houses: [11],      karakas: ["Mars"] },
+      mother:   { houses: [2],       karakas: ["Moon","Venus"] },
+      children: { houses: [9, 2],    karakas: ["Jupiter"] },
+      health:   { houses: [1, 8, 12],karakas: ["Sun","Moon","Saturn","Mars"] },
+      marriage: { houses: [2, 5, 11],karakas: ["Venus","Jupiter"] },
+    };
+    const sup = DOMAIN_TIMING_SUPPORT[domainKey] || { houses: [], karakas: [] };
+    const supLords = sup.houses.map(h=>houseLord(d1LagnaSign,h)).filter(Boolean);
+    const supOcc   = sup.houses.flatMap(h=>occupantsOfHouse(d1P,h));
+    // domainActivators = the full set of planets whose dasha can bring an event in this area.
+    const domainActivators = new Set([hLord, karakaPlanet, ...occupants.map(o=>o.planet), ...supLords, ...supOcc, ...sup.karakas].filter(Boolean));
+    for(const p of domainActivators) keyPlanets.add(p);
+    // Health keeps its extra signal: afflicted Mars/Moon/Mercury are vigilance triggers.
     if(domainKey==="health"){
-      const add=[houseLord(d1LagnaSign,1), houseLord(d1LagnaSign,6), houseLord(d1LagnaSign,8),
-                 ...occupantsOfHouse(d1P,1), ...occupantsOfHouse(d1P,6), ...occupantsOfHouse(d1P,8)];
-      for(const p of add) if(p) keyPlanets.add(p);
-      // afflicted Mars/Moon/Mercury
       for(const p of ["Mars","Moon","Mercury"]) if(d1P[p] && (d1P[p].dignity==="Debilitated"||[6,8,12].includes(d1P[p].house))) keyPlanets.add(p);
-    }
-    // For MARRIAGE, real-life marriage timing is rarely driven by the 7th-lord alone.
-    // Classical timing runs on the 2–7–11 axis (family, spouse, fulfilment of union) plus
-    // the 5th (love/romance) and the natural karakas Venus & Jupiter. Without these the
-    // engine misses genuine marriage windows — e.g. a Saturn(2nd-lord)-MD / Mars(5th-lord)-AD
-    // marriage reads as nothing, because Saturn and Mars are neither 7th-lord nor Darakaraka.
-    // We add them so keyWindows AND the likely-marriage window can detect such timing.
-    let marriageActivators = null;
-    if(domainKey==="marriage"){
-      const lords = [2,5,11].map(h=>houseLord(d1LagnaSign,h)).filter(Boolean);
-      const occ = [...occupantsOfHouse(d1P,2), ...occupantsOfHouse(d1P,11)];
-      marriageActivators = new Set([hLord, karakaPlanet, ...occupants.map(o=>o.planet), ...lords, ...occ, "Venus", "Jupiter"].filter(Boolean));
-      for(const p of marriageActivators) keyPlanets.add(p);
     }
     // stressors for this domain = malefics + the lords of dusthana houses relative to lagna
     const now = Date.now();
@@ -3142,16 +3145,23 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       const benef = new Set(["Jupiter","Venus","Mercury","Moon"]);
       const pastDomain = adWindows.filter(w=>{ const ey=yearOfEnd(w.years); return ey!=null && ey< new Date().getFullYear(); })
         .filter(ageGate)
-        // marriage: any of the widened marriage-activators counts (2–5–7–11 lords, occupants,
-        // Darakaraka, Venus/Jupiter) so real timing like a 2nd/5th-lord period is caught.
-        .filter(w=> marriageActivators ? marriageActivators.has(w.ad) : (w.ad===karakaPlanet || w.ad===hLord || benef.has(w.ad)));
-      // earliest ADULT such windows — the first strong activation after marriageable age is
-      // the likeliest MEETING/commitment time; a later distinct one is when it most likely
-      // FORMALISED (marriage). Looking Back names both so a married reader can connect the
-      // chart to their actual history (meeting → marriage).
+        // any of the widened domain activators counts (primary + supporting-house lords,
+        // occupants, karaka, natural karakas) so real timing like a 2nd/5th-lord marriage
+        // period, or a 6th/11th-lord career period, is caught — not only the primary lord.
+        .filter(w=> domainActivators.has(w.ad));
+      // earliest ADULT such window is the likeliest FIRST fruition (met / career launch /
+      // first child); a later distinct one is the culminating step (marriage / major advance /
+      // further development). Looking Back names both so the reader connects chart to history.
       pastDomain.sort((a,b)=> (startYearOf(a.years)||0) - (startYearOf(b.years)||0));
-      const activatorSet = marriageActivators || new Set([karakaPlanet,hLord].filter(Boolean));
-      const noteOf=(w)=> w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a marriage-supporting activation of this area");
+      const noteOf=(w)=> w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a supporting activation of this area");
+      const roleFirst = domainKey==="marriage" ? "the most likely window for meeting and a defining commitment"
+        : domainKey==="career" ? "the most likely window for a first major step or launch in your working life"
+        : domainKey==="children" ? "the most likely window for a first child or a major creative beginning"
+        : "the window when this area most likely first came to fruition";
+      const roleSecond = domainKey==="marriage" ? "the most likely window for that commitment to have formalised into marriage or deepened decisively"
+        : domainKey==="career" ? "the most likely window for a major advance, change, or consolidation in your career"
+        : domainKey==="children" ? "the most likely window for a further child or a decisive development"
+        : "the most recent window of significant development in this area";
       // Two windows that read as the arc of a real life: the EARLIEST adult activator window
       // (meeting / defining commitment) and the LATEST significant past one (the culminating
       // step — marriage usually formalises later, not immediately after meeting). This is why
@@ -3164,7 +3174,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         for(let i=pastDomain.length-1;i>=1;i--){ const sy=startYearOf(pastDomain[i].years); if(sy!=null && sy-fy>=2){ picked.push(pastDomain[i]); break; } }
       }
       likelyFruitionWindows = picked.map((w,i)=>({ years:w.years, lord:w.ad, md:w.md, note:noteOf(w),
-        role: i===0 ? "the most likely window for meeting and a defining commitment" : "the most likely window for that commitment to have formalised into marriage or deepened decisively" }));
+        role: i===0 ? roleFirst : roleSecond }));
       likelyFruitionWindow = likelyFruitionWindows[0] || null;   // kept for back-compat
     }catch(_){}
     dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, forwardADs:fw, likelyFruitionWindow, likelyFruitionWindows, realTermAge, realTermYear };
