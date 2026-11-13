@@ -3143,12 +3143,20 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     let likelyFruitionWindow=null; let likelyFruitionWindows=[];
     try{
       const benef = new Set(["Jupiter","Venus","Mercury","Moon"]);
-      const pastDomain = adWindows.filter(w=>{ const ey=yearOfEnd(w.years); return ey!=null && ey< new Date().getFullYear(); })
+      const nowYear = new Date().getFullYear();
+      const birthYr = birthDate ? new Date(birthDate).getFullYear() : null;
+      const pastDomain = adWindows.filter(w=>{ const ey=yearOfEnd(w.years); return ey!=null && ey< nowYear; })
         .filter(ageGate)
         // any of the widened domain activators counts (primary + supporting-house lords,
         // occupants, karaka, natural karakas) so real timing like a 2nd/5th-lord marriage
         // period, or a 6th/11th-lord career period, is caught — not only the primary lord.
-        .filter(w=> domainActivators.has(w.ad));
+        .filter(w=> domainActivators.has(w.ad))
+        // A FRUITION window must not be one the engine ALREADY flagged as a TESTING window
+        // (those live in pastWindows). This precisely drops the mislabel — e.g. a late
+        // Mars/5th-lord window (2023–24) that is actually a testing period being read as "when
+        // the marriage formalised" for a native who married in 2006–07 — WITHOUT over-excluding
+        // a benefic like Venus that merely happens to rule a dusthana among its two signs.
+        .filter(w=> !pastWindows.some(pw=>pw.years===w.years && pw.ad===w.ad));
       // earliest ADULT such window is the likeliest FIRST fruition (met / career launch /
       // first child); a later distinct one is the culminating step (marriage / major advance /
       // further development). Looking Back names both so the reader connects chart to history.
@@ -3171,7 +3179,16 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       if(pastDomain.length){
         const first=pastDomain[0]; picked.push(first);
         const fy=startYearOf(first.years)||0;
-        for(let i=pastDomain.length-1;i>=1;i--){ const sy=startYearOf(pastDomain[i].years); if(sy!=null && sy-fy>=2){ picked.push(pastDomain[i]); break; } }
+        // The culminating window should land in a plausible EVENT-AGE band, not decades
+        // later: marriage/first-major-step usually follows the meeting within the native's
+        // 20s–30s, so prefer the EARLIEST qualifying window in that band rather than the most
+        // recent activator (which overshot to a far-later period before this fix).
+        const band = domainKey==="marriage" ? [22,40] : domainKey==="children" ? [24,44] : domainKey==="career" ? [20,42] : null;
+        const inBand = (w)=>{ if(!band||birthYr==null) return true; const a=(startYearOf(w.years)||0)-birthYr; return a>=band[0] && a<=band[1]; };
+        const after = (w)=> (startYearOf(w.years)||0)-fy>=2;
+        const second = pastDomain.find((w,i)=> i>0 && after(w) && inBand(w))
+                    || pastDomain.find((w,i)=> i>0 && after(w));
+        if(second) picked.push(second);
       }
       likelyFruitionWindows = picked.map((w,i)=>({ years:w.years, lord:w.ad, md:w.md, note:noteOf(w),
         role: i===0 ? roleFirst : roleSecond }));
@@ -3182,6 +3199,17 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     if(flags.watchOutFor && dashaTiming.keyWindows && dashaTiming.keyWindows[0]){
       const w=dashaTiming.keyWindows[0];
       flags.watchOutFor += ` This is most worth attention around the ${w.years} window (the ${w.ad} sub-period within ${w.md}).`;
+    }
+    // RAHU-PERIOD CAUTION (classical Rahu nature): Rahu is the great amplifier and the
+    // karaka of maya (illusion) — in its Mahadasha/Antardasha, whatever is NEW (contacts,
+    // attractions, networks, habits, ventures) is magnified and can create a compelling but
+    // unstable 'smoke' that tilts judgment toward illusion. A grounded caution helps.
+    const _curL  = dashaTiming.current  && dashaTiming.current.lord;
+    const _curAD = dashaTiming.currentAD && dashaTiming.currentAD.ad;
+    if(_curL==="Rahu" || _curAD==="Rahu"){
+      flags.rahuPhaseCaution = (domainKey==="marriage")
+        ? "You are in a Rahu period, which amplifies whatever is new and can blur judgment. A new attraction, contact, or outside influence can feel unusually compelling right now yet prove illusory or destabilising — a stretch to stay grounded, to avoid irreversible decisions driven by intensity, and not to mistake novelty or excitement for something real in your closest bond."
+        : "You are in a Rahu period, which amplifies whatever is new and can blur judgment — new contacts, networks, ventures or habits can feel unusually compelling now yet prove illusory or unstable. Stay grounded, verify before committing, and avoid irreversible decisions taken from a place of restlessness or hype.";
     }
   }
 
