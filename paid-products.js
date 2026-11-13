@@ -163,7 +163,7 @@
     "Each section ends with a short theme — a few words to carry with you from that part of the reading.",
     "Where two or three charts independently agree, the signal is most reliable — those points are worth trusting most.",
     "Take your time. This isn't a one-read document; the insights land more deeply when you return to it over days, alongside your own life experience.",
-    "Prefer your own language? Use the '🌐 Read in' menu below the report to translate the whole thing into your language in context — the on-screen report and the Word download both come out translated, with nothing to copy-paste.",
+    "Prefer your own language? Use the 'Read in' menu below the report to translate the whole thing into your language in context — the on-screen report and the Word download both come out translated, with nothing to copy-paste.",
     "This report is a mirror for reflection, not a verdict. Read it gently."
   ];
   // Flipbook 'How to read' page (tightened; the fixed-height page can't hold the full note).
@@ -171,7 +171,7 @@
     "This is a detailed Vedic reading. It names a few traditional terms (planets, houses, D1/D9/D10), but you never need to understand them — the meaning is always written in plain words.",
     "Read it straight through: the plain text carries the insight, and the small gold 'Why this reading' boxes hold the chart detail underneath — skip them unless you're curious. Each section ends with a short theme to carry with you.",
     "Where two or three charts independently agree, the signal is most reliable. Take your time — it deepens as you return to it.",
-    "Prefer your own language? Use the '🌐 Read in' menu below the report to translate the whole report into your language instantly.",
+    "Prefer your own language? Use the 'Read in' menu below the report to translate the whole report into your language instantly.",
     "A mirror for reflection, not a verdict. Read it gently."
   ];
 
@@ -189,7 +189,7 @@
 
   function downloadDropdownHTML(hasPicker){
     const wordSub = hasPicker ? "" : ` <span class="dl-sub">(for translation)</span>`;
-    const pickerTip = `💡 To read this in another language, pick your language from the <b>🌐 Read in</b> menu above — it translates the whole report in context. <b>Word</b> downloads in the language you've chosen; the <b>PDF</b> stays in English.`;
+    const pickerTip = `💡 To read this in another language, pick your language from the <b>Read in</b> menu above — it translates the whole report in context. <b>Word</b> downloads in the language you've chosen; the <b>PDF</b> stays in English.`;
     return `<div style="text-align:center" class="dl-col">
       <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word${wordSub}</button></div></div>
       <div class="dl-tip">${hasPicker ? pickerTip : window.AI_DOCX ? AI_DOCX.translateTipHTML() :"💡 To read this in your language, use the <b>Word</b> file (not the PDF — it translates far more cleanly): upload it to <b>translate.google.com → Documents</b>."}</div>

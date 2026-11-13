@@ -2566,12 +2566,17 @@ const FC_MALEFIC = new Set(["Saturn","Mars","Rahu","Ketu","Sun"]);
 function fcStartYr(y){ const m=String(y||"").match(/(\d{4})/); return m?parseInt(m[1],10):null; }
 function fcEndYr(y){ const m=String(y||"").match(/(\d{4})\s*$/); return m?parseInt(m[1],10):null; }
 function buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1P, occupants){
-  if(!dashaTiming || !Array.isArray(dashaTiming.keyWindows) || !dashaTiming.keyWindows.length) return null;
+  if(!dashaTiming) return null;
   const nowYr = new Date().getFullYear();
   const occPlanets = new Set((occupants||[]).map(o=>o.planet));
-  // Forward-only: a compass of the road ahead keeps current + future windows and drops
-  // any band that has already fully passed (its end year is before this year).
-  const forwardWindows = dashaTiming.keyWindows.filter(w=>{ const ey=fcEndYr(w.years); return ey==null || ey>=nowYr; });
+  // Candidate pool: prefer the FULL forward-AD sequence (current MD onward) so the compass
+  // never collapses for older natives whose domain-karaka periods are exhausted. Fall back
+  // to the domain-filtered keyWindows only if the forward pool is unavailable.
+  const pool = (Array.isArray(dashaTiming.forwardADs) && dashaTiming.forwardADs.length)
+    ? dashaTiming.forwardADs
+    : (Array.isArray(dashaTiming.keyWindows) ? dashaTiming.keyWindows : []);
+  if(!pool.length) return null;
+  const forwardWindows = pool.filter(w=>{ const ey=fcEndYr(w.years); return ey==null || ey>=nowYr; });
   if(!forwardWindows.length) return null;
   // Score every window.
   const scored = forwardWindows.map(w=>{
@@ -2818,20 +2823,60 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
                      : dig==="Combust" ? "close to the Sun (combust) — the partner theme can be overshadowed early and needs room to come into its own"
                      : "moderately placed";
       const retro = !!(retroMap && retroMap[sigPlanet]);
+      // BLEND: the partner picture must not rest on the significator alone. Weave in the
+      // Darakaraka (the chart's own spouse karaka) and the planets actually sitting IN the
+      // marriage house — for native A, three planets in Leo give a proud, expressive,
+      // strong-willed spouse that a Jupiter-only read misses entirely.
+      const traits=[];
+      traits.push({ source:"significator", planet:sigPlanet, sign:sp.sign, trait:SIGN_TEMPERAMENT[sp.sign]||null });
+      if(darakaraka && darakaraka!==sigPlanet && d1P[darakaraka]){
+        traits.push({ source:"darakaraka", planet:darakaraka, sign:d1P[darakaraka].sign, trait:SIGN_TEMPERAMENT[d1P[darakaraka].sign]||null });
+      }
+      // marriage-house occupants (the "marriage zone" flavour); dedupe by sign
+      const occSeen=new Set();
+      (occupants||[]).forEach(o=>{ const pp2=d1P[o.planet]; if(pp2 && pp2.sign && !occSeen.has(pp2.sign)){ occSeen.add(pp2.sign); traits.push({ source:"marriage-zone", planet:o.planet, sign:pp2.sign, trait:SIGN_TEMPERAMENT[pp2.sign]||null }); } });
+      // dominant marriage-zone sign (a stellium there is a strong colouring)
+      const zoneSigns=(occupants||[]).map(o=>d1P[o.planet]&&d1P[o.planet].sign).filter(Boolean);
+      const zoneCount={}; zoneSigns.forEach(s=>zoneCount[s]=(zoneCount[s]||0)+1);
+      const marriageZoneSign = Object.keys(zoneCount).sort((a,b)=>zoneCount[b]-zoneCount[a])[0]||null;
+      const marriageZoneStellium = marriageZoneSign && zoneCount[marriageZoneSign]>=2;
       partnerProfile={
         genderKnown, nativeGender:g, spouseWord,
         significator:sigPlanet, significatorRole:sigRole,
         sign:sp.sign, house:sp.house, dignity:dig, retro, d9House,
         temperament: SIGN_TEMPERAMENT[sp.sign] || null,
+        traits,                                                // blended: significator + DK + marriage-zone
+        marriageZoneSign, marriageZoneStellium,
         arena: HOUSE_ARENA[sp.house] || null,
         strength,
         retroNote: retro ? "The significator is retrograde — the partner may come into life in a non-linear way: re-met, from the past, or after a meaningful delay." : null,
         d9Note: (d9House && [6,8,12].includes(d9House)) ? "In the D9 (the marriage chart proper), the significator sits in a testing house — a sign the bond deepens through patience and conscious work rather than arriving effortlessly." : null,
         seventhLord: hLord, seventhLordDignity: lordPlacement?lordPlacement.dignity:null, seventhLordHouse: lordPlacement?lordPlacement.house:null,
-        darakaraka,
+        darakaraka, darakarakaSign: (darakaraka&&d1P[darakaraka])?d1P[darakaraka].sign:null,
       };
     }
     flags.partnerProfile=partnerProfile;
+
+    // ── Second-chapter facts (the "second significant union" possibility, grounded) ──
+    // When the chart carries remarriage/affliction signals, give the writer a CHART-BASED
+    // basis for the possibility (so it isn't an abstract cliffhanger) plus its D9 colour —
+    // framed gently as a layered relational life, never a prediction.
+    let secondChapter=null;
+    if(flags.remarriageIndicated || afflicted){
+      const basis=[];
+      if(ketuIn7) basis.push("Ketu in the marriage house (a detaching, karmic signature there)");
+      if(maleficIn7 && lordWeak) basis.push("the marriage house under pressure with its ruler placed in a testing house");
+      if(rahuIn7 && lordWeak) basis.push("Rahu in the marriage house with a weakened house-ruler");
+      if(d9LordCaution) basis.push("the D9 (marriage chart) adding its own caution");
+      // D9 colour from the spouse significator's navamsa position
+      let d9Colour=null;
+      if(partnerProfile && partnerProfile.d9House){
+        d9Colour = "In the D9, the spouse significator sits in the "+ordinalD(partnerProfile.d9House)+" — "+( [1,5,9].includes(partnerProfile.d9House) ? "a more supportive placement, suggesting a second bond, if it comes, can be steadier" : [6,8,12].includes(partnerProfile.d9House) ? "a testing placement, suggesting any second bond also asks for conscious work" : "a neutral placement" );
+      }
+      secondChapter={ indicated:true, basis, d9Colour,
+        framing:"a layered relational life — the structural possibility of a second significant union, offered gently as a possibility the chart honestly shows, never a prediction or a certainty, and entirely dependent on the reader's own circumstances and choices" };
+    }
+    flags.secondChapter=secondChapter;
 
     // ── Marital-status inference (soft, age + chart) ─────────────────────────────
     // Owner rule: infer a LIKELY status from age and chart so the report speaks to the
@@ -2839,21 +2884,22 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // wording. Branches: likely-not-yet-married → focus on the spouse-to-come & timing;
     // transitional → dual framing; likely-married → focus on navigating the marriage.
     const AGE = flags.currentAge;
+    const spouseNeutral = "spouse";   // general/hedging prose uses the neutral word; the gendered spouseWord is reserved for the partner-character section
     let maritalInference=null;
     if(AGE!=null){
       let status, focus, statusNote=null;
       if(AGE < 28){
         status="likely-not-yet-married";
-        focus=`the character, background and arrival of the ${spouseWord} to come — how to recognise the right partnership and prepare for it, plus the periods that most favour marriage`;
+        focus=`the character, background and arrival of the ${spouseNeutral} to come — how to recognise the right partnership and prepare for it, plus the periods that most favour marriage`;
       } else if(AGE<=32){
         status="transitional";
-        focus=`read both ways — if marriage has not yet happened, the kind of ${spouseWord} and the timing ahead; if it is recent, how to settle and strengthen the early years`;
+        focus=`read both ways — if marriage has not yet happened, the kind of ${spouseNeutral} and the timing ahead; if it is recent, how to settle and strengthen the early years`;
       } else {
         status="likely-married";
-        focus=`navigating and strengthening an existing marriage — understanding the ${spouseWord}'s nature and the periods that test or support the bond`;
+        focus=`navigating and strengthening an existing marriage — understanding the ${spouseNeutral}'s nature and the periods that test or support the bond`;
         if(afflicted||flags.remarriageIndicated) statusNote=`If the marriage has met real strain, distance, or a chapter has closed, the reading speaks to that possibility with care — without assuming it has happened.`;
       }
-      maritalInference={ age:AGE, nativeGender:g, spouseWord, status, focus, statusNote, soft:true };
+      maritalInference={ age:AGE, nativeGender:g, spouseWord, spouseNeutral, status, focus, statusNote, soft:true };
     }
     flags.maritalInference=maritalInference;
   }
@@ -2984,7 +3030,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       if(domainHouseMalefics.has(planet)) return true;
       return false;
     }
-    const rows=[]; const adWindows=[]; const pastWindows=[];
+    const rows=[]; const adWindows=[]; const pastWindows=[]; const forwardADs=[];
     let current=null, currentAD=null;
     for(const md of dashas){
       const st=md.startDate?new Date(md.startDate).getTime():null;
@@ -3001,6 +3047,15 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
           const aen=ad.endDate?new Date(ad.endDate).getTime():null;
           const ayrs=(ast!=null&&aen!=null)?(yr(ad.startDate)+"–"+yr(ad.endDate)):"";
           if(isCurrentMD && ast!=null&&aen!=null&&now>=ast&&now<aen) currentAD={md:md.lord,ad:ad.lord,years:ayrs};
+          // FORWARD-AD POOL (for the Future Compass): every AD that is current or still
+          // ahead — regardless of whether its lord is a domain karaka. This is the fix for
+          // older natives whose domain-karaka periods are all in the past: the compass can
+          // now break out the live Mahadasha's sub-periods (e.g. Rahu–Jupiter, Rahu–Saturn)
+          // with real dates instead of collapsing 18 years into one vague block.
+          if(aen!=null && aen>=now){
+            forwardADs.push({ md:md.lord, ad:ad.lord, years:ayrs,
+              upcoming:(ast!=null && ast>=now), current:(ast!=null&&aen!=null&&now>=ast&&now<aen) });
+          }
           // an AD is domain-significant if its lord activates this domain — the
           // AD lord is a domain key planet OR a domain stressor. (Previously this
           // also required the MD to be domain-relevant, which MISSED a critical AD
@@ -3038,7 +3093,27 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const within20 = (w)=>{ const sy=startYearOf(w.years); return sy==null || sy<=capYear20; };
     const kw = adWindows.filter(ageGate).filter(within20).slice(0,8);
     const pw = pastWindows.filter(ageGate).slice(0,4);
-    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, realTermAge, realTermYear };
+    const fw = forwardADs.filter(ageGate).filter(within20).slice(0,16);
+    // LIKELY MARRIAGE/COMMITMENT WINDOW (Looking-back fix): surface the strongest PAST
+    // *supportive* domain activation — the karaka / house-lord / benefic-occupant period
+    // nearest to real-term age — so Looking Back can name WHEN the area was most likely to
+    // have come to fruition (e.g. married), not only when it was tested. adWindows already
+    // holds domain-relevant sub-periods; we pick the most recent past one led by a karaka
+    // or house-lord (a fruition signature), preferring benefic lords.
+    let likelyFruitionWindow=null;
+    try{
+      const benef = new Set(["Jupiter","Venus","Mercury","Moon"]);
+      const pastDomain = adWindows.filter(w=>{ const ey=yearOfEnd(w.years); return ey!=null && ey< new Date().getFullYear(); })
+        .filter(ageGate)
+        .filter(w=> w.ad===karakaPlanet || w.ad===hLord || benef.has(w.ad));
+      // earliest ADULT such window — the first strong activation after marriageable age is
+      // the likeliest first-marriage/commitment time, which is what Looking Back should name.
+      pastDomain.sort((a,b)=> (startYearOf(a.years)||0) - (startYearOf(b.years)||0));
+      if(pastDomain.length){ const w=pastDomain[0];
+        likelyFruitionWindow={ years:w.years, lord:w.ad, md:w.md,
+          note:(w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a benefic activation of this area")) }; }
+    }catch(_){}
+    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, forwardADs:fw, likelyFruitionWindow, realTermAge, realTermYear };
     // now that timing exists, enrich the watch-out-for with the nearest key window
     if(flags.watchOutFor && dashaTiming.keyWindows && dashaTiming.keyWindows[0]){
       const w=dashaTiming.keyWindows[0];
@@ -3056,44 +3131,64 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   let futureCompass=null;
   try{ futureCompass = buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1P, occupants); }catch(_){ futureCompass=null; }
 
-  // ── Remedy facts — dasha-triggered "alignment practices" for weak focus planets ──
-  // A focus planet (domain karaka, house-lord, or domain-house occupant) that is weak
-  // (debilitated or in 6/8/12) AND whose dasha is active or opening within the horizon
-  // gets its remedy bundle from the KB. Dignity-aware: the 'avoid' line leads when weak.
+  // ── Remedy facts — two layers of "alignment practices" ───────────────────────────
+  // (1) ONGOING domain-weakness: the chronically weak domain significator / house-lord
+  //     (debilitated or in 6/8/12). This is a permanent chart feature, so its practice is
+  //     an ONGOING habit for the area — NOT tied to a past dasha window (the old bug
+  //     prescribed the 7th-lord's long-gone 2004–2007 window as if it were current).
+  // (2) ACTIVE-PHASE: the CURRENTLY running Mahadasha lord — the present planetary
+  //     weather — gets its own alignment practice regardless of whether it is a domain
+  //     karaka, so a long MD like Rahu 2024–2042 is actually addressed. Dignity-aware:
+  //     the 'ease off' line leads when the planet is weak.
   let remedyFacts=null;
   try {
     const kw2 = (dashaTiming && dashaTiming.keyWindows) || [];
     const curLord = (dashaTiming && dashaTiming.current) ? dashaTiming.current.lord : null;
     const curAD = (dashaTiming && dashaTiming.currentAD) ? dashaTiming.currentAD : null;
-    const focusSet = [...new Set([karakaPlanet, hLord, ...occupants.map(o=>o.planet)].filter(Boolean))];
-    const picks=[];
-    for(const p of focusSet){
-      const pp=d1P[p]; if(!pp || !PLANET_REMEDIES[p]) continue;
+    const curYears = (dashaTiming && dashaTiming.current) ? dashaTiming.current.years : "";
+    const mkPick = (p, kind)=>{
+      const pp=d1P[p]; if(!pp || !PLANET_REMEDIES[p]) return null;
+      const kb=PLANET_REMEDIES[p];
       const inDusthana=[6,8,12].includes(pp.house);
       const deb = pp.dignity==="Debilitated";
-      if(!deb && !inDusthana) continue;                        // only remedy a genuinely weak focus planet
-      const win = kw2.find(w=>w.ad===p||w.md===p);
-      const activeNow = curLord===p || (curAD && (curAD.ad===p||curAD.md===p));
-      if(!win && !activeNow) continue;                         // only when its period is active or upcoming
-      const kb=PLANET_REMEDIES[p];
+      const weak = deb || inDusthana;
       const domTemple = (kb.temples && (kb.temples[domainKey] || kb.temples.marriage)) || "";
-      picks.push({
-        planet:p,
-        reason: deb ? (p+" is debilitated (weak) in your chart") : (p+" sits in your "+ordinalD(pp.house)+" house, a house of testing"),
+      // upcoming window for this planet (never a past one)
+      const upWin = kw2.find(w=>(w.ad===p||w.md===p) && w.upcoming);
+      return {
+        planet:p, kind,                                        // "ongoing" | "active-phase"
+        activePhase: kind==="active-phase",
+        reason: deb ? (p+" is weak (debilitated) in your chart")
+              : inDusthana ? (p+" sits in your "+ordinalD(pp.house)+" house, a house of testing")
+              : (p+" is the planet currently running in your life"),
         role: p===karakaPlanet ? ("the "+cfg.karaka+", your "+cfg.focus+" significator")
               : p===hLord ? ("the ruler of your "+ordinalD(cfg.house)+" house of "+cfg.focus)
-              : ("placed in your "+ordinalD(cfg.house)+" house of "+cfg.focus),
-        window: win? win.years : (activeNow ? (curAD?curAD.years:(dashaTiming.current?dashaTiming.current.years:"")) : ""),
-        active: !!activeNow,
+              : occupants.some(o=>o.planet===p) ? ("placed in your "+ordinalD(cfg.house)+" house of "+cfg.focus)
+              : (kind==="active-phase" ? "the planet governing your current life-phase" : "active in this area"),
+        // active-phase → the live MD window; ongoing weakness → nearest upcoming window if
+        // any, otherwise framed as an ongoing habit (no misleading past date).
+        window: kind==="active-phase" ? curYears : (upWin ? upWin.years : ""),
+        whenActive: kind==="active-phase"
+          ? ("now — you are in the "+p+" main phase"+(curYears?(" ("+curYears+")"):"")+(curAD?(", "+curAD.ad+" sub-phase "+curAD.years):""))
+          : (upWin ? ("most concentrated around the "+upWin.years+" window") : "an ongoing habit for this area, worth holding steadily rather than tied to one date"),
+        ongoing: kind==="ongoing",
         behavioral: kb.behavioral,
-        avoid: (deb||inDusthana) ? (kb.whenWeak||"") : "",     // dignity-aware: lead with 'avoid' when weak
+        avoid: weak ? (kb.whenWeak||"") : "",                   // dignity-aware: lead with 'ease off' only when weak
         daan: kb.daan, anchor: kb.anchor,
         navagrahaTemple: kb.navagrahaTemple,
         secondTemple: domTemple,
         bodyAreas: kb.bodyAreas,
-      });
-    }
-    picks.sort((a,b)=> (a.reason.includes("debilitated")?0:1) - (b.reason.includes("debilitated")?0:1));
+      };
+    };
+    // (1) pick the single weakest domain focus planet (prefer debilitated, then dusthana)
+    const focusSet = [...new Set([karakaPlanet, hLord, ...occupants.map(o=>o.planet)].filter(Boolean))];
+    const weakFocus = focusSet.map(p=>({p,pp:d1P[p]})).filter(x=>x.pp && PLANET_REMEDIES[x.p] &&
+        (x.pp.dignity==="Debilitated" || [6,8,12].includes(x.pp.house)))
+      .sort((a,b)=> (a.pp.dignity==="Debilitated"?0:1)-(b.pp.dignity==="Debilitated"?0:1));
+    const ongoingPick = weakFocus.length ? mkPick(weakFocus[0].p, "ongoing") : null;
+    // (2) active-phase pick = current Mahadasha lord (skip if it IS the ongoing pick)
+    const activePick = (curLord && curLord!==(ongoingPick&&ongoingPick.planet)) ? mkPick(curLord, "active-phase") : null;
+    const picks = [activePick, ongoingPick].filter(Boolean);
     // Domain-level temple (e.g. the marriage temple) — surfaced whenever a remedy is raised.
     const domainTemple = (DOMAIN_TEMPLES && DOMAIN_TEMPLES[domainKey]) || null;
     if(picks.length) remedyFacts={ focus:picks.slice(0,2), general:GENERAL_TEMPLES, domainTemple };  // 1–2 remedies
