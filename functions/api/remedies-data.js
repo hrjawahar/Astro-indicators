@@ -2,34 +2,33 @@
 //  FILE: functions/api/remedies-data.js
 //  The remedy knowledge base. Pure data (no request handler) — imported by
 //  analyze.js, which decides WHICH planet(s) to remedy per chart + domain
-//  (dasha-triggered + unfavourable placement), and the writer narrates it.
+//  (dasha-triggered + unfavourable placement / dignity), and the writer narrates it.
 //
-//  Three layers per planet, framed as OPTIONAL "alignment practices", never
-//  mandatory/paid rituals:
-//    1. behavioral  — a daily karma-alignment habit (universal). Each planet also has a
-//                     `whenWeak` caution (what to AVOID) that the writer leads with when the
-//                     planet is debilitated/afflicted — dignity-aware, per owner's direction.
-//    2. daan        — charity: the planet's grain + weekday + a fitting cause (universal)
-//    3. temple      — Tamil Parihara Sthalam: the well-known navagrahaTemple (baseline)
-//                     + a RESEARCH-BASED second temple per domain (the FEATURED value —
-//                     everyone knows the navagraha temple; the ailment/career-specific
-//                     one is what the reader finds valuable).
+//  Per planet, framed as OPTIONAL "alignment practices", never mandatory/paid rituals:
+//    1. behavioral  — a daily karma-alignment habit when the planet is being STRENGTHENED
+//    2. whenWeak    — what to MODERATE/avoid when the planet is debilitated/combust/afflicted
+//                     (the engine picks behavioral vs whenWeak from the planet's dignity)
+//    3. daan        — charity: the planet's grain + weekday + a fitting cause (universal)
+//    4. temple      — the well-known navagrahaTemple (baseline) + a RESEARCH-BASED second
+//                     temple per domain (the FEATURED value). A DOMAIN_TEMPLES layer adds
+//                     domain-specific temples (e.g. the marriage temple) independent of planet.
 //
-//  Provenance: each planet's own navagraha temple is canonical and well-established.
-//  The domain "second temple" is a researched suggestion (reputable, but not a fixed
-//  classical list) — the writer presents it as a suggestion, never an overclaim.
+//  Provenance: each planet's own navagraha temple is canonical. Domain/second temples are
+//  researched suggestions presented as such, never overclaimed. The marriage temples below
+//  were cross-checked (Thirumanancheri = the classic Kalyanasundareswarar marriage temple;
+//  Kanjanur confirmed only as the Venus navagraha temple, NOT a marriage-dosha temple).
 //  Health remedies are traditional support ALONGSIDE medical care, never instead of it.
 //
-//  Sources cross-checked: OnlineJyotish, HinduTone (navagraha days/grains/temples),
-//  IndiaGlitz (Tamil expert home remedies), GoodStars Jyotish (daan-first framing),
-//  classical medical-astrology (Kalapurusha) planet→body mappings, and owner research.
+//  Sources: OnlineJyotish, HinduTone (navagraha days/grains/temples), IndiaGlitz (Tamil
+//  home remedies), GoodStars Jyotish (daan-first framing), AstroVed & Wikipedia (marriage
+//  temples), classical Kalapurusha planet→body mappings.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PLANET_REMEDIES = {
   Sun: {
     signify: "vitality, confidence, authority, the father, government",
     behavioral: "Lead without needing to dominate; give others credit and let go of the need to be right. Rise early and start the day with intent.",
-    whenWeak: "guard against ego-clashes, arrogance, or tying your whole sense of worth to status and recognition",
+    whenWeak: "Guard against ego-defensiveness and the urge to prove your authority; don't let pride — or hidden self-doubt — drive decisions.",
     daan: { item: "wheat, jaggery, or copper", day: "Sunday", cause: "elders, a father-figure, or education" },
     anchor: "Offer water to the rising sun (Surya Arghya) on Sundays; Om Suryaya Namah",
     navagrahaTemple: "Suryanar Kovil, near Kumbakonam",
@@ -43,21 +42,21 @@ export const PLANET_REMEDIES = {
   Moon: {
     signify: "the mind, emotions, the mother, peace, nurturing",
     behavioral: "Protect your emotional rest and a steady daily routine; nurture the bond with your mother or a maternal figure; keep evenings calm.",
-    whenWeak: "guard against emotional volatility and clinging; don't let passing moods drive lasting decisions",
+    whenWeak: "Watch for mood swings and emotional over-dependence; don't make big decisions when unsettled — hold your routine and your rest first.",
     daan: { item: "rice, milk, or white cloth", day: "Monday", cause: "mothers, children, or the emotionally vulnerable" },
     anchor: "Spend quiet time near water or moonlight; Om Chandraya Namah",
     navagrahaTemple: "Kailasanathar, Thingalur",
     bodyAreas: "mind and emotions, lungs and chest, stomach, body fluids; anxiety and low mood",
     careerFields: "hospitality, food, nursing, caregiving, counselling, public-facing work",
     temples: {
-      health:  "Gunaseelam Prasanna Venkatachalapathy — 'Gunam' means cure; long associated with mental-health care (a Government-of-Tamil-Nadu-licensed rehabilitation centre with a visiting psychiatrist operates there), a rare blend of faith and modern treatment",
-      career:  "Thenkudi Thittai, then Thingalur the same day — for unstable income and frequent job changes (invokes Guru-Chandra yoga)",
+      health:  "Gunaseelam Prasanna Venkatachalapathy — long associated with relief from mental distress and anxiety ('Gunam' = cure)",
+      career:  "Thenkudi Thittai, then Thingalur the same day — for unstable income and frequent job changes",
     },
   },
   Mars: {
     signify: "energy, courage, drive, siblings, land and property",
     behavioral: "Channel restlessness into daily physical exercise; pause before reacting; keep sharp words out of disagreements.",
-    whenWeak: "guard against impulsive anger, aggression, and reckless haste; don't let frustration spill into conflict",
+    whenWeak: "Don't let frustration spill into aggression — nor, the opposite way, harden into suppressed resentment; avoid forcing or rushing confrontations.",
     daan: { item: "toor dal (red lentils), red cloth, or jaggery", day: "Tuesday", cause: "siblings, soldiers, or physical-labour workers" },
     anchor: "Om Angarakaya Namah or the Hanuman Chalisa on Tuesdays",
     navagrahaTemple: "Vaitheeswaran Koil, near Sirkazhi (Vaitheeswaran = 'God of healing')",
@@ -71,7 +70,7 @@ export const PLANET_REMEDIES = {
   Mercury: {
     signify: "communication, intellect, the nerves, commerce and trade",
     behavioral: "Speak with care and finish what you start; protect your nervous system with real rest and less screen time.",
-    whenWeak: "guard against scattered focus and overthinking, and against careless or cutting speech",
+    whenWeak: "Watch for overthinking, scattered speech and hasty commitments; double-check details and finish one thing before starting the next.",
     daan: { item: "green gram (moong) or green cloth", day: "Wednesday", cause: "students, education, or the differently-abled" },
     anchor: "Om Budhaya Namah or a Vishnu chant on Wednesdays",
     navagrahaTemple: "Swetharanyeswarar, Thiruvenkadu (near Sirkazhi)",
@@ -85,7 +84,7 @@ export const PLANET_REMEDIES = {
   Jupiter: {
     signify: "wisdom, growth, teachers, children, faith, finance",
     behavioral: "Seek and honour mentors, and give your own guidance generously; act with ethics and faith; keep learning.",
-    whenWeak: "guard against overconfidence, excess, and dogmatism; don't over-promise or over-extend on faith alone",
+    whenWeak: "Avoid over-optimism and over-expansion — over-promising, over-spending, over-indulging; don't bend your ethics for quick growth.",
     daan: { item: "chana (Bengal gram), turmeric, or yellow cloth", day: "Thursday", cause: "teachers, temples, or education" },
     anchor: "Om Gurave Namah on Thursdays; offer or wear yellow",
     navagrahaTemple: "Apatsahayeswarar, Alangudi (the popular Guru Parihara Sthalam)",
@@ -99,16 +98,15 @@ export const PLANET_REMEDIES = {
   },
   Venus: {
     signify: "love, marriage and the spouse, pleasure, the arts, comfort",
-    behavioral: "Invest in simple, unhurried, phone-free affection; make room for beauty and art; ease off excess and indulgence.",
-    whenWeak: "guard against overindulgence in pleasure, luxury, or comfort, and against seeking validation through relationships",
+    behavioral: "Invest in simple, unhurried, phone-free affection; make room for beauty and art; keep relationships sincere rather than grand.",
+    whenWeak: "Avoid overindulgence in pleasure, comfort and spending, and the chase for intensity or validation through relationships; keep it simple and honest.",
     daan: { item: "white beans (mochai), sugar, or white cloth", day: "Friday", cause: "women's welfare or the arts" },
     anchor: "Keep fresh flowers at home; Om Shukraya Namah or a Lakshmi chant on Fridays",
-    navagrahaTemple: "Agneeswarar, Kanjanur",
+    navagrahaTemple: "Agneeswarar, Kanjanur (the Venus navagraha temple — for Venus affliction generally)",
     bodyAreas: "reproductive system, kidneys, hormones, throat",
     careerFields: "arts, film, fashion, luxury goods, hospitality, design, beauty",
     marriageRole: "the primary marriage & spouse significator (Kalathira karaka)",
     temples: {
-      marriage: "Kanjanur Agneeswarar — the Venus Navagraha temple, prayed at to ease a difficult Venus, the planet of marriage and partnership (traditionally sought for Kalathra-dosha / spouse-related concerns)",
       health:   "Garbharakshambigai, Thirukarugavur — associated with reproductive health and safe childbirth",
       career:   "Mahalakshmeeswarar, Thirunindriyur — for prosperity and regaining position",
     },
@@ -116,7 +114,7 @@ export const PLANET_REMEDIES = {
   Saturn: {
     signify: "discipline, time, commitment, karma, service, delay",
     behavioral: "Be patient and consistent; honour your commitments and your elders; serve the under-served; avoid shortcuts.",
-    whenWeak: "guard against cutting corners, chronic pessimism, and withdrawing into isolation under pressure",
+    whenWeak: "Guard against cynicism, chronic delay and cutting corners; don't withdraw from duty — steady, patient effort is the real antidote.",
     daan: { item: "black sesame, gingelly/mustard oil, or black cloth", day: "Saturday", cause: "the poor, the elderly, labourers, or the disabled" },
     anchor: "Light a sesame-oil lamp on Saturdays; Om Namah Shivaya or Om Shanaischaraya Namah",
     navagrahaTemple: "Dharbaranyeswarar, Thirunallar (Karaikal)",
@@ -131,7 +129,7 @@ export const PLANET_REMEDIES = {
   Rahu: {
     signify: "ambition, obsession, the foreign and unconventional, overthinking, technology",
     behavioral: "Keep your home and life clutter-free and grounded; avoid impulsive, irreversible decisions when you feel overwhelmed; limit intoxicants and endless screens.",
-    whenWeak: "guard against obsession, impulsive grabs, and chasing shortcuts or illusions that promise too much too fast",
+    whenWeak: "Watch for obsession, impulsive leaps, shortcuts and escapism (screens, intoxicants); slow right down before any big or irreversible move.",
     daan: { item: "urad (black gram) or a blanket", day: "Saturday (Rahu Kalam)", cause: "the marginalised or strangers in need" },
     anchor: "Ten minutes of silent breathwork before difficult conversations; Om Rahave Namah or Durga worship",
     navagrahaTemple: "Naganathaswamy, Thirunageswaram",
@@ -145,7 +143,7 @@ export const PLANET_REMEDIES = {
   Ketu: {
     signify: "detachment, spirituality, past karma, intuition, sudden breaks",
     behavioral: "Make room for solitude and a spiritual practice; release what is already complete; take care not to over-isolate.",
-    whenWeak: "guard against escapism and excessive detachment; don't withdraw from the people and duties that still need you",
+    whenWeak: "Watch for escapism, over-detachment and neglect of practical duties; stay gently engaged rather than abandoning things midway.",
     daan: { item: "horse gram (kollu) or multicoloured cloth", day: "Tuesday or Saturday", cause: "spiritual causes, strays, or the sick" },
     anchor: "Meditation or prayer; Om Ketave Namah, and Ganesha worship (Ketu's presiding deity)",
     navagrahaTemple: "Naganathaswamy, Keezhaperumpallam (Poompuhar)",
@@ -158,10 +156,18 @@ export const PLANET_REMEDIES = {
   },
 };
 
-// General temples — used when the chart is unclear or several planets are weak.
-// Temples that help whatever the chart shows; the planet temples above are used once
-// we know which dasha is causing the trouble. (Presented in the report as traditional
-// general temples — not attributed to any named astrologer.)
+// Domain-specific temples (independent of which planet is afflicted) — the cross-checked,
+// well-supported temple for the life area itself. For marriage this is the real value add.
+export const DOMAIN_TEMPLES = {
+  marriage: {
+    primary: "Thirumanancheri Sri Kalyanasundareswarar — the classic Tamil Nadu temple for marriage, where Shiva is worshipped as the bridegroom; visited for timely marriage and a harmonious married life",
+    harmony: "Thiruvidaimarudur Mahalingaswamy / Thiruvedhikudi Vedapureeswarar — for marriage delay, married-life difficulty and Chevvai (Mars) dosha affecting marriage",
+  },
+};
+
+// Commonly-cited general temples — used when the chart is unclear or several planets are
+// weak. Treated as temples that help whatever the chart shows; the planet/domain temples
+// above are used once we know which dasha is causing the trouble.
 export const GENERAL_TEMPLES = {
   obstacle: "Karpaga Vinayagar, Pillaiyarpatti — Ganesha, to clear obstacles of any kind (start here if the cause is unclear)",
   career:   "Sri Ranganathaswamy, Srirangam — for job and career progress",
@@ -169,9 +175,11 @@ export const GENERAL_TEMPLES = {
 };
 
 // A planet's dasha tends to hurt a domain when the planet is unfavourably placed.
-// Used by analyze.js to decide WHETHER to raise a remedy for an active-dasha planet.
+// Used by analyze.js to decide WHETHER to raise a remedy for an active-dasha planet,
+// and whether to use its `behavioral` (strengthen) or `whenWeak` (moderate) line.
 export const UNFAVOURABLE = {
   houses: [6, 8, 12],            // dusthana placement
+  weakDignities: ["Debilitated", "Combust"],
   notes: "debilitated, combust (close to the Sun), or conjoined with Sun/Mars/Saturn; " +
          "8th = sudden disruption, 12th = loss of position/income; " +
          "for business, the 7th house combined with the 8th or 12th.",
