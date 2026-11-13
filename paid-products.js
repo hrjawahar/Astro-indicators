@@ -690,7 +690,7 @@
     const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
     const lines = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1").split("\n");
     let inWhy = false;
-    lines.forEach(para => {
+    lines.forEach((para, idx) => {
       const t = para.trim();
       if (!t) { if (!inWhy) y += 5; return; }
       const tech = t.indexOf("» ") === 0;
@@ -699,15 +699,21 @@
       const theme = t.indexOf("★ ") === 0;
       if (theme) {
         inWhy = false;
-        kbreak(26);
+        // keep label + (multi-line) theme together on one page
+        doc.setFontSize(12); const Lt = doc.splitTextToSize(t.slice(2), W - M * 2);
+        kbreak(12 + Lt.length * 15 + 16);
         doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
         doc.text("THEME TO HOLD", M, y); y += 12;
         doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(60, 48, 20);
-        const Lt = doc.splitTextToSize(t.slice(2), W - M * 2); doc.text(Lt, M, y); y += Lt.length * 15 + 8;
+        doc.text(Lt, M, y); y += Lt.length * 15 + 8;
         return;
       }
       if (tech && !inWhy) {
-        kbreak(22);
+        // measure the WHOLE consecutive » block and break once, so the gold box never splits
+        doc.setFontSize(9.5);
+        let need = 14;
+        for (let k = idx; k < lines.length; k++) { const tk = lines[k].trim(); if (tk.indexOf("» ") !== 0) break; const Lk = doc.splitTextToSize(tk.slice(2), W - M * 2 - 14); need += Lk.length * 14 + 6; }
+        kbreak(Math.min(need, H - M * 2 - 4));
         doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
         doc.text("WHY THIS READING", M, y); y += 12; inWhy = true;
       }
@@ -723,7 +729,8 @@
       else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
       const indent = tech ? 14 : (bull ? 12 : 0);
       const L = doc.splitTextToSize((bull ? "• " : "") + text, W - M * 2 - indent);
-      kbreak(L.length * 14 + 6); doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
+      if (!tech) kbreak(L.length * 14 + 6);   // why-lines already reserved as one block above
+      doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
     });
     y += 6;
     return y;
@@ -935,6 +942,11 @@
     if (a.dignity==="Own sign")    return g? g.note.own         : "at home — reliable strength";
     if (p===facts.karakaPlanet)    return g? g.note.karaka(facts.karaka) : "your "+facts.karaka+" — key to this domain";
     if (facts.d1.houseLord===p)    return g? g.note.lord        : "rules your "+facts.houseName+" house";
+    // A stellium (3+ planets sharing one house) is a strong, reading-shaping concentration.
+    // Flag it on the otherwise-unnoted planets so the table explains why that house's themes
+    // (e.g. a 10th-house career cluster behind a career-marriage overlap) weigh so heavily.
+    const houseCount = Object.keys(d1P).filter(k=>k!=="Lagna" && d1P[k] && d1P[k].house===a.house).length;
+    if (houseCount>=3)             return GHOUSE(a.house)+" cluster";
     return "";
   };
   const chartCol     = (k)=> { const g=_cl(); const en={planet:"Planet",d1:"D1 (birth)",d9:"D9",note:"Note"}; return (g && g.col[k]) || en[k]; };
@@ -1298,7 +1310,7 @@
     ov.innerHTML = `<div style="text-align:center;color:#f0e6c8;max-width:340px;padding:24px">
       <div style="font-size:1.6rem;margin-bottom:12px">🌐</div>
       <div style="font-weight:600;margin-bottom:8px">Translating to ${esc(label)}…</div>
-      <div style="font-size:.85rem;opacity:.82;line-height:1.5">This takes about a minute. The report is translated in context, so the astrological meaning stays right.</div></div>`;
+      <div style="font-size:.85rem;opacity:.82;line-height:1.5">This takes about 2–3 minutes. The report is translated in context, so the astrological meaning stays right.</div></div>`;
   }
   function hideTranslateOverlay(){ const ov=document.getElementById("fbXlateOv"); if(ov) ov.remove(); }
 
