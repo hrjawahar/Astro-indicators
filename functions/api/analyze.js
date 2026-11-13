@@ -1,4 +1,4 @@
-import { PLANET_REMEDIES, GENERAL_TEMPLES } from "./remedies-data.js";
+import { PLANET_REMEDIES, GENERAL_TEMPLES, DOMAIN_TEMPLES } from "./remedies-data.js";
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
@@ -2927,7 +2927,9 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       });
     }
     picks.sort((a,b)=> (a.reason.includes("debilitated")?0:1) - (b.reason.includes("debilitated")?0:1));
-    if(picks.length) remedyFacts={ focus:picks.slice(0,2), general:GENERAL_TEMPLES };  // 1–2 remedies
+    // Domain-level temple (e.g. the marriage temple) — surfaced whenever a remedy is raised.
+    const domainTemple = (DOMAIN_TEMPLES && DOMAIN_TEMPLES[domainKey]) || null;
+    if(picks.length) remedyFacts={ focus:picks.slice(0,2), general:GENERAL_TEMPLES, domainTemple };  // 1–2 remedies
   } catch(_){}
 
   return {
