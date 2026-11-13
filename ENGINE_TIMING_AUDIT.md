@@ -45,3 +45,21 @@ against the running dasha. The slow-transit timeline exists in `chart.js` but is
 fed into the domain timing engine.** That overlay is the real lever for exact-year
 precision; until it is built, report language stays "most likely window", never a dated
 certainty. Do not chase exact years by over-tuning the dasha heuristics (it over-fits).
+
+## Transit overlay — investigated 2026-11, BLOCKED on ephemeris accuracy
+
+Built `transit-core.js` (Jupiter/Saturn sidereal sign from chart.js's own ephemeris,
+no external service) and validated it. Result:
+
+- **Birth-epoch sign placement is accurate** — it reproduces the validated real charts
+  (HP86 1980 → Jupiter & Saturn in Virgo; natal B 1983 → Jupiter in Scorpio).
+- **Transit years are NOT reliable** — the same truncated outer-planet model has
+  epoch-dependent errors up to ~1 sign (Jupiter skips Capricorn across 2008→2009;
+  Saturn reads Virgo in 2012 when it was Libra). ~1 sign = ~1 year of Jupiter timing.
+
+A gochara marriage-year pin needs sign accuracy at ALL epochs; this model doesn't have
+it, so the overlay is **not shipped** (a wrong year is worse than "most likely window").
+`transit-core.js` is kept as the validated building block, NOT wired in. Prerequisite for
+the overlay: upgrade the ephemeris (full VSOP87 Jupiter/Saturn perturbation terms, or a
+real ephemeris service) — this also quietly de-risks birth-chart Jupiter/Saturn at any
+unusual epochs. Only after that should transit year-pinning be built on top.
