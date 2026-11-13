@@ -3196,9 +3196,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     }catch(_){}
     dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, forwardADs:fw, likelyFruitionWindow, likelyFruitionWindows, realTermAge, realTermYear };
     // now that timing exists, enrich the watch-out-for with the nearest key window
-    if(flags.watchOutFor && dashaTiming.keyWindows && dashaTiming.keyWindows[0]){
-      const w=dashaTiming.keyWindows[0];
-      flags.watchOutFor += ` This is most worth attention around the ${w.years} window (the ${w.ad} sub-period within ${w.md}).`;
+    if(flags.watchOutFor && dashaTiming.keyWindows){
+      // AUDIT FIX (same bug class as the remedy past-window): keyWindows are chronological,
+      // so [0] is usually a PAST window — a future caution must point at the nearest
+      // UPCOMING window, or carry no date at all rather than a date already behind the reader.
+      const w=dashaTiming.keyWindows.find(x=>x.upcoming);
+      if(w) flags.watchOutFor += ` This is most worth attention around the ${w.years} window (the ${w.ad} sub-period within ${w.md}).`;
     }
     // RAHU-PERIOD CAUTION (classical Rahu nature): Rahu is the great amplifier and the
     // karaka of maya (illusion) — in its Mahadasha/Antardasha, whatever is NEW (contacts,
