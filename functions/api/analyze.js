@@ -2650,6 +2650,39 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
     const up = out.filter(w=>w.when==="upcoming"||w.when==="current");
     const upcoming = [...up.filter(w=>w.severity==="significant"), ...up.filter(w=>w.severity==="moderate")]
       .sort((a,b)=>a.sy-b.sy).slice(0,3);
+
+    // EARLY-SIGNAL / PRECURSOR window (separate line item — never alters the actual
+    // disruption). Credibility requires BOTH the MD and the AD to point to it: a node/malefic
+    // AD sitting in a career-withdrawal house (7th = 10th-from-10th, or 8th/12th), running in
+    // the ~3 years BEFORE a SIGNIFICANT disruption, AND inside an MD that is itself career-
+    // relevant (a disruptor, the 10th lord, or a 6/8/12 lord). This is where the chart first
+    // whispers — detachment, restlessness, pressure — a year or so before the hard window,
+    // the chance to read the signs and prepare.
+    const l6c=houseLord(d1LagnaSign,6), l8c=houseLord(d1LagnaSign,8), l12c=houseLord(d1LagnaSign,12);
+    const credibleMD=(m)=> !!(disruptors[m] || m===hLord || [l6c,l8c,l12c].includes(m));
+    const PRECURSOR_SIGNAL = {
+      Ketu:"a growing sense of detachment, disillusionment, or that a chapter is quietly ending",
+      Rahu:"restlessness, a pull toward something new or unsettling that may not be what it seems",
+      Saturn:"a slow build of pressure, weariness, or the sense that the current path is tightening",
+      Mars:"rising friction or conflict, or a sharpening urge to break away"
+    };
+    const findPrecursor=(beforeSy)=>{
+      let best=null;
+      for(const md of dashas){ if(!credibleMD(md.lord) || !Array.isArray(md.antarDasas)) continue;
+        for(const ad of md.antarDasas){ const lord=ad.lord; const pp=d1P[lord];
+          if(!["Rahu","Ketu","Saturn","Mars"].includes(lord) || !pp || ![7,8,12].includes(pp.house)) continue;
+          const sy=ad.startDate?new Date(ad.startDate).getFullYear():null, ey=ad.endDate?new Date(ad.endDate).getFullYear():null;
+          if(sy==null) continue; const end=ey||sy;
+          if(sy < beforeSy && (beforeSy-sy)<=3 && end<=beforeSy+1){   // within ~3 yrs before, not after
+            if(!best || sy>best.sy) best={ years:(ey&&ey!==sy)?(sy+"–"+ey):String(sy), planet:lord, md:md.lord, sy,
+              note:("Early signals — "+(PRECURSOR_SIGNAL[lord]||"a sense that something was shifting")+" — tended to surface here, in the "+lord+" sub-phase, about a year before the harder window. This is the stretch the chart gives you to read the signs and prepare, rather than be caught unready.") };
+          }
+        }
+      }
+      return best;
+    };
+    for(const w of past) if(w.severity==="significant"){ const pc=findPrecursor(w.sy); if(pc && pc.sy!==w.sy) w.precursor=pc; }
+    for(const w of upcoming) if(w.severity==="significant"){ const pc=findPrecursor(w.sy); if(pc && pc.sy!==w.sy) w.precursor=pc; }
     return { prone:true, reason, recoveryCapacity, recoveryNote, past, upcoming };
   }catch(_){ return null; }
 }
