@@ -2574,6 +2574,60 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
     framing:"structural leaning, tested by the reader against their own field and experience — not a prediction" };
 }
 
+// ── Career disruption windows (career domain) ───────────────────────────────────
+// Classical, chart-general (NOT fitted to any one chart): a career is disruption-PRONE
+// when its ruler sits in a dusthana (6/8/12), is weak, or a malefic/node sits in the 10th.
+// For such a chart, the periods most likely to bring real disruption are graded:
+//   SIGNIFICANT = a node sub-period (Rahu/Ketu) — sudden, destabilising, obstacle-ridden
+//                 (this is why e.g. a Ketu antardasha can damage a career while a Saturn
+//                 one merely restructures it and is recoverable).
+//   MODERATE    = the 6th/8th/12th-lord or the (dusthana-placed) 10th-lord sub-period —
+//                 change, pressure, restructuring; usually navigable.
+// We surface the most relevant PAST ones (recognition / pattern) and the UPCOMING ones
+// within the 20-yr horizon (course-correction). A STABLE career chart returns prone:false
+// and the report raises no disruption alarm — so this never over-flags steady careers.
+function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P){
+  try{
+    if(!Array.isArray(dashas) || !dashas.length) return null;
+    const byY = birthDate ? new Date(birthDate).getFullYear() : null;
+    const nowY = new Date().getFullYear(); const capY = nowY + 20;
+    const tenthInDusthana = lordPlacement && [6,8,12].includes(lordPlacement.house);
+    const tenthWeak = lordPlacement && (lordPlacement.dignity==="Debilitated" || lordPlacement.dignity==="Combust");
+    const maleficOn10 = occupantsOfHouse(d1P,10).some(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
+    const prone = !!(tenthInDusthana || tenthWeak || maleficOn10);
+    if(!prone) return { prone:false };
+    const reason = tenthInDusthana ? ("your career ruler sits in the "+ordinalD(lordPlacement.house)+" house — a house of upheaval and transformation, so your working life moves through periodic disruption and reinvention rather than a straight climb")
+      : maleficOn10 ? "a disruptive planet sits in your house of career, so your path tends to move through jolts and resets"
+      : "your career ruler is under pressure, so your path asks for extra resilience through its rougher patches";
+    const nodes = new Set(["Rahu","Ketu"]);
+    const l6=houseLord(d1LagnaSign,6), l8=houseLord(d1LagnaSign,8), l12=houseLord(d1LagnaSign,12);
+    const moderateLords = new Set([l6,l8,l12].filter(Boolean)); if(tenthInDusthana && hLord) moderateLords.add(hLord);
+    const sevOf = (lord)=> nodes.has(lord) ? "significant" : moderateLords.has(lord) ? "moderate" : null;
+    const out=[];
+    for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
+      for(const ad of md.antarDasas){ const sev=sevOf(ad.lord); if(!sev) continue;
+        const sy=ad.startDate?new Date(ad.startDate).getFullYear():null, ey=ad.endDate?new Date(ad.endDate).getFullYear():null;
+        if(sy==null) continue;
+        if(byY!=null && (sy-byY)<18) continue;        // adult only
+        if(sy>capY) continue;                          // within the 20-year horizon
+        const years=(ey&&ey!==sy)?(sy+"–"+ey):String(sy);
+        const when = (ey&&ey<nowY)?"past":(sy>nowY?"upcoming":"current");
+        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity:sev, when });
+      }
+    }
+    out.sort((a,b)=>a.sy-b.sy);
+    // Past: prefer the SIGNIFICANT (node) ones the reader would recognise; keep 1–2 most recent.
+    const pastSig = out.filter(w=>w.when==="past" && w.severity==="significant");
+    const pastMod = out.filter(w=>w.when==="past" && w.severity==="moderate");
+    const past = (pastSig.length ? pastSig : pastMod).slice(-2);
+    // Upcoming/current: nodes first, then the nearest moderate, capped at 3.
+    const up = out.filter(w=>w.when==="upcoming"||w.when==="current");
+    const upcoming = [...up.filter(w=>w.severity==="significant"), ...up.filter(w=>w.severity==="moderate")]
+      .sort((a,b)=>a.sy-b.sy).slice(0,3);
+    return { prone:true, reason, past, upcoming };
+  }catch(_){ return null; }
+}
+
 // ── Business lean (career domain) ───────────────────────────────────────────────
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
 // partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
@@ -3292,6 +3346,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   if(domainKey==="career"){
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign); }catch(_){}
+    try{ if(careerCompass) careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P); }catch(_){}
   }
 
   // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
