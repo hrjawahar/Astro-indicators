@@ -2586,23 +2586,51 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
 // We surface the most relevant PAST ones (recognition / pattern) and the UPCOMING ones
 // within the 20-yr horizon (course-correction). A STABLE career chart returns prone:false
 // and the report raises no disruption alarm — so this never over-flags steady careers.
-function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P){
+function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, amatyakaraka){
   try{
     if(!Array.isArray(dashas) || !dashas.length) return null;
     const byY = birthDate ? new Date(birthDate).getFullYear() : null;
     const nowY = new Date().getFullYear(); const capY = nowY + 20;
-    const tenthInDusthana = lordPlacement && [6,8,12].includes(lordPlacement.house);
+    const tenthHouse = lordPlacement && lordPlacement.house;
+    const tenthInLoss = lordPlacement && [8,12].includes(lordPlacement.house);   // loss/upheaval houses
+    const tenthInSixth = lordPlacement && lordPlacement.house===6;                // struggle/disputes
     const tenthWeak = lordPlacement && (lordPlacement.dignity==="Debilitated" || lordPlacement.dignity==="Combust");
-    const maleficOn10 = occupantsOfHouse(d1P,10).some(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
-    const prone = !!(tenthInDusthana || tenthWeak || maleficOn10);
+    const tenthOcc = occupantsOfHouse(d1P,10);
+    const maleficOn10 = tenthOcc.some(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
+    const prone = !!(tenthInLoss || tenthInSixth || tenthWeak || maleficOn10);
     if(!prone) return { prone:false };
-    const reason = tenthInDusthana ? ("your career ruler sits in the "+ordinalD(lordPlacement.house)+" house — a house of upheaval and transformation, so your working life moves through periodic disruption and reinvention rather than a straight climb")
+    const reason = (tenthInLoss) ? ("your career ruler sits in the "+ordinalD(lordPlacement.house)+" house — a house of upheaval and loss, so its own periods can dismantle and reshape your working life rather than simply test it")
+      : tenthInSixth ? "your career ruler sits in the 6th — the house of struggle and dispute — so its periods bring friction and contest more than clean progress"
       : maleficOn10 ? "a disruptive planet sits in your house of career, so your path tends to move through jolts and resets"
       : "your career ruler is under pressure, so your path asks for extra resilience through its rougher patches";
-    const nodes = new Set(["Rahu","Ketu"]);
-    const l6=houseLord(d1LagnaSign,6), l8=houseLord(d1LagnaSign,8), l12=houseLord(d1LagnaSign,12);
-    const moderateLords = new Set([l6,l8,l12].filter(Boolean)); if(tenthInDusthana && hLord) moderateLords.add(hLord);
-    const sevOf = (lord)=> nodes.has(lord) ? "significant" : moderateLords.has(lord) ? "moderate" : null;
+
+    // CAREER-AXIS DISRUPTORS (connection-based — a planet counts only when it is genuinely
+    // tied to career, so a node in an unrelated house is NOT a false alarm):
+    //   - the 10th lord itself, graded by WHERE it sits (8/12 loss = significant & can be
+    //     lasting; 6th or weak = moderate);
+    //   - a malefic/node sitting IN the 10th (significant);
+    //   - a node or malefic CONJUNCT the 10th lord or the Amatyakaraka career karaka (moderate).
+    const disruptors = {};
+    if(hLord){ disruptors[hLord] = tenthInLoss ? "significant" : (tenthInSixth || tenthWeak) ? "moderate" : null; if(!disruptors[hLord]) delete disruptors[hLord]; }
+    for(const p of tenthOcc){ if(["Saturn","Mars","Rahu","Ketu","Sun"].includes(p)) disruptors[p]=disruptors[p]||"significant"; }
+    const amaHouse = amatyakaraka && d1P[amatyakaraka] && d1P[amatyakaraka].house;
+    for(const m of ["Rahu","Ketu","Saturn","Mars"]){ const h=d1P[m]&&d1P[m].house; if(h && m!==hLord && ((tenthHouse&&h===tenthHouse)||(amaHouse&&h===amaHouse))) disruptors[m]=disruptors[m]||"moderate"; }
+
+    // RECOVERY CAPACITY — can a career setback be rebuilt to its old earning level? Read from
+    // the EARNING axis: the 2nd (income) and 11th (gains) lords. When those are themselves
+    // weak or in loss-houses, recovery is slow and often only through reinvention, not return
+    // (this is why a disruption can permanently dent earning).
+    const l2=houseLord(d1LagnaSign,2), l11=houseLord(d1LagnaSign,11);
+    const weakE=(p)=> p && d1P[p] && (d1P[p].dignity==="Debilitated"||d1P[p].dignity==="Combust"||[6,8,12].includes(d1P[p].house));
+    const earnLords=[...new Set([l2,l11].filter(Boolean))];
+    const weakEarn=earnLords.filter(weakE).length;
+    const recoveryCapacity = (!earnLords.length) ? "unknown" : (weakEarn===earnLords.length) ? "low" : (weakEarn>0) ? "moderate" : "resilient";
+    const recoveryNote = recoveryCapacity==="low"
+      ? "your income and gains significators are themselves under pressure, so a serious career setback tends to recover slowly and through reinvention rather than a return to the old level — which makes protecting yourself BEFORE a significant window matter more for you than for most (a deeper financial buffer, diversified income, and no fragile single-point dependence)"
+      : recoveryCapacity==="moderate" ? "your earning axis is mixed — recovery from a setback is workable but asks for deliberate effort and a reasonable buffer"
+      : recoveryCapacity==="resilient" ? "your earning axis is sound — setbacks, when they come, tend to be recoverable with steady effort" : "";
+
+    const sevOf=(lord)=>disruptors[lord]||null;
     const out=[];
     for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
       for(const ad of md.antarDasas){ const sev=sevOf(ad.lord); if(!sev) continue;
@@ -2616,15 +2644,13 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
       }
     }
     out.sort((a,b)=>a.sy-b.sy);
-    // Past: prefer the SIGNIFICANT (node) ones the reader would recognise; keep 1–2 most recent.
     const pastSig = out.filter(w=>w.when==="past" && w.severity==="significant");
     const pastMod = out.filter(w=>w.when==="past" && w.severity==="moderate");
     const past = (pastSig.length ? pastSig : pastMod).slice(-2);
-    // Upcoming/current: nodes first, then the nearest moderate, capped at 3.
     const up = out.filter(w=>w.when==="upcoming"||w.when==="current");
     const upcoming = [...up.filter(w=>w.severity==="significant"), ...up.filter(w=>w.severity==="moderate")]
       .sort((a,b)=>a.sy-b.sy).slice(0,3);
-    return { prone:true, reason, past, upcoming };
+    return { prone:true, reason, recoveryCapacity, recoveryNote, past, upcoming };
   }catch(_){ return null; }
 }
 
@@ -3346,7 +3372,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   if(domainKey==="career"){
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign); }catch(_){}
-    try{ if(careerCompass) careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P); }catch(_){}
+    try{ if(careerCompass){ const _ama=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Amatyakaraka")||{}).planet:null; careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama); } }catch(_){}
   }
 
   // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
