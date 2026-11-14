@@ -1,3 +1,4 @@
+import { PLANET_REMEDIES, GENERAL_TEMPLES, DOMAIN_TEMPLES } from "./remedies-data.js";
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
@@ -2385,6 +2386,19 @@ const DOMAIN_REPORT_CONFIG = {
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
 };
 function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+// Graha drishti — does a planet in `fromHouse` cast an aspect on `targetHouse`?
+// All planets aspect the 7th; Mars also 4th & 8th, Jupiter 5th & 9th, Saturn 3rd & 10th,
+// Rahu/Ketu 5th & 9th (common usage). `diff` is the inclusive house count (1 = same house).
+function aspectsHouse(planet, fromHouse, targetHouse){
+  if(!fromHouse || !targetHouse) return false;
+  const diff = ((targetHouse - fromHouse + 12) % 12) + 1;   // 1..12
+  if(diff===7) return true;
+  if(planet==="Mars"    && (diff===4 || diff===8))  return true;
+  if(planet==="Jupiter" && (diff===5 || diff===9))  return true;
+  if(planet==="Saturn"  && (diff===3 || diff===10)) return true;
+  if((planet==="Rahu"||planet==="Ketu") && (diff===5 || diff===9)) return true;
+  return false;
+}
 // Dusthana flavour — standard Parashari house significations (6/8/12). Each names
 // the difficulty AND its constructive dimension (our wellbeing framing). Applied to
 // domain-relevant planets (lord, karaka, domain-house occupants) sitting in a
@@ -2420,6 +2434,14 @@ const ELEMENT_EDGE = {
   Earth: "the structure, systems, and durable-results edge of a field — where building and execution lead",
   Air:   "the ideas, communication, and network edge of a field — where intellect and connection lead",
   Water: "the people, intuition, care, research, or behind-the-scenes edge of a field — where depth leads over surface"
+};
+// Concrete example roles per element — so when an element leaning (or an outlier chart's
+// element) is named, the reader gets real examples, not just an abstract "edge".
+const ELEMENT_EXAMPLES = {
+  Fire:  "leadership, running your own venture, pioneering or competitive roles — e.g. entrepreneurship, sales or business leadership, sport and fitness, defence, or energy and engineering",
+  Earth: "building, operations and durable results — e.g. finance, real estate, manufacturing, operations, agriculture, or systems and process work",
+  Air:   "ideas, communication and networks — e.g. media and writing, teaching, consulting, marketing, or technology and connection-driven work",
+  Water: "people, care, intuition and depth — e.g. research, counselling or the caring professions, the arts, hospitality, or behind-the-scenes craft"
 };
 const PLANET_ESSENCE = {
   Sun:"authority, leadership, and the drive to direct and be seen",
@@ -2512,7 +2534,19 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
     elDom ? `Across D1, D9 and D10 the 10th lord sits most in ${elDom.value.toLowerCase()} signs (${elDom.count} of ${elDom.total}) — tilting these fields toward ${ELEMENT_EDGE[elDom.value]}.` : null,
     (P.d1&&P.d1.dignity)? `In D1 it is ${P.d1.dignity.toLowerCase()==="neutral"?"neutrally placed":P.d1.dignity.toLowerCase()} — ${(P.d1.dignity==="Exalted"||P.d1.dignity==="Own sign")?"the field expresses cleanly and with confidence":P.d1.dignity==="Debilitated"?"the field is real but harder-won; it rewards persistence over ease":"the field is workable and steady"}.` : null
   ].filter(Boolean);
+  // Outlier element: when the charts only LEAN (2/3) on element, name the differing chart's
+  // element AND give concrete example roles for it — so "D10 leans fire" never lands without
+  // an example of what fire-sign fields actually look like.
+  let sectorOutlier = null;
+  if(elDom && elDom.count===2){
+    const labelOf = (k)=> k==="d1"?"your birth chart (D1)":k==="d9"?"your D9 (navamsha)":"your D10 (career chart)";
+    for(const k of ["d1","d9","d10"]){ const pk=P[k]; if(pk && pk.element && pk.element!==elDom.value){
+      sectorOutlier = { chart:labelOf(k), element:pk.element,
+        note:`${labelOf(k)} leans ${pk.element.toLowerCase()} instead — pointing toward ${ELEMENT_EXAMPLES[pk.element]}. A real secondary flavour to weigh against your own experience, not a contradiction.` };
+      break; } }
+  }
   const sectorFit = { leaning: PLANET_SECTORS[hLord].slice(), edge: elDom?elDom.value:null,
+    edgeExamples: elDom?ELEMENT_EXAMPLES[elDom.value]:null, outlier: sectorOutlier,
     consistency: sectorCons.label, consistencyNote: sectorCons.note, signals: sectorSignals };
 
   // ── Role Fit (independent axis 2) — modality gives build/operate/advise; house-class gives visibility ──
@@ -2553,7 +2587,306 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
     framing:"structural leaning, tested by the reader against their own field and experience — not a prediction" };
 }
 
-function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap){
+// ── Career disruption windows (career domain) ───────────────────────────────────
+// Classical, chart-general (NOT fitted to any one chart): a career is disruption-PRONE
+// when its ruler sits in a dusthana (6/8/12), is weak, or a malefic/node sits in the 10th.
+// For such a chart, the periods most likely to bring real disruption are graded:
+//   SIGNIFICANT = a node sub-period (Rahu/Ketu) — sudden, destabilising, obstacle-ridden
+//                 (this is why e.g. a Ketu antardasha can damage a career while a Saturn
+//                 one merely restructures it and is recoverable).
+//   MODERATE    = the 6th/8th/12th-lord or the (dusthana-placed) 10th-lord sub-period —
+//                 change, pressure, restructuring; usually navigable.
+// We surface the most relevant PAST ones (recognition / pattern) and the UPCOMING ones
+// within the 20-yr horizon (course-correction). A STABLE career chart returns prone:false
+// and the report raises no disruption alarm — so this never over-flags steady careers.
+function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, amatyakaraka){
+  try{
+    if(!Array.isArray(dashas) || !dashas.length) return null;
+    const byY = birthDate ? new Date(birthDate).getFullYear() : null;
+    const nowY = new Date().getFullYear(); const capY = nowY + 20;
+    const tenthHouse = lordPlacement && lordPlacement.house;
+    const tenthInLoss = lordPlacement && [8,12].includes(lordPlacement.house);   // loss/upheaval houses
+    const tenthInSixth = lordPlacement && lordPlacement.house===6;                // struggle/disputes
+    const tenthWeak = lordPlacement && (lordPlacement.dignity==="Debilitated" || lordPlacement.dignity==="Combust");
+    const tenthOcc = occupantsOfHouse(d1P,10);
+    // Only the NODES (Rahu/Ketu — chhaya grahas) are a credible "disruption in the career
+    // house" signature. Sun, Saturn and Mars in the 10th get DIG BALA (directional
+    // strength) — classically a disciplined, authoritative, driven career, NOT disruption —
+    // so they must NOT raise a disruption alarm, or steady careers get wrongly flagged.
+    const nodeOn10 = tenthOcc.some(p=>["Rahu","Ketu"].includes(p));
+    const prone = !!(tenthInLoss || tenthInSixth || tenthWeak || nodeOn10);
+    if(!prone) return { prone:false };
+    const reason = (tenthInLoss) ? ("your career ruler sits in the "+ordinalD(lordPlacement.house)+" house — a house of upheaval and loss, so its own periods can dismantle and reshape your working life rather than simply test it")
+      : tenthInSixth ? "your career ruler sits in the 6th — the house of struggle and dispute — so its periods bring friction and contest more than clean progress"
+      : nodeOn10 ? "a shadow planet (Rahu or Ketu) sits in your house of career, so your path can move through sudden, unconventional changes and resets"
+      : "your career ruler is under pressure, so your path asks for extra resilience through its rougher patches";
+
+    // CAREER-AXIS DISRUPTORS (connection-based — a planet counts only when it is genuinely
+    // tied to career, so a node in an unrelated house is NOT a false alarm):
+    //   - the 10th lord itself, graded by WHERE it sits (8/12 loss = significant & can be
+    //     lasting; 6th or weak = moderate);
+    //   - a NODE (Rahu/Ketu) sitting IN the 10th (significant) — NOT a dig-bala malefic;
+    //   - a NODE CONJUNCT the 10th lord or the Amatyakaraka career karaka (moderate).
+    const disruptors = {};
+    if(hLord){ disruptors[hLord] = tenthInLoss ? "significant" : (tenthInSixth || tenthWeak) ? "moderate" : null; if(!disruptors[hLord]) delete disruptors[hLord]; }
+    for(const p of tenthOcc){ if(["Rahu","Ketu"].includes(p)) disruptors[p]=disruptors[p]||"significant"; }
+    const amaHouse = amatyakaraka && d1P[amatyakaraka] && d1P[amatyakaraka].house;
+    for(const m of ["Rahu","Ketu"]){ const h=d1P[m]&&d1P[m].house; if(h && m!==hLord && ((tenthHouse&&h===tenthHouse)||(amaHouse&&h===amaHouse))) disruptors[m]=disruptors[m]||"moderate"; }
+
+    // RECOVERY CAPACITY — can a career setback be rebuilt to its old earning level? Read from
+    // the EARNING axis: the 2nd (income) and 11th (gains) lords. When those are themselves
+    // weak or in loss-houses, recovery is slow and often only through reinvention, not return
+    // (this is why a disruption can permanently dent earning).
+    const l2=houseLord(d1LagnaSign,2), l11=houseLord(d1LagnaSign,11);
+    const weakE=(p)=> p && d1P[p] && (d1P[p].dignity==="Debilitated"||d1P[p].dignity==="Combust"||[6,8,12].includes(d1P[p].house));
+    const earnLords=[...new Set([l2,l11].filter(Boolean))];
+    const weakEarn=earnLords.filter(weakE).length;
+    const recoveryCapacity = (!earnLords.length) ? "unknown" : (weakEarn===earnLords.length) ? "low" : (weakEarn>0) ? "moderate" : "resilient";
+    const recoveryNote = recoveryCapacity==="low"
+      ? "your income and gains significators are themselves under pressure, so a serious career setback tends to recover slowly and through reinvention rather than a return to the old level — which makes protecting yourself BEFORE a significant window matter more for you than for most (a deeper financial buffer, diversified income, and no fragile single-point dependence)"
+      : recoveryCapacity==="moderate" ? "your earning axis is mixed — recovery from a setback is workable but asks for deliberate effort and a reasonable buffer"
+      : recoveryCapacity==="resilient" ? "your earning axis is sound — setbacks, when they come, tend to be recoverable with steady effort" : "";
+
+    // MD CAREER-CONNECTION — the dasha–antardasha double-activation rule. A disruptor
+    // AD only becomes a SIGNIFICANT career event when the running MAIN period is itself
+    // tied to the career axis. Direct 10th-house involvement (MD lord IS the 10th lord,
+    // or physically occupies the 10th) outranks an indirect link (an aspect on the 10th,
+    // the Amatyakaraka career karaka, or a 6/8/12 service-and-struggle lord). When the MD
+    // has no career link at all, a disruptor AD is felt in that planet's OTHER areas of
+    // life, not as a career break — so it is not surfaced as a career window.
+    const l6g=houseLord(d1LagnaSign,6), l8g=houseLord(d1LagnaSign,8), l12g=houseLord(d1LagnaSign,12);
+    const mdCareerLink=(mdLord)=>{
+      if(!mdLord) return "none";
+      if(mdLord===hLord) return "direct";                        // MD lord IS the 10th lord
+      if(tenthOcc.includes(mdLord)) return "direct";             // MD lord sits IN the 10th
+      const mh=d1P[mdLord] && d1P[mdLord].house;
+      if(mh && aspectsHouse(mdLord, mh, 10)) return "indirect";  // aspects the 10th
+      if(mdLord===amatyakaraka) return "indirect";               // Jaimini career karaka
+      if([l6g,l8g,l12g].includes(mdLord)) return "indirect";     // service/struggle lord
+      return "none";
+    };
+    const linkWhy={
+      direct:"the main period itself runs through your career axis (its ruler is your 10th lord, or sits in your career house), so both the main and sub-period point at work",
+      indirect:"the main period touches career only indirectly (by aspect, or as a career significator), so this reads more as a reset to navigate than a structural break",
+    };
+    const sevOf=(lord)=>disruptors[lord]||null;
+    const out=[];
+    for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
+      const link=mdCareerLink(md.lord);
+      if(link==="none") continue;                      // MD not career-connected → skip its ADs
+      for(const ad of md.antarDasas){ const base=sevOf(ad.lord); if(!base) continue;
+        // Grade the window: significant only when a significant disruptor AD meets a
+        // DIRECT-career MD; indirect MD downgrades it; a moderate disruptor under an
+        // indirect MD is too faint to surface.
+        let severity;
+        if(base==="significant") severity = (link==="direct") ? "significant" : "moderate";
+        else                     severity = (link==="direct") ? "moderate"    : "mild";
+        if(severity==="mild") continue;
+        const sy=ad.startDate?new Date(ad.startDate).getFullYear():null, ey=ad.endDate?new Date(ad.endDate).getFullYear():null;
+        if(sy==null) continue;
+        if(byY!=null && (sy-byY)<18) continue;         // adult only
+        if(sy>capY) continue;                           // within the 20-year horizon
+        const years=(ey&&ey!==sy)?(sy+"–"+ey):String(sy);
+        const when = (ey&&ey<nowY)?"past":(sy>nowY?"upcoming":"current");
+        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity, when, mdLink:link, gradeWhy:linkWhy[link]||"" });
+      }
+    }
+    out.sort((a,b)=>a.sy-b.sy);
+    const past = out.filter(w=>w.when==="past").slice(-2);   // most recent two, each graded
+    const up = out.filter(w=>w.when==="upcoming"||w.when==="current");
+    const upcoming = [...up.filter(w=>w.severity==="significant"), ...up.filter(w=>w.severity==="moderate")]
+      .sort((a,b)=>a.sy-b.sy).slice(0,3);
+
+    // EARLY-SIGNAL / PRECURSOR window (separate line item — never alters the actual
+    // disruption). Credibility requires BOTH the MD and the AD to point to it: a node/malefic
+    // AD sitting in a career-withdrawal house (7th = 10th-from-10th, or 8th/12th), running in
+    // the ~3 years BEFORE a SIGNIFICANT disruption, AND inside an MD that is itself career-
+    // relevant (a disruptor, the 10th lord, or a 6/8/12 lord). This is where the chart first
+    // whispers — detachment, restlessness, pressure — a year or so before the hard window,
+    // the chance to read the signs and prepare.
+    const l6c=houseLord(d1LagnaSign,6), l8c=houseLord(d1LagnaSign,8), l12c=houseLord(d1LagnaSign,12);
+    const credibleMD=(m)=> !!(disruptors[m] || m===hLord || [l6c,l8c,l12c].includes(m));
+    const PRECURSOR_SIGNAL = {
+      Ketu:"a growing sense of detachment, disillusionment, or that a chapter is quietly ending",
+      Rahu:"restlessness, a pull toward something new or unsettling that may not be what it seems",
+      Saturn:"a slow build of pressure, weariness, or the sense that the current path is tightening",
+      Mars:"rising friction or conflict, or a sharpening urge to break away"
+    };
+    const findPrecursor=(beforeSy)=>{
+      let best=null;
+      for(const md of dashas){ if(!credibleMD(md.lord) || !Array.isArray(md.antarDasas)) continue;
+        for(const ad of md.antarDasas){ const lord=ad.lord; const pp=d1P[lord];
+          if(!["Rahu","Ketu","Saturn","Mars"].includes(lord) || !pp || ![7,8,12].includes(pp.house)) continue;
+          const sy=ad.startDate?new Date(ad.startDate).getFullYear():null, ey=ad.endDate?new Date(ad.endDate).getFullYear():null;
+          if(sy==null) continue; const end=ey||sy;
+          if(sy < beforeSy && (beforeSy-sy)<=3 && end<=beforeSy+1){   // within ~3 yrs before, not after
+            if(!best || sy>best.sy) best={ years:(ey&&ey!==sy)?(sy+"–"+ey):String(sy), planet:lord, md:md.lord, sy,
+              note:("Early signals — "+(PRECURSOR_SIGNAL[lord]||"a sense that something was shifting")+" — tended to surface here, in the "+lord+" sub-phase, about a year before the harder window. This is the stretch the chart gives you to read the signs and prepare, rather than be caught unready.") };
+          }
+        }
+      }
+      return best;
+    };
+    for(const w of past) if(w.severity==="significant"){ const pc=findPrecursor(w.sy); if(pc && pc.sy!==w.sy) w.precursor=pc; }
+    for(const w of upcoming) if(w.severity==="significant"){ const pc=findPrecursor(w.sy); if(pc && pc.sy!==w.sy) w.precursor=pc; }
+    // The disruptor planet(s) and how they attach to the career axis — so the report can
+    // transparently show WHY these specific windows, and WHICH sub-periods they are.
+    const disruptorList = Object.keys(disruptors).map(p=>({
+      planet:p, severity:disruptors[p], house:(d1P[p]&&d1P[p].house)||null,
+      role: (p===hLord) ? "your 10th lord (career ruler)"
+          : (tenthOcc.includes(p)) ? "sitting in your 10th house of career"
+          : "tied to your career axis"
+    }));
+    const hasSignificant = past.concat(upcoming).some(w=>w.severity==="significant");
+    return { prone:true, reason, recoveryCapacity, recoveryNote, past, upcoming, disruptors:disruptorList, hasSignificant };
+  }catch(_){ return null; }
+}
+
+// ── Business lean (career domain) ───────────────────────────────────────────────
+// Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
+// partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
+// (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
+// Sun/Mars (independent drive). The 7th's condition decides partnership vs solo. The
+// report ALWAYS carries a line — a positive lean with specifics, or a plain "not strongly
+// business-leaning" — so the reader is never left wondering.
+function buildBusinessLean(d1P, d1LagnaSign){
+  try{
+    const L=(h)=>houseLord(d1LagnaSign,h);
+    const occ=(h)=>occupantsOfHouse(d1P,h);
+    const benefic=new Set(["Jupiter","Venus","Mercury","Moon"]);
+    const strong=(p)=> d1P[p] && (d1P[p].dignity==="Exalted"||d1P[p].dignity==="Own sign");
+    const weakOrDus=(p)=> d1P[p] && (d1P[p].dignity==="Debilitated"||[6,8,12].includes(d1P[p].house));
+    const wellPlaced=(p)=> d1P[p] && [1,2,4,5,7,9,10,11].includes(d1P[p].house) && !weakOrDus(p);
+    const inHouse=(p,hs)=> d1P[p] && hs.includes(d1P[p].house);
+
+    // COMMERCE support — the enterprise houses (3 self-effort, 7 trade/vyapara, 11 gains)
+    // plus Mercury, the karaka of commerce. This says a commercial/business FUNCTION suits
+    // the chart; on its own it can be exercised just as well inside an organisation.
+    let commerce=0; const commerceWhy=[];
+    if(strong("Mercury")||(inHouse("Mercury",[1,2,7,10,11])&&!weakOrDus("Mercury"))){ commerce+=2; commerceWhy.push("Mercury (commerce) well placed"); }
+    else if(weakOrDus("Mercury")){ commerce-=1; commerceWhy.push("Mercury (commerce) under pressure"); }
+    { const l7=L(7); if(l7&&wellPlaced(l7)){ commerce+=1; commerceWhy.push("7th lord (trade) well placed"); } }
+    for(const h of [3,11]){ const l=L(h); if(l&&wellPlaced(l)){ commerce+=1; commerceWhy.push(ordinalD(h)+"-lord well placed"); } }
+    for(const h of [3,7,11]){ if(occ(h).some(p=>benefic.has(p))){ commerce+=1; commerceWhy.push("benefic in "+ordinalD(h)); } }
+
+    // AUTONOMY / independent drive — the self-employment lever. It is the self-reliant
+    // markers (strong Sun/Mars, a self-directed 10th lord, a strong 3rd of self-effort)
+    // that tilt a commercially-able chart toward running one's OWN venture rather than
+    // being employed. Without them, commerce ability points to a business ROLE, not
+    // proprietorship.
+    let autonomy=0; const autonomyWhy=[];
+    if(strong("Sun")){ autonomy+=1; autonomyWhy.push("strong Sun — authority and self-reliance"); }
+    if(strong("Mars")){ autonomy+=1; autonomyWhy.push("strong Mars — initiative and drive"); }
+    { const l10=L(10); if(l10&&strong(l10)){ autonomy+=1; autonomyWhy.push("self-directed career ruler (10th lord strong)"); }
+      else if(l10&&inHouse(l10,[1,10])){ autonomy+=1; autonomyWhy.push("career ruler in an angle of self"); } }
+    { const l3=L(3); if(l3&&strong(l3)){ autonomy+=1; autonomyWhy.push("strong 3rd lord — self-effort and enterprise"); } }
+    if((strong("Sun")||strong("Mars")) && (inHouse("Sun",[1,4,7,10])||inHouse("Mars",[1,4,7,10]))){ autonomy+=1; autonomyWhy.push("independent drive in an angle"); }
+
+    // GRADE — an enterprise lean requires BOTH commerce support AND real autonomy.
+    let grade, statement;
+    if(commerce>=3 && autonomy>=2){ grade="strong"; statement="The chart genuinely leans toward running your own enterprise — both commerce support and real independent drive are present."; }
+    else if(commerce>=3 && autonomy>=1){ grade="moderate"; statement="A business of your own is workable and supported — but weigh it alongside employment rather than treating it as the obvious default; the independent-drive signals are present without being dominant."; }
+    else if(commerce>=4){ grade="mild"; statement="You are well-suited to commercial, business-facing work — but the chart supports this more within a structured role or organisation than as a solo independent venture, since the independent-drive markers are mild. Business is an option to weigh, not a clear calling."; }
+    else { grade="none"; statement="The chart does not strongly lean toward independent business; a professional role or steady employment is the more natural fit, with any business kept measured and well-advised."; }
+    const leans = (grade==="strong"||grade==="moderate");
+
+    // partnership vs proprietorship, from the 7th
+    const sOcc=occ(7); const s7lord=L(7);
+    const sevAfflicted = sOcc.some(p=>["Ketu","Rahu","Saturn","Mars"].includes(p)) || weakOrDus(s7lord);
+    const sevBenefic   = sOcc.some(p=>benefic.has(p)) || (s7lord&&wellPlaced(s7lord));
+    let mode, modeNote;
+    if(sevAfflicted && !sevBenefic){ mode="proprietorship"; modeNote="the partnership house carries caution — a shadow planet or heavy weight sits there — so a solo or proprietor route tends to suit you better than an equal partnership; vet any partner carefully and keep roles, money and exit terms clear from the start."; }
+    else if(sevBenefic && !sevAfflicted){ mode="partnership"; modeNote="the partnership house is supported, so a well-chosen business partnership can genuinely work in your favour."; }
+    else { mode="either"; modeNote="partnership and solo routes are both workable — let the specific people and terms decide, not a chart preference."; }
+
+    return { grade, leans, statement, score:commerce+autonomy, commerce, autonomy, commerceWhy, autonomyWhy, mode, modeNote,
+      reconcileNote:"Hold this together with your Role Fit: a business lean does not override the relational, delivery-through-people signature — for many charts it means leading or owning a people-centred enterprise, not working in isolation.",
+      fields: leans ? "commerce or running your own enterprise, ideally within the fields your Sector Fit points to above" : null,
+      timingNote: "weigh any business move in the periods the Timing section marks as supportive — a steady, well-supported stretch, not a restless or testing one (and not a Rahu phase, where enterprise can look more promising than it proves).",
+      caution: (weakOrDus("Mercury")||sevAfflicted) ? "keep finances conservative, avoid over-leverage and hasty expansion, and put every agreement in writing." : "ordinary commercial prudence is enough.",
+      why: commerceWhy.concat(autonomyWhy) };
+  }catch(_){ return null; }
+}
+
+// ── Future Compass (all domains) ───────────────────────────────────────────────
+// The engine produces many AD sub-windows (dashaTiming.keyWindows). The owner rule:
+// the BACKEND keeps that full detail, but the REPORT consolidates to the 2-3 strongest
+// upcoming bands — each weighted, named by nature (supportive / testing / mixed), with
+// the PRECURSOR condition (what effort or circumstance it asks for) stated, plus a
+// single "relief from ongoing stress" window that applies to every domain. No new
+// ephemeris: this is pure consolidation over the dasha windows already computed.
+const FC_BENEFIC = new Set(["Jupiter","Venus","Mercury","Moon"]);
+const FC_MALEFIC = new Set(["Saturn","Mars","Rahu","Ketu","Sun"]);
+function fcStartYr(y){ const m=String(y||"").match(/(\d{4})/); return m?parseInt(m[1],10):null; }
+function fcEndYr(y){ const m=String(y||"").match(/(\d{4})\s*$/); return m?parseInt(m[1],10):null; }
+function buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1P, occupants){
+  if(!dashaTiming) return null;
+  const nowYr = new Date().getFullYear();
+  const occPlanets = new Set((occupants||[]).map(o=>o.planet));
+  // Candidate pool: prefer the FULL forward-AD sequence (current MD onward) so the compass
+  // never collapses for older natives whose domain-karaka periods are exhausted. Fall back
+  // to the domain-filtered keyWindows only if the forward pool is unavailable.
+  const pool = (Array.isArray(dashaTiming.forwardADs) && dashaTiming.forwardADs.length)
+    ? dashaTiming.forwardADs
+    : (Array.isArray(dashaTiming.keyWindows) ? dashaTiming.keyWindows : []);
+  if(!pool.length) return null;
+  const forwardWindows = pool.filter(w=>{ const ey=fcEndYr(w.years); return ey==null || ey>=nowYr; });
+  if(!forwardWindows.length) return null;
+  // Score every window.
+  const scored = forwardWindows.map(w=>{
+    const lord=w.ad; const pp=d1P[lord]||{};
+    let score=0; const roles=[];
+    if(lord===karakaPlanet){ score+=3; roles.push("significator"); }
+    if(lord===hLord){ score+=3; roles.push(ordinalD(cfg.house)+"-lord"); }
+    if(occPlanets.has(lord)){ score+=2; roles.push("domain-house planet"); }
+    if(!roles.length) score+=1;
+    if(pp.dignity==="Exalted"||pp.dignity==="Own sign") score+=2;
+    else if(pp.dignity==="Debilitated") score-=1;
+    else if(pp.dignity==="Combust") score-=1;
+    if(FC_BENEFIC.has(lord)) score+=1;
+    const sy=fcStartYr(w.years), ey=fcEndYr(w.years)||sy;
+    if(sy!=null){ const d=sy-nowYr; if(d<=5) score+=2; else if(d<=10) score+=1; }
+    const beneficIsh = FC_BENEFIC.has(lord) && pp.dignity!=="Debilitated" && pp.dignity!=="Combust";
+    const testingIsh = FC_MALEFIC.has(lord) || pp.dignity==="Debilitated" || [6,8,12].includes(pp.house);
+    const nature = (beneficIsh && !testingIsh) ? "supportive" : (testingIsh && !beneficIsh) ? "testing" : "mixed";
+    return { w, lord, score, roles, sy, ey, nature, upcoming:!!w.upcoming };
+  });
+  // Consolidate: sort by score (then soonest), greedily pick up to 3 non-overlapping bands.
+  const ranked=[...scored].sort((a,b)=> (b.score-a.score) || ((a.sy||9999)-(b.sy||9999)));
+  const picks=[]; const overlaps=(a,b)=> a.sy!=null&&b.sy!=null && !(a.ey<b.sy || b.ey<a.sy);
+  for(const s of ranked){ if(picks.length>=3) break; if(picks.some(p=>overlaps(p,s))) continue; picks.push(s); }
+  picks.sort((a,b)=>(a.sy||9999)-(b.sy||9999));  // chronological for reading
+  const isMarriage = domainKey==="marriage", isCareer = domainKey==="career";
+  const themeFor=(nature)=>{
+    if(isMarriage) return nature==="supportive" ? "a genuine opening for partnership — a meeting, a commitment, or a decisive step forward"
+                        : nature==="testing" ? "a period that tests or reshapes the partnership, maturing the bond through patience"
+                        : "an active, mixed window for partnership — real movement, with conscious effort required";
+    if(isCareer)   return nature==="supportive" ? "a doorway in your working life — a rise, a move, or a chance to step up"
+                        : nature==="testing" ? "a demanding stretch in work — obstacles, transitions or disruption that reshape the path"
+                        : "a mixed but active career window — progress alongside real challenges";
+    return nature==="supportive" ? ("a supportive, opening window for "+cfg.focus)
+         : nature==="testing" ? ("a testing, consolidating window for "+cfg.focus)
+         : ("an active, mixed window for "+cfg.focus);
+  };
+  const precursorFor=(nature)=>{
+    if(nature==="supportive") return "It opens most fully when you are ready to meet it — prepared, available, and willing to act when the moment comes.";
+    if(nature==="testing")    return "It rewards patience and steady effort — not forcing the timeline, keeping commitments honest, and meeting friction with maturity rather than reaction.";
+    return "It mixes opening and testing — prepare the ground with real effort, then let timing do its part.";
+  };
+  const bands = picks.map(p=>{
+    // co-occurring drivers: other scored windows that overlap this band
+    const drivers = [...new Set(scored.filter(s=>overlaps(s,p)).map(s=>s.lord))];
+    return { years:p.w.years, nature:p.nature, roles:p.roles, drivers, theme:themeFor(p.nature), precursor:precursorFor(p.nature) };
+  });
+  // Relief window — nearest UPCOMING supportive band (applies to every domain).
+  const reliefCand = scored.filter(s=>s.nature==="supportive" && s.sy!=null && s.sy>=nowYr).sort((a,b)=>a.sy-b.sy)[0];
+  const relief = reliefCand ? { years:reliefCand.w.years, driver:reliefCand.lord,
+    note:"A lifting of pressure and a more supportive stretch — the point where ongoing strain in this area tends to ease." } : null;
+  if(!bands.length && !relief) return null;
+  return { bands, relief, horizonNote:("Read to "+(nowYr+20)+" (a 20-year horizon).") };
+}
+
+function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap, gender, maritalStatus){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
   if(!d1P) return null;
@@ -2692,6 +3025,156 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const afflicted = ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak) || !!d9LordCaution;
     flags.marriageAfflicted=!!afflicted;
     flags.remarriageIndicated=!!(ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak));
+
+    // ── Spouse significator + partner profile (gender-aware) ─────────────────────
+    // Classical rule: for a WOMAN the husband-significator is Jupiter; for a MAN the
+    // wife-significator is Venus. When gender is not given we fall back to Darakaraka
+    // (the chara-karaka spouse significator) and tell the writer gender was withheld
+    // so it speaks of "your partner" rather than husband/wife.
+    const g = String(gender||"unspecified").toLowerCase();
+    const genderKnown = (g==="male"||g==="female");
+    const darakaraka=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Darakaraka")||{}).planet:null;
+    const sigPlanet = g==="female" ? "Jupiter" : g==="male" ? "Venus" : darakaraka;
+    const spouseWord = g==="female" ? "husband" : g==="male" ? "wife" : "partner";
+    const sigRole = g==="female" ? "Jupiter — the classical significator of the husband for a woman"
+                  : g==="male"   ? "Venus — the classical significator of the wife for a man"
+                  : (darakaraka ? (darakaraka+" — your Darakaraka, the chart's own spouse significator") : null);
+    const SIGN_TEMPERAMENT = {
+      Aries:"direct, energetic, independent and quick to act",
+      Taurus:"steady, patient, comfort-loving and security-minded",
+      Gemini:"talkative, curious, versatile and mentally quick",
+      Cancer:"caring, emotional, home-loving and protective",
+      Leo:"warm, proud, generous and wanting to be respected",
+      Virgo:"practical, discerning, helpful and detail-minded",
+      Libra:"gracious, fair-minded, partnership-focused and refined",
+      Scorpio:"intense, private, loyal and emotionally deep",
+      Sagittarius:"optimistic, freedom-loving, principled and candid",
+      Capricorn:"serious, responsible, ambitious and self-disciplined",
+      Aquarius:"independent, unconventional, friendly and idealistic",
+      Pisces:"gentle, imaginative, compassionate and adaptable",
+    };
+    const HOUSE_ARENA = {
+      1:"someone who strongly shapes your sense of self — the partnership sits front-and-centre in your life",
+      2:"someone connected to family, finances, or a settled home life",
+      3:"someone met through your own circle, communication, or close to where you live",
+      4:"someone tied to home, roots, property or family — a domestic, nurturing bond",
+      5:"someone met through romance, creativity or a love-first path",
+      6:"a partnership that carries duty, service or friction to work through — it rewards patience",
+      7:"the marriage house itself — partnership is a central, defining life theme",
+      8:"a bond of depth, intimacy and transformation; shared matters loom large, and some turbulence is possible",
+      9:"someone from a different background, place, faith or culture — a values-and-growth match",
+      10:"someone linked to career, status or public life — marriage tied to your standing and work",
+      11:"someone met through friends, networks or community — a goals-and-gains partnership",
+      12:"someone from far away or a private setting — an inward, giving bond that asks for conscious boundaries",
+    };
+    let partnerProfile=null;
+    if(sigPlanet && d1P[sigPlanet]){
+      const sp=d1P[sigPlanet];
+      let d9House=null; if(d9Houses){ for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(sigPlanet)){ d9House=h; break; } } }
+      const dig=sp.dignity;
+      const strength = (dig==="Exalted"||dig==="Own sign") ? "strongly placed — a well-defined, supportive partner indication"
+                     : dig==="Debilitated" ? "weakly placed — the partner theme asks for conscious effort; qualities can feel muted, delayed, or tested before they settle"
+                     : dig==="Combust" ? "close to the Sun (combust) — the partner theme can be overshadowed early and needs room to come into its own"
+                     : "moderately placed";
+      const retro = !!(retroMap && retroMap[sigPlanet]);
+      // BLEND: the partner picture must not rest on the significator alone. Weave in the
+      // Darakaraka (the chart's own spouse karaka) and the planets actually sitting IN the
+      // marriage house — for native A, three planets in Leo give a proud, expressive,
+      // strong-willed spouse that a Jupiter-only read misses entirely.
+      const traits=[];
+      traits.push({ source:"significator", planet:sigPlanet, sign:sp.sign, trait:SIGN_TEMPERAMENT[sp.sign]||null });
+      if(darakaraka && darakaraka!==sigPlanet && d1P[darakaraka]){
+        traits.push({ source:"darakaraka", planet:darakaraka, sign:d1P[darakaraka].sign, trait:SIGN_TEMPERAMENT[d1P[darakaraka].sign]||null });
+      }
+      // marriage-house occupants (the "marriage zone" flavour); dedupe by sign
+      const occSeen=new Set();
+      (occupants||[]).forEach(o=>{ const pp2=d1P[o.planet]; if(pp2 && pp2.sign && !occSeen.has(pp2.sign)){ occSeen.add(pp2.sign); traits.push({ source:"marriage-zone", planet:o.planet, sign:pp2.sign, trait:SIGN_TEMPERAMENT[pp2.sign]||null }); } });
+      // dominant marriage-zone sign (a stellium there is a strong colouring)
+      const zoneSigns=(occupants||[]).map(o=>d1P[o.planet]&&d1P[o.planet].sign).filter(Boolean);
+      const zoneCount={}; zoneSigns.forEach(s=>zoneCount[s]=(zoneCount[s]||0)+1);
+      const marriageZoneSign = Object.keys(zoneCount).sort((a,b)=>zoneCount[b]-zoneCount[a])[0]||null;
+      const marriageZoneStellium = marriageZoneSign && zoneCount[marriageZoneSign]>=2;
+      partnerProfile={
+        genderKnown, nativeGender:g, spouseWord,
+        significator:sigPlanet, significatorRole:sigRole,
+        sign:sp.sign, house:sp.house, dignity:dig, retro, d9House,
+        temperament: SIGN_TEMPERAMENT[sp.sign] || null,
+        traits,                                                // blended: significator + DK + marriage-zone
+        marriageZoneSign, marriageZoneStellium,
+        arena: HOUSE_ARENA[sp.house] || null,
+        strength,
+        retroNote: retro ? "The significator is retrograde — the partner may come into life in a non-linear way: re-met, from the past, or after a meaningful delay." : null,
+        d9Note: (d9House && [6,8,12].includes(d9House)) ? "In the D9 (the marriage chart proper), the significator sits in a testing house — a sign the bond deepens through patience and conscious work rather than arriving effortlessly." : null,
+        seventhLord: hLord, seventhLordDignity: lordPlacement?lordPlacement.dignity:null, seventhLordHouse: lordPlacement?lordPlacement.house:null,
+        darakaraka, darakarakaSign: (darakaraka&&d1P[darakaraka])?d1P[darakaraka].sign:null,
+      };
+    }
+    flags.partnerProfile=partnerProfile;
+
+    // ── Second-chapter facts (the "second significant union" possibility, grounded) ──
+    // When the chart carries remarriage/affliction signals, give the writer a CHART-BASED
+    // basis for the possibility (so it isn't an abstract cliffhanger) plus its D9 colour —
+    // framed gently as a layered relational life, never a prediction.
+    let secondChapter=null;
+    if(flags.remarriageIndicated || afflicted){
+      const basis=[];
+      if(ketuIn7) basis.push("Ketu in the marriage house (a detaching, karmic signature there)");
+      if(maleficIn7 && lordWeak) basis.push("the marriage house under pressure with its ruler placed in a testing house");
+      if(rahuIn7 && lordWeak) basis.push("Rahu in the marriage house with a weakened house-ruler");
+      if(d9LordCaution) basis.push("the D9 (marriage chart) adding its own caution");
+      // D9 colour from the spouse significator's navamsa position
+      let d9Colour=null;
+      if(partnerProfile && partnerProfile.d9House){
+        d9Colour = "In the D9, the spouse significator sits in the "+ordinalD(partnerProfile.d9House)+" — "+( [1,5,9].includes(partnerProfile.d9House) ? "a more supportive placement, suggesting a second bond, if it comes, can be steadier" : [6,8,12].includes(partnerProfile.d9House) ? "a testing placement, suggesting any second bond also asks for conscious work" : "a neutral placement" );
+      }
+      secondChapter={ indicated:true, basis, d9Colour,
+        framing:"a layered relational life — the structural possibility of a second significant union, offered gently as a possibility the chart honestly shows, never a prediction or a certainty, and entirely dependent on the reader's own circumstances and choices" };
+    }
+    flags.secondChapter=secondChapter;
+
+    // ── Marital-status inference (soft, age + chart) ─────────────────────────────
+    // Owner rule: infer a LIKELY status from age and chart so the report speaks to the
+    // reader's probable situation — with soft thresholds and gentle, non-presuming
+    // wording. Branches: likely-not-yet-married → focus on the spouse-to-come & timing;
+    // transitional → dual framing; likely-married → focus on navigating the marriage.
+    const AGE = flags.currentAge;
+    const spouseNeutral = "spouse";   // general/hedging prose uses the neutral word; the gendered spouseWord is reserved for the partner-character section
+    // An EXPLICIT marital status (declared at intake, optional) OVERRIDES the age inference
+    // and lets the report drop its hedging and speak directly to the reader's real situation.
+    const declared = String(maritalStatus||"").toLowerCase();
+    const declaredKnown = ["unmarried","married","separated_divorced"].includes(declared);
+    let maritalInference=null;
+    if(declaredKnown){
+      let status, focus, statusNote=null;
+      if(declared==="unmarried"){
+        status="unmarried";
+        focus=`the character, background and arrival of the ${spouseNeutral} to come — how to recognise the right partnership and prepare for it, plus the periods that most favour marriage`;
+      } else if(declared==="married"){
+        status="married";
+        focus=`navigating and strengthening your existing marriage — understanding your ${spouseNeutral}'s nature and the periods that test or support the bond`;
+        if(afflicted||flags.remarriageIndicated) statusNote=`The chart shows periods of real testing in the marriage; the reading names them honestly so you can meet them with care — never as a verdict on the bond.`;
+      } else {
+        status="separated_divorced";
+        focus=`making sense of what the marriage chapter held and what a renewed or second bond can look like — spoken to your situation directly, with dignity and hope`;
+        statusNote=`You have told us this chapter has been difficult or has closed; the reading speaks to that directly and to what can come next, without re-opening old ground needlessly.`;
+      }
+      maritalInference={ age:AGE, nativeGender:g, spouseWord, spouseNeutral, status, focus, statusNote, soft:false, declared:true };
+    } else if(AGE!=null){
+      let status, focus, statusNote=null;
+      if(AGE < 28){
+        status="likely-not-yet-married";
+        focus=`the character, background and arrival of the ${spouseNeutral} to come — how to recognise the right partnership and prepare for it, plus the periods that most favour marriage`;
+      } else if(AGE<=32){
+        status="transitional";
+        focus=`read both ways — if marriage has not yet happened, the kind of ${spouseNeutral} and the timing ahead; if it is recent, how to settle and strengthen the early years`;
+      } else {
+        status="likely-married";
+        focus=`navigating and strengthening an existing marriage — understanding the ${spouseNeutral}'s nature and the periods that test or support the bond`;
+        if(afflicted||flags.remarriageIndicated) statusNote=`If the marriage has met real strain, distance, or a chapter has closed, the reading speaks to that possibility with care — without assuming it has happened.`;
+      }
+      maritalInference={ age:AGE, nativeGender:g, spouseWord, spouseNeutral, status, focus, statusNote, soft:true, declared:false };
+    }
+    flags.maritalInference=maritalInference;
   }
   if(domainKey==="children"){
     const fifthAfflicted=(lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house)))
@@ -2792,14 +3275,30 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   let dashaTiming=null;
   if(dashas && Array.isArray(dashas) && dashas.length){
     let keyPlanets = new Set([hLord, karakaPlanet, ...occupants.map(o=>o.planet)].filter(Boolean));
-    // For health, the "when to be vigilant" windows are driven by the STRESSED
-    // significators (Ascendant lord, malefics on Asc, afflicted Mars/Moon/Mercury,
-    // 6th/8th lords), so add them so keyWindows highlight the right MD/AD.
+    // DOMAIN TIMING SUPPORT — real-life events rarely fire on the primary house-lord and
+    // karaka alone. Classical timing runs on a domain's SUPPORTING houses and natural
+    // karakas too (marriage on the 2–5–11 axis + Venus/Jupiter; career on 6/11 + Sun/
+    // Saturn/Mercury/Jupiter; children on the 5–9 santana axis + Jupiter; and so on). The
+    // SCORING engine already uses these multi-house sets — this mirrors them into TIMING so
+    // keyWindows, the likely-event window, and the dasha reads detect genuine events (e.g. a
+    // Saturn-2nd-lord MD / Mars-5th-lord AD marriage that the 7th-lord alone would miss).
+    const DOMAIN_TIMING_SUPPORT = {
+      self:     { houses: [],        karakas: ["Sun","Moon"] },
+      career:   { houses: [6, 11],   karakas: ["Sun","Saturn","Mercury","Jupiter"] },
+      siblings: { houses: [11],      karakas: ["Mars"] },
+      mother:   { houses: [2],       karakas: ["Moon","Venus"] },
+      children: { houses: [9, 2],    karakas: ["Jupiter"] },
+      health:   { houses: [1, 8, 12],karakas: ["Sun","Moon","Saturn","Mars"] },
+      marriage: { houses: [2, 5, 11],karakas: ["Venus","Jupiter"] },
+    };
+    const sup = DOMAIN_TIMING_SUPPORT[domainKey] || { houses: [], karakas: [] };
+    const supLords = sup.houses.map(h=>houseLord(d1LagnaSign,h)).filter(Boolean);
+    const supOcc   = sup.houses.flatMap(h=>occupantsOfHouse(d1P,h));
+    // domainActivators = the full set of planets whose dasha can bring an event in this area.
+    const domainActivators = new Set([hLord, karakaPlanet, ...occupants.map(o=>o.planet), ...supLords, ...supOcc, ...sup.karakas].filter(Boolean));
+    for(const p of domainActivators) keyPlanets.add(p);
+    // Health keeps its extra signal: afflicted Mars/Moon/Mercury are vigilance triggers.
     if(domainKey==="health"){
-      const add=[houseLord(d1LagnaSign,1), houseLord(d1LagnaSign,6), houseLord(d1LagnaSign,8),
-                 ...occupantsOfHouse(d1P,1), ...occupantsOfHouse(d1P,6), ...occupantsOfHouse(d1P,8)];
-      for(const p of add) if(p) keyPlanets.add(p);
-      // afflicted Mars/Moon/Mercury
       for(const p of ["Mars","Moon","Mercury"]) if(d1P[p] && (d1P[p].dignity==="Debilitated"||[6,8,12].includes(d1P[p].house))) keyPlanets.add(p);
     }
     // stressors for this domain = malefics + the lords of dusthana houses relative to lagna
@@ -2820,7 +3319,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       if(domainHouseMalefics.has(planet)) return true;
       return false;
     }
-    const rows=[]; const adWindows=[]; const pastWindows=[];
+    const rows=[]; const adWindows=[]; const pastWindows=[]; const forwardADs=[];
     let current=null, currentAD=null;
     for(const md of dashas){
       const st=md.startDate?new Date(md.startDate).getTime():null;
@@ -2836,7 +3335,21 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
           const ast=ad.startDate?new Date(ad.startDate).getTime():null;
           const aen=ad.endDate?new Date(ad.endDate).getTime():null;
           const ayrs=(ast!=null&&aen!=null)?(yr(ad.startDate)+"–"+yr(ad.endDate)):"";
-          if(isCurrentMD && ast!=null&&aen!=null&&now>=ast&&now<aen) currentAD={md:md.lord,ad:ad.lord,years:ayrs};
+          if(isCurrentMD && ast!=null&&aen!=null&&now>=ast&&now<aen){
+            // include the exact end month so the report can say "wrapping up around <Mon YYYY>"
+            // and the reader never wonders whether the boundary year is Now or Ahead.
+            let until=""; try{ until = new Date(ad.endDate).toLocaleString("en-US",{month:"long",year:"numeric"}); }catch(_){}
+            currentAD={md:md.lord,ad:ad.lord,years:ayrs,until};
+          }
+          // FORWARD-AD POOL (for the Future Compass): every AD that is current or still
+          // ahead — regardless of whether its lord is a domain karaka. This is the fix for
+          // older natives whose domain-karaka periods are all in the past: the compass can
+          // now break out the live Mahadasha's sub-periods (e.g. Rahu–Jupiter, Rahu–Saturn)
+          // with real dates instead of collapsing 18 years into one vague block.
+          if(aen!=null && aen>=now){
+            forwardADs.push({ md:md.lord, ad:ad.lord, years:ayrs,
+              upcoming:(ast!=null && ast>=now), current:(ast!=null&&aen!=null&&now>=ast&&now<aen) });
+          }
           // an AD is domain-significant if its lord activates this domain — the
           // AD lord is a domain key planet OR a domain stressor. (Previously this
           // also required the MD to be domain-relevant, which MISSED a critical AD
@@ -2867,13 +3380,106 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     if(realTermAge!=null && birthDate){ try{ realTermYear = new Date(birthDate).getFullYear() + realTermAge; }catch(_){}}
     const yearOfEnd = (yrs)=>{ if(!yrs) return null; const m=String(yrs).match(/(\d{4})\s*$/); return m?parseInt(m[1],10):null; };
     const ageGate = (w)=>{ if(realTermYear==null) return true; const ey=yearOfEnd(w.years); return ey==null || ey>=realTermYear; };
-    const kw = adWindows.filter(ageGate).slice(0,8);
+    // 20-YEAR FORWARD CAP (owner rule): read nothing beyond report year + 20 — saves
+    // length/tokens and removes the far-future "nothing until old age" frustration.
+    const capYear20 = new Date().getFullYear() + 20;
+    const startYearOf = (yrs)=>{ const m=String(yrs||"").match(/(\d{4})/); return m?parseInt(m[1],10):null; };
+    const within20 = (w)=>{ const sy=startYearOf(w.years); return sy==null || sy<=capYear20; };
+    const kw = adWindows.filter(ageGate).filter(within20).slice(0,8);
     const pw = pastWindows.filter(ageGate).slice(0,4);
-    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, realTermAge, realTermYear };
+    const fw = forwardADs.filter(ageGate).filter(within20).slice(0,16);
+    // LIKELY MARRIAGE/COMMITMENT WINDOW (Looking-back fix): surface the strongest PAST
+    // *supportive* domain activation — the karaka / house-lord / benefic-occupant period
+    // nearest to real-term age — so Looking Back can name WHEN the area was most likely to
+    // have come to fruition (e.g. married), not only when it was tested. adWindows already
+    // holds domain-relevant sub-periods; we pick the most recent past one led by a karaka
+    // or house-lord (a fruition signature), preferring benefic lords.
+    let likelyFruitionWindow=null; let likelyFruitionWindows=[];
+    // Fruition windows only make sense for domains whose life-area produces discrete,
+    // dateable EVENTS (meeting/marriage, a career step, a child, a sibling milestone, a
+    // home/property move). For HEALTH and SELF there is no "when it came to fruition"
+    // event — those are ongoing/constitutional — so we skip the two-window Looking-Back
+    // there and let that section rest on pastWindows + the forward compass instead.
+    const FRUITION_DOMAINS = new Set(["marriage","career","children","siblings","mother"]);
+    if(FRUITION_DOMAINS.has(domainKey)) try{
+      const benef = new Set(["Jupiter","Venus","Mercury","Moon"]);
+      const nowYear = new Date().getFullYear();
+      const birthYr = birthDate ? new Date(birthDate).getFullYear() : null;
+      const pastDomain = adWindows.filter(w=>{ const ey=yearOfEnd(w.years); return ey!=null && ey< nowYear; })
+        .filter(ageGate)
+        // any of the widened domain activators counts (primary + supporting-house lords,
+        // occupants, karaka, natural karakas) so real timing like a 2nd/5th-lord marriage
+        // period, or a 6th/11th-lord career period, is caught — not only the primary lord.
+        .filter(w=> domainActivators.has(w.ad))
+        // A FRUITION window must not be one the engine ALREADY flagged as a TESTING window
+        // (those live in pastWindows). This precisely drops the mislabel — e.g. a late
+        // Mars/5th-lord window (2023–24) that is actually a testing period being read as "when
+        // the marriage formalised" for a native who married in 2006–07 — WITHOUT over-excluding
+        // a benefic like Venus that merely happens to rule a dusthana among its two signs.
+        .filter(w=> !pastWindows.some(pw=>pw.years===w.years && pw.ad===w.ad));
+      // earliest ADULT such window is the likeliest FIRST fruition (met / career launch /
+      // first child); a later distinct one is the culminating step (marriage / major advance /
+      // further development). Looking Back names both so the reader connects chart to history.
+      pastDomain.sort((a,b)=> (startYearOf(a.years)||0) - (startYearOf(b.years)||0));
+      const noteOf=(w)=> w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a supporting activation of this area");
+      const roleFirst = domainKey==="marriage" ? "the most likely window for meeting and a defining commitment"
+        : domainKey==="career" ? "the most likely window for a first major step or launch in your working life"
+        : domainKey==="children" ? "the most likely window for a first child or a major creative beginning"
+        : domainKey==="siblings" ? "the most likely window for a defining development with siblings or in your own initiative and courage"
+        : domainKey==="mother" ? "the most likely window for a significant home, property, or family turning point"
+        : "the window when this area most likely first came to fruition";
+      const roleSecond = domainKey==="marriage" ? "the most likely window for that commitment to have formalised into marriage or deepened decisively"
+        : domainKey==="career" ? "the most likely window for a major advance, change, or consolidation in your career"
+        : domainKey==="children" ? "the most likely window for a further child or a decisive development"
+        : domainKey==="siblings" ? "the most likely window for a further significant development in this area"
+        : domainKey==="mother" ? "the most likely window for another major home or family development"
+        : "the most recent window of significant development in this area";
+      // Two windows that read as the arc of a real life: the EARLIEST adult activator window
+      // (meeting / defining commitment) and the LATEST significant past one (the culminating
+      // step — marriage usually formalises later, not immediately after meeting). This is why
+      // a case like meeting-in-college (1998–2001) then marriage-in-2009 is now captured:
+      // the second window is the most RECENT past activator, not merely the next one.
+      const picked=[];
+      if(pastDomain.length){
+        const first=pastDomain[0]; picked.push(first);
+        const fy=startYearOf(first.years)||0;
+        // The culminating window should land in a plausible EVENT-AGE band, not decades
+        // later: marriage/first-major-step usually follows the meeting within the native's
+        // 20s–30s, so prefer the EARLIEST qualifying window in that band rather than the most
+        // recent activator (which overshot to a far-later period before this fix).
+        const band = domainKey==="marriage" ? [22,40] : domainKey==="children" ? [24,44] : domainKey==="career" ? [20,42] : null;
+        const inBand = (w)=>{ if(!band||birthYr==null) return true; const a=(startYearOf(w.years)||0)-birthYr; return a>=band[0] && a<=band[1]; };
+        const after = (w)=> (startYearOf(w.years)||0)-fy>=2;
+        const second = pastDomain.find((w,i)=> i>0 && after(w) && inBand(w))
+                    || pastDomain.find((w,i)=> i>0 && after(w));
+        if(second) picked.push(second);
+      }
+      likelyFruitionWindows = picked.map((w,i)=>({ years:w.years, lord:w.ad, md:w.md, note:noteOf(w),
+        role: i===0 ? roleFirst : roleSecond }));
+      likelyFruitionWindow = likelyFruitionWindows[0] || null;   // kept for back-compat
+    }catch(_){}
+    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, forwardADs:fw, likelyFruitionWindow, likelyFruitionWindows, realTermAge, realTermYear };
     // now that timing exists, enrich the watch-out-for with the nearest key window
-    if(flags.watchOutFor && dashaTiming.keyWindows && dashaTiming.keyWindows[0]){
-      const w=dashaTiming.keyWindows[0];
-      flags.watchOutFor += ` This is most worth attention around the ${w.years} window (the ${w.ad} sub-period within ${w.md}).`;
+    if(flags.watchOutFor && dashaTiming.keyWindows){
+      // AUDIT FIX (same bug class as the remedy past-window): keyWindows are chronological,
+      // so [0] is usually a PAST window — a future caution must point at the nearest
+      // UPCOMING window, or carry no date at all rather than a date already behind the reader.
+      const w=dashaTiming.keyWindows.find(x=>x.upcoming);
+      if(w) flags.watchOutFor += ` This is most worth attention around the ${w.years} window (the ${w.ad} sub-period within ${w.md}).`;
+    }
+    // RAHU-PERIOD CAUTION (classical Rahu nature): Rahu is the great amplifier and the
+    // karaka of maya (illusion) — in its Mahadasha/Antardasha, whatever is NEW (contacts,
+    // attractions, networks, habits, ventures) is magnified and can create a compelling but
+    // unstable 'smoke' that tilts judgment toward illusion. A grounded caution helps.
+    const _curL  = dashaTiming.current  && dashaTiming.current.lord;
+    const _curAD = dashaTiming.currentAD && dashaTiming.currentAD.ad;
+    if(_curL==="Rahu" || _curAD==="Rahu"){
+      // Rahu's dasha takes its shape from WHERE Rahu sits and what it disposits/aspects, so
+      // its distortion shows up differently for each chart — NOT always "new contacts". Lead
+      // with the general amplify-and-distort principle; offer the forms only as examples.
+      flags.rahuPhaseCaution = (domainKey==="marriage")
+        ? "You are in a Rahu period, which magnifies and can distort whatever this area of life is most drawn to — and its pull takes a different shape for each chart. It might surface as over-indulging something you already crave, fixating on one thing, a restless dissatisfaction, idealising more than is real, or being drawn by a new attraction or outside influence. The common thread is that something can feel unusually compelling right now yet prove illusory or destabilising. A stretch to stay grounded, avoid irreversible decisions driven by the intensity, and not mistake the pull for the truth."
+        : "You are in a Rahu period, which magnifies and can distort whatever this area is most drawn to — its shape differs by chart: over-indulgence, fixation, restlessness, chasing novelty, or being pulled by a new venture, contact or influence. The common thread is that something feels unusually compelling now yet may prove illusory or unstable. Stay grounded, verify before committing, and avoid irreversible decisions taken from a place of restlessness or hype.";
     }
   }
 
@@ -2881,14 +3487,101 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   let careerCompass=null;
   if(domainKey==="career"){
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
+    try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign); }catch(_){}
+    try{ if(careerCompass){ const _ama=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Amatyakaraka")||{}).planet:null; careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama); } }catch(_){}
   }
+
+  // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
+  let futureCompass=null;
+  try{ futureCompass = buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1P, occupants); }catch(_){ futureCompass=null; }
+
+  // ── Health: pair each live/upcoming period's planet with the BODY AREAS it governs ──
+  // (Kalapurusha body map). So the report can say "the 2027–2030 Saturn stretch asks extra
+  // attention on bones, joints, teeth and chronic conditions" — the body-part × dasha link
+  // the owner asked to double-check, made explicit per window rather than left general.
+  if(domainKey==="health" && dashaTiming){
+    try{
+      const bodyOf=(p)=> (PLANET_REMEDIES[p] && PLANET_REMEDIES[p].bodyAreas) || null;
+      const hw=[];
+      const cad=dashaTiming.currentAD;
+      if(cad && cad.ad){ const b=bodyOf(cad.ad); if(b) hw.push({ years:cad.years||(dashaTiming.current&&dashaTiming.current.years)||"", planet:cad.ad, bodyAreas:b, when:"now" }); }
+      (futureCompass && futureCompass.bands || []).forEach(band=>{ (band.drivers||[]).forEach(p=>{ const b=bodyOf(p); if(b && !hw.some(w=>w.planet===p && w.years===band.years)) hw.push({ years:band.years, planet:p, bodyAreas:b, when:"ahead" }); }); });
+      if(hw.length) flags.healthWindows = hw.slice(0,5);
+    }catch(_){}
+  }
+
+  // ── Remedy facts — two layers of "alignment practices" ───────────────────────────
+  // (1) ONGOING domain-weakness: the chronically weak domain significator / house-lord
+  //     (debilitated or in 6/8/12). This is a permanent chart feature, so its practice is
+  //     an ONGOING habit for the area — NOT tied to a past dasha window (the old bug
+  //     prescribed the 7th-lord's long-gone 2004–2007 window as if it were current).
+  // (2) ACTIVE-PHASE: the CURRENTLY running Mahadasha lord — the present planetary
+  //     weather — gets its own alignment practice regardless of whether it is a domain
+  //     karaka, so a long MD like Rahu 2024–2042 is actually addressed. Dignity-aware:
+  //     the 'ease off' line leads when the planet is weak.
+  let remedyFacts=null;
+  try {
+    const kw2 = (dashaTiming && dashaTiming.keyWindows) || [];
+    const curLord = (dashaTiming && dashaTiming.current) ? dashaTiming.current.lord : null;
+    const curAD = (dashaTiming && dashaTiming.currentAD) ? dashaTiming.currentAD : null;
+    const curYears = (dashaTiming && dashaTiming.current) ? dashaTiming.current.years : "";
+    const mkPick = (p, kind)=>{
+      const pp=d1P[p]; if(!pp || !PLANET_REMEDIES[p]) return null;
+      const kb=PLANET_REMEDIES[p];
+      const inDusthana=[6,8,12].includes(pp.house);
+      const deb = pp.dignity==="Debilitated";
+      const weak = deb || inDusthana;
+      // Use ONLY this domain's temple — never fall back to the marriage temple, which would
+      // surface a marriage temple inside a children/siblings/mother report. Empty is fine
+      // (the navagraha + general temples still carry the section).
+      const domTemple = (kb.temples && kb.temples[domainKey]) || "";
+      // upcoming window for this planet (never a past one)
+      const upWin = kw2.find(w=>(w.ad===p||w.md===p) && w.upcoming);
+      return {
+        planet:p, kind,                                        // "ongoing" | "active-phase"
+        activePhase: kind==="active-phase",
+        reason: deb ? (p+" is weak (debilitated) in your chart")
+              : inDusthana ? (p+" sits in your "+ordinalD(pp.house)+" house, a house of testing")
+              : (p+" is the planet currently running in your life"),
+        role: p===karakaPlanet ? ("the "+cfg.karaka+", your "+cfg.focus+" significator")
+              : p===hLord ? ("the ruler of your "+ordinalD(cfg.house)+" house of "+cfg.focus)
+              : occupants.some(o=>o.planet===p) ? ("placed in your "+ordinalD(cfg.house)+" house of "+cfg.focus)
+              : (kind==="active-phase" ? "the planet governing your current life-phase" : "active in this area"),
+        // active-phase → the live MD window; ongoing weakness → nearest upcoming window if
+        // any, otherwise framed as an ongoing habit (no misleading past date).
+        window: kind==="active-phase" ? curYears : (upWin ? upWin.years : ""),
+        whenActive: kind==="active-phase"
+          ? ("now — you are in the "+p+" main phase"+(curYears?(" ("+curYears+")"):"")+(curAD?(", "+curAD.ad+" sub-phase "+curAD.years):""))
+          : (upWin ? ("most concentrated around the "+upWin.years+" window") : "an ongoing habit for this area, worth holding steadily rather than tied to one date"),
+        ongoing: kind==="ongoing",
+        behavioral: kb.behavioral,
+        avoid: weak ? (kb.whenWeak||"") : "",                   // dignity-aware: lead with 'ease off' only when weak
+        daan: kb.daan, anchor: kb.anchor,
+        navagrahaTemple: kb.navagrahaTemple,
+        secondTemple: domTemple,
+        bodyAreas: kb.bodyAreas,
+      };
+    };
+    // (1) pick the single weakest domain focus planet (prefer debilitated, then dusthana)
+    const focusSet = [...new Set([karakaPlanet, hLord, ...occupants.map(o=>o.planet)].filter(Boolean))];
+    const weakFocus = focusSet.map(p=>({p,pp:d1P[p]})).filter(x=>x.pp && PLANET_REMEDIES[x.p] &&
+        (x.pp.dignity==="Debilitated" || [6,8,12].includes(x.pp.house)))
+      .sort((a,b)=> (a.pp.dignity==="Debilitated"?0:1)-(b.pp.dignity==="Debilitated"?0:1));
+    const ongoingPick = weakFocus.length ? mkPick(weakFocus[0].p, "ongoing") : null;
+    // (2) active-phase pick = current Mahadasha lord (skip if it IS the ongoing pick)
+    const activePick = (curLord && curLord!==(ongoingPick&&ongoingPick.planet)) ? mkPick(curLord, "active-phase") : null;
+    const picks = [activePick, ongoingPick].filter(Boolean);
+    // Domain-level temple (e.g. the marriage temple) — surfaced whenever a remedy is raised.
+    const domainTemple = (DOMAIN_TEMPLES && DOMAIN_TEMPLES[domainKey]) || null;
+    if(picks.length) remedyFacts={ focus:picks.slice(0,2), general:GENERAL_TEMPLES, domainTemple };  // 1–2 remedies
+  } catch(_){}
 
   return {
     domainKey, title:cfg.title, focus:cfg.focus, house:cfg.house, houseName:ordinalD(cfg.house),
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
     d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
-    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass
+    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, futureCompass, remedyFacts
   };
 }
 
@@ -2930,6 +3623,8 @@ export async function onRequestPost(context) {
     let statements = null;
     const dashas    = body?.dashas    || null;
     const birthDate = body?.birthDate || null;
+    const gender    = String(body?.gender || "unspecified").toLowerCase();
+    const maritalStatus = String(body?.maritalStatus || "").toLowerCase();
     if (dashas && birthDate) {
       statements = buildAllStatements(d1, d9, domains, dashas, birthDate, yogasD1, yogasD9);
     }
@@ -2970,7 +3665,7 @@ export async function onRequestPost(context) {
         if (li >= 0) ascLon = li * 30 + 15; // last-resort fallback
       }
       for (const key of Object.keys(DOMAIN_REPORT_CONFIG)) {
-        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null));
+        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null), gender, maritalStatus);
       }
     }
 

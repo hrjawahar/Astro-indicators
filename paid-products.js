@@ -163,7 +163,7 @@
     "Each section ends with a short theme — a few words to carry with you from that part of the reading.",
     "Where two or three charts independently agree, the signal is most reliable — those points are worth trusting most.",
     "Take your time. This isn't a one-read document; the insights land more deeply when you return to it over days, alongside your own life experience.",
-    "Prefer your own language? Use the '🌐 Read in' menu below the report to translate the whole thing into your language in context — the on-screen report and the Word download both come out translated, with nothing to copy-paste.",
+    "Prefer your own language? Use the 'Read in' menu below the report to translate the whole thing into your language in context — the on-screen report and the Word download both come out translated, with nothing to copy-paste.",
     "This report is a mirror for reflection, not a verdict. Read it gently."
   ];
   // Flipbook 'How to read' page (tightened; the fixed-height page can't hold the full note).
@@ -171,7 +171,7 @@
     "This is a detailed Vedic reading. It names a few traditional terms (planets, houses, D1/D9/D10), but you never need to understand them — the meaning is always written in plain words.",
     "Read it straight through: the plain text carries the insight, and the small gold 'Why this reading' boxes hold the chart detail underneath — skip them unless you're curious. Each section ends with a short theme to carry with you.",
     "Where two or three charts independently agree, the signal is most reliable. Take your time — it deepens as you return to it.",
-    "Prefer your own language? Use the '🌐 Read in' menu below the report to translate the whole report into your language instantly.",
+    "Prefer your own language? Use the 'Read in' menu below the report to translate the whole report into your language instantly.",
     "A mirror for reflection, not a verdict. Read it gently."
   ];
 
@@ -189,7 +189,7 @@
 
   function downloadDropdownHTML(hasPicker){
     const wordSub = hasPicker ? "" : ` <span class="dl-sub">(for translation)</span>`;
-    const pickerTip = `💡 To read this in another language, pick your language from the <b>🌐 Read in</b> menu above — it translates the whole report in context. <b>Word</b> downloads in the language you've chosen; the <b>PDF</b> stays in English.`;
+    const pickerTip = `💡 To read this in another language, pick your language from the <b>Read in</b> menu above — it translates the whole report in context. <b>Word</b> downloads in the language you've chosen; the <b>PDF</b> stays in English.`;
     return `<div style="text-align:center" class="dl-col">
       <div id="dlWrap" class="dl-wrap"><button id="dlBtn" class="pp-pay">Download <span style="font-size:.8em">\u25be</span></button><div id="dlMenu" class="dl-menu"><button id="dlPdf" class="dl-item">PDF</button><button id="dlWord" class="dl-item">Word${wordSub}</button></div></div>
       <div class="dl-tip">${hasPicker ? pickerTip : window.AI_DOCX ? AI_DOCX.translateTipHTML() :"💡 To read this in your language, use the <b>Word</b> file (not the PDF — it translates far more cleanly): upload it to <b>translate.google.com → Documents</b>."}</div>
@@ -461,7 +461,7 @@
     let bodyHtml = "", techBuf = [], ulBuf = [];
     const flushWhy = () => {
       if (!techBuf.length) return;
-      bodyHtml += `<div style="margin:10px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0">`
+      bodyHtml += `<div style="margin:10px 0 4px;padding:9px 13px;border-left:3px solid var(--ai-gold,#c9a84c);background:rgba(201,168,76,.07);border-radius:0 8px 8px 0;break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid">`
         + `<div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ai-gold,#b0821f);margin-bottom:4px">Why this reading</div>`
         + techBuf.map(t => `<div style="font-size:12.5px;opacity:.85;line-height:1.5;margin:3px 0">${t}</div>`).join("")
         + `</div>`;
@@ -683,48 +683,80 @@
   // Render ONE report section (gold heading + marked-up body) into a jsPDF doc,
   // honouring the "» / ### / - / ★ / **bold**" markers. Returns the new y cursor.
   // Shared by the transit, domain and all-domains PDFs so they render identically.
+  // Brand emblem (compass mark) embedded for the PDF covers — self-contained, no async load.
+  const AI_PDF_LOGO = "data:image/png;base64,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";
   function renderPdfSection(doc, s, W, H, M, y) {
+    const CW = W - M * 2;
+    const GOLD=[201,164,76], INK=[40,40,48], BROWN=[176,130,38], THEMEINK=[60,48,20],
+          WHYFILL=[251,247,233], WHYLINE=[226,207,143], WHYLBL=[150,120,40], WHYTXT=[104,96,84],
+          TBLLINE=[224,210,176];
     const kbreak = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
-    kbreak(34);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
-    const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
-    const lines = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1").split("\n");
-    let inWhy = false;
-    lines.forEach(para => {
-      const t = para.trim();
-      if (!t) { if (!inWhy) y += 5; return; }
-      const tech = t.indexOf("» ") === 0;
-      const sub = t.indexOf("### ") === 0;
-      const bull = t.indexOf("- ") === 0;
-      const theme = t.indexOf("★ ") === 0;
-      if (theme) {
-        inWhy = false;
-        kbreak(26);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
-        doc.text("THEME TO HOLD", M, y); y += 12;
-        doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(60, 48, 20);
-        const Lt = doc.splitTextToSize(t.slice(2), W - M * 2); doc.text(Lt, M, y); y += Lt.length * 15 + 8;
-        return;
+    const tokenize=(pg)=>{ const runs=[]; pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).forEach(x=>{
+        if(/^\*\*[^*]+\*\*$/.test(x)) runs.push({t:x.slice(2,-2),b:true}); else runs.push({t:x,b:false}); });
+      const words=[]; runs.forEach(r=>r.t.split(/\s+/).forEach(w=>{ if(w) words.push({w,b:r.b}); })); return words; };
+    const richText=(pg,x,size,color,maxW,lh)=>{ const words=tokenize(pg);
+      const measure=(w,b)=>{ doc.setFont("helvetica",b?"bold":"normal"); return doc.getTextWidth(w); };
+      doc.setFontSize(size); doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
+      const drawLine=(arr)=>{ kbreak(lh); let px=x; arr.forEach((tok,i)=>{ doc.setFont("helvetica",tok.b?"bold":"normal");
+        doc.setTextColor(...color); doc.text(tok.w,px,y); px+=measure(tok.w,tok.b)+(i<arr.length-1?sp:0); }); y+=lh; };
+      let line=[],lw=0; for(const tok of words){ const tw=measure(tok.w,tok.b); const add=(line.length?sp:0)+tw;
+        if(line.length&&lw+add>maxW){ drawLine(line); line=[]; lw=0; } line.push(tok); lw+=(line.length>1?sp:0)+tw; }
+      if(line.length) drawLine(line); };
+    // heading with two-tone gold underline
+    kbreak(40);
+    doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(...BROWN);
+    const hl=doc.splitTextToSize(s.heading||"",CW); doc.text(hl,M,y); y+=hl.length*16;
+    doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.5); doc.line(M,y+3,W-M,y+3);
+    doc.setDrawColor(...GOLD); doc.setLineWidth(1.6); doc.line(M,y+3,M+46,y+3); y+=15;
+    const size=11, lh=size+3.5;
+    const paras=String(s.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean);
+    for(let pi=0; pi<paras.length; pi++){
+      const pg=paras[pi];
+      if (pg.indexOf("### ")===0){
+        const txt=pg.slice(4).replace(/\*\*/g,""); doc.setFont("helvetica","bold"); doc.setFontSize(size+1);
+        const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+14); y+=6;
+        doc.setTextColor(...BROWN); doc.text(L,M,y); y+=L.length*(size+3)+5; continue;
       }
-      if (tech && !inWhy) {
-        kbreak(22);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
-        doc.text("WHY THIS READING", M, y); y += 12; inWhy = true;
+      if (pg.indexOf("★ ")===0){
+        const txt=pg.slice(2).replace(/\*\*/g,""); doc.setFontSize(size+1.5);
+        const L=doc.splitTextToSize(txt, CW-46); const bandH=16 + L.length*(size+4) + 12;
+        kbreak(bandH+8); y+=4;
+        doc.setFillColor(250,246,235); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
+        doc.roundedRect(M, y, CW, bandH, 5,5, "FD");
+        doc.setFillColor(...GOLD); doc.rect(M, y, 4, bandH, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...WHYLBL);
+        doc.text("THEME TO HOLD", M+18, y+16);
+        doc.setFont("helvetica","bold"); doc.setFontSize(size+1.5); doc.setTextColor(...THEMEINK);
+        doc.text(L, M+18, y+30); y += bandH + 10; continue;
       }
-      if (!tech) inWhy = false;
-      if (sub) {
-        kbreak(22);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(150, 120, 40);
-        const Lh = doc.splitTextToSize(t.slice(4), W - M * 2); doc.text(Lh, M, y); y += Lh.length * 15 + 4;
-        return;
+      if (pg.indexOf("» ")===0){
+        const whyLines=[]; let k=pi; doc.setFontSize(size-1.5);
+        for(; k<paras.length && paras[k].indexOf("» ")===0; k++){
+          doc.splitTextToSize(paras[k].slice(2).replace(/\*\*/g,""), CW-26).forEach(x=>whyLines.push(x)); }
+        const wlh=size+0.5; const panelH=16 + 10 + whyLines.length*wlh + 6;
+        kbreak(panelH+6); y+=4;
+        doc.setFillColor(...WHYFILL); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
+        doc.roundedRect(M, y, CW, panelH, 5,5, "FD");
+        doc.setFillColor(...GOLD); doc.rect(M, y, 4, panelH, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...WHYLBL);
+        doc.text("WHY THIS READING", M+16, y+15);
+        doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(...WHYTXT);
+        let wy=y+15+13; for(const wl of whyLines){ doc.text(wl, M+16, wy); wy+=wlh; }
+        y += panelH + 8; pi=k-1; continue;
       }
-      const text = tech ? t.slice(2) : (bull ? t.slice(2) : t);
-      if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(110, 110, 120); }
-      else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
-      const indent = tech ? 14 : (bull ? 12 : 0);
-      const L = doc.splitTextToSize((bull ? "• " : "") + text, W - M * 2 - indent);
-      kbreak(L.length * 14 + 6); doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
-    });
+      if (pg.indexOf("- ")===0){
+        const txt=pg.slice(2); const L=doc.splitTextToSize(txt.replace(/\*\*/g,""), CW-22);
+        kbreak(L.length*lh+6);
+        doc.setFillColor(...GOLD); doc.circle(M+6, y-3, 1.6, "F");
+        richText(txt, M+16, size, INK, CW-16, lh); y+=4; continue;
+      }
+      if (/^\*\*[^*]+\*\*$/.test(pg)){
+        const txt=pg.slice(2,-2); doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5);
+        const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+12); y+=5;
+        doc.setTextColor(...INK); doc.text(L,M,y); y+=L.length*(size+3)+4; continue;
+      }
+      kbreak(lh+2); richText(pg, M, size, INK, CW, lh); y+=8;
+    }
     y += 6;
     return y;
   }
@@ -736,10 +768,16 @@
     const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 48;
     let y = M;
     const kbreak = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+    doc.setFillColor(11,14,26); doc.rect(0,0,W,4,"F");
+    try { const S=40; doc.addImage(AI_PDF_LOGO,"PNG",W/2-S/2,40,S,S); } catch(_){}
+    y = 40+40+16;
+    doc.setFont("helvetica","bold"); doc.setFontSize(19); doc.setTextColor(201,164,76);
+    doc.text("AstroIndicators", W/2, y, {align:"center"}); y+=6;
+    doc.setDrawColor(201,164,76); doc.setLineWidth(0.8); doc.line(W/2-28,y+6,W/2+28,y+6); y+=26;
     doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(30, 30, 40);
-    doc.text("Saturn & Planetary Transit Report", M, y); y += 24;
+    doc.text("Saturn & Planetary Transit Report", W/2, y, {align:"center"}); y += 20;
     doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(120, 120, 130);
-    doc.text("For " + (facts.moonSign || "") + " Moon  |  as of " + (facts.asOf || "") + " (" + (facts.tzLabel || "") + ")", M, y); y += 22;
+    doc.text("For " + (facts.moonSign || "") + " Moon  ·  as of " + (facts.asOf || "") + " (" + (facts.tzLabel || "") + ")", W/2, y, {align:"center"}); y += 22;
     sections.forEach(s => { y = renderPdfSection(doc, s, W, H, M, y); });
     kbreak(48);
     doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(150, 120, 40);
@@ -935,6 +973,11 @@
     if (a.dignity==="Own sign")    return g? g.note.own         : "at home — reliable strength";
     if (p===facts.karakaPlanet)    return g? g.note.karaka(facts.karaka) : "your "+facts.karaka+" — key to this domain";
     if (facts.d1.houseLord===p)    return g? g.note.lord        : "rules your "+facts.houseName+" house";
+    // A stellium (3+ planets sharing one house) is a strong, reading-shaping concentration.
+    // Flag it on the otherwise-unnoted planets so the table explains why that house's themes
+    // (e.g. a 10th-house career cluster behind a career-marriage overlap) weigh so heavily.
+    const houseCount = Object.keys(d1P).filter(k=>k!=="Lagna" && d1P[k] && d1P[k].house===a.house).length;
+    if (houseCount>=3)             return GHOUSE(a.house)+" cluster";
     return "";
   };
   const chartCol     = (k)=> { const g=_cl(); const en={planet:"Planet",d1:"D1 (birth)",d9:"D9",note:"Note"}; return (g && g.col[k]) || en[k]; };
@@ -1151,36 +1194,27 @@
       const f0=(window.currentData&&window.currentData.form)||{};
       const newPage=()=>{doc.addPage();y=M;};
       const kbreak=(need)=>{if(y+need>H-M)newPage();};
-      let awInWhy=false;
-      const bodyBlock=(t,size)=>{ String(t||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean).forEach(pg=>{
-        if (pg.indexOf("### ")===0){ awInWhy=false; doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5); doc.setTextColor(176,130,38);
-          const L=doc.splitTextToSize(pg.slice(4).replace(/\*\*/g,""),W-M*2); kbreak(L.length*(size+3)+8); doc.text(L,M,y); y+=L.length*(size+3)+5; return; }
-        if (pg.indexOf("★ ")===0){ awInWhy=false; kbreak(28); doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(150,120,40); doc.text("THEME TO HOLD",M,y); y+=11;
-          doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5); doc.setTextColor(90,68,20);
-          const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2); doc.text(L,M,y); y+=L.length*(size+3)+7; return; }
-        if (pg.indexOf("» ")===0){ if(!awInWhy){ kbreak(20); doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(150,120,40); doc.text("WHY THIS READING",M,y); y+=11; awInWhy=true; }
-          doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(110,110,120);
-          const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2-14); kbreak(L.length*(size+1)+4); doc.text(L,M+14,y); y+=L.length*(size+1)+4; return; }
-        awInWhy=false;
-        if (pg.indexOf("- ")===0){ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...INK);
-          const L=doc.splitTextToSize("• "+pg.slice(2).replace(/\*\*/g,""),W-M*2-12); kbreak(L.length*(size+2.5)+5); doc.text(L,M+12,y); y+=L.length*(size+2.5)+4; return; }
-        const fullyBold=/^\*\*[^*]+\*\*$/.test(pg); const plain=pg.replace(/\*\*/g,"");
-        doc.setFont("helvetica",fullyBold?"bold":"normal"); doc.setTextColor(...(fullyBold?[120,80,20]:INK)); doc.setFontSize(size);
-        const L=doc.splitTextToSize(plain,W-M*2); kbreak(L.length*(size+2.5)+8); doc.text(L,M,y); y+=L.length*(size+2.5)+8; }); };
-      // header
-      doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
-      doc.setTextColor(201,164,76); doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.text("AstroIndicators",M,42);
-      doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(180,188,200); doc.text("Swiss Ephemeris · Lahiri Ayanamsha",M,58);
-      y=100; doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.text("Complete Life Domains — Seven Blueprints",M,y); y+=20;
-      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE); doc.text((fmtDOB(f0.dob,f0.tob)||"")+"  ·  "+(f0.place||""),M,y); y+=8;
-      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=20;
+      // ── centered masthead cover (brand emblem + wordmark) ────────────────────
+      doc.setFillColor(11,14,26); doc.rect(0,0,W,4,"F");
+      try { const S=46; doc.addImage(AI_PDF_LOGO,"PNG",W/2-S/2,46,S,S); } catch(_){}
+      y=46+46+18;
+      doc.setFont("helvetica","bold"); doc.setFontSize(21); doc.setTextColor(...GOLD);
+      doc.text("AstroIndicators", W/2, y, {align:"center"}); y+=6;
+      doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.line(W/2-30,y+6,W/2+30,y+6); y+=28;
+      doc.setFont("helvetica","bold"); doc.setFontSize(19); doc.setTextColor(...INK);
+      doc.splitTextToSize("Complete Life Domains — Seven Blueprints", W-M*2).forEach(l=>{ doc.text(l, W/2, y, {align:"center"}); y+=22; });
+      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
+      doc.text("Vedic reading · Lahiri Ayanamsha", W/2, y, {align:"center"}); y+=14;
+      doc.setFontSize(10); doc.setTextColor(...INK); doc.text((fmtDOB(f0.dob,f0.tob)||""), W/2, y, {align:"center"}); y+=13;
+      if(f0.place){ doc.setTextColor(...MUTE); doc.text(String(f0.place), W/2, y, {align:"center"}); y+=16; } else { y+=3; }
+      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=18;
+      // Each content item is rendered by the shared, upgraded section renderer so the
+      // bundle reads identically to the single-domain report; dividers stay custom.
       combined.forEach(item=>{
-        if(item._divider){ kbreak(60); y+=6;
+        if(item._divider){ kbreak(60); y+=8;
           doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(176,130,38);
           doc.text(item.heading,M,y); y+=8; doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.line(M,y,W-M,y); y+=16; return; }
-        kbreak(50); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(90,70,20);
-        const hl=doc.splitTextToSize(item.heading||"",W-M*2); doc.text(hl,M,y); y+=hl.length*15+8;
-        bodyBlock(item.body,10.5); y+=8;
+        y = renderPdfSection(doc, item, W, H, M, y);
       });
       kbreak(60); y+=6; doc.setDrawColor(210,190,150); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=12;
       doc.setFont("helvetica","italic"); doc.setFontSize(8.5); doc.setTextColor(...MUTE);
@@ -1298,7 +1332,7 @@
     ov.innerHTML = `<div style="text-align:center;color:#f0e6c8;max-width:340px;padding:24px">
       <div style="font-size:1.6rem;margin-bottom:12px">🌐</div>
       <div style="font-weight:600;margin-bottom:8px">Translating to ${esc(label)}…</div>
-      <div style="font-size:.85rem;opacity:.82;line-height:1.5">This takes about a minute. The report is translated in context, so the astrological meaning stays right.</div></div>`;
+      <div style="font-size:.85rem;opacity:.82;line-height:1.5">This takes about 2–3 minutes. The report is translated in context, so the astrological meaning stays right.</div></div>`;
   }
   function hideTranslateOverlay(){ const ov=document.getElementById("fbXlateOv"); if(ov) ov.remove(); }
 
@@ -1392,98 +1426,146 @@
       const doc = new jsPDF({ unit:"pt", format:"a4" });
       const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
       const M = 56; let y = 0;
-      const GOLD=[201,164,76], INK=[40,40,44], MUTE=[110,110,120], HL=[120,80,20];
+      // Design tokens — shared with the Word export so PDF & Word read as one system.
+      const GOLD=[201,164,76], NAVY=[11,14,26], INK=[40,40,44], MUTE=[110,110,120],
+            BROWN=[176,130,38], THEMEINK=[60,48,20],
+            WHYFILL=[251,247,233], WHYLINE=[226,207,143], WHYLBL=[150,120,40], WHYTXT=[104,96,84],
+            NOTEFILL=[251,246,230], NOTELINE=[226,207,143], NOTETTL=[138,109,31], NOTETAG=[192,57,43],
+            TBLHEAD=[246,240,224], TBLZEBRA=[250,247,238], TBLLINE=[224,210,176];
       const f0 = (window.currentData && window.currentData.form) || {};
       const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
-      const newPage=()=>{ doc.addPage(); y=M; };
-      const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
-      // paragraph-aware body: splits on newlines, adds space between paragraphs,
-      // and renders **bold** spans in a bold weight for emphasis.
-      let inWhy=false;
+      const CW = W - M*2;            // content width
+      const FOOT = H - 48;           // body must stop above the footer zone
+      const newPage=()=>{ doc.addPage(); y=M+6; };
+      const kbreak=(need)=>{ if(y+need>FOOT) newPage(); };
+      // ── rich inline text: true **bold** runs, greedy word-wrap, page-aware ──────
+      const tokenize=(pg)=>{
+        const runs=[]; pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).forEach(s=>{
+          if(/^\*\*[^*]+\*\*$/.test(s)) runs.push({t:s.slice(2,-2), b:true});
+          else runs.push({t:s, b:false}); });
+        const words=[]; runs.forEach(r=>{ r.t.split(/\s+/).forEach(w=>{ if(w) words.push({w, b:r.b}); }); });
+        return words;
+      };
+      const richText=(pg,x,size,color,maxW,lh)=>{
+        const words=tokenize(pg);
+        const measure=(w,b)=>{ doc.setFont("helvetica", b?"bold":"normal"); return doc.getTextWidth(w); };
+        doc.setFontSize(size);
+        doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
+        const drawLine=(arr)=>{ kbreak(lh); let px=x;
+          arr.forEach((tok,i)=>{ doc.setFont("helvetica", tok.b?"bold":"normal"); doc.setTextColor(...color);
+            doc.text(tok.w, px, y); px += measure(tok.w, tok.b) + (i<arr.length-1?sp:0); });
+          y+=lh; };
+        let line=[], lineW=0;
+        for(const tok of words){
+          const tw=measure(tok.w, tok.b); const add=(line.length?sp:0)+tw;
+          if(line.length && lineW+add>maxW){ drawLine(line); line=[]; lineW=0; }
+          line.push(tok); lineW+=(line.length>1?sp:0)+tw;
+        }
+        if(line.length) drawLine(line);
+      };
+      // paragraph-aware body: ### sub-head, » why-panel, - bullet, ★ theme, **bold**.
       const bodyBlock=(t,size,gap)=>{
         const paras = String(t||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
-        paras.forEach((pg,pi)=>{
-          // New shared markers: ### sub-heading, » why-line, - bullet, ★ theme.
-          if (pg.indexOf("### ")===0) { inWhy=false;
-            doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5); doc.setTextColor(176,130,38);
-            const L=doc.splitTextToSize(pg.slice(4).replace(/\*\*/g,""),W-M*2); kbreak(L.length*(size+3)+10); doc.text(L,M,y); y+=L.length*(size+3)+6; return; }
-          if (pg.indexOf("★ ")===0) { inWhy=false; kbreak(30);
-            doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("THEME TO HOLD",M,y); y+=12;
-            doc.setFont("helvetica","bold"); doc.setFontSize(size+1); doc.setTextColor(90,68,20);
-            const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2); doc.text(L,M,y); y+=L.length*(size+3)+8; return; }
-          if (pg.indexOf("» ")===0) {
-            if(!inWhy){ kbreak(22); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("WHY THIS READING",M,y); y+=12; inWhy=true; }
-            doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(110,110,120);
-            const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2-14); kbreak(L.length*(size+1)+5); doc.text(L,M+14,y); y+=L.length*(size+1)+5; return; }
-          inWhy=false;
-          if (pg.indexOf("- ")===0) {
-            doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...INK);
-            const L=doc.splitTextToSize("• "+pg.slice(2).replace(/\*\*/g,""),W-M*2-12); kbreak(L.length*(size+2.5)+6); doc.text(L,M+12,y); y+=L.length*(size+2.5)+5; return; }
-          const parts = pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
-          doc.setFontSize(size);
-          if (parts.length>1) {
-            const plain = pg.replace(/\*\*/g,"");
-            const fullyBold = /^\*\*[^*]+\*\*$/.test(pg);
-            doc.setFont("helvetica", fullyBold?"bold":"normal");
-            doc.setTextColor(...(fullyBold?HL:INK));
-            const L=doc.splitTextToSize(plain,W-M*2);
-            // A fully-bold line is a SUB-HEADING (e.g. **Now**). Reserve room for it
-            // PLUS the first lines of the paragraph that follows, so it never sits
-            // alone at the bottom of a page with its content flowing over.
-            let need = L.length*(size+2.5)+8;
-            if (fullyBold && paras[pi+1]) {
-              const nextPlain = paras[pi+1].replace(/\*\*/g,"");
-              const nextL = doc.splitTextToSize(nextPlain, W-M*2);
-              need += Math.min(3, nextL.length)*(size+2.5) + 6;
-            }
-            kbreak(need);
-            doc.text(L,M,y); y+=L.length*(size+2.5)+8;
-          } else {
-            doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
-            const L=doc.splitTextToSize(pg,W-M*2); kbreak(L.length*(size+2.5)+8);
-            doc.text(L,M,y); y+=L.length*(size+2.5)+8;
+        const lh = size+3.5;
+        for(let pi=0; pi<paras.length; pi++){
+          const pg = paras[pi];
+          if (pg.indexOf("### ")===0){
+            const txt=pg.slice(4).replace(/\*\*/g,""); doc.setFont("helvetica","bold"); doc.setFontSize(size+1);
+            const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+14); y+=6;
+            doc.setTextColor(...BROWN); doc.text(L,M,y); y+=L.length*(size+3)+5; continue;
           }
-        });
+          // ★ theme — tinted band with a gold accent bar (no glyph printed)
+          if (pg.indexOf("★ ")===0){
+            const txt=pg.slice(2).replace(/\*\*/g,""); doc.setFontSize(size+1.5);
+            const L=doc.splitTextToSize(txt, CW-46); const bandH=16 + L.length*(size+4) + 12;
+            kbreak(bandH+8); y+=4;
+            doc.setFillColor(250,246,235); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
+            doc.roundedRect(M, y, CW, bandH, 5,5, "FD");
+            doc.setFillColor(...GOLD); doc.rect(M, y, 4, bandH, "F");
+            doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...WHYLBL);
+            doc.text("THEME TO HOLD", M+18, y+16);
+            doc.setFont("helvetica","bold"); doc.setFontSize(size+1.5); doc.setTextColor(...THEMEINK);
+            doc.text(L, M+18, y+30); y += bandH + 10; continue;
+          }
+          // » why-block — one filled gold panel around the whole consecutive run
+          if (pg.indexOf("» ")===0){
+            const whyLines=[]; let k=pi;
+            doc.setFontSize(size-1.5);
+            for(; k<paras.length && paras[k].indexOf("» ")===0; k++){
+              doc.splitTextToSize(paras[k].slice(2).replace(/\*\*/g,""), CW-26).forEach(x=>whyLines.push(x));
+            }
+            const wlh=size+0.5; const panelH=16 + 10 + whyLines.length*wlh + 6;
+            kbreak(panelH+6); y+=4;
+            doc.setFillColor(...WHYFILL); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
+            doc.roundedRect(M, y, CW, panelH, 5,5, "FD");
+            doc.setFillColor(...GOLD); doc.rect(M, y, 4, panelH, "F");
+            doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...WHYLBL);
+            doc.text("WHY THIS READING", M+16, y+15);
+            doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(...WHYTXT);
+            let wy=y+15+13; for(const wl of whyLines){ doc.text(wl, M+16, wy); wy+=wlh; }
+            y += panelH + 8; pi = k-1; continue;
+          }
+          // - bullet, with a gold dot (no glyph printed)
+          if (pg.indexOf("- ")===0){
+            const txt=pg.slice(2); const L=doc.splitTextToSize(txt.replace(/\*\*/g,""), CW-22);
+            kbreak(L.length*lh+6);
+            doc.setFillColor(...GOLD); doc.circle(M+6, y-3, 1.6, "F");
+            richText(txt, M+16, size, INK, CW-16, lh); y+=4; continue;
+          }
+          // fully-bold line → sub-heading (fixes literal ** showing in the old build)
+          if (/^\*\*[^*]+\*\*$/.test(pg)){
+            const txt=pg.slice(2,-2); doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5);
+            const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+12 + (paras[pi+1]?size*2:0)); y+=5;
+            doc.setTextColor(...INK); doc.text(L,M,y); y+=L.length*(size+3)+4; continue;
+          }
+          kbreak(lh+2);
+          richText(pg, M, size, INK, CW, lh); y += 8;
+        }
         y += (gap||0);
       };
       const sectionHeading=(t,firstBodyLen)=>{
-        // Reserve room for the heading AND the opening lines of its body, so a
-        // heading never sits alone at the bottom of a page.
-        const need = 34 + Math.min(70, Math.ceil((firstBodyLen||0)/70)*14 + 28);
-        kbreak(need);
-        doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(176,130,38);
-        const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*16+2;
-        doc.setDrawColor(210,190,150); doc.setLineWidth(0.6); doc.line(M,y,W-M,y); y+=13;
-        doc.setFont("helvetica","normal");
+        // Reserve room for the heading AND the opening lines of its body.
+        const need = 40 + Math.min(70, Math.ceil((firstBodyLen||0)/70)*14 + 28);
+        kbreak(need); y+=4;
+        doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(...BROWN);
+        const L=doc.splitTextToSize(t,CW); doc.text(L,M,y); y+=L.length*16;
+        // two-tone underline: a short heavy gold accent over a faint full-width hairline
+        doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.5); doc.line(M,y+3,W-M,y+3);
+        doc.setDrawColor(...GOLD); doc.setLineWidth(1.6); doc.line(M,y+3,M+46,y+3);
+        y+=15; doc.setFont("helvetica","normal");
       };
-      // header
-      doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
-      doc.setTextColor(201,164,76); doc.setFont("helvetica","bold"); doc.setFontSize(18);
-      doc.text("AstroIndicators", M, 42);
-      doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(180,188,200);
-      doc.text("Swiss Ephemeris · Lahiri Ayanamsha", M, 58);
-      y = 100;
-      doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(17);
-      doc.text(title, M, y); y+=20;
-      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
-      doc.text((fmtDOB(f0.dob,f0.tob)||"") + "  ·  " + (f0.place||""), M, y); y+=8;
-      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=18;
-      // How-to-read note box
+      // ── centered masthead cover (brand emblem + wordmark) ────────────────────
+      doc.setFillColor(...NAVY); doc.rect(0,0,W,4,"F");           // thin navy top edge
+      try { const S=46; doc.addImage(AI_PDF_LOGO, "PNG", W/2-S/2, 46, S, S); } catch(_){}
+      y = 46+46+18;
+      doc.setFont("helvetica","bold"); doc.setFontSize(21); doc.setTextColor(...GOLD);
+      doc.text("AstroIndicators", W/2, y, {align:"center"}); y+=6;
+      doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.line(W/2-30, y+6, W/2+30, y+6); y+=28;
+      doc.setFont("helvetica","bold"); doc.setFontSize(22); doc.setTextColor(...INK);
+      doc.text(title, W/2, y, {align:"center"}); y+=20;
+      doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(...MUTE);
+      doc.text("Vedic reading · Lahiri Ayanamsha", W/2, y, {align:"center"}); y+=16;
+      doc.setFontSize(10); doc.setTextColor(...INK);
+      doc.text((fmtDOB(f0.dob,f0.tob)||""), W/2, y, {align:"center"}); y+=14;
+      if (f0.place){ doc.setTextColor(...MUTE); doc.text(String(f0.place), W/2, y, {align:"center"}); y+=18; } else { y+=4; }
+      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=20;
+      // ── how-to-read note box (gold accent bar) ───────────────────────────────
       (function(){
-        doc.setFillColor(251,246,230); doc.setDrawColor(226,207,143);
+        const padX=12; doc.setFontSize(9.5);
         const noteLines=[];
-        doc.setFontSize(9.5);
-        doc.splitTextToSize(READ_NOTE_OPENER, W-M*2-16).forEach(x=>noteLines.push({t:x,b:true})); noteLines.push({t:""});
-        for(const l of READ_NOTE_LINES){ doc.splitTextToSize(l, W-M*2-16).forEach(x=>noteLines.push({t:x})); noteLines.push({t:""}); }
-        const boxH = 22 + noteLines.length*11;
-        if(y+boxH>H-M) newPage();
-        doc.roundedRect(M, y, W-M*2, boxH, 4,4, "FD");
-        let ny=y+15; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(138,109,31);
-        doc.text(READ_NOTE_TITLE+"  ", M+8, ny);
+        doc.splitTextToSize(READ_NOTE_OPENER, CW-padX*2).forEach(x=>noteLines.push({t:x,b:true})); noteLines.push({t:""});
+        for(const l of READ_NOTE_LINES){ doc.splitTextToSize(l, CW-padX*2).forEach(x=>noteLines.push({t:x})); noteLines.push({t:""}); }
+        const lhN=11.5; const boxH = 20 + 16 + noteLines.length*lhN;
+        if(y+boxH>FOOT) newPage();
+        doc.setFillColor(...NOTEFILL); doc.setDrawColor(...NOTELINE); doc.setLineWidth(0.6);
+        doc.roundedRect(M, y, CW, boxH, 5,5, "FD");
+        doc.setFillColor(...GOLD); doc.rect(M, y, 4, boxH, "F");
+        let ny=y+18; doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(...NOTETTL);
+        doc.text(READ_NOTE_TITLE+"  ", M+padX, ny);
         const tw=doc.getTextWidth(READ_NOTE_TITLE+"  ");
-        doc.setTextColor(192,57,43); doc.text(READ_NOTE_TAG, M+8+tw, ny); ny+=14;
-        for(const ln of noteLines){ if(ln.t){ doc.setFont("helvetica",ln.b?"bold":"normal"); doc.setTextColor(ln.b?138:70, ln.b?109:70, ln.b?31:70); doc.setFontSize(9.5); doc.text(ln.t, M+8, ny); } ny+=11; }
-        y += boxH + 14;
+        doc.setTextColor(...NOTETAG); doc.text(READ_NOTE_TAG, M+padX+tw, ny); ny+=18;
+        for(const ln of noteLines){ if(ln.t){ doc.setFont("helvetica",ln.b?"bold":"normal"); doc.setTextColor(...(ln.b?NOTETTL:[82,78,70])); doc.setFontSize(9.5); doc.text(ln.t, M+padX, ny); } ny+=lhN; }
+        y += boxH + 16;
       })();
       // Comparison table renderer (called AFTER the first/context section)
       const drawComparison = () => {
@@ -1496,31 +1578,48 @@
           const d1P=facts.d1.placements, vP=(facts.vargaChart&&facts.vargaChart.placements)||null;
           const d9P={}; if(facts.d9&&facts.d9.houses){ for(const h of Object.keys(facts.d9.houses)) for(const p of (facts.d9.houses[h]||[])) d9P[p]={house:+h}; }
           const vLabel=facts.divisional||(domainKey==="marriage"?"D9":"—");
-          const showVarga = domainKey !== "marriage";  // marriage's divisional IS D9 — drop the redundant column
           const ordP=(x)=>{var s=["th","st","nd","rd"],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
-          sectionHeading("Chart Comparison — D1 · D9"+(showVarga?" · "+vLabel:""), 200);
-          doc.setFontSize(8.5);
-          // column x-positions with enough width; last col wide for the note
-          const cP=M, cD1=M+70, cD9=M+180, cDx=M+225, cN=M+320;
-          const cNote = showVarga ? cN : cDx;  // no gap when the varga column is dropped
-          doc.setTextColor(...MUTE); doc.setFont("helvetica","bold");
-          doc.text("Planet",cP,y); doc.text("D1 (birth)",cD1,y); doc.text("D9",cD9,y); if(showVarga)doc.text(vLabel,cDx,y); doc.text("Note",cNote,y);
-          y+=4; doc.setDrawColor(220,205,170); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=11;
-          doc.setFont("helvetica","normal");
-          for(const p of PLANETS){ const a=d1P[p]; if(!a) continue; kbreak(14);
+          // Build rows first so the varga column can be dropped when it carries no data.
+          const rows = PLANETS.map(p=>{ const a=d1P[p]; if(!a) return null;
             const d9h=d9P[p]?ordP(d9P[p].house):"—";
             const vh=(vP&&vP[p])?(vP[p].sign+" "+ordP(vP[p].house)):"—";  // PDF stays ENGLISH (jsPDF can't render Indic)
             let note=""; if(a.dignity==="Exalted")note="strong asset"; else if(a.dignity==="Debilitated")note="under pressure"; else if(a.dignity==="Own sign")note="at home"; else if(p===facts.karakaPlanet)note=facts.karaka; else if(facts.d1.houseLord===p)note="rules "+facts.houseName;
-            const d1txt = a.sign+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
-            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(p,cP,y);
+            const d1txt=a.sign+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
+            return { p, d1txt, d9h:String(d9h), vh:String(vh), note:String(note) };
+          }).filter(Boolean);
+          // marriage's divisional IS D9 → redundant; and drop any domain's varga column
+          // when no planet actually has a varga placement (avoids a column of dashes).
+          const showVarga = domainKey !== "marriage" && rows.some(r=>r.vh!=="—");
+          const rowH=15, headH=18;
+          sectionHeading("Chart Comparison — D1 · D9"+(showVarga?" · "+vLabel:""), 200);
+          const tableH = headH + rows.length*rowH;
+          kbreak(tableH+6);
+          const cP=M+8;
+          const colD1=M+76, colD9=M+196, colVx=M+244, colNote=M+(showVarga?330:244);
+          const x0=M, x1=W-M, yTop=y;
+          // header band
+          doc.setFillColor(...TBLHEAD); doc.rect(x0, y, x1-x0, headH, "F");
+          doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(...BROWN);
+          const ty=y+12;
+          doc.text("Planet",cP,ty); doc.text("D1 (birth)",colD1,ty); doc.text("D9",colD9,ty);
+          if(showVarga)doc.text(vLabel,colVx,ty); doc.text("Note",colNote,ty);
+          y+=headH;
+          // rows with zebra striping
+          doc.setFontSize(8.5);
+          rows.forEach((r,i)=>{
+            if(i%2===1){ doc.setFillColor(...TBLZEBRA); doc.rect(x0, y, x1-x0, rowH, "F"); }
+            const by=y+10.5;
+            doc.setFont("helvetica","bold"); doc.setTextColor(...INK); doc.text(r.p, cP, by);
             doc.setFont("helvetica","normal"); doc.setTextColor(...MUTE);
-            doc.text(d1txt, cD1, y);
-            doc.text(String(d9h), cD9, y);
-            if(showVarga)doc.text(String(vh), cDx, y);
-            doc.text(String(note), cNote, y);
-            y+=12.5;
-          }
-          y+=12;
+            doc.text(r.d1txt, colD1, by); doc.text(r.d9h, colD9, by);
+            if(showVarga)doc.text(r.vh, colVx, by);
+            doc.setTextColor(120,96,52); doc.text(r.note, colNote, by);   // warm ink: the takeaway
+            y+=rowH;
+          });
+          // frame + header separator
+          doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.6); doc.rect(x0, yTop, x1-x0, tableH);
+          doc.setLineWidth(0.4); doc.line(x0, yTop+headH, x1, yTop+headH);
+          y+=16;
         } catch(_){}
       };
       sections.forEach((sec, si) => {
@@ -1540,11 +1639,12 @@
       doc.setFont("helvetica","normal");
       const pages=doc.internal.getNumberOfPages();
       for(let i=1;i<=pages;i++){ doc.setPage(i);
-        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(200,30,30);
-        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-40,{align:"center"});
+        doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.4); doc.line(M,H-46,W-M,H-46);
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(168,120,24);
+        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-34,{align:"center"});
         doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
-        doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-26);
-        doc.text("Page "+i+" of "+pages, W-M, H-26, {align:"right"}); }
+        doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-20);
+        doc.text("Page "+i+" of "+pages, W-M, H-20, {align:"right"}); }
       const safe=(clientCode()||"report").replace(/[^a-z0-9]/gi,"_");
       // Use a Blob URL rather than doc.save() — some browser PDF viewers render the
       // default jsPDF save() output blank; a proper Blob download is standards-clean.

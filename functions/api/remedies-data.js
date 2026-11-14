@@ -1,0 +1,186 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  FILE: functions/api/remedies-data.js
+//  The remedy knowledge base. Pure data (no request handler) — imported by
+//  analyze.js, which decides WHICH planet(s) to remedy per chart + domain
+//  (dasha-triggered + unfavourable placement / dignity), and the writer narrates it.
+//
+//  Per planet, framed as OPTIONAL "alignment practices", never mandatory/paid rituals:
+//    1. behavioral  — a daily karma-alignment habit when the planet is being STRENGTHENED
+//    2. whenWeak    — what to MODERATE/avoid when the planet is debilitated/combust/afflicted
+//                     (the engine picks behavioral vs whenWeak from the planet's dignity)
+//    3. daan        — charity: the planet's grain + weekday + a fitting cause (universal)
+//    4. temple      — the well-known navagrahaTemple (baseline) + a RESEARCH-BASED second
+//                     temple per domain (the FEATURED value). A DOMAIN_TEMPLES layer adds
+//                     domain-specific temples (e.g. the marriage temple) independent of planet.
+//
+//  Provenance: each planet's own navagraha temple is canonical. Domain/second temples are
+//  researched suggestions presented as such, never overclaimed. The marriage temples below
+//  were cross-checked (Thirumanancheri = the classic Kalyanasundareswarar marriage temple;
+//  Kanjanur confirmed only as the Venus navagraha temple, NOT a marriage-dosha temple).
+//  Health remedies are traditional support ALONGSIDE medical care, never instead of it.
+//
+//  Sources: OnlineJyotish, HinduTone (navagraha days/grains/temples), IndiaGlitz (Tamil
+//  home remedies), GoodStars Jyotish (daan-first framing), AstroVed & Wikipedia (marriage
+//  temples), classical Kalapurusha planet→body mappings.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const PLANET_REMEDIES = {
+  Sun: {
+    signify: "vitality, confidence, authority, the father, government",
+    behavioral: "Lead without needing to dominate; give others credit and let go of the need to be right. Rise early and start the day with intent.",
+    whenWeak: "Guard against ego-defensiveness and the urge to prove your authority; don't let pride — or hidden self-doubt — drive decisions.",
+    daan: { item: "wheat, jaggery, or copper", day: "Sunday", cause: "elders, a father-figure, or education" },
+    anchor: "Offer water to the rising sun (Surya Arghya) on Sundays; Om Suryaya Namah",
+    navagrahaTemple: "Suryanar Kovil, near Kumbakonam",
+    bodyAreas: "heart, eyes, bones, vitality and immunity, blood pressure",
+    careerFields: "government, administration, leadership, politics, authority roles",
+    temples: {
+      health:  "Keela Surya Moolai / Surya Koteeswarar — prayed at for eye and heart ailments and a troubling Sun",
+      career:  "Adi Kumbeswarar, Kumbakonam — for professional life that has stalled or hit a standstill",
+    },
+  },
+  Moon: {
+    signify: "the mind, emotions, the mother, peace, nurturing",
+    behavioral: "Protect your emotional rest and a steady daily routine; nurture the bond with your mother or a maternal figure; keep evenings calm.",
+    whenWeak: "Watch for mood swings and emotional over-dependence; don't make big decisions when unsettled — hold your routine and your rest first.",
+    daan: { item: "rice, milk, or white cloth", day: "Monday", cause: "mothers, children, or the emotionally vulnerable" },
+    anchor: "Spend quiet time near water or moonlight; Om Chandraya Namah",
+    navagrahaTemple: "Kailasanathar, Thingalur",
+    bodyAreas: "mind and emotions, lungs and chest, stomach, body fluids; anxiety and low mood",
+    careerFields: "hospitality, food, nursing, caregiving, counselling, public-facing work",
+    temples: {
+      health:  "Gunaseelam Prasanna Venkatachalapathy — long associated with relief from mental distress and anxiety ('Gunam' = cure)",
+      career:  "Thenkudi Thittai, then Thingalur the same day — for unstable income and frequent job changes",
+    },
+  },
+  Mars: {
+    signify: "energy, courage, drive, siblings, land and property",
+    behavioral: "Channel restlessness into daily physical exercise; pause before reacting; keep sharp words out of disagreements.",
+    whenWeak: "Don't let frustration spill into aggression — nor, the opposite way, harden into suppressed resentment; avoid forcing or rushing confrontations.",
+    daan: { item: "toor dal (red lentils), red cloth, or jaggery", day: "Tuesday", cause: "siblings, soldiers, or physical-labour workers" },
+    anchor: "Om Angarakaya Namah or the Hanuman Chalisa on Tuesdays",
+    navagrahaTemple: "Vaitheeswaran Koil, near Sirkazhi (Vaitheeswaran = 'God of healing')",
+    bodyAreas: "blood and blood pressure, accidents, surgery, burns and inflammation, muscles",
+    careerFields: "real estate, land, engineering, defence and police, surgery, sports",
+    temples: {
+      health:  "Chennimalai Murugan — Murugan equated to Sevvai/Mars; tradition of dissolving jaggery in the waters for skin ailments",
+      career:  "Runa Vimochana Lingeswarar, Thirucherai — 'Runa Vimochana' = relief from debt; for disputes with superiors and property/financial trouble",
+    },
+  },
+  Mercury: {
+    signify: "communication, intellect, the nerves, commerce and trade",
+    behavioral: "Speak with care and finish what you start; protect your nervous system with real rest and less screen time.",
+    whenWeak: "Watch for overthinking, scattered speech and hasty commitments; double-check details and finish one thing before starting the next.",
+    daan: { item: "green gram (moong) or green cloth", day: "Wednesday", cause: "students, education, or the differently-abled" },
+    anchor: "Om Budhaya Namah or a Vishnu chant on Wednesdays",
+    navagrahaTemple: "Swetharanyeswarar, Thiruvenkadu (near Sirkazhi)",
+    bodyAreas: "nerves, skin, speech, breathing/respiratory, mental balance",
+    careerFields: "trade and commerce, accounts and finance, IT and software, writing, media, analysis",
+    temples: {
+      health:  "Guruvayur Sri Krishna Temple — a traditional resort of those with nervous disorders and rheumatic complaints",
+      career:  "Parthasarathy, Triplicane — for a better job and career growth (the Thirumanjanam ritual)",
+    },
+  },
+  Jupiter: {
+    signify: "wisdom, growth, teachers, children, faith, finance",
+    behavioral: "Seek and honour mentors, and give your own guidance generously; act with ethics and faith; keep learning.",
+    whenWeak: "Avoid over-optimism and over-expansion — over-promising, over-spending, over-indulging; don't bend your ethics for quick growth.",
+    daan: { item: "chana (Bengal gram), turmeric, or yellow cloth", day: "Thursday", cause: "teachers, temples, or education" },
+    anchor: "Om Gurave Namah on Thursdays; offer or wear yellow",
+    navagrahaTemple: "Apatsahayeswarar, Alangudi (the popular Guru Parihara Sthalam)",
+    bodyAreas: "liver, diabetes, obesity, cholesterol, fat metabolism",
+    careerFields: "teaching, banking, finance, law, advisory, spiritual and counselling work",
+    marriageRole: "the husband-significator for a woman",
+    temples: {
+      health:  "Vasishteswarar, Thenkudi Thittai — for Guru dosha generally (liver/metabolic support alongside medical care)",
+      career:  "Jambukeswarar, Thiruvanaikaval — an 'Upadesa Sthalam', noted for landing a job or a transfer",
+    },
+  },
+  Venus: {
+    signify: "love, marriage and the spouse, pleasure, the arts, comfort",
+    behavioral: "Invest in simple, unhurried, phone-free affection; make room for beauty and art; keep relationships sincere rather than grand.",
+    whenWeak: "Avoid overindulgence in pleasure, comfort and spending, and the chase for intensity or validation through relationships; keep it simple and honest.",
+    daan: { item: "white beans (mochai), sugar, or white cloth", day: "Friday", cause: "women's welfare or the arts" },
+    anchor: "Keep fresh flowers at home; Om Shukraya Namah or a Lakshmi chant on Fridays",
+    navagrahaTemple: "Agneeswarar, Kanjanur (the Venus navagraha temple — for Venus affliction generally)",
+    bodyAreas: "reproductive system, kidneys, hormones, throat",
+    careerFields: "arts, film, fashion, luxury goods, hospitality, design, beauty",
+    marriageRole: "the primary marriage & spouse significator (Kalathira karaka)",
+    temples: {
+      health:   "Garbharakshambigai, Thirukarugavur — associated with reproductive health and safe childbirth",
+      career:   "Mahalakshmeeswarar, Thirunindriyur — for prosperity and regaining position",
+    },
+  },
+  Saturn: {
+    signify: "discipline, time, commitment, karma, service, delay",
+    behavioral: "Be patient and consistent; honour your commitments and your elders; serve the under-served; avoid shortcuts.",
+    whenWeak: "Guard against cynicism, chronic delay and cutting corners; don't withdraw from duty — steady, patient effort is the real antidote.",
+    daan: { item: "black sesame, gingelly/mustard oil, or black cloth", day: "Saturday", cause: "the poor, the elderly, labourers, or the disabled" },
+    anchor: "Light a sesame-oil lamp on Saturdays; Om Namah Shivaya or Om Shanaischaraya Namah",
+    navagrahaTemple: "Dharbaranyeswarar, Thirunallar (Karaikal)",
+    bodyAreas: "bones, joints, teeth and knees, chronic and long-term illness, arthritis",
+    careerFields: "service and employment, labour, manufacturing, construction, law, long-haul roles",
+    temples: {
+      health:  "Pongu Saneeswarar, Thirukollikadu — visited after Thirunallar for relief in a hard Saturn period",
+      career:  "Thirukollikadu — the Nala legend of losing and regaining everything; for recovery after job loss",
+    },
+    order: "the traditional order is Thirunallar first (to reduce the dasha's effect), then Thirukollikadu (for blessings)",
+  },
+  Rahu: {
+    signify: "ambition, obsession, the foreign and unconventional, overthinking, technology",
+    behavioral: "Keep your home and life clutter-free and grounded; avoid impulsive, irreversible decisions when you feel overwhelmed; limit intoxicants and endless screens.",
+    whenWeak: "Watch for obsession, impulsive leaps, shortcuts and escapism (screens, intoxicants); slow right down before any big or irreversible move.",
+    daan: { item: "urad (black gram) or a blanket", day: "Saturday (Rahu Kalam)", cause: "the marginalised or strangers in need" },
+    anchor: "Ten minutes of silent breathwork before difficult conversations; Om Rahave Namah or Durga worship",
+    navagrahaTemple: "Naganathaswamy, Thirunageswaram",
+    bodyAreas: "undiagnosed or mysterious illness, poisoning and allergies, phobias, viral fevers",
+    careerFields: "technology, foreign trade, aviation, cinema, politics, research, speculation",
+    temples: {
+      health:  "Srikalahasti — the Rahu-Ketu Sarpa Dosha Nivarana puja, for unexplained or persistent illness",
+      career:  "Thirunageswaram — for job loss, debt, and repeated setbacks in career or business",
+    },
+  },
+  Ketu: {
+    signify: "detachment, spirituality, past karma, intuition, sudden breaks",
+    behavioral: "Make room for solitude and a spiritual practice; release what is already complete; take care not to over-isolate.",
+    whenWeak: "Watch for escapism, over-detachment and neglect of practical duties; stay gently engaged rather than abandoning things midway.",
+    daan: { item: "horse gram (kollu) or multicoloured cloth", day: "Tuesday or Saturday", cause: "spiritual causes, strays, or the sick" },
+    anchor: "Meditation or prayer; Om Ketave Namah, and Ganesha worship (Ketu's presiding deity)",
+    navagrahaTemple: "Naganathaswamy, Keezhaperumpallam (Poompuhar)",
+    bodyAreas: "wounds, viral infections, psychosomatic or undiagnosed complaints",
+    careerFields: "research, healing, spiritual and behind-the-scenes work, forensics",
+    temples: {
+      health:  "Thirupampuram / Keezhaperumpallam — for undiagnosed illness and spiritual obstacles",
+      career:  "Karpaga Vinayagar, Pillaiyarpatti — Ganesha, to clear the sudden, causeless obstacles of an afflicted Ketu",
+    },
+  },
+};
+
+// Domain-specific temples (independent of which planet is afflicted) — the cross-checked,
+// well-supported temple for the life area itself. For marriage this is the real value add.
+export const DOMAIN_TEMPLES = {
+  marriage: {
+    primary: "Thirumanancheri Sri Kalyanasundareswarar — the classic Tamil Nadu temple for marriage, where Shiva is worshipped as the bridegroom; visited for timely marriage and a harmonious married life",
+    harmony: "Thiruvidaimarudur Mahalingaswamy / Thiruvedhikudi Vedapureeswarar — for marriage delay, married-life difficulty and Chevvai (Mars) dosha affecting marriage",
+  },
+};
+
+// Commonly-cited general temples — used when the chart is unclear or several planets are
+// weak. Treated as temples that help whatever the chart shows; the planet/domain temples
+// above are used once we know which dasha is causing the trouble.
+export const GENERAL_TEMPLES = {
+  obstacle: "Karpaga Vinayagar, Pillaiyarpatti — Ganesha, to clear obstacles of any kind (start here if the cause is unclear)",
+  career:   "Sri Ranganathaswamy, Srirangam — for job and career progress",
+  business: "Sree Padmanabhaswamy, Thiruvananthapuram — for business and prosperity",
+};
+
+// A planet's dasha tends to hurt a domain when the planet is unfavourably placed.
+// Used by analyze.js to decide WHETHER to raise a remedy for an active-dasha planet,
+// and whether to use its `behavioral` (strengthen) or `whenWeak` (moderate) line.
+export const UNFAVOURABLE = {
+  houses: [6, 8, 12],            // dusthana placement
+  weakDignities: ["Debilitated", "Combust"],
+  notes: "debilitated, combust (close to the Sun), or conjoined with Sun/Mars/Saturn; " +
+         "8th = sudden disruption, 12th = loss of position/income; " +
+         "for business, the 7th house combined with the 8th or 12th.",
+};

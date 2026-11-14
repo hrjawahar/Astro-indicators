@@ -586,7 +586,8 @@ function getForm() {
     name:      document.getElementById("inputName").value.trim(),
     dob:       document.getElementById("inputDOB").value,
     tob:       document.getElementById("inputTOB").value,
-    gender:    document.getElementById("inputGender")?.value || "unspecified",
+    gender:    document.getElementById("inputGender")?.value || "",
+    maritalStatus: document.getElementById("inputMaritalStatus")?.value || "",
     callName:  (document.getElementById("inputCallName")?.value || "").trim(),
     place:     _selectedPlace?.displayName || (placeDisplay ? placeDisplay.value.trim() : ""),
     lat:       _selectedPlace?.lat     || null,
@@ -628,6 +629,10 @@ async function generate() {
     showError("Please enter date of birth, time of birth, and select a place of birth from the dropdown.");
     return;
   }
+  if (!form.gender) {
+    showError("Please select a gender — it is used for the classical spouse-significator rules in the marriage reading. Choose 'Rather not say' if you prefer not to specify.");
+    return;
+  }
   if (!isFinite(parseFloat(form.lat)) || !isFinite(parseFloat(form.lng))) {
     showError("Place of birth not fully resolved. Please clear the place field and select a city from the dropdown list again.");
     return;
@@ -666,6 +671,8 @@ async function generate() {
       d9: { lagnaSign: chartData.d9.lagnaSign, houses: chartData.d9.houses, degrees: chartData.d9.degrees, latitudes: chartData.d9.latitudes || {} },
       dashas:    chartData.dasha?.dashas    || null,
       birthDate: form.dob                  || null,
+      gender:    form.gender               || "unspecified",
+      maritalStatus: form.maritalStatus    || "",
     };
 
     const analysisRes = await fetch("/api/analyze", {

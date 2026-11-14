@@ -144,16 +144,30 @@ async function translateOne(env, sys, section) {
   // Nothing to translate (e.g. a divider with an empty body) — skip the call.
   if (!String(section.heading || "").trim() && !String(section.body || "").trim()) return { heading: section.heading, body: section.body };
   const user = "Translate this ONE section. Return only the JSON object { \"heading\": \"...\", \"body\": \"...\" }.\n\n" + JSON.stringify({ heading: section.heading, body: section.body });
-  try {
+
+  // Token budget scales with input size. Indian-language output runs several times more
+  // tokens per character than the English source, so a fixed 4000-token cap used to
+  // TRUNCATE our longest section (Timing) — the cut-off JSON failed to parse and the whole
+  // section silently fell back to English (the "page 10 stays English" bug). We size the
+  // budget to the input and give plenty of headroom, then RETRY once (larger) on any
+  // failure before giving up to English.
+  const inChars = String(section.heading || "").length + String(section.body || "").length;
+  const baseBudget = Math.min(16000, Math.max(6000, inChars * 3 + 2000));
+
+  async function attempt(maxTok) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 4000, system: sys, messages: [{ role: "user", content: user }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: maxTok, system: sys, messages: [{ role: "user", content: user }] }),
     });
     if (!res.ok) throw new Error("API " + res.status);
     const data = await res.json();
+    const stop = data && data.stop_reason;
     let text = (data && data.content && data.content[0] && data.content[0].text || "").trim();
     if (!text) throw new Error("empty");
+    // A hit on the token ceiling means the JSON is cut off — treat as failure so we retry
+    // bigger rather than emit a broken/partial section.
+    if (stop === "max_tokens") throw new Error("truncated");
     text = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
     const first = text.indexOf("{"), last = text.lastIndexOf("}");
     const block = (first !== -1 && last > first) ? text.slice(first, last + 1) : text;
@@ -161,7 +175,12 @@ async function translateOne(env, sys, section) {
     try { parsed = JSON.parse(text); } catch (_) { try { parsed = JSON.parse(block); } catch (__) {} }
     if (!parsed) throw new Error("parse");
     return { heading: String(parsed.heading != null ? parsed.heading : section.heading), body: String(parsed.body != null ? parsed.body : section.body) };
+  }
+
+  try {
+    return await attempt(baseBudget);
   } catch (_) {
-    return { heading: section.heading, body: section.body };  // fall back to English for this section
+    try { return await attempt(Math.min(16000, Math.ceil(baseBudget * 1.5))); }  // one retry, larger
+    catch (__) { return { heading: section.heading, body: section.body }; }        // last resort: English for this section
   }
 }

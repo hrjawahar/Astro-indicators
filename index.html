@@ -444,10 +444,20 @@
             </div>
             <div class="form-group">
               <label><span data-i18n="form_gender">Gender</span> <span class="form-hint" data-i18n="form_gender_hint">(used for classical spouse-significator rules)</span></label>
-              <select id="inputGender">
+              <select id="inputGender" required>
+                <option value="" disabled selected data-i18n="gender_select">Select…</option>
                 <option value="male" data-i18n="gender_male">Male</option>
                 <option value="female" data-i18n="gender_female">Female</option>
-                <option value="unspecified" data-i18n="gender_unspecified">Prefer not to say</option>
+                <option value="unspecified" data-i18n="gender_unspecified">Rather not say</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label><span data-i18n="form_marital">Marital status</span> <span class="form-hint" data-i18n="form_marital_hint">(optional — lets the reading speak to your exact situation)</span></label>
+              <select id="inputMaritalStatus">
+                <option value="" selected data-i18n="marital_blank">Prefer not to say</option>
+                <option value="unmarried" data-i18n="marital_unmarried">Unmarried</option>
+                <option value="married" data-i18n="marital_married">Married</option>
+                <option value="separated_divorced" data-i18n="marital_separated">Separated / Divorced</option>
               </select>
             </div>
             <div class="form-group">
