@@ -684,54 +684,77 @@
   // honouring the "» / ### / - / ★ / **bold**" markers. Returns the new y cursor.
   // Shared by the transit, domain and all-domains PDFs so they render identically.
   function renderPdfSection(doc, s, W, H, M, y) {
+    const CW = W - M * 2;
+    const GOLD=[201,164,76], INK=[40,40,48], BROWN=[176,130,38], THEMEINK=[60,48,20],
+          WHYFILL=[251,247,233], WHYLINE=[226,207,143], WHYLBL=[150,120,40], WHYTXT=[104,96,84],
+          TBLLINE=[224,210,176];
     const kbreak = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
-    kbreak(34);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(150, 120, 40);
-    const hl = doc.splitTextToSize(s.heading || "", W - M * 2); doc.text(hl, M, y); y += hl.length * 16 + 6;
-    const lines = String(s.body || "").replace(/\*\*(.+?)\*\*/g, "$1").split("\n");
-    let inWhy = false;
-    lines.forEach((para, idx) => {
-      const t = para.trim();
-      if (!t) { if (!inWhy) y += 5; return; }
-      const tech = t.indexOf("» ") === 0;
-      const sub = t.indexOf("### ") === 0;
-      const bull = t.indexOf("- ") === 0;
-      const theme = t.indexOf("★ ") === 0;
-      if (theme) {
-        inWhy = false;
-        // keep label + (multi-line) theme together on one page
-        doc.setFontSize(12); const Lt = doc.splitTextToSize(t.slice(2), W - M * 2);
-        kbreak(12 + Lt.length * 15 + 16);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
-        doc.text("THEME TO HOLD", M, y); y += 12;
-        doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(60, 48, 20);
-        doc.text(Lt, M, y); y += Lt.length * 15 + 8;
-        return;
+    const tokenize=(pg)=>{ const runs=[]; pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).forEach(x=>{
+        if(/^\*\*[^*]+\*\*$/.test(x)) runs.push({t:x.slice(2,-2),b:true}); else runs.push({t:x,b:false}); });
+      const words=[]; runs.forEach(r=>r.t.split(/\s+/).forEach(w=>{ if(w) words.push({w,b:r.b}); })); return words; };
+    const richText=(pg,x,size,color,maxW,lh)=>{ const words=tokenize(pg);
+      const measure=(w,b)=>{ doc.setFont("helvetica",b?"bold":"normal"); return doc.getTextWidth(w); };
+      doc.setFontSize(size); doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
+      const drawLine=(arr)=>{ kbreak(lh); let px=x; arr.forEach((tok,i)=>{ doc.setFont("helvetica",tok.b?"bold":"normal");
+        doc.setTextColor(...color); doc.text(tok.w,px,y); px+=measure(tok.w,tok.b)+(i<arr.length-1?sp:0); }); y+=lh; };
+      let line=[],lw=0; for(const tok of words){ const tw=measure(tok.w,tok.b); const add=(line.length?sp:0)+tw;
+        if(line.length&&lw+add>maxW){ drawLine(line); line=[]; lw=0; } line.push(tok); lw+=(line.length>1?sp:0)+tw; }
+      if(line.length) drawLine(line); };
+    // heading with two-tone gold underline
+    kbreak(40);
+    doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(...BROWN);
+    const hl=doc.splitTextToSize(s.heading||"",CW); doc.text(hl,M,y); y+=hl.length*16;
+    doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.5); doc.line(M,y+3,W-M,y+3);
+    doc.setDrawColor(...GOLD); doc.setLineWidth(1.6); doc.line(M,y+3,M+46,y+3); y+=15;
+    const size=11, lh=size+3.5;
+    const paras=String(s.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean);
+    for(let pi=0; pi<paras.length; pi++){
+      const pg=paras[pi];
+      if (pg.indexOf("### ")===0){
+        const txt=pg.slice(4).replace(/\*\*/g,""); doc.setFont("helvetica","bold"); doc.setFontSize(size+1);
+        const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+14); y+=6;
+        doc.setTextColor(...BROWN); doc.text(L,M,y); y+=L.length*(size+3)+5; continue;
       }
-      if (tech && !inWhy) {
-        // measure the WHOLE consecutive » block and break once, so the gold box never splits
-        doc.setFontSize(9.5);
-        let need = 14;
-        for (let k = idx; k < lines.length; k++) { const tk = lines[k].trim(); if (tk.indexOf("» ") !== 0) break; const Lk = doc.splitTextToSize(tk.slice(2), W - M * 2 - 14); need += Lk.length * 14 + 6; }
-        kbreak(Math.min(need, H - M * 2 - 4));
-        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(150, 120, 40);
-        doc.text("WHY THIS READING", M, y); y += 12; inWhy = true;
+      if (pg.indexOf("★ ")===0){
+        const txt=pg.slice(2).replace(/\*\*/g,""); doc.setFontSize(size+1.5);
+        const L=doc.splitTextToSize(txt, CW-46); const bandH=16 + L.length*(size+4) + 12;
+        kbreak(bandH+8); y+=4;
+        doc.setFillColor(250,246,235); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
+        doc.roundedRect(M, y, CW, bandH, 5,5, "FD");
+        doc.setFillColor(...GOLD); doc.rect(M, y, 4, bandH, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...WHYLBL);
+        doc.text("THEME TO HOLD", M+18, y+16);
+        doc.setFont("helvetica","bold"); doc.setFontSize(size+1.5); doc.setTextColor(...THEMEINK);
+        doc.text(L, M+18, y+30); y += bandH + 10; continue;
       }
-      if (!tech) inWhy = false;
-      if (sub) {
-        kbreak(22);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(150, 120, 40);
-        const Lh = doc.splitTextToSize(t.slice(4), W - M * 2); doc.text(Lh, M, y); y += Lh.length * 15 + 4;
-        return;
+      if (pg.indexOf("» ")===0){
+        const whyLines=[]; let k=pi; doc.setFontSize(size-1.5);
+        for(; k<paras.length && paras[k].indexOf("» ")===0; k++){
+          doc.splitTextToSize(paras[k].slice(2).replace(/\*\*/g,""), CW-26).forEach(x=>whyLines.push(x)); }
+        const wlh=size+0.5; const panelH=16 + 10 + whyLines.length*wlh + 6;
+        kbreak(panelH+6); y+=4;
+        doc.setFillColor(...WHYFILL); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
+        doc.roundedRect(M, y, CW, panelH, 5,5, "FD");
+        doc.setFillColor(...GOLD); doc.rect(M, y, 4, panelH, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...WHYLBL);
+        doc.text("WHY THIS READING", M+16, y+15);
+        doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(...WHYTXT);
+        let wy=y+15+13; for(const wl of whyLines){ doc.text(wl, M+16, wy); wy+=wlh; }
+        y += panelH + 8; pi=k-1; continue;
       }
-      const text = tech ? t.slice(2) : (bull ? t.slice(2) : t);
-      if (tech) { doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(110, 110, 120); }
-      else { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 48); }
-      const indent = tech ? 14 : (bull ? 12 : 0);
-      const L = doc.splitTextToSize((bull ? "• " : "") + text, W - M * 2 - indent);
-      if (!tech) kbreak(L.length * 14 + 6);   // why-lines already reserved as one block above
-      doc.text(L, M + indent, y); y += L.length * 14 + (tech ? 5 : 6);
-    });
+      if (pg.indexOf("- ")===0){
+        const txt=pg.slice(2); const L=doc.splitTextToSize(txt.replace(/\*\*/g,""), CW-22);
+        kbreak(L.length*lh+6);
+        doc.setFillColor(...GOLD); doc.circle(M+6, y-3, 1.6, "F");
+        richText(txt, M+16, size, INK, CW-16, lh); y+=4; continue;
+      }
+      if (/^\*\*[^*]+\*\*$/.test(pg)){
+        const txt=pg.slice(2,-2); doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5);
+        const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+12); y+=5;
+        doc.setTextColor(...INK); doc.text(L,M,y); y+=L.length*(size+3)+4; continue;
+      }
+      kbreak(lh+2); richText(pg, M, size, INK, CW, lh); y+=8;
+    }
     y += 6;
     return y;
   }
@@ -1404,112 +1427,145 @@
       const doc = new jsPDF({ unit:"pt", format:"a4" });
       const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
       const M = 56; let y = 0;
-      const GOLD=[201,164,76], INK=[40,40,44], MUTE=[110,110,120], HL=[120,80,20];
+      // Design tokens — shared with the Word export so PDF & Word read as one system.
+      const GOLD=[201,164,76], NAVY=[11,14,26], INK=[40,40,44], MUTE=[110,110,120],
+            BROWN=[176,130,38], THEMEINK=[60,48,20],
+            WHYFILL=[251,247,233], WHYLINE=[226,207,143], WHYLBL=[150,120,40], WHYTXT=[104,96,84],
+            NOTEFILL=[251,246,230], NOTELINE=[226,207,143], NOTETTL=[138,109,31], NOTETAG=[192,57,43],
+            TBLHEAD=[246,240,224], TBLZEBRA=[250,247,238], TBLLINE=[224,210,176];
       const f0 = (window.currentData && window.currentData.form) || {};
       const title = (DOMAIN_LABELS[domainKey]||"Domain") + " Blueprint";
-      const newPage=()=>{ doc.addPage(); y=M; };
-      const kbreak=(need)=>{ if(y+need>H-M) newPage(); };
-      // paragraph-aware body: splits on newlines, adds space between paragraphs,
-      // and renders **bold** spans in a bold weight for emphasis.
-      let inWhy=false;
+      const CW = W - M*2;            // content width
+      const FOOT = H - 48;           // body must stop above the footer zone
+      const newPage=()=>{ doc.addPage(); y=M+6; };
+      const kbreak=(need)=>{ if(y+need>FOOT) newPage(); };
+      // ── rich inline text: true **bold** runs, greedy word-wrap, page-aware ──────
+      const tokenize=(pg)=>{
+        const runs=[]; pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).forEach(s=>{
+          if(/^\*\*[^*]+\*\*$/.test(s)) runs.push({t:s.slice(2,-2), b:true});
+          else runs.push({t:s, b:false}); });
+        const words=[]; runs.forEach(r=>{ r.t.split(/\s+/).forEach(w=>{ if(w) words.push({w, b:r.b}); }); });
+        return words;
+      };
+      const richText=(pg,x,size,color,maxW,lh)=>{
+        const words=tokenize(pg);
+        const measure=(w,b)=>{ doc.setFont("helvetica", b?"bold":"normal"); return doc.getTextWidth(w); };
+        doc.setFontSize(size);
+        doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
+        const drawLine=(arr)=>{ kbreak(lh); let px=x;
+          arr.forEach((tok,i)=>{ doc.setFont("helvetica", tok.b?"bold":"normal"); doc.setTextColor(...color);
+            doc.text(tok.w, px, y); px += measure(tok.w, tok.b) + (i<arr.length-1?sp:0); });
+          y+=lh; };
+        let line=[], lineW=0;
+        for(const tok of words){
+          const tw=measure(tok.w, tok.b); const add=(line.length?sp:0)+tw;
+          if(line.length && lineW+add>maxW){ drawLine(line); line=[]; lineW=0; }
+          line.push(tok); lineW+=(line.length>1?sp:0)+tw;
+        }
+        if(line.length) drawLine(line);
+      };
+      // paragraph-aware body: ### sub-head, » why-panel, - bullet, ★ theme, **bold**.
       const bodyBlock=(t,size,gap)=>{
         const paras = String(t||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
-        paras.forEach((pg,pi)=>{
-          // New shared markers: ### sub-heading, » why-line, - bullet, ★ theme.
-          if (pg.indexOf("### ")===0) { inWhy=false;
-            doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5); doc.setTextColor(176,130,38);
-            const L=doc.splitTextToSize(pg.slice(4).replace(/\*\*/g,""),W-M*2); kbreak(L.length*(size+3)+10); doc.text(L,M,y); y+=L.length*(size+3)+6; return; }
-          if (pg.indexOf("★ ")===0) { inWhy=false;
-            // Keep the label AND the (possibly multi-line) theme together on one page.
-            doc.setFontSize(size+1); const Lt=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2);
-            kbreak(12 + Lt.length*(size+3) + 16);
-            doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("THEME TO HOLD",M,y); y+=12;
-            doc.setFont("helvetica","bold"); doc.setFontSize(size+1); doc.setTextColor(90,68,20);
-            doc.text(Lt,M,y); y+=Lt.length*(size+3)+8; return; }
-          if (pg.indexOf("» ")===0) {
-            if(!inWhy){
-              // Measure the WHOLE consecutive why-block (header + every » line) and break
-              // ONCE, so a gold 'Why this reading' box is never split across a page.
-              doc.setFontSize(size-1.5);
-              let need = 14;
-              for(let k=pi; k<paras.length && paras[k].indexOf("» ")===0; k++){
-                const LL=doc.splitTextToSize(paras[k].slice(2).replace(/\*\*/g,""),W-M*2-14);
-                need += LL.length*(size+1)+5;
-              }
-              kbreak(Math.min(need, H-M*2-4));
-              doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(150,120,40); doc.text("WHY THIS READING",M,y); y+=12; inWhy=true;
-            }
-            doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(110,110,120);
-            const L=doc.splitTextToSize(pg.slice(2).replace(/\*\*/g,""),W-M*2-14); doc.text(L,M+14,y); y+=L.length*(size+1)+5; return; }
-          inWhy=false;
-          if (pg.indexOf("- ")===0) {
-            doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...INK);
-            const L=doc.splitTextToSize("• "+pg.slice(2).replace(/\*\*/g,""),W-M*2-12); kbreak(L.length*(size+2.5)+6); doc.text(L,M+12,y); y+=L.length*(size+2.5)+5; return; }
-          const parts = pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
-          doc.setFontSize(size);
-          if (parts.length>1) {
-            const plain = pg.replace(/\*\*/g,"");
-            const fullyBold = /^\*\*[^*]+\*\*$/.test(pg);
-            doc.setFont("helvetica", fullyBold?"bold":"normal");
-            doc.setTextColor(...(fullyBold?HL:INK));
-            const L=doc.splitTextToSize(plain,W-M*2);
-            // A fully-bold line is a SUB-HEADING (e.g. **Now**). Reserve room for it
-            // PLUS the first lines of the paragraph that follows, so it never sits
-            // alone at the bottom of a page with its content flowing over.
-            let need = L.length*(size+2.5)+8;
-            if (fullyBold && paras[pi+1]) {
-              const nextPlain = paras[pi+1].replace(/\*\*/g,"");
-              const nextL = doc.splitTextToSize(nextPlain, W-M*2);
-              need += Math.min(3, nextL.length)*(size+2.5) + 6;
-            }
-            kbreak(need);
-            doc.text(L,M,y); y+=L.length*(size+2.5)+8;
-          } else {
-            doc.setFont("helvetica","normal"); doc.setTextColor(...INK);
-            const L=doc.splitTextToSize(pg,W-M*2); kbreak(L.length*(size+2.5)+8);
-            doc.text(L,M,y); y+=L.length*(size+2.5)+8;
+        const lh = size+3.5;
+        for(let pi=0; pi<paras.length; pi++){
+          const pg = paras[pi];
+          if (pg.indexOf("### ")===0){
+            const txt=pg.slice(4).replace(/\*\*/g,""); doc.setFont("helvetica","bold"); doc.setFontSize(size+1);
+            const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+14); y+=6;
+            doc.setTextColor(...BROWN); doc.text(L,M,y); y+=L.length*(size+3)+5; continue;
           }
-        });
+          // ★ theme — tinted band with a gold accent bar (no glyph printed)
+          if (pg.indexOf("★ ")===0){
+            const txt=pg.slice(2).replace(/\*\*/g,""); doc.setFontSize(size+1.5);
+            const L=doc.splitTextToSize(txt, CW-46); const bandH=16 + L.length*(size+4) + 12;
+            kbreak(bandH+8); y+=4;
+            doc.setFillColor(250,246,235); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
+            doc.roundedRect(M, y, CW, bandH, 5,5, "FD");
+            doc.setFillColor(...GOLD); doc.rect(M, y, 4, bandH, "F");
+            doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...WHYLBL);
+            doc.text("THEME TO HOLD", M+18, y+16);
+            doc.setFont("helvetica","bold"); doc.setFontSize(size+1.5); doc.setTextColor(...THEMEINK);
+            doc.text(L, M+18, y+30); y += bandH + 10; continue;
+          }
+          // » why-block — one filled gold panel around the whole consecutive run
+          if (pg.indexOf("» ")===0){
+            const whyLines=[]; let k=pi;
+            doc.setFontSize(size-1.5);
+            for(; k<paras.length && paras[k].indexOf("» ")===0; k++){
+              doc.splitTextToSize(paras[k].slice(2).replace(/\*\*/g,""), CW-26).forEach(x=>whyLines.push(x));
+            }
+            const wlh=size+0.5; const panelH=16 + 10 + whyLines.length*wlh + 6;
+            kbreak(panelH+6); y+=4;
+            doc.setFillColor(...WHYFILL); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
+            doc.roundedRect(M, y, CW, panelH, 5,5, "FD");
+            doc.setFillColor(...GOLD); doc.rect(M, y, 4, panelH, "F");
+            doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...WHYLBL);
+            doc.text("WHY THIS READING", M+16, y+15);
+            doc.setFont("helvetica","italic"); doc.setFontSize(size-1.5); doc.setTextColor(...WHYTXT);
+            let wy=y+15+13; for(const wl of whyLines){ doc.text(wl, M+16, wy); wy+=wlh; }
+            y += panelH + 8; pi = k-1; continue;
+          }
+          // - bullet, with a gold dot (no glyph printed)
+          if (pg.indexOf("- ")===0){
+            const txt=pg.slice(2); const L=doc.splitTextToSize(txt.replace(/\*\*/g,""), CW-22);
+            kbreak(L.length*lh+6);
+            doc.setFillColor(...GOLD); doc.circle(M+6, y-3, 1.6, "F");
+            richText(txt, M+16, size, INK, CW-16, lh); y+=4; continue;
+          }
+          // fully-bold line → sub-heading (fixes literal ** showing in the old build)
+          if (/^\*\*[^*]+\*\*$/.test(pg)){
+            const txt=pg.slice(2,-2); doc.setFont("helvetica","bold"); doc.setFontSize(size+0.5);
+            const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+12 + (paras[pi+1]?size*2:0)); y+=5;
+            doc.setTextColor(...INK); doc.text(L,M,y); y+=L.length*(size+3)+4; continue;
+          }
+          kbreak(lh+2);
+          richText(pg, M, size, INK, CW, lh); y += 8;
+        }
         y += (gap||0);
       };
       const sectionHeading=(t,firstBodyLen)=>{
-        // Reserve room for the heading AND the opening lines of its body, so a
-        // heading never sits alone at the bottom of a page.
-        const need = 34 + Math.min(70, Math.ceil((firstBodyLen||0)/70)*14 + 28);
-        kbreak(need);
-        doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(176,130,38);
-        const L=doc.splitTextToSize(t,W-M*2); doc.text(L,M,y); y+=L.length*16+2;
-        doc.setDrawColor(210,190,150); doc.setLineWidth(0.6); doc.line(M,y,W-M,y); y+=13;
-        doc.setFont("helvetica","normal");
+        // Reserve room for the heading AND the opening lines of its body.
+        const need = 40 + Math.min(70, Math.ceil((firstBodyLen||0)/70)*14 + 28);
+        kbreak(need); y+=4;
+        doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(...BROWN);
+        const L=doc.splitTextToSize(t,CW); doc.text(L,M,y); y+=L.length*16;
+        // two-tone underline: a short heavy gold accent over a faint full-width hairline
+        doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.5); doc.line(M,y+3,W-M,y+3);
+        doc.setDrawColor(...GOLD); doc.setLineWidth(1.6); doc.line(M,y+3,M+46,y+3);
+        y+=15; doc.setFont("helvetica","normal");
       };
-      // header
-      doc.setFillColor(11,14,26); doc.rect(0,0,W,72,"F");
-      doc.setTextColor(201,164,76); doc.setFont("helvetica","bold"); doc.setFontSize(18);
-      doc.text("AstroIndicators", M, 42);
-      doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(180,188,200);
-      doc.text("Swiss Ephemeris · Lahiri Ayanamsha", M, 58);
-      y = 100;
-      doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(17);
-      doc.text(title, M, y); y+=20;
-      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTE);
-      doc.text((fmtDOB(f0.dob,f0.tob)||"") + "  ·  " + (f0.place||""), M, y); y+=8;
-      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=18;
-      // How-to-read note box
+      // ── centered masthead cover ──────────────────────────────────────────────
+      doc.setFillColor(...NAVY); doc.rect(0,0,W,4,"F");           // thin navy top edge
+      y = 76;
+      doc.setFont("helvetica","bold"); doc.setFontSize(23); doc.setTextColor(...GOLD);
+      doc.text("AstroIndicators", W/2, y, {align:"center"}); y+=6;
+      doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.line(W/2-30, y+6, W/2+30, y+6); y+=30;
+      doc.setFont("helvetica","bold"); doc.setFontSize(22); doc.setTextColor(...INK);
+      doc.text(title, W/2, y, {align:"center"}); y+=20;
+      doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(...MUTE);
+      doc.text("Vedic reading · Lahiri Ayanamsha", W/2, y, {align:"center"}); y+=16;
+      doc.setFontSize(10); doc.setTextColor(...INK);
+      doc.text((fmtDOB(f0.dob,f0.tob)||""), W/2, y, {align:"center"}); y+=14;
+      if (f0.place){ doc.setTextColor(...MUTE); doc.text(String(f0.place), W/2, y, {align:"center"}); y+=18; } else { y+=4; }
+      doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(M,y,W-M,y); y+=20;
+      // ── how-to-read note box (gold accent bar) ───────────────────────────────
       (function(){
-        doc.setFillColor(251,246,230); doc.setDrawColor(226,207,143);
+        const padX=12; doc.setFontSize(9.5);
         const noteLines=[];
-        doc.setFontSize(9.5);
-        doc.splitTextToSize(READ_NOTE_OPENER, W-M*2-16).forEach(x=>noteLines.push({t:x,b:true})); noteLines.push({t:""});
-        for(const l of READ_NOTE_LINES){ doc.splitTextToSize(l, W-M*2-16).forEach(x=>noteLines.push({t:x})); noteLines.push({t:""}); }
-        const boxH = 22 + noteLines.length*11;
-        if(y+boxH>H-M) newPage();
-        doc.roundedRect(M, y, W-M*2, boxH, 4,4, "FD");
-        let ny=y+15; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(138,109,31);
-        doc.text(READ_NOTE_TITLE+"  ", M+8, ny);
+        doc.splitTextToSize(READ_NOTE_OPENER, CW-padX*2).forEach(x=>noteLines.push({t:x,b:true})); noteLines.push({t:""});
+        for(const l of READ_NOTE_LINES){ doc.splitTextToSize(l, CW-padX*2).forEach(x=>noteLines.push({t:x})); noteLines.push({t:""}); }
+        const lhN=11.5; const boxH = 20 + 16 + noteLines.length*lhN;
+        if(y+boxH>FOOT) newPage();
+        doc.setFillColor(...NOTEFILL); doc.setDrawColor(...NOTELINE); doc.setLineWidth(0.6);
+        doc.roundedRect(M, y, CW, boxH, 5,5, "FD");
+        doc.setFillColor(...GOLD); doc.rect(M, y, 4, boxH, "F");
+        let ny=y+18; doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(...NOTETTL);
+        doc.text(READ_NOTE_TITLE+"  ", M+padX, ny);
         const tw=doc.getTextWidth(READ_NOTE_TITLE+"  ");
-        doc.setTextColor(192,57,43); doc.text(READ_NOTE_TAG, M+8+tw, ny); ny+=14;
-        for(const ln of noteLines){ if(ln.t){ doc.setFont("helvetica",ln.b?"bold":"normal"); doc.setTextColor(ln.b?138:70, ln.b?109:70, ln.b?31:70); doc.setFontSize(9.5); doc.text(ln.t, M+8, ny); } ny+=11; }
-        y += boxH + 14;
+        doc.setTextColor(...NOTETAG); doc.text(READ_NOTE_TAG, M+padX+tw, ny); ny+=18;
+        for(const ln of noteLines){ if(ln.t){ doc.setFont("helvetica",ln.b?"bold":"normal"); doc.setTextColor(...(ln.b?NOTETTL:[82,78,70])); doc.setFontSize(9.5); doc.text(ln.t, M+padX, ny); } ny+=lhN; }
+        y += boxH + 16;
       })();
       // Comparison table renderer (called AFTER the first/context section)
       const drawComparison = () => {
@@ -1522,31 +1578,48 @@
           const d1P=facts.d1.placements, vP=(facts.vargaChart&&facts.vargaChart.placements)||null;
           const d9P={}; if(facts.d9&&facts.d9.houses){ for(const h of Object.keys(facts.d9.houses)) for(const p of (facts.d9.houses[h]||[])) d9P[p]={house:+h}; }
           const vLabel=facts.divisional||(domainKey==="marriage"?"D9":"—");
-          const showVarga = domainKey !== "marriage";  // marriage's divisional IS D9 — drop the redundant column
           const ordP=(x)=>{var s=["th","st","nd","rd"],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
-          sectionHeading("Chart Comparison — D1 · D9"+(showVarga?" · "+vLabel:""), 200);
-          doc.setFontSize(8.5);
-          // column x-positions with enough width; last col wide for the note
-          const cP=M, cD1=M+70, cD9=M+180, cDx=M+225, cN=M+320;
-          const cNote = showVarga ? cN : cDx;  // no gap when the varga column is dropped
-          doc.setTextColor(...MUTE); doc.setFont("helvetica","bold");
-          doc.text("Planet",cP,y); doc.text("D1 (birth)",cD1,y); doc.text("D9",cD9,y); if(showVarga)doc.text(vLabel,cDx,y); doc.text("Note",cNote,y);
-          y+=4; doc.setDrawColor(220,205,170); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=11;
-          doc.setFont("helvetica","normal");
-          for(const p of PLANETS){ const a=d1P[p]; if(!a) continue; kbreak(14);
+          // Build rows first so the varga column can be dropped when it carries no data.
+          const rows = PLANETS.map(p=>{ const a=d1P[p]; if(!a) return null;
             const d9h=d9P[p]?ordP(d9P[p].house):"—";
             const vh=(vP&&vP[p])?(vP[p].sign+" "+ordP(vP[p].house)):"—";  // PDF stays ENGLISH (jsPDF can't render Indic)
             let note=""; if(a.dignity==="Exalted")note="strong asset"; else if(a.dignity==="Debilitated")note="under pressure"; else if(a.dignity==="Own sign")note="at home"; else if(p===facts.karakaPlanet)note=facts.karaka; else if(facts.d1.houseLord===p)note="rules "+facts.houseName;
-            const d1txt = a.sign+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
-            doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.text(p,cP,y);
+            const d1txt=a.sign+" "+ordP(a.house)+(a.dignity==="Exalted"?" (Ex)":a.dignity==="Debilitated"?" (Db)":a.dignity==="Own sign"?" (Own)":"");
+            return { p, d1txt, d9h:String(d9h), vh:String(vh), note:String(note) };
+          }).filter(Boolean);
+          // marriage's divisional IS D9 → redundant; and drop any domain's varga column
+          // when no planet actually has a varga placement (avoids a column of dashes).
+          const showVarga = domainKey !== "marriage" && rows.some(r=>r.vh!=="—");
+          const rowH=15, headH=18;
+          sectionHeading("Chart Comparison — D1 · D9"+(showVarga?" · "+vLabel:""), 200);
+          const tableH = headH + rows.length*rowH;
+          kbreak(tableH+6);
+          const cP=M+8;
+          const colD1=M+76, colD9=M+196, colVx=M+244, colNote=M+(showVarga?330:244);
+          const x0=M, x1=W-M, yTop=y;
+          // header band
+          doc.setFillColor(...TBLHEAD); doc.rect(x0, y, x1-x0, headH, "F");
+          doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(...BROWN);
+          const ty=y+12;
+          doc.text("Planet",cP,ty); doc.text("D1 (birth)",colD1,ty); doc.text("D9",colD9,ty);
+          if(showVarga)doc.text(vLabel,colVx,ty); doc.text("Note",colNote,ty);
+          y+=headH;
+          // rows with zebra striping
+          doc.setFontSize(8.5);
+          rows.forEach((r,i)=>{
+            if(i%2===1){ doc.setFillColor(...TBLZEBRA); doc.rect(x0, y, x1-x0, rowH, "F"); }
+            const by=y+10.5;
+            doc.setFont("helvetica","bold"); doc.setTextColor(...INK); doc.text(r.p, cP, by);
             doc.setFont("helvetica","normal"); doc.setTextColor(...MUTE);
-            doc.text(d1txt, cD1, y);
-            doc.text(String(d9h), cD9, y);
-            if(showVarga)doc.text(String(vh), cDx, y);
-            doc.text(String(note), cNote, y);
-            y+=12.5;
-          }
-          y+=12;
+            doc.text(r.d1txt, colD1, by); doc.text(r.d9h, colD9, by);
+            if(showVarga)doc.text(r.vh, colVx, by);
+            doc.setTextColor(120,96,52); doc.text(r.note, colNote, by);   // warm ink: the takeaway
+            y+=rowH;
+          });
+          // frame + header separator
+          doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.6); doc.rect(x0, yTop, x1-x0, tableH);
+          doc.setLineWidth(0.4); doc.line(x0, yTop+headH, x1, yTop+headH);
+          y+=16;
         } catch(_){}
       };
       sections.forEach((sec, si) => {
@@ -1566,11 +1639,12 @@
       doc.setFont("helvetica","normal");
       const pages=doc.internal.getNumberOfPages();
       for(let i=1;i<=pages;i++){ doc.setPage(i);
-        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(200,30,30);
-        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-40,{align:"center"});
+        doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.4); doc.line(M,H-46,W-M,H-46);
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(168,120,24);
+        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-34,{align:"center"});
         doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
-        doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-26);
-        doc.text("Page "+i+" of "+pages, W-M, H-26, {align:"right"}); }
+        doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-20);
+        doc.text("Page "+i+" of "+pages, W-M, H-20, {align:"right"}); }
       const safe=(clientCode()||"report").replace(/[^a-z0-9]/gi,"_");
       // Use a Blob URL rather than doc.save() — some browser PDF viewers render the
       // default jsPDF save() output blank; a proper Blob download is standards-clean.
