@@ -2609,25 +2609,29 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
     const tenthInSixth = lordPlacement && lordPlacement.house===6;                // struggle/disputes
     const tenthWeak = lordPlacement && (lordPlacement.dignity==="Debilitated" || lordPlacement.dignity==="Combust");
     const tenthOcc = occupantsOfHouse(d1P,10);
-    const maleficOn10 = tenthOcc.some(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
-    const prone = !!(tenthInLoss || tenthInSixth || tenthWeak || maleficOn10);
+    // Only the NODES (Rahu/Ketu — chhaya grahas) are a credible "disruption in the career
+    // house" signature. Sun, Saturn and Mars in the 10th get DIG BALA (directional
+    // strength) — classically a disciplined, authoritative, driven career, NOT disruption —
+    // so they must NOT raise a disruption alarm, or steady careers get wrongly flagged.
+    const nodeOn10 = tenthOcc.some(p=>["Rahu","Ketu"].includes(p));
+    const prone = !!(tenthInLoss || tenthInSixth || tenthWeak || nodeOn10);
     if(!prone) return { prone:false };
     const reason = (tenthInLoss) ? ("your career ruler sits in the "+ordinalD(lordPlacement.house)+" house — a house of upheaval and loss, so its own periods can dismantle and reshape your working life rather than simply test it")
       : tenthInSixth ? "your career ruler sits in the 6th — the house of struggle and dispute — so its periods bring friction and contest more than clean progress"
-      : maleficOn10 ? "a disruptive planet sits in your house of career, so your path tends to move through jolts and resets"
+      : nodeOn10 ? "a shadow planet (Rahu or Ketu) sits in your house of career, so your path can move through sudden, unconventional changes and resets"
       : "your career ruler is under pressure, so your path asks for extra resilience through its rougher patches";
 
     // CAREER-AXIS DISRUPTORS (connection-based — a planet counts only when it is genuinely
     // tied to career, so a node in an unrelated house is NOT a false alarm):
     //   - the 10th lord itself, graded by WHERE it sits (8/12 loss = significant & can be
     //     lasting; 6th or weak = moderate);
-    //   - a malefic/node sitting IN the 10th (significant);
-    //   - a node or malefic CONJUNCT the 10th lord or the Amatyakaraka career karaka (moderate).
+    //   - a NODE (Rahu/Ketu) sitting IN the 10th (significant) — NOT a dig-bala malefic;
+    //   - a NODE CONJUNCT the 10th lord or the Amatyakaraka career karaka (moderate).
     const disruptors = {};
     if(hLord){ disruptors[hLord] = tenthInLoss ? "significant" : (tenthInSixth || tenthWeak) ? "moderate" : null; if(!disruptors[hLord]) delete disruptors[hLord]; }
-    for(const p of tenthOcc){ if(["Saturn","Mars","Rahu","Ketu","Sun"].includes(p)) disruptors[p]=disruptors[p]||"significant"; }
+    for(const p of tenthOcc){ if(["Rahu","Ketu"].includes(p)) disruptors[p]=disruptors[p]||"significant"; }
     const amaHouse = amatyakaraka && d1P[amatyakaraka] && d1P[amatyakaraka].house;
-    for(const m of ["Rahu","Ketu","Saturn","Mars"]){ const h=d1P[m]&&d1P[m].house; if(h && m!==hLord && ((tenthHouse&&h===tenthHouse)||(amaHouse&&h===amaHouse))) disruptors[m]=disruptors[m]||"moderate"; }
+    for(const m of ["Rahu","Ketu"]){ const h=d1P[m]&&d1P[m].house; if(h && m!==hLord && ((tenthHouse&&h===tenthHouse)||(amaHouse&&h===amaHouse))) disruptors[m]=disruptors[m]||"moderate"; }
 
     // RECOVERY CAPACITY — can a career setback be rebuilt to its old earning level? Read from
     // the EARNING axis: the 2nd (income) and 11th (gains) lords. When those are themselves
