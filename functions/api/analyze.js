@@ -2386,6 +2386,19 @@ const DOMAIN_REPORT_CONFIG = {
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
 };
 function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+// Graha drishti — does a planet in `fromHouse` cast an aspect on `targetHouse`?
+// All planets aspect the 7th; Mars also 4th & 8th, Jupiter 5th & 9th, Saturn 3rd & 10th,
+// Rahu/Ketu 5th & 9th (common usage). `diff` is the inclusive house count (1 = same house).
+function aspectsHouse(planet, fromHouse, targetHouse){
+  if(!fromHouse || !targetHouse) return false;
+  const diff = ((targetHouse - fromHouse + 12) % 12) + 1;   // 1..12
+  if(diff===7) return true;
+  if(planet==="Mars"    && (diff===4 || diff===8))  return true;
+  if(planet==="Jupiter" && (diff===5 || diff===9))  return true;
+  if(planet==="Saturn"  && (diff===3 || diff===10)) return true;
+  if((planet==="Rahu"||planet==="Ketu") && (diff===5 || diff===9)) return true;
+  return false;
+}
 // Dusthana flavour — standard Parashari house significations (6/8/12). Each names
 // the difficulty AND its constructive dimension (our wellbeing framing). Applied to
 // domain-relevant planets (lord, karaka, domain-house occupants) sitting in a
@@ -2630,23 +2643,52 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
       : recoveryCapacity==="moderate" ? "your earning axis is mixed — recovery from a setback is workable but asks for deliberate effort and a reasonable buffer"
       : recoveryCapacity==="resilient" ? "your earning axis is sound — setbacks, when they come, tend to be recoverable with steady effort" : "";
 
+    // MD CAREER-CONNECTION — the dasha–antardasha double-activation rule. A disruptor
+    // AD only becomes a SIGNIFICANT career event when the running MAIN period is itself
+    // tied to the career axis. Direct 10th-house involvement (MD lord IS the 10th lord,
+    // or physically occupies the 10th) outranks an indirect link (an aspect on the 10th,
+    // the Amatyakaraka career karaka, or a 6/8/12 service-and-struggle lord). When the MD
+    // has no career link at all, a disruptor AD is felt in that planet's OTHER areas of
+    // life, not as a career break — so it is not surfaced as a career window.
+    const l6g=houseLord(d1LagnaSign,6), l8g=houseLord(d1LagnaSign,8), l12g=houseLord(d1LagnaSign,12);
+    const mdCareerLink=(mdLord)=>{
+      if(!mdLord) return "none";
+      if(mdLord===hLord) return "direct";                        // MD lord IS the 10th lord
+      if(tenthOcc.includes(mdLord)) return "direct";             // MD lord sits IN the 10th
+      const mh=d1P[mdLord] && d1P[mdLord].house;
+      if(mh && aspectsHouse(mdLord, mh, 10)) return "indirect";  // aspects the 10th
+      if(mdLord===amatyakaraka) return "indirect";               // Jaimini career karaka
+      if([l6g,l8g,l12g].includes(mdLord)) return "indirect";     // service/struggle lord
+      return "none";
+    };
+    const linkWhy={
+      direct:"the main period itself runs through your career axis (its ruler is your 10th lord, or sits in your career house), so both the main and sub-period point at work",
+      indirect:"the main period touches career only indirectly (by aspect, or as a career significator), so this reads more as a reset to navigate than a structural break",
+    };
     const sevOf=(lord)=>disruptors[lord]||null;
     const out=[];
     for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
-      for(const ad of md.antarDasas){ const sev=sevOf(ad.lord); if(!sev) continue;
+      const link=mdCareerLink(md.lord);
+      if(link==="none") continue;                      // MD not career-connected → skip its ADs
+      for(const ad of md.antarDasas){ const base=sevOf(ad.lord); if(!base) continue;
+        // Grade the window: significant only when a significant disruptor AD meets a
+        // DIRECT-career MD; indirect MD downgrades it; a moderate disruptor under an
+        // indirect MD is too faint to surface.
+        let severity;
+        if(base==="significant") severity = (link==="direct") ? "significant" : "moderate";
+        else                     severity = (link==="direct") ? "moderate"    : "mild";
+        if(severity==="mild") continue;
         const sy=ad.startDate?new Date(ad.startDate).getFullYear():null, ey=ad.endDate?new Date(ad.endDate).getFullYear():null;
         if(sy==null) continue;
-        if(byY!=null && (sy-byY)<18) continue;        // adult only
-        if(sy>capY) continue;                          // within the 20-year horizon
+        if(byY!=null && (sy-byY)<18) continue;         // adult only
+        if(sy>capY) continue;                           // within the 20-year horizon
         const years=(ey&&ey!==sy)?(sy+"–"+ey):String(sy);
         const when = (ey&&ey<nowY)?"past":(sy>nowY?"upcoming":"current");
-        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity:sev, when });
+        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity, when, mdLink:link, gradeWhy:linkWhy[link]||"" });
       }
     }
     out.sort((a,b)=>a.sy-b.sy);
-    const pastSig = out.filter(w=>w.when==="past" && w.severity==="significant");
-    const pastMod = out.filter(w=>w.when==="past" && w.severity==="moderate");
-    const past = (pastSig.length ? pastSig : pastMod).slice(-2);
+    const past = out.filter(w=>w.when==="past").slice(-2);   // most recent two, each graded
     const up = out.filter(w=>w.when==="upcoming"||w.when==="current");
     const upcoming = [...up.filter(w=>w.severity==="significant"), ...up.filter(w=>w.severity==="moderate")]
       .sort((a,b)=>a.sy-b.sy).slice(0,3);
@@ -2683,7 +2725,16 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
     };
     for(const w of past) if(w.severity==="significant"){ const pc=findPrecursor(w.sy); if(pc && pc.sy!==w.sy) w.precursor=pc; }
     for(const w of upcoming) if(w.severity==="significant"){ const pc=findPrecursor(w.sy); if(pc && pc.sy!==w.sy) w.precursor=pc; }
-    return { prone:true, reason, recoveryCapacity, recoveryNote, past, upcoming };
+    // The disruptor planet(s) and how they attach to the career axis — so the report can
+    // transparently show WHY these specific windows, and WHICH sub-periods they are.
+    const disruptorList = Object.keys(disruptors).map(p=>({
+      planet:p, severity:disruptors[p], house:(d1P[p]&&d1P[p].house)||null,
+      role: (p===hLord) ? "your 10th lord (career ruler)"
+          : (tenthOcc.includes(p)) ? "sitting in your 10th house of career"
+          : "tied to your career axis"
+    }));
+    const hasSignificant = past.concat(upcoming).some(w=>w.severity==="significant");
+    return { prone:true, reason, recoveryCapacity, recoveryNote, past, upcoming, disruptors:disruptorList, hasSignificant };
   }catch(_){ return null; }
 }
 
@@ -2702,12 +2753,39 @@ function buildBusinessLean(d1P, d1LagnaSign){
     const strong=(p)=> d1P[p] && (d1P[p].dignity==="Exalted"||d1P[p].dignity==="Own sign");
     const weakOrDus=(p)=> d1P[p] && (d1P[p].dignity==="Debilitated"||[6,8,12].includes(d1P[p].house));
     const wellPlaced=(p)=> d1P[p] && [1,2,4,5,7,9,10,11].includes(d1P[p].house) && !weakOrDus(p);
-    let score=0; const why=[];
-    if(strong("Mercury")||(d1P.Mercury&&[1,2,7,10,11].includes(d1P.Mercury.house)&&!weakOrDus("Mercury"))){ score+=2; why.push("Mercury (commerce) well placed"); }
-    else if(weakOrDus("Mercury")){ score-=1; why.push("Mercury (commerce) under pressure"); }
-    for(const h of [3,7,11]){ const l=L(h); if(l&&wellPlaced(l)){ score+=1; why.push(ordinalD(h)+"-lord well placed"); } }
-    for(const h of [3,7,11]){ if(occ(h).some(p=>benefic.has(p))){ score+=1; why.push("benefic in "+ordinalD(h)); } }
-    if(strong("Sun")||strong("Mars")){ score+=1; why.push("strong independent drive (Sun/Mars)"); }
+    const inHouse=(p,hs)=> d1P[p] && hs.includes(d1P[p].house);
+
+    // COMMERCE support — the enterprise houses (3 self-effort, 7 trade/vyapara, 11 gains)
+    // plus Mercury, the karaka of commerce. This says a commercial/business FUNCTION suits
+    // the chart; on its own it can be exercised just as well inside an organisation.
+    let commerce=0; const commerceWhy=[];
+    if(strong("Mercury")||(inHouse("Mercury",[1,2,7,10,11])&&!weakOrDus("Mercury"))){ commerce+=2; commerceWhy.push("Mercury (commerce) well placed"); }
+    else if(weakOrDus("Mercury")){ commerce-=1; commerceWhy.push("Mercury (commerce) under pressure"); }
+    { const l7=L(7); if(l7&&wellPlaced(l7)){ commerce+=1; commerceWhy.push("7th lord (trade) well placed"); } }
+    for(const h of [3,11]){ const l=L(h); if(l&&wellPlaced(l)){ commerce+=1; commerceWhy.push(ordinalD(h)+"-lord well placed"); } }
+    for(const h of [3,7,11]){ if(occ(h).some(p=>benefic.has(p))){ commerce+=1; commerceWhy.push("benefic in "+ordinalD(h)); } }
+
+    // AUTONOMY / independent drive — the self-employment lever. It is the self-reliant
+    // markers (strong Sun/Mars, a self-directed 10th lord, a strong 3rd of self-effort)
+    // that tilt a commercially-able chart toward running one's OWN venture rather than
+    // being employed. Without them, commerce ability points to a business ROLE, not
+    // proprietorship.
+    let autonomy=0; const autonomyWhy=[];
+    if(strong("Sun")){ autonomy+=1; autonomyWhy.push("strong Sun — authority and self-reliance"); }
+    if(strong("Mars")){ autonomy+=1; autonomyWhy.push("strong Mars — initiative and drive"); }
+    { const l10=L(10); if(l10&&strong(l10)){ autonomy+=1; autonomyWhy.push("self-directed career ruler (10th lord strong)"); }
+      else if(l10&&inHouse(l10,[1,10])){ autonomy+=1; autonomyWhy.push("career ruler in an angle of self"); } }
+    { const l3=L(3); if(l3&&strong(l3)){ autonomy+=1; autonomyWhy.push("strong 3rd lord — self-effort and enterprise"); } }
+    if((strong("Sun")||strong("Mars")) && (inHouse("Sun",[1,4,7,10])||inHouse("Mars",[1,4,7,10]))){ autonomy+=1; autonomyWhy.push("independent drive in an angle"); }
+
+    // GRADE — an enterprise lean requires BOTH commerce support AND real autonomy.
+    let grade, statement;
+    if(commerce>=3 && autonomy>=2){ grade="strong"; statement="The chart genuinely leans toward running your own enterprise — both commerce support and real independent drive are present."; }
+    else if(commerce>=3 && autonomy>=1){ grade="moderate"; statement="A business of your own is workable and supported — but weigh it alongside employment rather than treating it as the obvious default; the independent-drive signals are present without being dominant."; }
+    else if(commerce>=4){ grade="mild"; statement="You are well-suited to commercial, business-facing work — but the chart supports this more within a structured role or organisation than as a solo independent venture, since the independent-drive markers are mild. Business is an option to weigh, not a clear calling."; }
+    else { grade="none"; statement="The chart does not strongly lean toward independent business; a professional role or steady employment is the more natural fit, with any business kept measured and well-advised."; }
+    const leans = (grade==="strong"||grade==="moderate");
+
     // partnership vs proprietorship, from the 7th
     const sOcc=occ(7); const s7lord=L(7);
     const sevAfflicted = sOcc.some(p=>["Ketu","Rahu","Saturn","Mars"].includes(p)) || weakOrDus(s7lord);
@@ -2716,12 +2794,13 @@ function buildBusinessLean(d1P, d1LagnaSign){
     if(sevAfflicted && !sevBenefic){ mode="proprietorship"; modeNote="the partnership house carries caution — a shadow planet or heavy weight sits there — so a solo or proprietor route tends to suit you better than an equal partnership; vet any partner carefully and keep roles, money and exit terms clear from the start."; }
     else if(sevBenefic && !sevAfflicted){ mode="partnership"; modeNote="the partnership house is supported, so a well-chosen business partnership can genuinely work in your favour."; }
     else { mode="either"; modeNote="partnership and solo routes are both workable — let the specific people and terms decide, not a chart preference."; }
-    const leans = score>=4;
-    return { leans, score, mode, modeNote,
+
+    return { grade, leans, statement, score:commerce+autonomy, commerce, autonomy, commerceWhy, autonomyWhy, mode, modeNote,
+      reconcileNote:"Hold this together with your Role Fit: a business lean does not override the relational, delivery-through-people signature — for many charts it means leading or owning a people-centred enterprise, not working in isolation.",
       fields: leans ? "commerce or running your own enterprise, ideally within the fields your Sector Fit points to above" : null,
       timingNote: "weigh any business move in the periods the Timing section marks as supportive — a steady, well-supported stretch, not a restless or testing one (and not a Rahu phase, where enterprise can look more promising than it proves).",
       caution: (weakOrDus("Mercury")||sevAfflicted) ? "keep finances conservative, avoid over-leverage and hasty expansion, and put every agreement in writing." : "ordinary commercial prudence is enough.",
-      why };
+      why: commerceWhy.concat(autonomyWhy) };
   }catch(_){ return null; }
 }
 
