@@ -2422,6 +2422,14 @@ const ELEMENT_EDGE = {
   Air:   "the ideas, communication, and network edge of a field — where intellect and connection lead",
   Water: "the people, intuition, care, research, or behind-the-scenes edge of a field — where depth leads over surface"
 };
+// Concrete example roles per element — so when an element leaning (or an outlier chart's
+// element) is named, the reader gets real examples, not just an abstract "edge".
+const ELEMENT_EXAMPLES = {
+  Fire:  "leadership, running your own venture, pioneering or competitive roles — e.g. entrepreneurship, sales or business leadership, sport and fitness, defence, or energy and engineering",
+  Earth: "building, operations and durable results — e.g. finance, real estate, manufacturing, operations, agriculture, or systems and process work",
+  Air:   "ideas, communication and networks — e.g. media and writing, teaching, consulting, marketing, or technology and connection-driven work",
+  Water: "people, care, intuition and depth — e.g. research, counselling or the caring professions, the arts, hospitality, or behind-the-scenes craft"
+};
 const PLANET_ESSENCE = {
   Sun:"authority, leadership, and the drive to direct and be seen",
   Moon:"the public, care, and responsiveness to people and mood",
@@ -2513,7 +2521,19 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
     elDom ? `Across D1, D9 and D10 the 10th lord sits most in ${elDom.value.toLowerCase()} signs (${elDom.count} of ${elDom.total}) — tilting these fields toward ${ELEMENT_EDGE[elDom.value]}.` : null,
     (P.d1&&P.d1.dignity)? `In D1 it is ${P.d1.dignity.toLowerCase()==="neutral"?"neutrally placed":P.d1.dignity.toLowerCase()} — ${(P.d1.dignity==="Exalted"||P.d1.dignity==="Own sign")?"the field expresses cleanly and with confidence":P.d1.dignity==="Debilitated"?"the field is real but harder-won; it rewards persistence over ease":"the field is workable and steady"}.` : null
   ].filter(Boolean);
+  // Outlier element: when the charts only LEAN (2/3) on element, name the differing chart's
+  // element AND give concrete example roles for it — so "D10 leans fire" never lands without
+  // an example of what fire-sign fields actually look like.
+  let sectorOutlier = null;
+  if(elDom && elDom.count===2){
+    const labelOf = (k)=> k==="d1"?"your birth chart (D1)":k==="d9"?"your D9 (navamsha)":"your D10 (career chart)";
+    for(const k of ["d1","d9","d10"]){ const pk=P[k]; if(pk && pk.element && pk.element!==elDom.value){
+      sectorOutlier = { chart:labelOf(k), element:pk.element,
+        note:`${labelOf(k)} leans ${pk.element.toLowerCase()} instead — pointing toward ${ELEMENT_EXAMPLES[pk.element]}. A real secondary flavour to weigh against your own experience, not a contradiction.` };
+      break; } }
+  }
   const sectorFit = { leaning: PLANET_SECTORS[hLord].slice(), edge: elDom?elDom.value:null,
+    edgeExamples: elDom?ELEMENT_EXAMPLES[elDom.value]:null, outlier: sectorOutlier,
     consistency: sectorCons.label, consistencyNote: sectorCons.note, signals: sectorSignals };
 
   // ── Role Fit (independent axis 2) — modality gives build/operate/advise; house-class gives visibility ──
@@ -2552,6 +2572,44 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
 
   return { tenthLord:hLord, positions:P, coreNature, sectorFit, roleFit, howToTest,
     framing:"structural leaning, tested by the reader against their own field and experience — not a prediction" };
+}
+
+// ── Business lean (career domain) ───────────────────────────────────────────────
+// Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
+// partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
+// (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
+// Sun/Mars (independent drive). The 7th's condition decides partnership vs solo. The
+// report ALWAYS carries a line — a positive lean with specifics, or a plain "not strongly
+// business-leaning" — so the reader is never left wondering.
+function buildBusinessLean(d1P, d1LagnaSign){
+  try{
+    const L=(h)=>houseLord(d1LagnaSign,h);
+    const occ=(h)=>occupantsOfHouse(d1P,h);
+    const benefic=new Set(["Jupiter","Venus","Mercury","Moon"]);
+    const strong=(p)=> d1P[p] && (d1P[p].dignity==="Exalted"||d1P[p].dignity==="Own sign");
+    const weakOrDus=(p)=> d1P[p] && (d1P[p].dignity==="Debilitated"||[6,8,12].includes(d1P[p].house));
+    const wellPlaced=(p)=> d1P[p] && [1,2,4,5,7,9,10,11].includes(d1P[p].house) && !weakOrDus(p);
+    let score=0; const why=[];
+    if(strong("Mercury")||(d1P.Mercury&&[1,2,7,10,11].includes(d1P.Mercury.house)&&!weakOrDus("Mercury"))){ score+=2; why.push("Mercury (commerce) well placed"); }
+    else if(weakOrDus("Mercury")){ score-=1; why.push("Mercury (commerce) under pressure"); }
+    for(const h of [3,7,11]){ const l=L(h); if(l&&wellPlaced(l)){ score+=1; why.push(ordinalD(h)+"-lord well placed"); } }
+    for(const h of [3,7,11]){ if(occ(h).some(p=>benefic.has(p))){ score+=1; why.push("benefic in "+ordinalD(h)); } }
+    if(strong("Sun")||strong("Mars")){ score+=1; why.push("strong independent drive (Sun/Mars)"); }
+    // partnership vs proprietorship, from the 7th
+    const sOcc=occ(7); const s7lord=L(7);
+    const sevAfflicted = sOcc.some(p=>["Ketu","Rahu","Saturn","Mars"].includes(p)) || weakOrDus(s7lord);
+    const sevBenefic   = sOcc.some(p=>benefic.has(p)) || (s7lord&&wellPlaced(s7lord));
+    let mode, modeNote;
+    if(sevAfflicted && !sevBenefic){ mode="proprietorship"; modeNote="the partnership house carries caution — a shadow planet or heavy weight sits there — so a solo or proprietor route tends to suit you better than an equal partnership; vet any partner carefully and keep roles, money and exit terms clear from the start."; }
+    else if(sevBenefic && !sevAfflicted){ mode="partnership"; modeNote="the partnership house is supported, so a well-chosen business partnership can genuinely work in your favour."; }
+    else { mode="either"; modeNote="partnership and solo routes are both workable — let the specific people and terms decide, not a chart preference."; }
+    const leans = score>=4;
+    return { leans, score, mode, modeNote,
+      fields: leans ? "commerce or running your own enterprise, ideally within the fields your Sector Fit points to above" : null,
+      timingNote: "weigh any business move in the periods the Timing section marks as supportive — a steady, well-supported stretch, not a restless or testing one (and not a Rahu phase, where enterprise can look more promising than it proves).",
+      caution: (weakOrDus("Mercury")||sevAfflicted) ? "keep finances conservative, avoid over-leverage and hasty expansion, and put every agreement in writing." : "ordinary commercial prudence is enough.",
+      why };
+  }catch(_){ return null; }
 }
 
 // ── Future Compass (all domains) ───────────────────────────────────────────────
@@ -3233,11 +3291,27 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   let careerCompass=null;
   if(domainKey==="career"){
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
+    try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign); }catch(_){}
   }
 
   // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
   let futureCompass=null;
   try{ futureCompass = buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1P, occupants); }catch(_){ futureCompass=null; }
+
+  // ── Health: pair each live/upcoming period's planet with the BODY AREAS it governs ──
+  // (Kalapurusha body map). So the report can say "the 2027–2030 Saturn stretch asks extra
+  // attention on bones, joints, teeth and chronic conditions" — the body-part × dasha link
+  // the owner asked to double-check, made explicit per window rather than left general.
+  if(domainKey==="health" && dashaTiming){
+    try{
+      const bodyOf=(p)=> (PLANET_REMEDIES[p] && PLANET_REMEDIES[p].bodyAreas) || null;
+      const hw=[];
+      const cad=dashaTiming.currentAD;
+      if(cad && cad.ad){ const b=bodyOf(cad.ad); if(b) hw.push({ years:cad.years||(dashaTiming.current&&dashaTiming.current.years)||"", planet:cad.ad, bodyAreas:b, when:"now" }); }
+      (futureCompass && futureCompass.bands || []).forEach(band=>{ (band.drivers||[]).forEach(p=>{ const b=bodyOf(p); if(b && !hw.some(w=>w.planet===p && w.years===band.years)) hw.push({ years:band.years, planet:p, bodyAreas:b, when:"ahead" }); }); });
+      if(hw.length) flags.healthWindows = hw.slice(0,5);
+    }catch(_){}
+  }
 
   // ── Remedy facts — two layers of "alignment practices" ───────────────────────────
   // (1) ONGOING domain-weakness: the chronically weak domain significator / house-lord
