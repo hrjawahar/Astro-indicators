@@ -46,6 +46,25 @@ fed into the domain timing engine.** That overlay is the real lever for exact-ye
 precision; until it is built, report language stays "most likely window", never a dated
 certainty. Do not chase exact years by over-tuning the dasha heuristics (it over-fits).
 
+## Candidate refinement — career-disruption "early-signal / precursor window" (not yet built)
+
+Real-case insight: the native's intuitive signals were prominent from the Ketu AD (2018),
+a year BEFORE the actual career break in the Venus AD (10th-lord-in-8th, Oct 2019–Jan 2020).
+Astrological basis: the 7th house (where that Ketu sits) is the 10th-FROM-10th (bhāvāt
+bhāvam) — a secondary career/livelihood/marketplace house — and Ketu brings disillusionment
+and inner warning. So a disruptor in a SECONDARY career house, in the 1–2 years before a
+SIGNIFICANT disruption, is a genuine precursor/early-signal phase worth naming so the reader
+can heed it and course-correct.
+
+Design (keep it SECONDARY and labelled — do NOT re-add the 7th to the main disruptor set,
+which would reintroduce the node false-positive we removed): when buildCareerDisruptions
+finds a significant window, scan the ~1–2 years before it for a node/malefic AD in a
+secondary career house (7th = 10th-from-10th; also the 3rd of self-effort, or a malefic
+aspecting the 10th). If found, attach it as `precursor:{years,planet,note}` — "early signals
+tended to show here; heeding them is the chance to prepare before the harder window." General
+(derivative-house principle), gated on a significant disruption already existing, never
+competing with the primary window. Build pending owner go-ahead.
+
 ## Transit overlay — investigated 2026-11, BLOCKED on ephemeris accuracy
 
 Built `transit-core.js` (Jupiter/Saturn sidereal sign from chart.js's own ephemeris,
