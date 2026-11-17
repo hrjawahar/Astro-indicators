@@ -837,11 +837,7 @@
                           && window.currentData.analysis.domainFacts[k]) || null;
             if (facts) {
               try {
-                const res = await fetch("/api/domain-report", {
-                  method:"POST", headers:{ "Content-Type":"application/json" },
-                  body: JSON.stringify({ domainKey:k, facts })
-                });
-                const data = await res.json();
+                const data = await fetchStreamedReport("/api/domain-report", { domainKey:k, facts });
                 if (data.success && Array.isArray(data.sections) && data.sections.length) {
                   secs = data.sections;
                   srv({ action:"store", chartId: cid, item: DOMAIN_ITEM(k), lang:"en", sections: secs, paymentId: null });
@@ -880,12 +876,7 @@
                       && window.currentData.analysis.domainFacts
                       && window.currentData.analysis.domainFacts[domainKey]) || null;
         if (!facts) throw new Error("Chart facts unavailable — please regenerate your chart.");
-        const res = await fetch("/api/domain-report", {
-          method:"POST", headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ domainKey, facts })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error("Writer error " + res.status + (data && data.error ? (": " + data.error) : ""));
+        const data = await fetchStreamedReport("/api/domain-report", { domainKey, facts });
         if (!data.success) throw new Error(data.error || "Report writer unavailable.");
         sections = data.sections || [];
         if (!Array.isArray(sections) || sections.length === 0)

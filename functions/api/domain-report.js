@@ -28,18 +28,46 @@ export async function onRequestPost(context) {
   const facts = body.facts;
   if (!domainKey || !facts) return json({ error: "Missing domainKey or facts." }, 400);
 
-  try {
-    const sections = await writeDomainReport(env, domainKey, facts);
-    return json({ success: true, sections });
-  } catch (e) {
-    return json({ error: e.message || "AI writer failure." }, 500);
-  }
+  // Stream a heartbeat during the (long) generation, then send the final JSON after
+  // a "\n\u0000__RESULT__" marker. Returning the streaming Response immediately means
+  // Cloudflare sees headers at once and never 524s — the career report (the longest
+  // domain) otherwise blows past the hard 100s edge limit and comes back as an HTML
+  // error page, which the client cannot JSON-parse. Mirrors /api/transit-report.
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const beat = () => { try { controller.enqueue(enc.encode(" ")); } catch (_) {} };
+      beat(); // first byte right away
+      let alive = true;
+      const pulse = (async () => {
+        while (alive) { await new Promise(r => setTimeout(r, 4000)); if (alive) beat(); }
+      })();
+      let payload;
+      try {
+        const sections = await writeDomainReport(env, domainKey, facts, beat);
+        payload = { success: true, sections };
+      } catch (e) {
+        payload = { error: e.message || "AI writer failure." };
+      }
+      alive = false;
+      try { controller.enqueue(enc.encode("\n\u0000__RESULT__" + JSON.stringify(payload))); } catch (_) {}
+      controller.close();
+      try { await pulse; } catch (_) {}
+    },
+  });
+  return new Response(stream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" },
+  });
 }
 
-async function writeDomainReport(env, domainKey, facts) {
+async function writeDomainReport(env, domainKey, facts, onProgress) {
   const sys = buildSystemPrompt();
   const user = buildUserPrompt(domainKey, facts);
 
+  // STREAM the completion. The career report (longest domain) can take ~2 minutes,
+  // past Cloudflare's hard 100s edge limit (524) on a single blocking request.
+  // Streaming returns bytes continuously; onProgress() forwards a heartbeat to the
+  // client so the connection stays open until the final marker.
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -50,6 +78,7 @@ async function writeDomainReport(env, domainKey, facts) {
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 12000,
+      stream: true,
       system: sys,
       messages: [{ role: "user", content: user }],
     }),
@@ -59,8 +88,32 @@ async function writeDomainReport(env, domainKey, facts) {
     const t = await res.text().catch(() => "");
     throw new Error("Anthropic API error " + res.status + ": " + t.slice(0, 300));
   }
-  const data = await res.json();
-  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let sseBuf = "", text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    sseBuf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = sseBuf.indexOf("\n")) >= 0) {
+      const line = sseBuf.slice(0, nl); sseBuf = sseBuf.slice(nl + 1);
+      if (line.startsWith("data:")) {
+        const payload = line.slice(5).trim();
+        if (payload && payload !== "[DONE]") {
+          try {
+            const ev = JSON.parse(payload);
+            if (ev.type === "content_block_delta" && ev.delta && ev.delta.text) text += ev.delta.text;
+            else if (ev.type === "error") throw new Error("Anthropic stream error: " + (ev.error && ev.error.message || "unknown"));
+          } catch (err) { if (/stream error/.test(err.message)) throw err; }
+        }
+      }
+    }
+    if (onProgress) { try { onProgress(); } catch (_) {} }
+  }
+  text = text.trim();
+  if (!text) throw new Error("The AI writer returned an empty response.");
 
   // The model returns JSON: { "sections": [ {heading, body}, ... ] }
   const tryParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
