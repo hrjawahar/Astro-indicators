@@ -2778,6 +2778,14 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
 // D1 placements (+ D9 signs for the navamsha cancellation test). Not yet consumed by any
 // domain — wiring happens in Layers 2–3; defined and population-validated first.
 const CS_KENDRA = [1,4,7,10];
+// Nakshatra (27 lunar mansions) and their Vimshottari lords, repeating every 9.
+const NAK_LORDS = ["Ketu","Venus","Sun","Moon","Mars","Rahu","Jupiter","Saturn","Mercury"];
+const NAK_NAMES = ["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta","Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha","Uttara Ashadha","Shravana","Dhanishta","Shatabhisha","Purva Bhadrapada","Uttara Bhadrapada","Revati"];
+function nakOf(longitude){
+  const span=360/27; let idx=Math.floor((((longitude%360)+360)%360)/span);
+  if(idx<0) idx=0; if(idx>26) idx=26;
+  return { index:idx, name:NAK_NAMES[idx], lord:NAK_LORDS[idx%9] };
+}
 function d9SignMap(d9Houses, d9LagnaSign){
   const out={}; if(!d9Houses||!d9LagnaSign) return out;
   const li=V_SIGNS.indexOf(d9LagnaSign); if(li<0) return out;
@@ -2875,7 +2883,38 @@ function buildCompoundStates(d1P, d1LagnaSign, d9Houses, d9LagnaSign){
       }
     }
 
-    return { neechaBhanga, retroStrength, houseProfiles, yogas };
+    // ── 1d. Nakshatra-dispositor refinement ──
+    // Classical precedence: a planet gives the results of its NAKSHATRA-LORD first, its house
+    // occupancy second, its lordship third. So each planet's effective nature is refined by
+    // the strength/placement of the lord of the star it occupies. (Esoteric per-nakshatra
+    // personality attributes are a deliberately-separate, sourced later sub-pass.)
+    const nbFullSet=new Set(neechaBhanga.filter(nb=>nb.level==="full").map(nb=>nb.planet));
+    const lonOf=(p)=>{ const v=d1P[p]; if(!v) return null; const si=V_SIGNS.indexOf(v.sign); if(si<0) return null; return si*30+(v.degInSign||0); };
+    const digOf=(p)=> d1P[p] && d1P[p].dignity;
+    const strengthOf=(p)=>{ const d=digOf(p), h=hof(p);
+      if(d==="Exalted"||d==="Own sign") return 1;
+      if(d==="Debilitated" && !nbFullSet.has(p)) return -1;
+      if(h && [6,8,12].includes(h)) return -1;
+      if(h && [1,4,5,7,9,10].includes(h)) return 1;
+      return 0; };
+    const nakshatra=[];
+    for(const p of SEVEN){
+      const lon=lonOf(p); if(lon==null) continue;
+      const nk=nakOf(lon); const lord=nk.lord;
+      const ls = (lord===p) ? strengthOf(p) : strengthOf(lord);   // a planet in its own star: self-disposited
+      const pOwn = strengthOf(p);
+      let effect, note;
+      if(ls>0 && pOwn<=0){ effect="lifted"; note="delivers better than its sign alone suggests — its star-lord is strong and well placed"; }
+      else if(ls<0 && pOwn>=0){ effect="undercut"; note="delivers less cleanly than its sign suggests — its star-lord is weak or in a difficult house"; }
+      else if(ls>0 && pOwn>0){ effect="reinforced"; note="is strong both by its sign and by its star-lord — dependable and well supported"; }
+      else if(ls<0 && pOwn<0){ effect="doubly-tested"; note="is challenged by both its sign and its star-lord — an area that asks for real effort"; }
+      else { effect="consistent"; note="reads much as its sign suggests; its star-lord neither strongly lifts nor undercuts it"; }
+      nakshatra.push({ planet:p, nakshatra:nk.name, lord, lordHouse:hof(lord), effect,
+        reading:p+" sits in "+nk.name+", ruled by "+lord+" — so "+p+" "+note+".",
+        why:p+" in "+nk.name+" (star-lord "+lord+(hof(lord)?(", house "+hof(lord)):"")+"); "+effect+"." });
+    }
+
+    return { neechaBhanga, retroStrength, houseProfiles, yogas, nakshatra };
   }catch(_){ return null; }
 }
 
@@ -3929,6 +3968,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign, _ama, compound); }catch(_){}
     try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound); }catch(_){}
+    try{ if(careerCompass) careerCompass.nakshatra = (compound&&compound.nakshatra||[]).filter(n=> n.planet===hLord || n.planet===_ama); }catch(_){}
     try{ if(careerCompass){ careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama, compound, houseStates); } }catch(_){}
   }
 
