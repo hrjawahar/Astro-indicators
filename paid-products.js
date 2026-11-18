@@ -156,15 +156,12 @@
   // (flipbook, PDF, Word, LAMP) to lower the barrier for non-astrology readers.
   const READ_NOTE_TITLE = "How to read this report";
   const READ_NOTE_TAG = "(Important)";
-  const READ_NOTE_OPENER = "No knowledge in astrology is your worry? Cool — we thought of you. Please follow this short guideline, prepared to address exactly that apprehension.";
+  const READ_NOTE_OPENER = "New to astrology? You don't need to know any of it — here's all it takes:";
   const READ_NOTE_LINES = [
-    "This is a detailed Vedic reading. It names a few traditional things (planets, houses, and the charts D1, D9, D10), but you do NOT need to understand any of them — the meaning is always written in plain words.",
-    "Just read it straight through. The plain text carries the insight; the small gold 'Why this reading' boxes hold the chart detail underneath, there only if you're curious — you can skip them entirely.",
-    "Each section ends with a short theme — a few words to carry with you from that part of the reading.",
-    "Where two or three charts independently agree, the signal is most reliable — those points are worth trusting most.",
-    "Take your time. This isn't a one-read document; the insights land more deeply when you return to it over days, alongside your own life experience.",
-    "Prefer your own language? Use the 'Read in' menu below the report to translate the whole thing into your language in context — the on-screen report and the Word download both come out translated, with nothing to copy-paste.",
-    "This report is a mirror for reflection, not a verdict. Read it gently."
+    "No knowledge needed. It names a few traditional things (planets, houses, the D1/D9/D10 charts), but the meaning is always written in plain words — just read it straight through.",
+    "The small gold 'Why this reading' boxes hold the chart detail underneath, there only if you're curious — skip them and the plain text still carries the full insight. Each section ends with a short theme to carry with you.",
+    "Where two or three charts independently agree, trust those points most. Take your time — it deepens as you return to it.",
+    "Prefer another language? Use the 'Read in' menu below to translate the whole report in context — nothing to copy-paste."
   ];
   // Flipbook 'How to read' page (tightened; the fixed-height page can't hold the full note).
   const SHORT_LINES = [
@@ -700,15 +697,30 @@
           if(/^\*[^*]+\*$/.test(s2)){ s2.slice(1,-1).split(/\s+/).forEach(w=>{ if(w) words.push({w,i:true}); }); return; }
           s2.replace(/\*/g,"").split(/\s+/).forEach(w=>{ if(w) words.push({w}); }); }); });
       return words; };
-    const richText=(pg,x,size,color,maxW,lh)=>{ const words=tokenize(pg);
+    // Same-style words drawn as ONE string so jsPDF's exact spacing is used (word-by-word
+    // placement drifts via getTextWidth↔render kerning mismatch and fuses words).
+    const richText=(pg,x,size,color,maxW,lh)=>{ const words=tokenize(pg); if(!words.length) return;
       const fsOf=(t)=> t.b?"bold":t.i?"italic":"normal";
-      const measure=(t)=>{ doc.setFont("helvetica",fsOf(t)); return doc.getTextWidth(t.w); };
+      const wstr=(s2,st)=>{ doc.setFont("helvetica",st); return doc.getTextWidth(s2); };
       doc.setFontSize(size); doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
-      const drawLine=(arr)=>{ kbreak(lh); let px=x; arr.forEach((tok,i)=>{ doc.setFont("helvetica",fsOf(tok));
-        doc.setTextColor(...color); doc.text(tok.w,px,y); px+=measure(tok)+(i<arr.length-1?sp:0); }); y+=lh; };
-      let line=[],lw=0; for(const tok of words){ const tw=measure(tok); const add=(line.length?sp:0)+tw;
-        if(line.length&&lw+add>maxW){ drawLine(line); line=[]; lw=0; } line.push(tok); lw+=(line.length>1?sp:0)+tw; }
-      if(line.length) drawLine(line); };
+      if(!words.some(t=>t.b||t.i)){
+        doc.setFont("helvetica","normal"); doc.setTextColor(...color);
+        for(const ln of doc.splitTextToSize(words.map(t=>t.w).join(" "), maxW)){ kbreak(lh); doc.text(ln,x,y); y+=lh; }
+        return; }
+      const lines=[]; let line=[], lw=0;
+      for(const tok of words){ const tw=wstr(tok.w, fsOf(tok));
+        if(!line.length){ line=[tok]; lw=tw; }
+        else if(lw+sp+tw>maxW){ lines.push(line); line=[tok]; lw=tw; }
+        else { line.push(tok); lw+=sp+tw; } }
+      if(line.length) lines.push(line);
+      for(const ln of lines){ kbreak(lh); let px=x, i=0;
+        while(i<ln.length){ const st=fsOf(ln[i]); const grp=[]; let j=i;
+          while(j<ln.length && fsOf(ln[j])===st){ grp.push(ln[j].w); j++; }
+          const str=grp.join(" "); doc.setFont("helvetica",st); doc.setTextColor(...color);
+          doc.text(str, px, y); px += wstr(str, st);
+          if(j<ln.length && !/^[,.;:!?)]/.test(ln[j].w)) px += sp;
+          i=j; }
+        y+=lh; } };
     // heading with two-tone gold underline
     kbreak(40);
     doc.setFont("helvetica","bold"); doc.setFontSize(13.5); doc.setTextColor(...BROWN);
@@ -1451,23 +1463,34 @@
         });
         return words;
       };
+      // Draws wrapped text with inline **bold**/*italic*. Same-style words are drawn as ONE
+      // string so jsPDF's own (exact) spacing is used — placing words individually drifts via
+      // getTextWidth↔render kerning mismatch and fuses words ("Yourfirst"). Only at a style
+      // boundary is a space added manually.
       const richText=(pg,x,size,color,maxW,lh)=>{
-        const words=tokenize(pg);
+        const words=tokenize(pg); if(!words.length) return;
         const fsOf=(t)=> t.b?"bold":t.i?"italic":"normal";
-        const measure=(t)=>{ doc.setFont("helvetica", fsOf(t)); return doc.getTextWidth(t.w); };
-        doc.setFontSize(size);
-        doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
-        const drawLine=(arr)=>{ kbreak(lh); let px=x;
-          arr.forEach((tok,i)=>{ doc.setFont("helvetica", fsOf(tok)); doc.setTextColor(...color);
-            doc.text(tok.w, px, y); px += measure(tok) + (i<arr.length-1?sp:0); });
-          y+=lh; };
-        let line=[], lineW=0;
-        for(const tok of words){
-          const tw=measure(tok); const add=(line.length?sp:0)+tw;
-          if(line.length && lineW+add>maxW){ drawLine(line); line=[]; lineW=0; }
-          line.push(tok); lineW+=(line.length>1?sp:0)+tw;
+        const wstr=(s,st)=>{ doc.setFont("helvetica",st); return doc.getTextWidth(s); };
+        doc.setFontSize(size); doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
+        if(!words.some(t=>t.b||t.i)){                 // plain paragraph — jsPDF handles it fully
+          doc.setFont("helvetica","normal"); doc.setTextColor(...color);
+          for(const ln of doc.splitTextToSize(words.map(t=>t.w).join(" "), maxW)){ kbreak(lh); doc.text(ln,x,y); y+=lh; }
+          return;
         }
-        if(line.length) drawLine(line);
+        const lines=[]; let line=[], lw=0;               // mixed style — wrap by word
+        for(const tok of words){ const tw=wstr(tok.w, fsOf(tok));
+          if(!line.length){ line=[tok]; lw=tw; }
+          else if(lw+sp+tw>maxW){ lines.push(line); line=[tok]; lw=tw; }
+          else { line.push(tok); lw+=sp+tw; } }
+        if(line.length) lines.push(line);
+        for(const ln of lines){ kbreak(lh); let px=x, i=0;   // draw same-style runs as strings
+          while(i<ln.length){ const st=fsOf(ln[i]); const grp=[]; let j=i;
+            while(j<ln.length && fsOf(ln[j])===st){ grp.push(ln[j].w); j++; }
+            const str=grp.join(" "); doc.setFont("helvetica",st); doc.setTextColor(...color);
+            doc.text(str, px, y); px += wstr(str, st);
+            if(j<ln.length && !/^[,.;:!?)]/.test(ln[j].w)) px += sp;
+            i=j; }
+          y+=lh; }
       };
       // paragraph-aware body: ### sub-head, » why-panel, - bullet, ★ theme, **bold**.
       const bodyBlock=(t,size,gap)=>{
