@@ -2599,9 +2599,15 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
 // We surface the most relevant PAST ones (recognition / pattern) and the UPCOMING ones
 // within the 20-yr horizon (course-correction). A STABLE career chart returns prone:false
 // and the report raises no disruption alarm — so this never over-flags steady careers.
-function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, amatyakaraka){
+function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, amatyakaraka, compound, houseStates){
   try{
     if(!Array.isArray(dashas) || !dashas.length) return null;
+    // Compound-state MITIGATORS for the probability layer: a disruptor that is itself a
+    // cancelled debilitation, or a structurally protected 10th, LOWERS the likelihood that a
+    // window actually disrupts (vs. merely tests).
+    const nbFullSet = new Set((compound&&compound.neechaBhanga||[]).filter(nb=>nb.level==="full").map(nb=>nb.planet));
+    const h10 = houseStates && houseStates[10];
+    const tenthProtected = !!(h10 && (h10.grade==="strong" || h10.grade==="supported" || h10.angles.some(a=>a.why&&a.why.indexOf("aspects its own house")>=0)));
     const byY = birthDate ? new Date(birthDate).getFullYear() : null;
     const nowY = new Date().getFullYear(); const capY = nowY + 20;
     const tenthHouse = lordPlacement && lordPlacement.house;
@@ -2724,7 +2730,19 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
         if(sy>capY) continue;                           // within the 20-year horizon
         const years=(ey&&ey!==sy)?(sy+"–"+ey):String(sy);
         const when = (ey&&ey<nowY)?"past":(sy>nowY?"upcoming":"current");
-        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity, mdStress:mdV, when, gradeWhy:stressWhy[mdV]||"" });
+        // PROBABILITY / likelihood — convergence of independent angles, with compound-state
+        // mitigation. Plain graded band (elevated / moderate / lower), never a false percentage.
+        let lk = (severity==="significant") ? 2 : 1; const lkFactors=[], lkMit=[];
+        if(mdV==="amplify"){ lk+=1; lkFactors.push("the main period also stresses career (double-activation)"); }
+        else if(mdV==="cushion"){ lk-=1; lkMit.push("the main period is career-supportive"); }
+        if(ownLordInLoss){ lk+=1; lkFactors.push("the career ruler is delivering its own loss-house placement"); }
+        if(ownMahadasha){ lk+=0.5; lkFactors.push("it falls in the planet's own main period (full delivery)"); }
+        if(recoveryCapacity==="low"){ lk+=0.5; lkFactors.push("the earning axis recovers slowly, so a setback bites harder"); }
+        if(nbFullSet.has(ad.lord)){ lk-=1.5; lkMit.push("this planet's debilitation is cancelled (resilient), which softens its disruptive edge"); }
+        if(tenthProtected){ lk-=1; lkMit.push("the career house is structurally protected (its own ruler holds it)"); }
+        const likelihood = lk>=3 ? "elevated" : lk>=1.5 ? "moderate" : "lower";
+        const likelihoodWhy = (lkFactors.length?("raised by: "+lkFactors.join("; ")):"")+((lkFactors.length&&lkMit.length)?" — ":"")+(lkMit.length?("eased by: "+lkMit.join("; ")):"");
+        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity, mdStress:mdV, likelihood, likelihoodWhy, when, gradeWhy:stressWhy[mdV]||"" });
       }
     }
     out.sort((a,b)=>a.sy-b.sy);
@@ -3911,7 +3929,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign, _ama, compound); }catch(_){}
     try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound); }catch(_){}
-    try{ if(careerCompass){ careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama); } }catch(_){}
+    try{ if(careerCompass){ careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama, compound, houseStates); } }catch(_){}
   }
 
   // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
