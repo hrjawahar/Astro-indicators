@@ -3291,14 +3291,22 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // SCORING engine already uses these multi-house sets — this mirrors them into TIMING so
     // keyWindows, the likely-event window, and the dasha reads detect genuine events (e.g. a
     // Saturn-2nd-lord MD / Mars-5th-lord AD marriage that the 7th-lord alone would miss).
+    // Supporting houses per domain. Beyond the obvious ones, each domain also folds in its
+    // DERIVATIVE (bhavat bhavam) house — the Nth-from-Nth that classically carries a sub-theme
+    // of the area — so a lord/occupant/stressor there is caught as a secondary activator:
+    //   marriage +8 = 2nd-from-7th (mangalya / the longevity and sustenance of the marriage)
+    //   siblings +5 = 3rd-from-3rd (a younger co-born's courage and ventures)
+    //   mother   +7 = 4th-from-4th (the mother's own home, comfort and partner)
+    //   children  9 = 5th-from-5th (already present — the dharma/continuation of progeny)
+    //   career   7th (10th-from-10th) is handled as a dedicated early-signal in buildCareerDisruptions
     const DOMAIN_TIMING_SUPPORT = {
-      self:     { houses: [],        karakas: ["Sun","Moon"] },
-      career:   { houses: [6, 11],   karakas: ["Sun","Saturn","Mercury","Jupiter"] },
-      siblings: { houses: [11],      karakas: ["Mars"] },
-      mother:   { houses: [2],       karakas: ["Moon","Venus"] },
-      children: { houses: [9, 2],    karakas: ["Jupiter"] },
-      health:   { houses: [1, 8, 12],karakas: ["Sun","Moon","Saturn","Mars"] },
-      marriage: { houses: [2, 5, 11],karakas: ["Venus","Jupiter"] },
+      self:     { houses: [],          karakas: ["Sun","Moon"] },
+      career:   { houses: [6, 11],     karakas: ["Sun","Saturn","Mercury","Jupiter"] },
+      siblings: { houses: [5, 11],     karakas: ["Mars"] },
+      mother:   { houses: [2, 7],      karakas: ["Moon","Venus"] },
+      children: { houses: [9, 2],      karakas: ["Jupiter"] },
+      health:   { houses: [1, 8, 12],  karakas: ["Sun","Moon","Saturn","Mars"] },
+      marriage: { houses: [2, 5, 8, 11],karakas: ["Venus","Jupiter"] },
     };
     const sup = DOMAIN_TIMING_SUPPORT[domainKey] || { houses: [], karakas: [] };
     const supLords = sup.houses.map(h=>houseLord(d1LagnaSign,h)).filter(Boolean);
@@ -3318,7 +3326,11 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     //  - a dusthana (6th/8th/12th) lord relative to the lagna
     //  - debilitated, or a malefic occupying the domain house
     const dusthanaLords = new Set([houseLord(d1LagnaSign,6), houseLord(d1LagnaSign,8), houseLord(d1LagnaSign,12)].filter(Boolean));
-    const domainHouseMalefics = new Set((occupants||[]).filter(o=>["Saturn","Mars","Rahu","Ketu"].includes(o.planet)).map(o=>o.planet));
+    // A malefic in the PRIMARY domain house OR any supporting/derivative domain house is a
+    // stressor for the area (e.g. a malefic in the 8th stresses marital longevity).
+    const domainHouseMalefics = new Set(
+      [...(occupants||[]).map(o=>o.planet), ...supOcc]
+        .filter(p=>["Saturn","Mars","Rahu","Ketu"].includes(p)));
     function isStressor(planet){
       if(!planet) return false;
       const pp=d1P[planet];
