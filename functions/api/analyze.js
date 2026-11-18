@@ -3064,19 +3064,19 @@ function buildManglikCheckpoint(d1P, d1LagnaSign){
 // Sun/Mars (independent drive). The 7th's condition decides partnership vs solo. The
 // report ALWAYS carries a line — a positive lean with specifics, or a plain "not strongly
 // business-leaning" — so the reader is never left wondering.
-function buildBusinessLean(d1P, d1LagnaSign){
+function buildBusinessLean(d1P, d1LagnaSign, amatyakaraka, compound){
   try{
     const L=(h)=>houseLord(d1LagnaSign,h);
     const occ=(h)=>occupantsOfHouse(d1P,h);
     const benefic=new Set(["Jupiter","Venus","Mercury","Moon"]);
-    const strong=(p)=> d1P[p] && (d1P[p].dignity==="Exalted"||d1P[p].dignity==="Own sign");
-    const weakOrDus=(p)=> d1P[p] && (d1P[p].dignity==="Debilitated"||[6,8,12].includes(d1P[p].house));
+    const nbFull=(p)=> !!((compound&&compound.neechaBhanga||[]).some(nb=>nb.planet===p && nb.level==="full"));
+    const strong=(p)=> d1P[p] && (d1P[p].dignity==="Exalted"||d1P[p].dignity==="Own sign"||(d1P[p].dignity==="Debilitated"&&nbFull(p)));
+    const weakOrDus=(p)=> d1P[p] && ((d1P[p].dignity==="Debilitated"&&!nbFull(p))||[6,8,12].includes(d1P[p].house));
     const wellPlaced=(p)=> d1P[p] && [1,2,4,5,7,9,10,11].includes(d1P[p].house) && !weakOrDus(p);
     const inHouse=(p,hs)=> d1P[p] && hs.includes(d1P[p].house);
 
     // COMMERCE support — the enterprise houses (3 self-effort, 7 trade/vyapara, 11 gains)
-    // plus Mercury, the karaka of commerce. This says a commercial/business FUNCTION suits
-    // the chart; on its own it can be exercised just as well inside an organisation.
+    // plus Mercury (commerce karaka).
     let commerce=0; const commerceWhy=[];
     if(strong("Mercury")||(inHouse("Mercury",[1,2,7,10,11])&&!weakOrDus("Mercury"))){ commerce+=2; commerceWhy.push("Mercury (commerce) well placed"); }
     else if(weakOrDus("Mercury")){ commerce-=1; commerceWhy.push("Mercury (commerce) under pressure"); }
@@ -3084,24 +3084,56 @@ function buildBusinessLean(d1P, d1LagnaSign){
     for(const h of [3,11]){ const l=L(h); if(l&&wellPlaced(l)){ commerce+=1; commerceWhy.push(ordinalD(h)+"-lord well placed"); } }
     for(const h of [3,7,11]){ if(occ(h).some(p=>benefic.has(p))){ commerce+=1; commerceWhy.push("benefic in "+ordinalD(h)); } }
 
-    // AUTONOMY / independent drive — the self-employment lever. It is the self-reliant
-    // markers (strong Sun/Mars, a self-directed 10th lord, a strong 3rd of self-effort)
-    // that tilt a commercially-able chart toward running one's OWN venture rather than
-    // being employed. Without them, commerce ability points to a business ROLE, not
-    // proprietorship.
+    // TRADE / COMMODITY signature — the classical merchant markers a narrow "10th-lord only"
+    // read misses: a strong 8th (bulk / wholesale / stored value), a node in the 7th
+    // (marketplace volume, the 10th-from-10th), and the career karaka (Amatyakaraka) driving
+    // a wealth/trade house. Counted separately so it can lift the grade on its OWN — a strong
+    // merchant chart must not be suppressed for lacking generic "autonomy" markers.
+    let tradeScore=0; const tradeWhy=[];
+    { const l8=L(8);
+      const eighthStrong = (l8 && strong(l8) && inHouse(l8,[8])) || occ(8).some(p=>strong(p));
+      if(eighthStrong){ tradeScore++; commerce+=2; tradeWhy.push("a strong 8th-house placement — the classical signature of bulk / commodity / wholesale / stored-value trade"); } }
+    if(inHouse("Rahu",[7])){ tradeScore++; commerce+=1; tradeWhy.push("a shadow planet in the house of trade (the marketplace — the 10th-from-10th) — high-volume or large-scale dealing"); }
+    if(amatyakaraka && strong(amatyakaraka) && inHouse(amatyakaraka,[2,7,8,10,11])){ tradeScore++; commerce+=1; tradeWhy.push("the career indicator (Amatyakaraka) is strong in a wealth/trade house — a genuine commercial driver"); }
+    commerceWhy.push(...tradeWhy);
+
+    // AUTONOMY / independent drive — strong Sun/Mars, a self-directed career ruler, a
+    // GENUINELY ACTIVATED 3rd of self-effort, and a shadow planet on the Ascendant (a
+    // self-made, institution-independent streak). FIX: the 3rd credits autonomy only when the
+    // 3rd is actually engaged — NOT merely because its lord is strong for an unrelated reason
+    // elsewhere (the "strong 3rd lord" miscredit that over-stated an empty, unengaged 3rd).
     let autonomy=0; const autonomyWhy=[];
     if(strong("Sun")){ autonomy+=1; autonomyWhy.push("strong Sun — authority and self-reliance"); }
     if(strong("Mars")){ autonomy+=1; autonomyWhy.push("strong Mars — initiative and drive"); }
     { const l10=L(10); if(l10&&strong(l10)){ autonomy+=1; autonomyWhy.push("self-directed career ruler (10th lord strong)"); }
       else if(l10&&inHouse(l10,[1,10])){ autonomy+=1; autonomyWhy.push("career ruler in an angle of self"); } }
-    { const l3=L(3); if(l3&&strong(l3)){ autonomy+=1; autonomyWhy.push("strong 3rd lord — self-effort and enterprise"); } }
+    { const l3=L(3);
+      const thirdActivated = occ(3).some(p=>strong(p)) || (l3 && strong(l3) && inHouse(l3,[1,3,10,11]));
+      if(thirdActivated){ autonomy+=1; autonomyWhy.push("the 3rd house of self-effort is genuinely activated (enterprise drive)"); } }
+    if(occ(1).some(p=>["Rahu","Ketu"].includes(p))){ autonomy+=1; autonomyWhy.push("a shadow planet on the Ascendant — a self-made, institution-independent streak"); }
     if((strong("Sun")||strong("Mars")) && (inHouse("Sun",[1,4,7,10])||inHouse("Mars",[1,4,7,10]))){ autonomy+=1; autonomyWhy.push("independent drive in an angle"); }
 
-    // GRADE — an enterprise lean requires BOTH commerce support AND real autonomy.
-    let grade, statement;
-    if(commerce>=3 && autonomy>=2){ grade="strong"; statement="The chart genuinely leans toward running your own enterprise — both commerce support and real independent drive are present."; }
-    else if(commerce>=3 && autonomy>=1){ grade="moderate"; statement="A business of your own is workable and supported — but weigh it alongside employment rather than treating it as the obvious default; the independent-drive signals are present without being dominant."; }
-    else if(commerce>=4){ grade="mild"; statement="You are well-suited to commercial, business-facing work — but the chart supports this more within a structured role or organisation than as a solo independent venture, since the independent-drive markers are mild. Business is an option to weigh, not a clear calling."; }
+    // GRADE — an enterprise lean needs commerce support AND independence; BUT a strong,
+    // multi-marker TRADE signature establishes a genuine merchant lean on its own, with
+    // autonomy only deciding how solo-vs-structured it runs.
+    // Thresholds tuned on a random population so a STRONG own-business lean stays a
+    // meaningful minority (not a third of everyone). The genuine, multi-marker TRADE
+    // signature (strongTrade) earns "strong" on its own with only light autonomy — that is
+    // the rare merchant chart the old narrow read suppressed.
+    let grade, statement; const strongTrade = tradeScore>=2;
+    if((commerce>=5 && autonomy>=2) || (strongTrade && autonomy>=1)){
+      grade="strong";
+      statement = strongTrade
+        ? "The chart genuinely supports running your own enterprise — a strong commercial and trade signature (the kind seen in commodity, wholesale and stored-value dealing) together with real independent drive."
+        : "The chart genuinely leans toward running your own enterprise — both commerce support and real independent drive are present.";
+    }
+    else if((commerce>=4 && autonomy>=2) || (commerce>=3 && autonomy>=1 && tradeScore>=1) || strongTrade){
+      grade="moderate";
+      statement = strongTrade
+        ? "A business of your own is genuinely supported — there is a real commercial and trade signature in the chart; weigh how independently you run it, since the self-direction markers are present without being dominant."
+        : "A business of your own is workable and supported — but weigh it alongside employment rather than treating it as the obvious default; the independent-drive signals are present without being dominant.";
+    }
+    else if(commerce>=4 || (commerce>=3 && autonomy>=1)){ grade="mild"; statement="You are well-suited to commercial, business-facing work — but the chart supports this more within a structured role or organisation than as a solo independent venture, since the independent-drive markers are mild. Business is an option to weigh, not a clear calling."; }
     else { grade="none"; statement="The chart does not strongly lean toward independent business; a professional role or steady employment is the more natural fit, with any business kept measured and well-advised."; }
     const leans = (grade==="strong"||grade==="moderate");
 
@@ -3114,7 +3146,7 @@ function buildBusinessLean(d1P, d1LagnaSign){
     else if(sevBenefic && !sevAfflicted){ mode="partnership"; modeNote="the partnership house is supported, so a well-chosen business partnership can genuinely work in your favour."; }
     else { mode="either"; modeNote="partnership and solo routes are both workable — let the specific people and terms decide, not a chart preference."; }
 
-    return { grade, leans, statement, score:commerce+autonomy, commerce, autonomy, commerceWhy, autonomyWhy, mode, modeNote,
+    return { grade, leans, statement, score:commerce+autonomy, commerce, autonomy, tradeScore, tradeWhy, commerceWhy, autonomyWhy, mode, modeNote,
       reconcileNote:"Hold this together with your Role Fit: a business lean does not override the relational, delivery-through-people signature — for many charts it means leading or owning a people-centred enterprise, not working in isolation.",
       fields: leans ? "commerce or running your own enterprise, ideally within the fields your Sector Fit points to above" : null,
       timingNote: "weigh any business move in the periods the Timing section marks as supportive — a steady, well-supported stretch, not a restless or testing one (and not a Rahu phase, where enterprise can look more promising than it proves).",
@@ -3205,6 +3237,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
   if(!d1P) return null;
+  // Layers 1–2: compound states + multi-angle house-states, computed once and consumed by
+  // the domain builders below. General-law substrate (see ENGINE_DEPTH_DESIGN.md).
+  const compound = buildCompoundStates(d1P, d1LagnaSign, d9Houses, d9LagnaSign);
+  const houseStates = buildHouseStates(d1P, d1LagnaSign, compound);
   const hLord=houseLord(d1LagnaSign, cfg.house);
   const lordPlacement=hLord?d1P[hLord]:null;
   const occupants=Object.entries(d1P).filter(([p,v])=>v.house===cfg.house && p!=="Lagna").map(([p,v])=>({planet:p,...v}));
@@ -3823,9 +3859,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // ── Career Compass (career domain only): net-new, additive decision framework ──
   let careerCompass=null;
   if(domainKey==="career"){
+    const _ama=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Amatyakaraka")||{}).planet:null;
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
-    try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign); }catch(_){}
-    try{ if(careerCompass){ const _ama=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Amatyakaraka")||{}).planet:null; careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama); } }catch(_){}
+    try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign, _ama, compound); }catch(_){}
+    try{ if(careerCompass){ careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama); } }catch(_){}
   }
 
   // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
