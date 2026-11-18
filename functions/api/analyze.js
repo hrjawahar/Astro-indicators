@@ -2684,8 +2684,9 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
         // as pronounced; otherwise it is a real but moderate reset. Nothing is dropped for an
         // "unrelated" main period — that was the bug that hid the real case.
         const ownLordInLoss = (ad.lord===hLord && tenthInLoss);
+        const ownMahadasha = (md.lord===ad.lord);   // the lord's OWN Mahadasha = full delivery
         let severity;
-        if(ownLordInLoss)              severity = (mdV==="cushion") ? "moderate" : "significant";
+        if(ownLordInLoss)              severity = (mdV==="amplify" || ownMahadasha) ? "significant" : (mdV==="cushion") ? "mild" : "moderate";
         else if(base==="significant")  severity = (mdV==="amplify") ? "significant" : "moderate";
         else                           severity = (mdV==="amplify") ? "moderate"    : "mild";
         if(severity==="mild") continue;
