@@ -3371,11 +3371,13 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
                     : ad.lord===karakaPlanet? ad.lord+" (the "+cfg.karaka+") sub-period within "+md.lord+" — the domain significator activates here"
                     : ad.lord+" sub-period within "+md.lord+" — an active window for this area, tending to bring new developments or demands") });
           }
-          // RETROSPECTIVE (read-only): within the CURRENT MD, a PAST sub-period whose
-          // lord is a genuine domain stressor was likely a testing window. This gives
-          // the reader recognisable confirmation ("yes, that hard patch was then").
-          if(isCurrentMD && aen!=null && aen<now && isStressor(ad.lord)){
-            pastWindows.push({ md:md.lord, ad:ad.lord, years:ayrs,
+          // RETROSPECTIVE (read-only): a PAST sub-period whose lord is a genuine domain
+          // stressor was likely a testing window — recognisable confirmation ("yes, that hard
+          // patch was then"). RC4: this used to be limited to the CURRENT Mahadasha, so a real
+          // event in a PRIOR Mahadasha (e.g. a career break two Mahadashas ago) never surfaced.
+          // Now any adult-age prior stressor sub-period qualifies; the nearest are chosen below.
+          if(aen!=null && aen<now && isStressor(ad.lord)){
+            pastWindows.push({ md:md.lord, ad:ad.lord, years:ayrs, sy:yr(ad.startDate),
               note: ad.lord+" sub-period within "+md.lord+" — a period when "+cfg.focus+" was likely tested, under pressure, or going through real change" });
           }
         }
@@ -3395,7 +3397,9 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const startYearOf = (yrs)=>{ const m=String(yrs||"").match(/(\d{4})/); return m?parseInt(m[1],10):null; };
     const within20 = (w)=>{ const sy=startYearOf(w.years); return sy==null || sy<=capYear20; };
     const kw = adWindows.filter(ageGate).filter(within20).slice(0,8);
-    const pw = pastWindows.filter(ageGate).slice(0,4);
+    // RC4: prefer the MOST RECENT testing windows (nearest to now), across all past
+    // Mahadashas, so the reader recognises what they actually lived — not the earliest.
+    const pw = pastWindows.filter(ageGate).sort((a,b)=>(b.sy||0)-(a.sy||0)).slice(0,4);
     const fw = forwardADs.filter(ageGate).filter(within20).slice(0,16);
     // LIKELY MARRIAGE/COMMITMENT WINDOW (Looking-back fix): surface the strongest PAST
     // *supportive* domain activation — the karaka / house-lord / benefic-occupant period
