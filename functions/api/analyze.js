@@ -2861,6 +2861,100 @@ function buildCompoundStates(d1P, d1LagnaSign, d9Houses, d9LagnaSign){
   }catch(_){ return null; }
 }
 
+// ══ LAYER 2: MULTI-ANGLE HOUSE READING ══════════════════════════════════════════════
+// A HouseState reads a house from EVERY angle a practitioner uses — occupants, the lord's
+// placement and strength, aspects received (and the lord aspecting its own house), the
+// natural significator (karaka), and the Bhavat-Bhavam house-from-house — each feeding the
+// Layer-1 compound states in (a debilitated-but-cancelled occupant is not a weakness; a
+// retrograde lord reinforcing its own house is protection). The graded verdict is the
+// SYNTHESIS of the angles, never one alone; every angle carries its own why-line. General
+// law; not yet consumed by any domain (wired in Layer 3).
+const HS_BENEFIC = new Set(["Jupiter","Venus","Mercury","Moon"]);
+const HS_MALEFIC = new Set(["Sun","Mars","Saturn","Rahu","Ketu"]);
+const HS_KT      = new Set([1,4,5,7,9,10]);   // kendra + trikona (strong houses)
+const HS_DUS     = new Set([6,8,12]);          // dusthana (difficult houses)
+const BHAVA_KARAKA = {1:["Sun"],2:["Jupiter"],3:["Mars"],4:["Moon"],5:["Jupiter"],6:["Mars","Saturn"],7:["Venus"],8:["Saturn"],9:["Jupiter"],10:["Sun","Mercury","Jupiter","Saturn"],11:["Jupiter"],12:["Saturn"]};
+function buildHouseState(h, d1P, d1LagnaSign, compound){
+  try{
+    if(!h || !d1P || !d1LagnaSign) return null;
+    const lagIdx=V_SIGNS.indexOf(d1LagnaSign); if(lagIdx<0) return null;
+    const sign=V_SIGNS[(lagIdx+h-1)%12];
+    const lord=houseLord(d1LagnaSign,h);
+    const hof=(p)=> d1P[p] && d1P[p].house;
+    const digOf=(p)=> d1P[p] && d1P[p].dignity;
+    const lordH=hof(lord);
+    const occ=occupantsOfHouse(d1P,h);
+    const prof=(compound&&compound.houseProfiles&&compound.houseProfiles[h])||null;
+    const nbMap={}; (compound&&compound.neechaBhanga||[]).forEach(nb=>{ nbMap[nb.planet]=nb; });
+    const retroReinf=new Set(); (compound&&compound.retroStrength||[]).forEach(r=>{ if((r.reinforcedHouses||[]).includes(h)) retroReinf.add(r.planet); });
+    const angles=[]; let score=0;
+    const add=(angle,dir,wt,why)=>{ angles.push({angle,direction:dir>0?"support":dir<0?"stress":"neutral",weight:wt,why}); score+=dir*wt; };
+
+    // 1. Occupants (natural benefic/malefic × dignity, with compound-state overrides)
+    for(const p of occ){
+      const d=digOf(p), nb=nbMap[p];
+      if(HS_BENEFIC.has(p)){
+        if(d==="Exalted"||d==="Own sign") add("occupant",+1,1.5,p+" (benefic) strong in the house");
+        else if(d==="Debilitated") (nb&&nb.level==="full") ? add("occupant",+1,0.5,p+" debilitated here but cancelled — resilient") : add("occupant",-1,0.5,p+" (benefic) debilitated here");
+        else add("occupant",+1,1,p+" (benefic) occupies the house");
+      } else {
+        if(d==="Exalted"||d==="Own sign") add("occupant",+1,0.5,p+" (malefic) dignified here — capable but intense");
+        else if(d==="Debilitated") (nb&&nb.level==="full") ? add("occupant",0,0.5,p+" debilitated-but-cancelled here") : add("occupant",-1,1,p+" (malefic) debilitated here");
+        else add("occupant",-1,1,p+" (malefic) occupies the house");
+      }
+      if(retroReinf.has(p)) add("occupant",+1,0.5,p+" retrograde, reinforcing this (own) house");
+    }
+
+    // 2. House-lord placement & strength
+    if(lord && lordH){
+      const ld=digOf(lord), lnb=nbMap[lord];
+      if(HS_DUS.has(lordH)) (lnb&&lnb.level==="full") ? add("lord",0,1,"house lord "+lord+" in a 6/8/12 but debilitation cancelled") : add("lord",-1,1,"house lord "+lord+" in a 6/8/12 (weakened)");
+      else if(HS_KT.has(lordH)) add("lord",+1,1.5,"house lord "+lord+" in an angle/trine (well placed)");
+      else add("lord",+1,0.5,"house lord "+lord+" in a neutral house");
+      if(ld==="Exalted"||ld==="Own sign") add("lord",+1,0.5,"house lord "+lord+" dignified");
+      else if(ld==="Debilitated" && !(lnb&&lnb.level==="full")) add("lord",-1,0.5,"house lord "+lord+" debilitated");
+    }
+
+    // 3. Aspects received + own-lord protection
+    if(prof){
+      let ben=0, mal=0;
+      for(const p of (prof.aspectsReceived||[])){ HS_BENEFIC.has(p) ? ben++ : mal++; }
+      if(ben) add("aspect",+1,Math.min(1,ben*0.5),ben+" benefic aspect(s) received");
+      if(mal) add("aspect",-1,Math.min(1,mal*0.5),mal+" malefic aspect(s) received");
+      if(prof.ownLordHolds && lordH!==h) add("aspect",+1,1,"house lord aspects its own house (protection)");
+    }
+
+    // 4. Natural significator (karaka) — primary only, to avoid over-counting
+    const kk=(BHAVA_KARAKA[h]||[])[0];
+    if(kk && hof(kk)){ const kh=hof(kk), kd=digOf(kk), knb=nbMap[kk];
+      if(HS_DUS.has(kh) && !(knb&&knb.level==="full")) add("karaka",-1,0.5,"significator "+kk+" in a 6/8/12");
+      else if(kd==="Debilitated" && !(knb&&knb.level==="full")) add("karaka",-1,0.5,"significator "+kk+" debilitated");
+      else if(kd==="Exalted"||kd==="Own sign"||HS_KT.has(kh)) add("karaka",+1,0.5,"significator "+kk+" well placed");
+    }
+
+    // 5. Bhavat Bhavam — the house-from-house (Nth from Nth = (2h-2) mod 12 + 1)
+    const dh=((2*h-2)%12)+1;
+    const docc=occupantsOfHouse(d1P,dh);
+    const dmal=docc.filter(p=>HS_MALEFIC.has(p) && digOf(p)!=="Exalted" && digOf(p)!=="Own sign");
+    const dben=docc.filter(p=>HS_BENEFIC.has(p));
+    if(dmal.length) add("derivative",-1,0.5,"malefic in the "+ordinalD(dh)+" (house-from-house): "+dmal.join(", "));
+    else if(dben.length) add("derivative",+1,0.5,"benefic in the "+ordinalD(dh)+" (house-from-house)");
+
+    // Net grade (thresholds tuned on a random population for a sane spread)
+    let grade;
+    if(score>=2.5) grade="strong"; else if(score>=1) grade="supported"; else if(score>-1) grade="mixed"; else if(score>-2.5) grade="stressed"; else grade="weak";
+    const sup=angles.filter(a=>a.direction==="support").length, str=angles.filter(a=>a.direction==="stress").length;
+    const tot=sup+str;
+    const confidence = tot<2 ? "low" : (Math.max(sup,str)/tot)>=0.75 ? "high" : (Math.max(sup,str)/tot)>=0.6 ? "moderate" : "low";
+
+    return { house:h, sign, lord, lordHouse:lordH, occupants:occ, derivativeHouse:dh,
+      score:+score.toFixed(2), grade, confidence, angles, why:angles.map(a=>a.why) };
+  }catch(_){ return null; }
+}
+function buildHouseStates(d1P, d1LagnaSign, compound){
+  const out={}; for(let h=1;h<=12;h++){ out[h]=buildHouseState(h,d1P,d1LagnaSign,compound); } return out;
+}
+
 // ── Manglik / Mangal (Kuja) dosha — a TRANSPARENT checkpoint, not a verdict ─────────
 // Mangal dosha is genuinely contested among experienced astrologers, in BOTH how it is
 // calculated and how much weight it deserves. Rather than issue a scary one-line verdict
