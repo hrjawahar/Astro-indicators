@@ -2615,7 +2615,35 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
     // so they must NOT raise a disruption alarm, or steady careers get wrongly flagged.
     const nodeOn10 = tenthOcc.some(p=>["Rahu","Ketu"].includes(p));
     const prone = !!(tenthInLoss || tenthInSixth || tenthWeak || nodeOn10);
-    if(!prone) return { prone:false };
+
+    // SECONDARY / EARLY-SIGNAL windows (bhavat bhavam) — the 7th house is the 10th-FROM-10th:
+    // livelihood, the marketplace and public dealing. A node there gives an EARLIER, softer
+    // career signal (restlessness or a quiet detachment about one's work-standing) than the
+    // primary break of the 10th itself. This is the GENERAL rule that REPLACES the retired,
+    // over-fit findPrecursor — derived for every chart from the derivative house, not hand-
+    // coded to one timeline, and no longer dependent on a primary window already existing.
+    const earlySignals=(()=>{
+      try{
+        const derivOcc = occupantsOfHouse(d1P,7).filter(p=>["Rahu","Ketu"].includes(p));
+        if(!derivOcc.length) return [];
+        const SIGNAL={ Ketu:"a quiet detachment or disillusionment about your work-standing — a sense that a chapter is closing", Rahu:"a restlessness and a pull toward an unconventional or risky move in your work-life" };
+        const list=[];
+        for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
+          for(const ad of md.antarDasas){ if(!derivOcc.includes(ad.lord)) continue;
+            const sy=ad.startDate?new Date(ad.startDate).getFullYear():null, ey=ad.endDate?new Date(ad.endDate).getFullYear():null;
+            if(sy==null) continue; if(byY!=null && (sy-byY)<18) continue; if(sy>capY) continue;
+            const years=(ey&&ey!==sy)?(sy+"–"+ey):String(sy);
+            const when=(ey&&ey<nowY)?"past":(sy>nowY?"upcoming":"current");
+            list.push({ years, sy, planet:ad.lord, md:md.lord, when,
+              note:("the "+ad.lord+" sub-period touches your 7th house — the 10th-from-the-10th, your house of livelihood and the marketplace — bringing "+(SIGNAL[ad.lord]||"a secondary stir in your work-life")+". It is an EARLIER, softer signal than a primary break — the chart's cue to read the ground and prepare.") });
+          }
+        }
+        list.sort((a,b)=>a.sy-b.sy);
+        return [...list.filter(w=>w.when==="past").slice(-1), ...list.filter(w=>w.when!=="past").slice(0,2)];
+      }catch(_){ return []; }
+    })();
+
+    if(!prone) return { prone:false, earlySignals };
     const reason = (tenthInLoss) ? ("your career ruler sits in the "+ordinalD(lordPlacement.house)+" house — a house of upheaval and loss, so its own periods can dismantle and reshape your working life rather than simply test it")
       : tenthInSixth ? "your career ruler sits in the 6th — the house of struggle and dispute — so its periods bring friction and contest more than clean progress"
       : nodeOn10 ? "a shadow planet (Rahu or Ketu) sits in your house of career, so your path can move through sudden, unconventional changes and resets"
@@ -2719,7 +2747,7 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
           : "tied to your career axis"
     }));
     const hasSignificant = past.concat(upcoming).some(w=>w.severity==="significant");
-    return { prone:true, reason, recoveryCapacity, recoveryNote, past, upcoming, disruptors:disruptorList, hasSignificant };
+    return { prone:true, reason, recoveryCapacity, recoveryNote, past, upcoming, disruptors:disruptorList, hasSignificant, earlySignals };
   }catch(_){ return null; }
 }
 
