@@ -2752,6 +2752,109 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
 }
 
 // ── Business lean (career domain) ───────────────────────────────────────────────
+// ── Manglik / Mangal (Kuja) dosha — a TRANSPARENT checkpoint, not a verdict ─────────
+// Mangal dosha is genuinely contested among experienced astrologers, in BOTH how it is
+// calculated and how much weight it deserves. Rather than issue a scary one-line verdict
+// (what casual calculators do), this shows the calculation openly so the reader can weigh
+// it. Accuracy choices, each defensible and sourced from classical practice:
+//  • Three reference points — Ascendant (most common), Moon, and Venus (the marriage
+//    significator). Strength is graded by cross-reference AGREEMENT, which is the robust,
+//    false-positive-resistant method professionals use — a single placement is "mild",
+//    not a diagnosis.
+//  • Dosha houses are the classical six: 1, 2, 4, 7, 8, 12 — but the 1st and 2nd are
+//    exactly the houses schools DISAGREE on, so a hit there is flagged "contested", never
+//    treated as firm. The firm houses are 4, 7, 8, 12.
+//  • The standard parihara (cancellation/bhanga) conditions are then applied and listed —
+//    these are what casual calculators skip, and skipping them is the main source of false
+//    Manglik alarms. Firm cancellers reduce the net reading; contested ones are shown but
+//    not counted.
+// Additive only: this never alters any prediction — it renders a checkpoint the reader can
+// examine. Mutual cancellation needs the partner's chart and is explicitly out of scope.
+function buildManglikCheckpoint(d1P, d1LagnaSign){
+  try{
+    const mars=d1P&&d1P.Mars, moon=d1P&&d1P.Moon, venus=d1P&&d1P.Venus;
+    if(!mars || !mars.sign || !d1LagnaSign) return null;
+    const siOf=(s)=> V_SIGNS.indexOf(s);
+    const houseFrom=(refSign)=>{ const a=siOf(refSign), b=siOf(mars.sign); if(a<0||b<0) return null; return ((b-a+12)%12)+1; };
+    const DOSHA_HOUSE = {
+      1:"the Ascendant — self, temperament and the body",
+      2:"the family, speech and kutumba (counted in some schools, not all)",
+      4:"the home and domestic peace",
+      7:"the marriage house itself",
+      8:"māngalya — the longevity of the marriage, and sudden events",
+      12:"the bed, private life, expenses and withdrawal"
+    };
+    const CONTESTED_HOUSE = new Set([1,2]); // the two houses schools disagree on
+    const refs=[
+      {name:"Ascendant", sign:d1LagnaSign, fixedHouse:mars.house},
+      {name:"Moon",      sign:moon&&moon.sign},
+      {name:"Venus",     sign:venus&&venus.sign}
+    ];
+    const byReference = refs.map(r=>{
+      if(!r.sign) return {ref:r.name, available:false};
+      const h = (r.fixedHouse!=null) ? r.fixedHouse : houseFrom(r.sign);
+      const dosha = !!DOSHA_HOUSE[h];
+      return {ref:r.name, available:true, marsHouse:h, dosha,
+              contested: dosha && CONTESTED_HOUSE.has(h),
+              houseMeaning: dosha ? DOSHA_HOUSE[h] : null};
+    });
+    const avail = byReference.filter(b=>b.available);
+    const hits  = avail.filter(b=>b.dosha);
+    const firmHits = hits.filter(b=>!b.contested);          // on the undisputed houses 4/7/8/12
+    let rawStrength;
+    if(hits.length===0) rawStrength="none";
+    else if(firmHits.length===0) rawStrength="contested-only"; // only 1st/2nd hits — many schools would not call this Manglik at all
+    else if(firmHits.length>=2) rawStrength="pronounced";
+    else rawStrength="mild";                                  // a single firm reference
+    const severeSeat = [7,8].includes(mars.house);           // Mars in 7th/8th FROM LAGNA = severest classical case
+
+    // ── parihara (cancellation / bhanga) ──
+    // FULL  = classically nullifies (Mars is intrinsically benefic/dignified, or this lagna
+    //         does not apply the dosha) → the dosha is treated as not applicable.
+    // PARTIAL = softens by a step but does not nullify.
+    // CONTESTED = shown for transparency, not counted (schools disagree whether it cancels).
+    const cancellations=[];
+    const full=(rule,why)=>cancellations.push({rule,applies:"full",why});
+    const partial=(rule,why)=>cancellations.push({rule,applies:"partial",why});
+    const soft=(rule,why)=>cancellations.push({rule,applies:"contested",why});
+    if(["Aries","Scorpio"].includes(mars.sign)) full("Mars in its own sign ("+mars.sign+")","an own-sign Mars is classically held to cancel the dosha — it expresses as drive and protectiveness, not friction");
+    if(mars.sign==="Capricorn") full("Mars exalted in Capricorn","exalted Mars is disciplined, not disruptive — a classical cancellation");
+    if(["Cancer","Leo"].includes(d1LagnaSign)) full("Mars is Yogakaraka for a "+d1LagnaSign+" Ascendant","for this lagna Mars rules as a benefic, so the dosha is traditionally not applied at all");
+    const jup=d1P.Jupiter;
+    if(jup && jup.house===mars.house) full("Jupiter conjunct Mars","Jupiter joined to Mars is a classical nullifier of the dosha");
+    else if(jup && jup.house && aspectsHouse("Jupiter", jup.house, mars.house)) partial("Jupiter aspects Mars","Jupiter's aspect tempers the Mars affliction");
+    else if(jup && jup.house && aspectsHouse("Jupiter", jup.house, 7)) partial("Jupiter aspects the 7th house","benefic protection falls on the marriage house");
+    if(["Sagittarius","Pisces","Taurus"].includes(mars.sign)) partial("Mars in a benefic sign ("+mars.sign+")","softens the dosha, though it is not held to fully cancel");
+    if(mars.sign==="Cancer") soft("Mars debilitated in Cancer","some schools treat debilitated Mars as cancelling the dosha, others as weak rather than absent");
+    if(["Leo","Aquarius"].includes(mars.sign)) soft("Mars in "+mars.sign,"several commentaries hold Mars here produces no dosha");
+    if(venus && venus.house===mars.house) soft("Venus conjunct Mars","read by some as mitigating, by others as intensifying desire — weigh with care");
+    const fullCancellers = cancellations.filter(c=>c.applies==="full");
+    const partialCancellers = cancellations.filter(c=>c.applies==="partial");
+    const contestedCancellers = cancellations.filter(c=>c.applies==="contested");
+
+    // ── net reading (deliberately non-alarmist; full cancellation short-circuits) ──
+    const LADDER=["minimal","mild","moderate","pronounced"];
+    let idx = rawStrength==="pronounced"?3 : rawStrength==="mild"?1 : rawStrength==="contested-only"?0 : -1;
+    if(idx>=0 && severeSeat) idx=Math.min(3, idx+1);
+    let netStrength;
+    if(rawStrength==="none") netStrength="not Manglik";
+    else if(fullCancellers.length) netStrength="effectively cancelled";   // a classical full parihara is present
+    else if(rawStrength==="contested-only") netStrength="unlikely (contested houses only)";
+    else { idx = Math.max(0, idx - partialCancellers.length); netStrength=LADDER[Math.max(0,Math.min(3,idx))]; }
+
+    return {
+      present: hits.length>0,
+      method:"Mars is examined from three reference points — the Ascendant (the usual check), the Moon, and Venus (the marriage significator). The classical dosha houses are the 1st, 2nd, 4th, 7th, 8th and 12th, of which the 1st and 2nd are disputed between schools and are marked as such here. Strength is read from how many reference points AGREE, not from a single placement, and the standard parihara (cancellation) conditions are then applied — a full parihara (own-sign or exalted Mars, a Yogakaraka lagna, or Jupiter joined to Mars) is treated as nullifying, matching classical practice.",
+      byReference, referencesChecked:avail.length, referencesAfflicted:hits.length, firmReferencesAfflicted:firmHits.length,
+      marsSign:mars.sign, marsHouseFromLagna:mars.house, marsDignity:mars.dignity||"neutral", severeSeat,
+      rawStrength, netStrength, cancelled:fullCancellers.length>0,
+      cancellations, fullCancellers, partialCancellers, contestedCancellers,
+      mutualNote:"Mutual cancellation — both partners Manglik to a comparable degree — needs the partner's chart and cannot be judged from this chart alone.",
+      caution:"Mangal (Manglik) dosha is genuinely contested among experienced astrologers, both in how it is calculated and how much weight it carries. This is shown as an open checkpoint, not a verdict: it reports what the chart holds and which cancellations apply, so it can be weighed rather than feared."
+    };
+  }catch(_){ return null; }
+}
+
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
 // partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
 // (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
@@ -3034,6 +3137,8 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const afflicted = ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak) || !!d9LordCaution;
     flags.marriageAfflicted=!!afflicted;
     flags.remarriageIndicated=!!(ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak));
+    // Manglik checkpoint — transparent calculation, applied cancellations, non-alarmist net reading.
+    try{ flags.manglik = buildManglikCheckpoint(d1P, d1LagnaSign); }catch(_){ flags.manglik=null; }
 
     // ── Spouse significator + partner profile (gender-aware) ─────────────────────
     // Classical rule: for a WOMAN the husband-significator is Jupiter; for a MAN the
