@@ -2752,6 +2752,115 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
 }
 
 // ── Business lean (career domain) ───────────────────────────────────────────────
+// ══ LAYER 1: COMPOUND-STATE PASS ═══════════════════════════════════════════════════
+// Chart-wide derived states computed once, BEFORE any domain scoring, so later verdicts
+// read SYNTHESISED states rather than raw sign/house facts. General Vedic laws only — no
+// chart-specific tuning. Each state carries provenance (the rule + the placements that
+// triggered it) for a why-line, and nothing here fires on every chart. Pure function of the
+// D1 placements (+ D9 signs for the navamsha cancellation test). Not yet consumed by any
+// domain — wiring happens in Layers 2–3; defined and population-validated first.
+const CS_KENDRA = [1,4,7,10];
+function d9SignMap(d9Houses, d9LagnaSign){
+  const out={}; if(!d9Houses||!d9LagnaSign) return out;
+  const li=V_SIGNS.indexOf(d9LagnaSign); if(li<0) return out;
+  for(const[h,arr] of Object.entries(d9Houses)){ const hn=+h; if(!hn) continue; const sign=V_SIGNS[(li+hn-1)%12];
+    (arr||[]).forEach(p=>{ if(p) out[p]=sign; }); }
+  return out;
+}
+function buildCompoundStates(d1P, d1LagnaSign, d9Houses, d9LagnaSign){
+  try{
+    if(!d1P || !d1LagnaSign) return null;
+    const SEVEN=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
+    const ALL=SEVEN.concat(["Rahu","Ketu"]);
+    const hof=(p)=> d1P[p] && d1P[p].house;
+    const sof=(p)=> d1P[p] && d1P[p].sign;
+    const moonH=hof("Moon");
+    const kendraFrom=(refH,h)=>{ if(!refH||!h) return false; const diff=((h-refH+12)%12)+1; return diff===1||diff===4||diff===7||diff===10; };
+    const d9sign=d9SignMap(d9Houses, d9LagnaSign);
+
+    // ── 1a(i). Neecha Bhanga — debilitation cancellation (classical, multi-condition) ──
+    // Only the seven planets (nodal debilitation is contested — left out on purpose).
+    const neechaBhanga=[];
+    for(const p of SEVEN){
+      const s=sof(p); if(!s || DEBILITATION[p]!==s) continue;
+      const conds=[];
+      const disp=V_LORD[s]; const dispH=hof(disp);
+      if(dispH && (CS_KENDRA.includes(dispH) || kendraFrom(moonH,dispH)))
+        conds.push("its dispositor "+disp+" sits in an angle (kendra) from the Ascendant or the Moon");
+      const exaltLord=Object.keys(EXALTATION).find(pl=>EXALTATION[pl]===s);
+      const exH=exaltLord && hof(exaltLord);
+      if(exH && (CS_KENDRA.includes(exH) || kendraFrom(moonH,exH)))
+        conds.push("the planet exalted in that sign ("+exaltLord+") sits in an angle");
+      const d9s=d9sign[p];
+      if(d9s && (EXALTATION[p]===d9s || (OWN_SIGNS[p]||[]).includes(d9s)))
+        conds.push("in the navamsha it occupies its "+(EXALTATION[p]===d9s?"exaltation":"own")+" sign");
+      // GRADED, not binary: a single condition only SOFTENS the debility; two or more is a
+      // genuine cancellation (the resilient-rise reading). Keeps debilitation meaningful —
+      // population-validation showed a binary flag cancelled ~83% of debilitations, too much.
+      const level = conds.length>=2 ? "full" : conds.length===1 ? "partial" : "none";
+      neechaBhanga.push(
+        level==="full"
+        ? { planet:p, sign:s, house:hof(p), cancelled:true, level, conditions:conds,
+            reading:p+" is debilitated in the birth chart but the debilitation is strongly cancelled — read as resilient strength that rises after an early setback, not as weakness.",
+            why:p+" debilitated in "+s+" (house "+hof(p)+"); Neecha Bhanga (full) via: "+conds.join("; ")+"." }
+        : level==="partial"
+        ? { planet:p, sign:s, house:hof(p), cancelled:false, level, conditions:conds,
+            reading:p+" is debilitated, with one classical offsetting factor — the weakness is eased, not fully reversed; expect struggle that gives way to competence over time.",
+            why:p+" debilitated in "+s+" (house "+hof(p)+"); partial Neecha Bhanga via: "+conds.join("; ")+"." }
+        : { planet:p, sign:s, house:hof(p), cancelled:false, level, conditions:[],
+            reading:p+" is debilitated and the classical cancellation conditions are not met — a genuinely demanding placement.",
+            why:p+" debilitated in "+s+" (house "+hof(p)+"); no Neecha Bhanga condition met." });
+    }
+
+    // ── 1a(ii). Retrograde (Chesta Bala) strength ──
+    // Nodes are always retrograde (excluded); Sun/Moon never retrograde.
+    const retroStrength=[];
+    for(const p of ["Mars","Mercury","Jupiter","Venus","Saturn"]){
+      if(!d1P[p] || !d1P[p].retro) continue;
+      const ph=hof(p);
+      const ownHouses=[]; for(let h=1;h<=12;h++){ if(houseLord(d1LagnaSign,h)===p) ownHouses.push(h); }
+      const reinforced=ownHouses.filter(h=> h===ph || aspectsHouse(p,ph,h));
+      retroStrength.push({ planet:p, house:ph, reinforcedHouses:reinforced,
+        reading: reinforced.length
+          ? p+" is retrograde, which adds motional strength; it reinforces and protects the house(s) it rules ("+reinforced.map(ordinalD).join(", ")+") rather than leaving them weak."
+          : p+" is retrograde, which adds motional (Chesta) strength to it.",
+        why:p+" retrograde (Chesta Bala)"+(reinforced.length?("; reinforces own house(s) "+reinforced.join(", ")+" by aspect/occupancy"):"") });
+    }
+
+    // ── 1b. Full-aspect house support profile (every house read from multiple angles) ──
+    const houseProfiles={};
+    for(let h=1;h<=12;h++){
+      const occ=occupantsOfHouse(d1P,h);
+      const lord=houseLord(d1LagnaSign,h); const lordH=hof(lord);
+      const received=[];
+      for(const p of ALL){ const pp=hof(p); if(!pp||pp===h) continue; if(aspectsHouse(p,pp,h)) received.push(p); }
+      const ownLordHolds = (lordH===h) || (!!lordH && aspectsHouse(lord,lordH,h));
+      houseProfiles[h]={ occupants:occ, lord, lordHouse:lordH, aspectsReceived:received, ownLordHolds };
+    }
+
+    // ── 1c. Named yogas (strict formation; grows deliberately) ──
+    const yogas=[];
+    if(hof("Sun") && hof("Sun")===hof("Mercury")){
+      const sameSign=sof("Sun")===sof("Mercury");
+      const gap=sameSign ? Math.abs((d1P.Sun.degInSign||0)-(d1P.Mercury.degInSign||0)) : null;
+      const combust=sameSign && gap!=null && gap<=14 && gap>=0.5;   // Mercury combust within ~14°, excl. cazimi
+      yogas.push({ name:"Budhaditya Yoga", present:true, house:hof("Sun"), strength:combust?"moderate":"strong", combust,
+        reading:"Sun and Mercury together form Budhaditya Yoga — sharp intelligence, articulate expression and recognition through knowledge"+(combust?", though Mercury is close to the Sun (combust), so the gift works best once consciously developed":"")+".",
+        why:"Sun + Mercury conjunct in house "+hof("Sun")+(combust?" (Mercury combust, within ~14°)":"")+"." });
+    }
+    if(moonH && hof("Jupiter")){ const diff=((hof("Jupiter")-moonH+12)%12)+1;
+      if([1,4,7,10].includes(diff)){ const jd=d1P.Jupiter.dignity;
+        yogas.push({ name:"Gaja Kesari Yoga", present:true, from:"Moon",
+          strength:(jd==="Debilitated")?"mild":(jd==="Exalted"||jd==="Own sign")?"strong":"moderate",
+          reading:"Jupiter stands in an angle from the Moon, forming Gaja Kesari Yoga — sound judgement, respect, and a steadying wisdom that supports standing in life.",
+          why:"Jupiter in an angle (kendra) from the Moon (Jupiter house "+hof("Jupiter")+", Moon "+moonH+")." });
+      }
+    }
+
+    return { neechaBhanga, retroStrength, houseProfiles, yogas };
+  }catch(_){ return null; }
+}
+
 // ── Manglik / Mangal (Kuja) dosha — a TRANSPARENT checkpoint, not a verdict ─────────
 // Mangal dosha is genuinely contested among experienced astrologers, in BOTH how it is
 // calculated and how much weight it deserves. Rather than issue a scary one-line verdict
