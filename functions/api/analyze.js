@@ -2647,40 +2647,47 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
       : recoveryCapacity==="moderate" ? "your earning axis is mixed — recovery from a setback is workable but asks for deliberate effort and a reasonable buffer"
       : recoveryCapacity==="resilient" ? "your earning axis is sound — setbacks, when they come, tend to be recoverable with steady effort" : "";
 
-    // MD CAREER-CONNECTION — the dasha–antardasha double-activation rule. A disruptor
-    // AD only becomes a SIGNIFICANT career event when the running MAIN period is itself
-    // tied to the career axis. Direct 10th-house involvement (MD lord IS the 10th lord,
-    // or physically occupies the 10th) outranks an indirect link (an aspect on the 10th,
-    // the Amatyakaraka career karaka, or a 6/8/12 service-and-struggle lord). When the MD
-    // has no career link at all, a disruptor AD is felt in that planet's OTHER areas of
-    // life, not as a career break — so it is not surfaced as a career window.
+    // STRESS-VALENCE of a running period for the career axis — does this planet's period
+    // DEEPEN a career disruption or CUSHION it? Classical modulator: a malefic / struggle /
+    // loss influence amplifies; a strong or benefic career activation softens. This REPLACES
+    // the earlier "does the main period ACTIVATE the 10th" test, which (a) wrongly treated a
+    // benefic career-activating period as an amplifier, and (b) DROPPED a genuine disruptor
+    // sub-period — e.g. the 10th-lord-in-8th antardasha — whenever the main period was not
+    // career-linked. A disruptor sub-period is now ALWAYS surfaced, and graded by valence.
     const l6g=houseLord(d1LagnaSign,6), l8g=houseLord(d1LagnaSign,8), l12g=houseLord(d1LagnaSign,12);
-    const mdCareerLink=(mdLord)=>{
-      if(!mdLord) return "none";
-      if(mdLord===hLord) return "direct";                        // MD lord IS the 10th lord
-      if(tenthOcc.includes(mdLord)) return "direct";             // MD lord sits IN the 10th
-      const mh=d1P[mdLord] && d1P[mdLord].house;
-      if(mh && aspectsHouse(mdLord, mh, 10)) return "indirect";  // aspects the 10th
-      if(mdLord===amatyakaraka) return "indirect";               // Jaimini career karaka
-      if([l6g,l8g,l12g].includes(mdLord)) return "indirect";     // service/struggle lord
-      return "none";
+    const beneficP=new Set(["Jupiter","Venus","Mercury","Moon"]);
+    const careerStress=(p)=>{
+      if(!p) return "neutral";
+      const pp=d1P[p];
+      if(disruptors[p]) return "amplify";                                     // the planet is itself a career disruptor
+      if([l6g,l8g,l12g].includes(p)) return "amplify";                        // a 6/8/12 (struggle/loss) lord
+      if(pp && pp.dignity==="Debilitated") return "amplify";
+      if(pp && pp.house && p!==hLord && ["Saturn","Mars","Rahu","Ketu"].includes(p) && aspectsHouse(p,pp.house,10)) return "amplify"; // a malefic (not the 10th lord itself) afflicting the 10th
+      if(p===hLord && pp && ![6,8,12].includes(pp.house) && (pp.dignity==="Exalted"||pp.dignity==="Own sign")) return "cushion"; // a strong 10th lord
+      if(beneficP.has(p) && pp && pp.house===10) return "cushion";            // a benefic in the 10th
+      return "neutral";
     };
-    const linkWhy={
-      direct:"the main period itself runs through your career axis (its ruler is your 10th lord, or sits in your career house), so both the main and sub-period point at work",
-      indirect:"the main period touches career only indirectly (by aspect, or as a career significator), so this reads more as a reset to navigate than a structural break",
+    const stressWhy={
+      amplify:"the main period is itself career-stressing (a struggle/loss lord, a malefic on the career axis, or a disruptor), so the sub-period's disruption runs deeper and can last",
+      cushion:"the main period is career-supportive (a strong or benefic career activation), so the disruption softens into a navigable reset",
+      neutral:"the main period is neutral to career, so the sub-period is felt as a real but self-contained disruption",
     };
     const sevOf=(lord)=>disruptors[lord]||null;
     const out=[];
     for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
-      const link=mdCareerLink(md.lord);
-      if(link==="none") continue;                      // MD not career-connected → skip its ADs
+      const mdV=careerStress(md.lord);
       for(const ad of md.antarDasas){ const base=sevOf(ad.lord); if(!base) continue;
-        // Grade the window: significant only when a significant disruptor AD meets a
-        // DIRECT-career MD; indirect MD downgrades it; a moderate disruptor under an
-        // indirect MD is too faint to surface.
+        // The 10th LORD in a loss house (8/12), running its OWN antardasha, is the primary
+        // delivery of career results coloured by loss — inherently PRONOUNCED, regardless of
+        // the main period (the ruler delivering its own placement). A TENANT disruptor (a node
+        // in the 10th) needs the main period to ALSO stress career (double-activation) to read
+        // as pronounced; otherwise it is a real but moderate reset. Nothing is dropped for an
+        // "unrelated" main period — that was the bug that hid the real case.
+        const ownLordInLoss = (ad.lord===hLord && tenthInLoss);
         let severity;
-        if(base==="significant") severity = (link==="direct") ? "significant" : "moderate";
-        else                     severity = (link==="direct") ? "moderate"    : "mild";
+        if(ownLordInLoss)              severity = (mdV==="cushion") ? "moderate" : "significant";
+        else if(base==="significant")  severity = (mdV==="amplify") ? "significant" : "moderate";
+        else                           severity = (mdV==="amplify") ? "moderate"    : "mild";
         if(severity==="mild") continue;
         const sy=ad.startDate?new Date(ad.startDate).getFullYear():null, ey=ad.endDate?new Date(ad.endDate).getFullYear():null;
         if(sy==null) continue;
@@ -2688,7 +2695,7 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
         if(sy>capY) continue;                           // within the 20-year horizon
         const years=(ey&&ey!==sy)?(sy+"–"+ey):String(sy);
         const when = (ey&&ey<nowY)?"past":(sy>nowY?"upcoming":"current");
-        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity, when, mdLink:link, gradeWhy:linkWhy[link]||"" });
+        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity, mdStress:mdV, when, gradeWhy:stressWhy[mdV]||"" });
       }
     }
     out.sort((a,b)=>a.sy-b.sy);
@@ -2697,38 +2704,11 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
     const upcoming = [...up.filter(w=>w.severity==="significant"), ...up.filter(w=>w.severity==="moderate")]
       .sort((a,b)=>a.sy-b.sy).slice(0,3);
 
-    // EARLY-SIGNAL / PRECURSOR window (separate line item — never alters the actual
-    // disruption). Credibility requires BOTH the MD and the AD to point to it: a node/malefic
-    // AD sitting in a career-withdrawal house (7th = 10th-from-10th, or 8th/12th), running in
-    // the ~3 years BEFORE a SIGNIFICANT disruption, AND inside an MD that is itself career-
-    // relevant (a disruptor, the 10th lord, or a 6/8/12 lord). This is where the chart first
-    // whispers — detachment, restlessness, pressure — a year or so before the hard window,
-    // the chance to read the signs and prepare.
-    const l6c=houseLord(d1LagnaSign,6), l8c=houseLord(d1LagnaSign,8), l12c=houseLord(d1LagnaSign,12);
-    const credibleMD=(m)=> !!(disruptors[m] || m===hLord || [l6c,l8c,l12c].includes(m));
-    const PRECURSOR_SIGNAL = {
-      Ketu:"a growing sense of detachment, disillusionment, or that a chapter is quietly ending",
-      Rahu:"restlessness, a pull toward something new or unsettling that may not be what it seems",
-      Saturn:"a slow build of pressure, weariness, or the sense that the current path is tightening",
-      Mars:"rising friction or conflict, or a sharpening urge to break away"
-    };
-    const findPrecursor=(beforeSy)=>{
-      let best=null;
-      for(const md of dashas){ if(!credibleMD(md.lord) || !Array.isArray(md.antarDasas)) continue;
-        for(const ad of md.antarDasas){ const lord=ad.lord; const pp=d1P[lord];
-          if(!["Rahu","Ketu","Saturn","Mars"].includes(lord) || !pp || ![7,8,12].includes(pp.house)) continue;
-          const sy=ad.startDate?new Date(ad.startDate).getFullYear():null, ey=ad.endDate?new Date(ad.endDate).getFullYear():null;
-          if(sy==null) continue; const end=ey||sy;
-          if(sy < beforeSy && (beforeSy-sy)<=3 && end<=beforeSy+1){   // within ~3 yrs before, not after
-            if(!best || sy>best.sy) best={ years:(ey&&ey!==sy)?(sy+"–"+ey):String(sy), planet:lord, md:md.lord, sy,
-              note:("Early signals — "+(PRECURSOR_SIGNAL[lord]||"a sense that something was shifting")+" — tended to surface here, in the "+lord+" sub-phase, about a year before the harder window. This is the stretch the chart gives you to read the signs and prepare, rather than be caught unready.") };
-          }
-        }
-      }
-      return best;
-    };
-    for(const w of past) if(w.severity==="significant"){ const pc=findPrecursor(w.sy); if(pc && pc.sy!==w.sy) w.precursor=pc; }
-    for(const w of upcoming) if(w.severity==="significant"){ const pc=findPrecursor(w.sy); if(pc && pc.sy!==w.sy) w.precursor=pc; }
+    // (Early-signal / precursor: the over-fit findPrecursor — built to reproduce one real
+    // native's 2018-before-2019 signal, and fragile because it only ran once a significant
+    // window already existed — has been retired. Its genuine Vedic basis (a node/malefic
+    // period in a DERIVATIVE career house such as the 7th = 10th-from-10th) returns as a
+    // general bhavat-bhavam layer, derived for every chart, not hand-coded to one timeline.)
     // The disruptor planet(s) and how they attach to the career axis — so the report can
     // transparently show WHY these specific windows, and WHICH sub-periods they are.
     const disruptorList = Object.keys(disruptors).map(p=>({
