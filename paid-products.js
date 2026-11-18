@@ -103,7 +103,7 @@
       </div>`;
       const bodyHtml = (sections||[]).map(sec=>{
         if(sec._divider){ return `<h1 style="color:#8a6d1f;border-bottom:2px solid #c9a84c;padding-bottom:4px;margin-top:28px">${esc4doc(sec.heading||"")}</h1>`; }
-        const mkw = (s)=>esc4doc(s).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+        const mkw = (s)=>esc4doc(s).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/\*([^*]+)\*/g,"<em>$1</em>").replace(/\*/g,"");
         const lines = String(sec.body||"").split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean);
         let paras = "", whyBuf=[], ulBuf=[];
         const flushWhy=()=>{ if(!whyBuf.length)return;
@@ -457,7 +457,7 @@
   // domain and all-domains flipbooks so every paid report renders identically.
   function reportBodyHtml(chunk) {
     const paras = String(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
-    const mk = (x) => esc(x).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+    const mk = (x) => esc(x).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/\*/g, "");
     let bodyHtml = "", techBuf = [], ulBuf = [];
     const flushWhy = () => {
       if (!techBuf.length) return;
@@ -672,8 +672,10 @@
       const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
       for (let i = 1; i <= pc; i++) {
         doc.setPage(i);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.setTextColor(200, 30, 30);
-        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.", pw / 2, ph - 36, { align: "center" });
+        if (i === pc) { // re-reading note once, as a closing line — not on every page
+          doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.setTextColor(168, 120, 24);
+          doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.", pw / 2, ph - 36, { align: "center" });
+        }
         doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(150, 150, 158);
         doc.text(i + " of " + pc, pw / 2, ph - 22, { align: "center" });
       }
@@ -691,15 +693,20 @@
           WHYFILL=[251,247,233], WHYLINE=[226,207,143], WHYLBL=[150,120,40], WHYTXT=[104,96,84],
           TBLLINE=[224,210,176];
     const kbreak = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
-    const tokenize=(pg)=>{ const runs=[]; pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).forEach(x=>{
-        if(/^\*\*[^*]+\*\*$/.test(x)) runs.push({t:x.slice(2,-2),b:true}); else runs.push({t:x,b:false}); });
-      const words=[]; runs.forEach(r=>r.t.split(/\s+/).forEach(w=>{ if(w) words.push({w,b:r.b}); })); return words; };
+    const tokenize=(pg)=>{ const words=[];
+      String(pg).split(/(\*\*[^*]+\*\*)/g).filter(Boolean).forEach(seg=>{
+        if(/^\*\*[^*]+\*\*$/.test(seg)){ seg.slice(2,-2).split(/\s+/).forEach(w=>{ if(w) words.push({w,b:true}); }); return; }
+        seg.split(/(\*[^*]+\*)/g).filter(Boolean).forEach(s2=>{
+          if(/^\*[^*]+\*$/.test(s2)){ s2.slice(1,-1).split(/\s+/).forEach(w=>{ if(w) words.push({w,i:true}); }); return; }
+          s2.replace(/\*/g,"").split(/\s+/).forEach(w=>{ if(w) words.push({w}); }); }); });
+      return words; };
     const richText=(pg,x,size,color,maxW,lh)=>{ const words=tokenize(pg);
-      const measure=(w,b)=>{ doc.setFont("helvetica",b?"bold":"normal"); return doc.getTextWidth(w); };
+      const fsOf=(t)=> t.b?"bold":t.i?"italic":"normal";
+      const measure=(t)=>{ doc.setFont("helvetica",fsOf(t)); return doc.getTextWidth(t.w); };
       doc.setFontSize(size); doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
-      const drawLine=(arr)=>{ kbreak(lh); let px=x; arr.forEach((tok,i)=>{ doc.setFont("helvetica",tok.b?"bold":"normal");
-        doc.setTextColor(...color); doc.text(tok.w,px,y); px+=measure(tok.w,tok.b)+(i<arr.length-1?sp:0); }); y+=lh; };
-      let line=[],lw=0; for(const tok of words){ const tw=measure(tok.w,tok.b); const add=(line.length?sp:0)+tw;
+      const drawLine=(arr)=>{ kbreak(lh); let px=x; arr.forEach((tok,i)=>{ doc.setFont("helvetica",fsOf(tok));
+        doc.setTextColor(...color); doc.text(tok.w,px,y); px+=measure(tok)+(i<arr.length-1?sp:0); }); y+=lh; };
+      let line=[],lw=0; for(const tok of words){ const tw=measure(tok); const add=(line.length?sp:0)+tw;
         if(line.length&&lw+add>maxW){ drawLine(line); line=[]; lw=0; } line.push(tok); lw+=(line.length>1?sp:0)+tw; }
       if(line.length) drawLine(line); };
     // heading with two-tone gold underline
@@ -713,12 +720,12 @@
     for(let pi=0; pi<paras.length; pi++){
       const pg=paras[pi];
       if (pg.indexOf("### ")===0){
-        const txt=pg.slice(4).replace(/\*\*/g,""); doc.setFont("helvetica","bold"); doc.setFontSize(size+1);
+        const txt=pg.slice(4).replace(/\*/g,""); doc.setFont("helvetica","bold"); doc.setFontSize(size+1);
         const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+14); y+=6;
         doc.setTextColor(...BROWN); doc.text(L,M,y); y+=L.length*(size+3)+5; continue;
       }
       if (pg.indexOf("★ ")===0){
-        const txt=pg.slice(2).replace(/\*\*/g,""); doc.setFontSize(size+1.5);
+        const txt=pg.slice(2).replace(/\*/g,""); doc.setFontSize(size+1.5);
         const L=doc.splitTextToSize(txt, CW-46); const bandH=16 + L.length*(size+4) + 12;
         kbreak(bandH+8); y+=4;
         doc.setFillColor(250,246,235); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
@@ -732,7 +739,7 @@
       if (pg.indexOf("» ")===0){
         const whyLines=[]; let k=pi; doc.setFontSize(size-1.5);
         for(; k<paras.length && paras[k].indexOf("» ")===0; k++){
-          doc.splitTextToSize(paras[k].slice(2).replace(/\*\*/g,""), CW-26).forEach(x=>whyLines.push(x)); }
+          doc.splitTextToSize(paras[k].slice(2).replace(/\*/g,""), CW-26).forEach(x=>whyLines.push(x)); }
         const wlh=size+0.5; const panelH=16 + 10 + whyLines.length*wlh + 6;
         kbreak(panelH+6); y+=4;
         doc.setFillColor(...WHYFILL); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
@@ -745,7 +752,7 @@
         y += panelH + 8; pi=k-1; continue;
       }
       if (pg.indexOf("- ")===0){
-        const txt=pg.slice(2); const L=doc.splitTextToSize(txt.replace(/\*\*/g,""), CW-22);
+        const txt=pg.slice(2); const L=doc.splitTextToSize(txt.replace(/\*/g,""), CW-22);
         kbreak(L.length*lh+6);
         doc.setFillColor(...GOLD); doc.circle(M+6, y-3, 1.6, "F");
         richText(txt, M+16, size, INK, CW-16, lh); y+=4; continue;
@@ -1209,12 +1216,14 @@
       });
       kbreak(60); y+=6; doc.setDrawColor(210,190,150); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=12;
       doc.setFont("helvetica","italic"); doc.setFontSize(8.5); doc.setTextColor(...MUTE);
-      const disc="Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice. All payments are final.";
+      const disc="Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. Health-related content is not medical advice.";
       doc.text(doc.splitTextToSize(disc,W-M*2),M,y);
       const pages=doc.internal.getNumberOfPages();
       for(let i=1;i<=pages;i++){ doc.setPage(i);
-        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(200,30,30);
-        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-40,{align:"center"});
+        if(i===pages){ // re-reading note once, as a closing line
+          doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(168,120,24);
+          doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-40,{align:"center"});
+        }
         doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
         doc.text("(c) 2026 AstroIndicators · astroindicators.com",M,H-26);
         doc.text("Page "+i+" of "+pages,W-M,H-26,{align:"right"}); }
@@ -1430,25 +1439,31 @@
       const newPage=()=>{ doc.addPage(); y=M+6; };
       const kbreak=(need)=>{ if(y+need>FOOT) newPage(); };
       // ── rich inline text: true **bold** runs, greedy word-wrap, page-aware ──────
+      // Inline marks: **bold** and *italic*; any stray single * is stripped so it never prints.
       const tokenize=(pg)=>{
-        const runs=[]; pg.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).forEach(s=>{
-          if(/^\*\*[^*]+\*\*$/.test(s)) runs.push({t:s.slice(2,-2), b:true});
-          else runs.push({t:s, b:false}); });
-        const words=[]; runs.forEach(r=>{ r.t.split(/\s+/).forEach(w=>{ if(w) words.push({w, b:r.b}); }); });
+        const words=[];
+        String(pg).split(/(\*\*[^*]+\*\*)/g).filter(Boolean).forEach(seg=>{
+          if(/^\*\*[^*]+\*\*$/.test(seg)){ seg.slice(2,-2).split(/\s+/).forEach(w=>{ if(w) words.push({w,b:true}); }); return; }
+          seg.split(/(\*[^*]+\*)/g).filter(Boolean).forEach(s2=>{
+            if(/^\*[^*]+\*$/.test(s2)){ s2.slice(1,-1).split(/\s+/).forEach(w=>{ if(w) words.push({w,i:true}); }); return; }
+            s2.replace(/\*/g,"").split(/\s+/).forEach(w=>{ if(w) words.push({w}); });
+          });
+        });
         return words;
       };
       const richText=(pg,x,size,color,maxW,lh)=>{
         const words=tokenize(pg);
-        const measure=(w,b)=>{ doc.setFont("helvetica", b?"bold":"normal"); return doc.getTextWidth(w); };
+        const fsOf=(t)=> t.b?"bold":t.i?"italic":"normal";
+        const measure=(t)=>{ doc.setFont("helvetica", fsOf(t)); return doc.getTextWidth(t.w); };
         doc.setFontSize(size);
         doc.setFont("helvetica","normal"); const sp=doc.getTextWidth(" ");
         const drawLine=(arr)=>{ kbreak(lh); let px=x;
-          arr.forEach((tok,i)=>{ doc.setFont("helvetica", tok.b?"bold":"normal"); doc.setTextColor(...color);
-            doc.text(tok.w, px, y); px += measure(tok.w, tok.b) + (i<arr.length-1?sp:0); });
+          arr.forEach((tok,i)=>{ doc.setFont("helvetica", fsOf(tok)); doc.setTextColor(...color);
+            doc.text(tok.w, px, y); px += measure(tok) + (i<arr.length-1?sp:0); });
           y+=lh; };
         let line=[], lineW=0;
         for(const tok of words){
-          const tw=measure(tok.w, tok.b); const add=(line.length?sp:0)+tw;
+          const tw=measure(tok); const add=(line.length?sp:0)+tw;
           if(line.length && lineW+add>maxW){ drawLine(line); line=[]; lineW=0; }
           line.push(tok); lineW+=(line.length>1?sp:0)+tw;
         }
@@ -1461,13 +1476,13 @@
         for(let pi=0; pi<paras.length; pi++){
           const pg = paras[pi];
           if (pg.indexOf("### ")===0){
-            const txt=pg.slice(4).replace(/\*\*/g,""); doc.setFont("helvetica","bold"); doc.setFontSize(size+1);
+            const txt=pg.slice(4).replace(/\*/g,""); doc.setFont("helvetica","bold"); doc.setFontSize(size+1);
             const L=doc.splitTextToSize(txt,CW); kbreak(L.length*(size+3)+14); y+=6;
             doc.setTextColor(...BROWN); doc.text(L,M,y); y+=L.length*(size+3)+5; continue;
           }
           // ★ theme — tinted band with a gold accent bar (no glyph printed)
           if (pg.indexOf("★ ")===0){
-            const txt=pg.slice(2).replace(/\*\*/g,""); doc.setFontSize(size+1.5);
+            const txt=pg.slice(2).replace(/\*/g,""); doc.setFontSize(size+1.5);
             const L=doc.splitTextToSize(txt, CW-46); const bandH=16 + L.length*(size+4) + 12;
             kbreak(bandH+8); y+=4;
             doc.setFillColor(250,246,235); doc.setDrawColor(...WHYLINE); doc.setLineWidth(0.5);
@@ -1483,7 +1498,7 @@
             const whyLines=[]; let k=pi;
             doc.setFontSize(size-1.5);
             for(; k<paras.length && paras[k].indexOf("» ")===0; k++){
-              doc.splitTextToSize(paras[k].slice(2).replace(/\*\*/g,""), CW-26).forEach(x=>whyLines.push(x));
+              doc.splitTextToSize(paras[k].slice(2).replace(/\*/g,""), CW-26).forEach(x=>whyLines.push(x));
             }
             const wlh=size+0.5; const panelH=16 + 10 + whyLines.length*wlh + 6;
             kbreak(panelH+6); y+=4;
@@ -1498,7 +1513,7 @@
           }
           // - bullet, with a gold dot (no glyph printed)
           if (pg.indexOf("- ")===0){
-            const txt=pg.slice(2); const L=doc.splitTextToSize(txt.replace(/\*\*/g,""), CW-22);
+            const txt=pg.slice(2); const L=doc.splitTextToSize(txt.replace(/\*/g,""), CW-22);
             kbreak(L.length*lh+6);
             doc.setFillColor(...GOLD); doc.circle(M+6, y-3, 1.6, "F");
             richText(txt, M+16, size, INK, CW-16, lh); y+=4; continue;
@@ -1624,15 +1639,17 @@
       doc.setDrawColor(210,190,150); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=12;
       const disc=(domainKey==="health")
         ? "Disclaimer: This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor."
-        : "Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes. All payments are final.";
+        : "Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes.";
       doc.setFont("helvetica","italic"); doc.setFontSize(8.5); doc.setTextColor(...MUTE);
       const dL=doc.splitTextToSize(disc,W-M*2); doc.text(dL,M,y); y+=dL.length*11+4;
       doc.setFont("helvetica","normal");
       const pages=doc.internal.getNumberOfPages();
       for(let i=1;i<=pages;i++){ doc.setPage(i);
         doc.setDrawColor(...TBLLINE); doc.setLineWidth(0.4); doc.line(M,H-46,W-M,H-46);
-        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(168,120,24);
-        doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-34,{align:"center"});
+        if(i===pages){ // the re-reading note appears ONCE, as a closing line — not on every page
+          doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(168,120,24);
+          doc.text("Read this report more than once — its deeper meaning reveals itself on repeated reading.",W/2,H-34,{align:"center"});
+        }
         doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
         doc.text("(c) 2026 AstroIndicators · astroindicators.com", M, H-20);
         doc.text("Page "+i+" of "+pages, W-M, H-20, {align:"right"}); }
