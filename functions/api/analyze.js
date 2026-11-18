@@ -3155,6 +3155,54 @@ function buildBusinessLean(d1P, d1LagnaSign, amatyakaraka, compound){
   }catch(_){ return null; }
 }
 
+// ── Foreign-land career (earning abroad vs. settling with permanency) ────────────────
+// General law, read from several angles: the 12th (distant lands / residence abroad) and
+// 9th (long journeys, fortune far away), the 7th (away from birthplace), Rahu as the foreign
+// karaka, the 4th as the PULL FROM HOME (a loosened 4th favours settling away), and the
+// career/earning houses' CONNECTION to the foreign houses (earning abroad vs. mere travel).
+// Permanency is the 4th–12th relationship. Graded, conservative — a tendency, never a promise
+// of a visa or a country.
+function buildForeignCareer(d1P, d1LagnaSign, compound){
+  try{
+    const L=(h)=>houseLord(d1LagnaSign,h);
+    const occ=(h)=>occupantsOfHouse(d1P,h);
+    const nbFull=(p)=> !!((compound&&compound.neechaBhanga||[]).some(nb=>nb.planet===p&&nb.level==="full"));
+    const strong=(p)=> d1P[p]&&(d1P[p].dignity==="Exalted"||d1P[p].dignity==="Own sign"||(d1P[p].dignity==="Debilitated"&&nbFull(p)));
+    const weakOrDus=(p)=> d1P[p]&&((d1P[p].dignity==="Debilitated"&&!nbFull(p))||[6,8,12].includes(d1P[p].house));
+    const wellPlaced=(p)=> d1P[p]&&[1,2,4,5,7,9,10,11].includes(d1P[p].house)&&!weakOrDus(p);
+    const inHouse=(p,hs)=> d1P[p]&&hs.includes(d1P[p].house);
+    const hOf=(p)=> d1P[p]&&d1P[p].house;
+    const l12=L(12), l9=L(9), l4=L(4), l10=L(10), l2=L(2);
+    // CORE markers — each is a SPECIFIC foreign signal, not a common placement. Foreign
+    // settlement is a minority signature, so the bar is genuine 12th/9th emphasis, not a
+    // career-lord merely brushing the 9th (which is also domestic fortune/dharma).
+    let core=0; const why=[]; let earning=false, settling=false;
+    // 1. Rahu (foreign karaka) in the 12th — the sharpest single foreign signal
+    if(inHouse("Rahu",[12])){ core++; why.push("the foreign significator sits in the house of distant lands (12th) — a strong pull abroad"); }
+    // 2. travel-house exchange — 12th lord in the 9th, or 9th lord in the 12th
+    if((l12&&inHouse(l12,[9])) || (l9&&inHouse(l9,[12]))){ core++; why.push("the houses of distant lands and long journeys are linked (their rulers exchange) — foreign ground recurs in the life"); }
+    // 3. career abroad — the 10th lord in the 12th or 9th
+    if(l10&&inHouse(l10,[12,9])){ core++; earning=true; why.push("the career ruler sits on a foreign house — work and standing can genuinely come from abroad or foreign-facing dealing"); }
+    // 4. roots uprooted to foreign — the 4th lord carried into the 12th
+    if(l4&&inHouse(l4,[12])){ core++; settling=true; why.push("the ruler of home and roots is carried into the house of distant lands — the base of life can shift away from the birthplace"); }
+    // 5. a genuine foreign cluster — two or more planets tenanting the 12th
+    if(occ(12).length>=2){ core++; why.push("a cluster of planets in the house of distant lands — foreign settings are a recurring theme"); }
+
+    // earning-abroad refinement: the wealth ruler (2nd) on a foreign house also counts
+    if(l2&&inHouse(l2,[12,9])){ earning=true; if(!why.some(w=>w.includes("career ruler"))) why.push("the wealth ruler connects to a foreign house — income can flow from abroad or foreign-facing work"); }
+    // permanency refinement: 12th lord strong and angular supports a lasting base
+    if(l12&&strong(l12)&&[1,4,7,10].includes(hOf(l12))){ settling=true; }
+
+    let grade, statement;
+    if(core>=3){ grade="strong"; statement="The chart genuinely supports a career or livelihood connected to foreign lands"+(settling?", with real potential to settle there for the long term":"")+"."; }
+    else if(core===2){ grade="moderate"; statement="There is real support for foreign-connected work or spells abroad — worth pursuing, though "+(settling?"how permanently you settle is less certain":"it tends toward periods abroad rather than a permanent base")+"."; }
+    else if(core===1){ grade="mild"; statement="A foreign connection is possible — through travel, foreign-facing dealings or spells away — but it is a secondary thread, not a central one."; }
+    else { grade="none"; statement="The chart does not particularly point abroad; the path is better rooted in your own region, with any foreign dealings kept opportunistic."; }
+
+    return { grade, score:core, earning, settling, statement, why };
+  }catch(_){ return null; }
+}
+
 // ── Future Compass (all domains) ───────────────────────────────────────────────
 // The engine produces many AD sub-windows (dashaTiming.keyWindows). The owner rule:
 // the BACKEND keeps that full detail, but the REPORT consolidates to the 2-3 strongest
@@ -3862,6 +3910,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const _ama=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Amatyakaraka")||{}).planet:null;
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign, _ama, compound); }catch(_){}
+    try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound); }catch(_){}
     try{ if(careerCompass){ careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama); } }catch(_){}
   }
 
