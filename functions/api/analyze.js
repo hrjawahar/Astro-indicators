@@ -3476,19 +3476,23 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       const w=dashaTiming.keyWindows.find(x=>x.upcoming);
       if(w) flags.watchOutFor += ` This is most worth attention around the ${w.years} window (the ${w.ad} sub-period within ${w.md}).`;
     }
-    // RAHU-PERIOD CAUTION (classical Rahu nature): Rahu is the great amplifier and the
-    // karaka of maya (illusion) — in its Mahadasha/Antardasha, whatever is NEW (contacts,
-    // attractions, networks, habits, ventures) is magnified and can create a compelling but
-    // unstable 'smoke' that tilts judgment toward illusion. A grounded caution helps.
+    // RAHU-PERIOD CAUTION (classical Rahu nature): Rahu is the great amplifier of maya
+    // (illusion), and it magnifies the significations of THE HOUSE IT OCCUPIES OR ASPECTS.
+    // So a Rahu period distorts a given area of life ONLY when Rahu actually touches that
+    // area's house or significator — it is NOT a blanket "any Rahu period = overindulgence /
+    // new contacts" for every chart and domain (that was an over-generalisation). When Rahu
+    // does touch the area, the caution names THAT house's themes as the amplified ones.
     const _curL  = dashaTiming.current  && dashaTiming.current.lord;
     const _curAD = dashaTiming.currentAD && dashaTiming.currentAD.ad;
     if(_curL==="Rahu" || _curAD==="Rahu"){
-      // Rahu's dasha takes its shape from WHERE Rahu sits and what it disposits/aspects, so
-      // its distortion shows up differently for each chart — NOT always "new contacts". Lead
-      // with the general amplify-and-distort principle; offer the forms only as examples.
-      flags.rahuPhaseCaution = (domainKey==="marriage")
-        ? "You are in a Rahu period, which magnifies and can distort whatever this area of life is most drawn to — and its pull takes a different shape for each chart. It might surface as over-indulging something you already crave, fixating on one thing, a restless dissatisfaction, idealising more than is real, or being drawn by a new attraction or outside influence. The common thread is that something can feel unusually compelling right now yet prove illusory or destabilising. A stretch to stay grounded, avoid irreversible decisions driven by the intensity, and not mistake the pull for the truth."
-        : "You are in a Rahu period, which magnifies and can distort whatever this area is most drawn to — its shape differs by chart: over-indulgence, fixation, restlessness, chasing novelty, or being pulled by a new venture, contact or influence. The common thread is that something feels unusually compelling now yet may prove illusory or unstable. Stay grounded, verify before committing, and avoid irreversible decisions taken from a place of restlessness or hype.";
+      const rahuHouse = d1P.Rahu && d1P.Rahu.house;
+      const touches = (h)=> !!(h && rahuHouse && (rahuHouse===h || aspectsHouse("Rahu", rahuHouse, h)));
+      const rahuTouchesDomain = touches(cfg.house)
+        || (hLord && d1P[hLord] && touches(d1P[hLord].house))
+        || (karakaPlanet && d1P[karakaPlanet] && touches(d1P[karakaPlanet].house));
+      if(rahuTouchesDomain){
+        flags.rahuPhaseCaution = "You are in a Rahu period, and Rahu touches your area of "+cfg.focus+" — it sits in or aspects that part of your chart. Rahu magnifies the significations of whatever house it touches, so through this stretch the themes of "+cfg.focus+" run unusually intense, and Rahu's nature is to distort judgment: what you are drawn to here can feel compelling yet prove illusory or unstable. The exact shape is yours to recognise — over-indulgence, fixation, restlessness, idealising more than is real, or chasing something new. Stay grounded, verify before committing, and avoid irreversible decisions taken from a place of intensity or restlessness.";
+      }
     }
   }
 
