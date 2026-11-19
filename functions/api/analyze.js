@@ -2650,10 +2650,10 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
     })();
 
     if(!prone) return { prone:false, earlySignals };
-    const reason = (tenthInLoss) ? ("your career ruler sits in the "+ordinalD(lordPlacement.house)+" house — a house of upheaval and loss, so its own periods can dismantle and reshape your working life rather than simply test it")
-      : tenthInSixth ? "your career ruler sits in the 6th — the house of struggle and dispute — so its periods bring friction and contest more than clean progress"
+    const reason = (tenthInLoss) ? ("your career ruler "+hLord+" (10th lord) sits in the "+ordinalD(lordPlacement.house)+" house — a house of upheaval and loss, so its own periods can dismantle and reshape your working life rather than simply test it")
+      : tenthInSixth ? ("your career ruler "+hLord+" (10th lord) sits in the 6th — the house of struggle and dispute — so its periods bring friction and contest more than clean progress")
       : nodeOn10 ? "a shadow planet (Rahu or Ketu) sits in your house of career, so your path can move through sudden, unconventional changes and resets"
-      : "your career ruler is under pressure, so your path asks for extra resilience through its rougher patches";
+      : ("your career ruler "+hLord+" (10th lord) is under pressure, so your path asks for extra resilience through its rougher patches");
 
     // CAREER-AXIS DISRUPTORS (connection-based — a planet counts only when it is genuinely
     // tied to career, so a node in an unrelated house is NOT a false alarm):
@@ -2735,7 +2735,7 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
         let lk = (severity==="significant") ? 2 : 1; const lkFactors=[], lkMit=[];
         if(mdV==="amplify"){ lk+=1; lkFactors.push("the main period also stresses career (double-activation)"); }
         else if(mdV==="cushion"){ lk-=1; lkMit.push("the main period is career-supportive"); }
-        if(ownLordInLoss){ lk+=1; lkFactors.push("the career ruler is delivering its own loss-house placement"); }
+        if(ownLordInLoss){ lk+=1; lkFactors.push("the career ruler "+hLord+" is delivering its own loss-house placement"); }
         if(ownMahadasha){ lk+=0.5; lkFactors.push("it falls in the planet's own main period (full delivery)"); }
         if(recoveryCapacity==="low"){ lk+=0.5; lkFactors.push("the earning axis recovers slowly, so a setback bites harder"); }
         if(nbFullSet.has(ad.lord)){ lk-=1.5; lkMit.push("this planet's debilitation is cancelled (resilient), which softens its disruptive edge"); }
@@ -2760,7 +2760,7 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
     // transparently show WHY these specific windows, and WHICH sub-periods they are.
     const disruptorList = Object.keys(disruptors).map(p=>({
       planet:p, severity:disruptors[p], house:(d1P[p]&&d1P[p].house)||null,
-      role: (p===hLord) ? "your 10th lord (career ruler)"
+      role: (p===hLord) ? ("your 10th lord "+p+" (career ruler)")
           : (tenthOcc.includes(p)) ? "sitting in your 10th house of career"
           : "tied to your career axis"
     }));
@@ -3137,8 +3137,8 @@ function buildBusinessLean(d1P, d1LagnaSign, amatyakaraka, compound){
     let commerce=0; const commerceWhy=[];
     if(strong("Mercury")||(inHouse("Mercury",[1,2,7,10,11])&&!weakOrDus("Mercury"))){ commerce+=2; commerceWhy.push("Mercury (commerce) well placed"); }
     else if(weakOrDus("Mercury")){ commerce-=1; commerceWhy.push("Mercury (commerce) under pressure"); }
-    { const l7=L(7); if(l7&&wellPlaced(l7)){ commerce+=1; commerceWhy.push("7th lord (trade) well placed"); } }
-    for(const h of [3,11]){ const l=L(h); if(l&&wellPlaced(l)){ commerce+=1; commerceWhy.push(ordinalD(h)+"-lord well placed"); } }
+    { const l7=L(7); if(l7&&wellPlaced(l7)){ commerce+=1; commerceWhy.push("7th lord "+l7+" (trade) well placed in the "+ordinalD(d1P[l7].house)); } }
+    for(const h of [3,11]){ const l=L(h); if(l&&wellPlaced(l)){ commerce+=1; commerceWhy.push(ordinalD(h)+"-lord "+l+" well placed in the "+ordinalD(d1P[l].house)); } }
     for(const h of [3,7,11]){ if(occ(h).some(p=>benefic.has(p))){ commerce+=1; commerceWhy.push("benefic in "+ordinalD(h)); } }
 
     // TRADE / COMMODITY signature — the classical merchant markers a narrow "10th-lord only"
@@ -3162,8 +3162,8 @@ function buildBusinessLean(d1P, d1LagnaSign, amatyakaraka, compound){
     let autonomy=0; const autonomyWhy=[];
     if(strong("Sun")){ autonomy+=1; autonomyWhy.push("strong Sun — authority and self-reliance"); }
     if(strong("Mars")){ autonomy+=1; autonomyWhy.push("strong Mars — initiative and drive"); }
-    { const l10=L(10); if(l10&&strong(l10)){ autonomy+=1; autonomyWhy.push("self-directed career ruler (10th lord strong)"); }
-      else if(l10&&inHouse(l10,[1,10])){ autonomy+=1; autonomyWhy.push("career ruler in an angle of self"); } }
+    { const l10=L(10); if(l10&&strong(l10)){ autonomy+=1; autonomyWhy.push("self-directed career ruler ("+l10+", the 10th lord, strong)"); }
+      else if(l10&&inHouse(l10,[1,10])){ autonomy+=1; autonomyWhy.push("career ruler "+l10+" (10th lord) in an angle of self"); } }
     { const l3=L(3);
       const thirdActivated = occ(3).some(p=>strong(p)) || (l3 && strong(l3) && inHouse(l3,[1,3,10,11]));
       if(thirdActivated){ autonomy+=1; autonomyWhy.push("the 3rd house of self-effort is genuinely activated (enterprise drive)"); } }
@@ -3239,9 +3239,9 @@ function buildForeignCareer(d1P, d1LagnaSign, compound){
     // 2. travel-house exchange — 12th lord in the 9th, or 9th lord in the 12th
     if((l12&&inHouse(l12,[9])) || (l9&&inHouse(l9,[12]))){ core++; why.push("the houses of distant lands and long journeys are linked (their rulers exchange) — foreign ground recurs in the life"); }
     // 3. career abroad — the 10th lord in the 12th or 9th
-    if(l10&&inHouse(l10,[12,9])){ core++; earning=true; why.push("the career ruler sits on a foreign house — work and standing can genuinely come from abroad or foreign-facing dealing"); }
+    if(l10&&inHouse(l10,[12,9])){ core++; earning=true; why.push("the career ruler "+l10+" (10th lord) sits in your "+ordinalD(hOf(l10))+" — a foreign house — so work and standing can genuinely come from abroad or foreign-facing dealing"); }
     // 4. roots uprooted to foreign — the 4th lord carried into the 12th
-    if(l4&&inHouse(l4,[12])){ core++; settling=true; why.push("the ruler of home and roots is carried into the house of distant lands — the base of life can shift away from the birthplace"); }
+    if(l4&&inHouse(l4,[12])){ core++; settling=true; why.push("the ruler of home and roots, "+l4+" (4th lord), is carried into your "+ordinalD(hOf(l4))+" — the house of distant lands — so the base of life can shift away from the birthplace"); }
     // 5. a genuine foreign cluster — two or more planets tenanting the 12th
     if(occ(12).length>=2){ core++; why.push("a cluster of planets in the house of distant lands — foreign settings are a recurring theme"); }
 
@@ -3405,11 +3405,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   let vargaChart=null;
   if(cfg.varga && cfg.varga!=="D9"){ vargaChart=buildVargaChart(cfg.varga, d1Degrees, ascLon); }
   const convergences=[];
-  if(vargaChart && lordPlacement){
-    const vLord=houseLord(vargaChart.lagnaSign, cfg.house);
-    const vLordPlace=vLord?vargaChart.placements[vLord]:null;
-    if(vLordPlace && lordPlacement.house===vLordPlace.house){
-      convergences.push(`In BOTH D1 and ${cfg.varga}, the ${ordinalD(cfg.house)}-house lord sits in the ${ordinalD(lordPlacement.house)} house — a repeated, independent signal.`);
+  if(vargaChart && lordPlacement && hLord){
+    // Track the SAME planet (the D1 house-lord) across charts — NOT the varga's own different
+    // lord. A genuine "repeated signal" is the SAME ruler landing in the same house in both.
+    const hLordInVarga = vargaChart.placements && vargaChart.placements[hLord];
+    if(hLordInVarga && hLordInVarga.house===lordPlacement.house){
+      convergences.push(`In both your birth chart and your ${cfg.vargaLabel||cfg.varga} chart, ${hLord} — the ruler of your ${ordinalD(cfg.house)} house — sits in the ${ordinalD(lordPlacement.house)} house: the same signal repeated independently.`);
     }
   }
   if(karakaPlanet && d1P[karakaPlanet] && (d1P[karakaPlanet].dignity==="Exalted"||d1P[karakaPlanet].dignity==="Own sign")){
@@ -4095,7 +4096,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
               : inDusthana ? (p+" sits in your "+ordinalD(pp.house)+" house, a house of testing")
               : (p+" is the planet currently running in your life"),
         role: p===karakaPlanet ? ("the "+cfg.karaka+", your "+cfg.focus+" significator")
-              : p===hLord ? ("the ruler of your "+ordinalD(cfg.house)+" house of "+cfg.focus)
+              : p===hLord ? (p+", the ruler of your "+ordinalD(cfg.house)+" house of "+cfg.focus)
               : occupants.some(o=>o.planet===p) ? ("placed in your "+ordinalD(cfg.house)+" house of "+cfg.focus)
               : (kind==="active-phase" ? "the planet governing your current life-phase" : "active in this area"),
         // active-phase → the live MD window; ongoing weakness → nearest upcoming window if
