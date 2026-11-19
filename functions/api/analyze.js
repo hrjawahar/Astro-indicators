@@ -3488,6 +3488,23 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   let currentAge = null;
   try { const b=new Date(birthDate); if(!isNaN(b.getTime())) currentAge = Math.floor((Date.now()-b)/(365.25*24*3600*1000)); } catch(_){}
   flags.currentAge = currentAge;
+  // ── Life-stage weighting (chart + age derived; no intake) ──
+  // Foreground the phase the reader is actually in. Changes EMPHASIS/ORDER only — never the
+  // predictions. A 48-year-old wants the current/second-half angle led, the past compressed to
+  // recognition; the same chart at 28 wants the establishing angle led.
+  let lifeStage=null;
+  try{
+    let currentMahadasha=null; const now=Date.now();
+    if(Array.isArray(dashas)){ for(const md of dashas){ const sd=md.startDate?new Date(md.startDate).getTime():null; const ed=md.endDate?new Date(md.endDate).getTime():null; if(sd!=null&&ed!=null&&now>=sd&&now<ed){ currentMahadasha=md.lord; break; } } }
+    if(currentAge!=null){
+      let band, emphasis;
+      if(currentAge<30){ band="establishing"; emphasis="Foreground what to BUILD now and in the near years ahead — identity, foundation, first establishment. Keep the past brief; put the weight on the near future and what the reader is forming."; }
+      else if(currentAge<45){ band="building"; emphasis="Balance present momentum with the decade ahead. The past is a short recognition anchor; the emphasis is consolidating what is live now and preparing what comes next."; }
+      else { band="established"; emphasis="Foreground the CURRENT phase and the second half — mastery, consolidation, enterprise, legacy. Compress the early/past arc to a brief recognition anchor (NOT the main event): this reader is living the later chapter now and wants what is live and ahead, not a replay of what passed."; }
+      lifeStage={ age:currentAge, band, currentMahadasha, emphasis };
+    }
+  }catch(_){}
+  flags.lifeStage=lifeStage;
   const realTermAge = AGE_SENSITIVE[domainKey] || null;
   flags.ageSensitive = !!realTermAge;
   flags.realTermAge = realTermAge;
@@ -4115,7 +4132,8 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
     d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
-    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, futureCompass, remedyFacts
+    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, futureCompass, remedyFacts,
+    lifeStage: flags.lifeStage
   };
 }
 
