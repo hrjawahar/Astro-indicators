@@ -2430,7 +2430,9 @@ const DUSTHANA_FLAVOUR = {
 function dusthanaReading(planet, placement, roleLabel){
   if(!placement || ![6,8,12].includes(placement.house)) return null;
   const f = DUSTHANA_FLAVOUR[placement.house];
-  return { planet, role:roleLabel, house:placement.house,
+  // role names the PLANET as well as its functional label, so no downstream renderer can
+  // ever surface a bare "Nth-lord" without the ruling planet (general hardening of C-1).
+  return { planet, role:(roleLabel?planet+" ("+roleLabel+")":planet), house:placement.house,
     reading:`${planet}${roleLabel?" ("+roleLabel+")":""} sits in the ${ordinalD(placement.house)} house — bringing ${f.theme}. ${f.constructive}.`,
     short:f.short };
 }
@@ -2550,7 +2552,7 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
   const sectorCons = ccConsistency(elDom);
   const sectorSignals = [
     `Your 10th lord is ${hLord}, whose natural fields are: ${PLANET_SECTORS[hLord].join("; ")}.`,
-    elDom ? `Across D1, D9 and D10 the 10th lord sits most in ${elDom.value.toLowerCase()} signs (${elDom.count} of ${elDom.total}) — tilting these fields toward ${ELEMENT_EDGE[elDom.value]}.` : null,
+    elDom ? `Across D1, D9 and D10 ${hLord} (your 10th lord) sits most in ${elDom.value.toLowerCase()} signs (${elDom.count} of ${elDom.total}) — tilting these fields toward ${ELEMENT_EDGE[elDom.value]}.` : null,
     (P.d1&&P.d1.dignity)? `In D1 it is ${P.d1.dignity.toLowerCase()==="neutral"?"neutrally placed":P.d1.dignity.toLowerCase()} — ${(P.d1.dignity==="Exalted"||P.d1.dignity==="Own sign")?"the field expresses cleanly and with confidence":P.d1.dignity==="Debilitated"?"the field is real but harder-won; it rewards persistence over ease":"the field is workable and steady"}.` : null
   ].filter(Boolean);
   // Outlier element: when the charts only LEAN (2/3) on element, name the differing chart's
@@ -2572,7 +2574,7 @@ function buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaS
   const roleCons = ccConsistency(modDom);
   const roleBase = modDom ? MODALITY_ROLE[modDom.value] : null;
   const roleSignals = [
-    modDom ? `The 10th lord sits in ${modDom.value.toLowerCase()} signs in ${modDom.count} of ${modDom.total} charts — ${roleBase?roleBase.desc:""}.` : null,
+    modDom ? `${hLord} (your 10th lord) sits in ${modDom.value.toLowerCase()} signs in ${modDom.count} of ${modDom.total} charts — ${roleBase?roleBase.desc:""}.` : null,
     hcDom ? `Its house placement across the charts is most often ${hcDom.value==="visible"?"angular/visible":hcDom.value==="behind"?"in the 6/8/12 (depth) houses":hcDom.value==="relational"?"partnership/network houses":"supportive houses"} — pointing to ${CC_HOUSECLASS_NOTE[hcDom.value]}.` : null,
     `These two axes are read SEPARATELY: your field (Sector) and your mode of working (Role) can each lean a different way, and the chart does not blend them.`
   ].filter(Boolean);
@@ -3100,7 +3102,7 @@ function buildHouseState(h, d1P, d1LagnaSign, compound){
       for(const p of (prof.aspectsReceived||[])){ HS_BENEFIC.has(p) ? ben++ : mal++; }
       if(ben) add("aspect",+1,Math.min(1,ben*0.5),ben+" benefic aspect(s) received");
       if(mal) add("aspect",-1,Math.min(1,mal*0.5),mal+" malefic aspect(s) received");
-      if(prof.ownLordHolds && lordH!==h) add("aspect",+1,1,"house lord aspects its own house (protection)");
+      if(prof.ownLordHolds && lordH!==h) add("aspect",+1,1,"house lord "+lord+" aspects its own house (protection)");
     }
 
     // 4. Natural significator (karaka) — primary only, to avoid over-counting
@@ -3473,7 +3475,7 @@ function buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1
     const lord=w.ad; const pp=d1P[lord]||{};
     let score=0; const roles=[];
     if(lord===karakaPlanet){ score+=3; roles.push("significator"); }
-    if(lord===hLord){ score+=3; roles.push(ordinalD(cfg.house)+"-lord"); }
+    if(lord===hLord){ score+=3; roles.push(lord+" ("+ordinalD(cfg.house)+"-lord)"); }
     if(occPlanets.has(lord)){ score+=2; roles.push("domain-house planet"); }
     if(!roles.length) score+=1;
     if(pp.dignity==="Exalted"||pp.dignity==="Own sign") score+=2;
@@ -3522,6 +3524,68 @@ function buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1
   return { bands, relief, horizonNote:("Read to "+(nowYr+20)+" (a 20-year horizon).") };
 }
 
+// ── Generic per-domain depth ("domain compass") ─────────────────────────────────
+// Career has its own bespoke compass (businessLean / foreign / money / disruptions …).
+// EVERY OTHER domain was running on the older isolated-placement + timing layer while the
+// chart-wide compound states (Raja Yogas, Neecha Bhanga, nakshatra, badhaka, combustion,
+// retrograde) and the multi-angle house-states were computed but never surfaced to it.
+// This builder gives each of those domains the SAME depth, generically: it reads the
+// domain's own house from multiple angles and pulls out only the compound factors that
+// genuinely TOUCH the domain (its lord, its karaka, its occupants, or its own house), so
+// nothing fires unless it is chart-true for THIS area. It is a general Vedic law applied
+// by domain parameters — no chart is special-cased.
+function buildPlanetDepth(planet, roleDesc, d1P){
+  if(!planet || !d1P || !d1P[planet]) return null;
+  const pl = d1P[planet];
+  const dig = pl.dignity || "neutral";
+  const rel = pl.signRelation || null;
+  const digPhrase = (dig && dig!=="neutral") ? " ("+dig.toLowerCase()+")"
+                  : (rel && rel!=="neutral" && rel!=="own") ? " (in a "+rel+"'s sign)" : "";
+  // role NAMES the planet (so no renderer can surface a bare "ruler of …"); reading uses the
+  // plain descriptor since it already opens with the planet.
+  return { planet, role:planet+" — "+roleDesc, house:pl.house, sign:pl.sign, dignity:dig, signRelation:rel,
+    reading: planet+" — "+roleDesc+" — sits in your "+ordinalD(pl.house)+" house in "+pl.sign+digPhrase+"." };
+}
+function buildDomainCompass(domainKey, cfg, hLord, karakaPlanet, d1P, d1LagnaSign, compound, houseStates){
+  try{
+    if(!compound) return null;
+    const H = cfg.house;
+    const rel = new Set([hLord, karakaPlanet].filter(Boolean));
+    for(const [p,v] of Object.entries(d1P)){ if(v.house===H && p!=="Lagna") rel.add(p); }
+
+    // 1. Multi-angle reading of the domain's OWN house, plus its Bhavat Bhavam derivative
+    //    (the house-from-house — e.g. the 7th-from-7th = 1st for partnership's own strength).
+    const houseState = (houseStates && houseStates[H]) || null;
+    const derivHouse = ((2*H-2)%12)+1;
+    const derivState = (derivHouse!==H && houseStates && houseStates[derivHouse]) ? houseStates[derivHouse] : null;
+
+    // 2. The domain lord's and karaka's own compound condition (named, with dignity).
+    const lordState   = buildPlanetDepth(hLord, "the ruler of your "+ordinalD(H)+" house of "+cfg.focus, d1P);
+    const karakaState = karakaPlanet ? buildPlanetDepth(karakaPlanet, "the natural significator of "+cfg.focus, d1P) : null;
+
+    // 3. Raja Yogas that TOUCH this domain (a yoga planet is the lord/karaka/occupant, or the
+    //    yoga forms in this house) — so marriage surfaces a 7th-lord Raja Yoga, etc.
+    const rajaYogas = (compound.rajaYogas||[]).filter(ry => (ry.planets||[]).some(p=>rel.has(p)) || ry.house===H);
+    // 4. Named yogas (Gaja Kesari, Budhaditya) whose significator or seat touches the domain.
+    const yogas = (compound.yogas||[]).filter(y => rel.has(y.from) || rel.has("Sun")&&y.name==="Budhaditya Yoga"&&(H===1||H===10) || y.house===H);
+    // 5. Neecha Bhanga on a domain-relevant planet (graded; only if real).
+    const neechaBhanga = (compound.neechaBhanga||[]).filter(nb => rel.has(nb.planet) && nb.level && nb.level!=="none");
+    // 6. Nakshatra (star-lord) layer for the domain lord / karaka.
+    const nakshatra = (compound.nakshatra||[]).filter(n => rel.has(n.planet));
+    // 7. Combustion / retrograde of domain-relevant planets.
+    const combustion = (compound.combustion||[]).filter(c => rel.has(c.planet));
+    const retrograde = (compound.retroStrength||[]).filter(r => rel.has(r.planet));
+    // 8. Badhaka only when it falls on this domain's house or its lord.
+    const badhaka = (compound.badhaka && (compound.badhaka.house===H || compound.badhaka.planet===hLord)) ? compound.badhaka : null;
+
+    const anything = houseState || derivState || lordState || karakaState || rajaYogas.length ||
+      yogas.length || neechaBhanga.length || nakshatra.length || combustion.length || retrograde.length || badhaka;
+    if(!anything) return null;
+    return { house:H, focus:cfg.focus, lord:hLord, karaka:karakaPlanet, derivHouse,
+      houseState, derivState, lordState, karakaState,
+      rajaYogas, yogas, neechaBhanga, nakshatra, combustion, retrograde, badhaka };
+  }catch(_){ return null; }
+}
 function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap, gender, maritalStatus){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
@@ -4182,6 +4246,13 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     try{ if(careerCompass){ careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama, compound, houseStates); } }catch(_){}
   }
 
+  // ── Domain Compass (every NON-career domain): the same compound-state + multi-angle
+  //    house depth that career already has, applied generically by domain parameters.
+  let domainCompass=null;
+  if(domainKey!=="career"){
+    try{ domainCompass = buildDomainCompass(domainKey, cfg, hLord, karakaPlanet, d1P, d1LagnaSign, compound, houseStates); }catch(_){ domainCompass=null; }
+  }
+
   // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
   let futureCompass=null;
   try{ futureCompass = buildFutureCompass(dashaTiming, domainKey, cfg, karakaPlanet, hLord, d1P, occupants); }catch(_){ futureCompass=null; }
@@ -4276,7 +4347,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
     d9:{ lagnaSign:d9LagnaSign, houses:d9Houses, placements:d9Placements },
-    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, futureCompass, remedyFacts,
+    vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, domainCompass, futureCompass, remedyFacts,
     lifeStage: flags.lifeStage
   };
 }

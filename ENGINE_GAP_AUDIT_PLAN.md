@@ -107,3 +107,52 @@ Anchors (ground truth, never overfit — rules stay general):
 | C-8 | 4 | 8th read only as disruption | Balance 8th: transformation/research/windfall |
 | C-9 | 5 | Sector-Fit missed Shravana-Moon service/advisory | Nakshatra sector attributes into Sector-Fit |
 | C-10 | 6 | "Working abroad?" hard-suppressed despite exalted 12th Jupiter | Remote-Only template trigger when 12th holds an exalted/strong planet |
+
+## Phase 2 — all-domains audit (CHECK → IDENTIFY → CLOSE), completed
+
+**Harness:** `audit/domains_audit.mjs` generalises the probes across all seven domains ×
+(12-lagna panel × 20 random = 240 charts + the three real anchors Durai/Pisces, JK/Leo,
+VB/Aquarius = 123/domain shown). The probe regex was hardened to catch 2-digit ordinals
+(10th/11th/12th), which exposed that the old single-digit probe had been blind to career's
+own "10th-lord" strings.
+
+**IDENTIFY — two findings:**
+
+1. **Correctness parity: already CLEAN by inheritance.** Leaks, camelCase, convergence
+   contradictions and crashes are 0 across all seven domains — the C-1…C-4 fixes, the output
+   scrub and the friend/enemy dignity were chart-wide and every domain inherited them. The only
+   residue was a latent trap: a handful of metadata/role fields and shared house-state why-lines
+   carried a bare "Nth-lord" without the planet (always beside a planet-named `reading`, so never
+   reader-visible — career carried the identical pattern through full review). Closed anyway, to
+   honour the locked "engine always names the planet" principle: `dusthanaReading.role`,
+   `buildPlanetDepth.role`, `futureCompass` role tags, the two `sectorFit`/`roleFit` signals and
+   the `buildHouseStates` own-lord-aspect why-line all now name the planet. Gate: 0 across all
+   seven domains, including 2-digit ordinals.
+
+2. **Depth parity: the real Phase-2 gap, now CLOSED.** Career had a bespoke compass exposing the
+   chart-wide compound states (Raja Yogas, Neecha Bhanga, nakshatra, badhaka, combustion,
+   retrograde) and the multi-angle house-states; the other six domains computed the same
+   substrate but **discarded** it, running on the older isolated-placement + timing layer. Added
+   a GENERIC `buildDomainCompass(domainKey, …)` that, for any domain, reads the domain's own house
+   from multiple angles (+ its Bhavat Bhavam derivative) and surfaces only the compound factors
+   that genuinely TOUCH the domain (its lord, karaka, occupants, or house). Wired into
+   `buildDomainFacts` as `facts.domainCompass` for every non-career domain. No chart is
+   special-cased — it is one general law applied by domain parameters (over-fit covenant honoured).
+
+**Writer:** added a "DOMAIN COMPASS (every non-career domain)" rule block to `domain-report.js`
+under NAME-RECONCILE-TRANSLATE, including an explicit **house-polarity guard** (a structurally
+strong 6th in the health domain = capacity to fight off illness/resilience, NOT "perfect health";
+dusthana placements read as depth, not flat weakness), strength-graded Raja-Yoga / Neecha-Bhanga /
+nakshatra / badhaka / combustion / retrograde rendering, and the dusthana-as-depth balance.
+
+**Validation:** anchor spot-checks chart-true (e.g. health surfaces Mercury debilitated-in-8th
+*with* its full Neecha Bhanga; marriage shows the 7th-lord, Venus-karaka exalted, and a Venus+Mars
+Raja Yoga; mother/marriage badhaka fires exactly for the modalities where the domain house *is* the
+badhakasthana). Population fire-rates are astrologically grounded, not skewed. Both regression
+gates (`domains_audit.mjs`, `career_audit.mjs`) green.
+
+| # | Class | Finding | Fix |
+|---|---|---|---|
+| P2-1 | 1 | Bare "Nth-lord" in metadata/role fields + shared house why-line (latent; career blind-spot in old probe) | Name the planet at every source; harden probe to 2-digit ordinals |
+| P2-2 | 2/3/4/5 | Six non-career domains lacked compound-state depth + multi-angle house reading (career-only) | Generic `buildDomainCompass` wired to `facts.domainCompass` for all non-career domains |
+| P2-3 | 7 | Writer had no rule to render non-career depth; risk of mis-translating a strong 6th/8th/12th | Domain-Compass writer block with house-polarity guard + graded rendering |
