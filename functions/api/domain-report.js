@@ -68,25 +68,39 @@ async function writeDomainReport(env, domainKey, facts, onProgress) {
   // past Cloudflare's hard 100s edge limit (524) on a single blocking request.
   // Streaming returns bytes continuously; onProgress() forwards a heartbeat to the
   // client so the connection stays open until the final marker.
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 12000,
-      stream: true,
-      system: sys,
-      messages: [{ role: "user", content: user }],
-    }),
+  const body = JSON.stringify({
+    model: MODEL,
+    max_tokens: 12000,
+    stream: true,
+    system: sys,
+    messages: [{ role: "user", content: user }],
   });
-
-  if (!res.ok) {
+  // Auto-retry a TRANSIENT Anthropic overload (503/529) or rate-limit (429) — these are
+  // capacity blips, not errors in our request, and surfaced to the reader as "Server error
+  // (503)". Retrying while the heartbeat keeps the client connection alive makes them
+  // self-heal instead of failing the report.
+  let res, attempt = 0;
+  for (;;) {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body,
+    });
+    if (res.ok) break;
+    const status = res.status;
     const t = await res.text().catch(() => "");
-    throw new Error("Anthropic API error " + res.status + ": " + t.slice(0, 300));
+    const transient = status === 429 || status === 500 || status === 503 || status === 529 || /overloaded|rate.?limit/i.test(t);
+    if (transient && attempt < 4) {
+      attempt++;
+      if (onProgress) { try { onProgress(); } catch (_) {} }   // keep the streamed connection alive
+      await new Promise(r => setTimeout(r, 1200 * attempt));     // backoff: 1.2s, 2.4s, 3.6s, 4.8s
+      continue;
+    }
+    throw new Error("Anthropic API error " + status + (attempt ? " after " + attempt + " retries" : "") + ": " + t.slice(0, 300));
   }
 
   const reader = res.body.getReader();

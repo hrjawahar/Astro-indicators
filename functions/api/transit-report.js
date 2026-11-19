@@ -73,25 +73,37 @@ async function writeTransitReport(env, facts, onProgress) {
   // past Cloudflare's hard 100s edge limit (524) on a single blocking request.
   // Streaming makes the Anthropic call return bytes continuously; onProgress()
   // lets the caller forward a heartbeat to the client so the connection stays open.
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 12000,
-      stream: true,
-      system: sys,
-      messages: [{ role: "user", content: user }],
-    }),
+  const reqBody = JSON.stringify({
+    model: MODEL,
+    max_tokens: 12000,
+    stream: true,
+    system: sys,
+    messages: [{ role: "user", content: user }],
   });
-
-  if (!res.ok) {
+  // Auto-retry a transient Anthropic overload (503/529) / rate-limit (429) while the heartbeat
+  // keeps the client connection alive, so a capacity blip self-heals instead of failing.
+  let res, attempt = 0;
+  for (;;) {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: reqBody,
+    });
+    if (res.ok) break;
+    const status = res.status;
     const t = await res.text().catch(() => "");
-    throw new Error("Anthropic API error " + res.status + ": " + t.slice(0, 300));
+    const transient = status === 429 || status === 500 || status === 503 || status === 529 || /overloaded|rate.?limit/i.test(t);
+    if (transient && attempt < 4) {
+      attempt++;
+      if (onProgress) { try { onProgress(); } catch (_) {} }
+      await new Promise(r => setTimeout(r, 1200 * attempt));
+      continue;
+    }
+    throw new Error("Anthropic API error " + status + (attempt ? " after " + attempt + " retries" : "") + ": " + t.slice(0, 300));
   }
 
   const reader = res.body.getReader();
