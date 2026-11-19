@@ -3260,6 +3260,58 @@ function buildForeignCareer(d1P, d1LagnaSign, compound){
   }catch(_){ return null; }
 }
 
+// ── Money & Income pattern (career sub-reading) ──────────────────────────────────────
+// Closes the wealth/cash-flow blind spot: reads the 2nd (accumulated wealth) and 11th
+// (gains/income) houses and their lords through the house-states, names HOW income flows best
+// (steady service/retainers, structured trade margins, network gains) and whether speculation
+// is supported — grounded in the chart (a debilitated wealth-ruler warns against speculation),
+// and compound-aware (a cancelled debilitation reads as resilient discipline, not plain fail).
+function buildMoneyFlow(d1P, d1LagnaSign, compound, houseStates){
+  try{
+    const L=(h)=>houseLord(d1LagnaSign,h);
+    const occ=(h)=>occupantsOfHouse(d1P,h);
+    const nbFull=(p)=>!!((compound&&compound.neechaBhanga||[]).some(nb=>nb.planet===p&&nb.level==="full"));
+    const digOf=(p)=>d1P[p]&&d1P[p].dignity;
+    const hOf=(p)=>d1P[p]&&d1P[p].house;
+    const signOf=(p)=>d1P[p]&&d1P[p].sign;
+    const strong=(p)=>d1P[p]&&(digOf(p)==="Exalted"||digOf(p)==="Own sign"||(digOf(p)==="Debilitated"&&nbFull(p)));
+    const debilNoNB=(p)=>!!(d1P[p]&&digOf(p)==="Debilitated"&&!nbFull(p));
+    const hs=(h)=>houseStates&&houseStates[h];
+    const l2=L(2), l11=L(11), l5=L(5), l8=L(8);
+    const why=[];
+    const accumulation = hs(2)?hs(2).grade:null;
+    const gains = hs(11)?hs(11).grade:null;
+    if(l2&&hOf(l2)) why.push("your house of savings (2nd) is ruled by "+l2+", placed in the "+ordinalD(hOf(l2))+" ("+signOf(l2)+")");
+    if(l11&&hOf(l11)) why.push("your house of income and gains (11th) is ruled by "+l11+", placed in the "+ordinalD(hOf(l11))+" ("+signOf(l11)+")");
+
+    // income MODE(s)
+    const modes=[];
+    if([l2,l11].some(l=>l&&hOf(l)===6) || (hOf("Saturn")&&[2,11].includes(hOf("Saturn"))) || [l2,l11].includes("Saturn")) modes.push("steady service or structured, salaried/retainer income");
+    if(occ(8).some(p=>strong(p)) || (l8&&strong(l8)&&hOf(l8)===8)) modes.push("structured trade margins (bulk, commodity or stored-value dealing)");
+    if(gains==="strong"||gains==="supported") modes.push("gains that build steadily through networks and repeat clients");
+    if(!modes.length) modes.push("steady, earned income rather than windfalls");
+
+    // speculation read
+    let speculation, specWhy;
+    if(l2&&digOf(l2)==="Debilitated"&&nbFull(l2)){ speculation="disciplined"; specWhy="your savings-ruler "+l2+" is debilitated but cancelled — early money pressure gives way to resilient wealth built by discipline, not speculation"; }
+    else if(debilNoNB(l2)||debilNoNB(l5)||debilNoNB("Jupiter")){ speculation="avoid"; specWhy=(debilNoNB(l2)?("your savings-ruler "+l2+" is debilitated"):debilNoNB(l5)?("your speculation-ruler "+l5+" is debilitated"):"the wealth significator Jupiter is debilitated")+" — speculative bets tend to misfire"; }
+    else if(hs(5)&&hs(5).grade==="strong"){ speculation="cautious-ok"; specWhy="your house of speculation (5th) is well supported — measured, informed risks can pay, but keep them a minority of your capital"; }
+    else speculation="measured";
+    if(specWhy) why.push(specWhy);
+
+    // dhana (wealth-forming) link between savings and income rulers
+    let dhana=false;
+    if(l2&&l11&&(hOf(l2)===hOf(l11) || (hOf(l2)===11&&hOf(l11)===2))){ dhana=true; why.push("the rulers of savings and income connect — a wealth-forming link"); }
+
+    const specLine = speculation==="avoid" ? "Speculative, high-risk bets tend to misfire for this chart — keep capital in steady, disciplined channels."
+      : speculation==="disciplined" ? "Wealth here is built by discipline and patience, not speculation — early money pressure resolves into resilient, accumulated value."
+      : speculation==="cautious-ok" ? "Measured, well-informed risks can work, but should stay a small share of your capital."
+      : "Steady accumulation suits this chart better than chasing windfalls.";
+    const statement = "Your income flows best through "+modes.join(", and ")+". "+specLine;
+    return { accumulation, gains, modes, speculation, dhana, statement, why };
+  }catch(_){ return null; }
+}
+
 // ── Future Compass (all domains) ───────────────────────────────────────────────
 // The engine produces many AD sub-windows (dashaTiming.keyWindows). The owner rule:
 // the BACKEND keeps that full detail, but the REPORT consolidates to the 2-3 strongest
@@ -3969,6 +4021,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign, _ama, compound); }catch(_){}
     try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound); }catch(_){}
     try{ if(careerCompass) careerCompass.nakshatra = (compound&&compound.nakshatra||[]).filter(n=> n.planet===hLord || n.planet===_ama); }catch(_){}
+    try{ if(careerCompass) careerCompass.money = buildMoneyFlow(d1P, d1LagnaSign, compound, houseStates); }catch(_){}
     try{ if(careerCompass){ careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama, compound, houseStates); } }catch(_){}
   }
 

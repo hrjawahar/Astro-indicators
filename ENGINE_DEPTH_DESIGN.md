@@ -208,6 +208,61 @@ general law with provenance and population validation — never tuned to one cha
   why-line. Conservative: a real tendency, never a certainty, and never a promise of a visa
   or a country.
 
+## 4b. CONTENT NON-NEGOTIABLE — "Name, Reconcile, Translate" (all domains)
+
+The single most important content rule, owner-locked. Every reading must let the reader
+**connect while reading** — recognise their own chart in the verdict. Three obligations on
+every meaningful claim:
+
+1. **NAME the placement.** Never "a planet is strongly placed" / "sits in a powerful or
+   supportive position". Always *which planet, in which house (and sign)* — e.g. "Venus in
+   your 8th house", "Ketu in your 1st house". If the prose says strong/supportive/powerful, it
+   must say *where*.
+2. **TRANSLATE with an example.** Never bare jargon. "An earth sign" → name it and show it
+   ("an earth sign like Capricorn — practical, material, built to last") and *what the chart
+   therefore leans toward*. Same for air/fire/water signs, for dignities, for every house.
+   Name → example → what it means → what it leans toward.
+3. **RECONCILE several factors into ONE sharp verdict**, each factor named so the reader
+   self-connects. The locked exemplar (shape, not content): *"Reconciling 8th-house Venus
+   (bulk trade, stored value, finance) with Ketu in the 1st (institutional independence) and
+   Rahu in the 7th (marketplace dealing) gives a sharp verdict: strong enterprise potential in
+   advisory, finance or commodity/wholesale trade."* The reader thinks: "I have Ketu in my
+   1st — that's why independence; Rahu in my 7th — that's why the marketplace."
+
+This REFINES the earlier "keep jargon out of the prose, put placements only in why-lines"
+rule: placements are now NAMED in the reading itself, but *always immediately translated*, so
+naming never overwhelms. Why-lines still carry the fuller technical derivation. Never name
+without translating; never claim without naming.
+
+## 4c. Life-stage weighting (chart-derived, no intake)
+
+The report must foreground the phase the reader is actually in. Derived from birth data (age)
++ the dasha timeline — no intake question, so it honours the deferral. A 48-year-old in an
+enterprise/second-half phase wants the *current business* angle foregrounded, with the past
+corporate arc compressed to a brief recognition anchor; the same chart read at 28 would
+foreground the corporate/establishment angle. Weighting changes EMPHASIS and ORDER only — the
+underlying predictions are unchanged (consistent with the lock principle).
+
+## 4d. V5 career-report patch plan (from the V4 practitioner review)
+
+Gaps to close (career pilot first, then all domains):
+1. **Execution gap** — a long "hold steady" window must come with a concrete "what to actively
+   build before it" checklist (liquidity reserve, low-capital pilots, formalise partnerships),
+   not just "wait".
+2. **Money & income blind spot (NEW engine capability)** — a "Money & Income Pattern"
+   reading: the 2nd (accumulated wealth) and 11th (gains/income) houses and their lords, read
+   through the house-states; names how income flows best (steady retainers / structured
+   margins vs. speculation), grounded in the chart (e.g. a debilitated 2nd-lord → speculation
+   fails, disciplined cash-flow mandatory).
+3. **Over-repetition** — each section gets a DISTINCT JOB (identity / workplace behaviour /
+   timing & decisions / closing encouragement); the closing never repeats the timing warning
+   verbatim.
+4. **12th-house / debilitated-lord translation** — turn "behind the scenes" into tangible
+   direction: cross-border or remote/out-of-state clients, B2B backend advisory, and strict
+   invoicing/payment discipline (don't undercharge). Ties into the foreign-career layer.
+5. **Remedies/temple ranking** — DEFERRED: remedies are parked; precautions stay planetary-
+   only. Revisit under the remedies project.
+
 ## 5. Build order (once the design is approved)
 
 1. Compound-state pass (Layer 1a–1c): dignity modifiers, retrograde strength, full-aspect
