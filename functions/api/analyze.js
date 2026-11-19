@@ -2908,6 +2908,7 @@ function buildCompoundStates(d1P, d1LagnaSign, d9Houses, d9LagnaSign){
         reading: reinforced.length
           ? p+" is retrograde, which adds motional strength; it reinforces and protects the house(s) it rules ("+reinforced.map(ordinalD).join(", ")+") rather than leaving them weak."
           : p+" is retrograde, which adds motional (Chesta) strength to it.",
+        periodNote: p+", being retrograde, tends to internalise its themes and move non-linearly — in its own major period (Mahadasha) recognition and results come in a delayed or unconventional way, and old chapters often resurface to be reworked rather than progress running in a straight line"+( ph===1 ? ", and placed on the Ascendant it turns that pressure inward onto the self" : "" )+".",
         why:p+" retrograde (Chesta Bala)"+(reinforced.length?("; reinforces own house(s) "+reinforced.join(", ")+" by aspect/occupancy"):"") });
     }
 
@@ -2998,12 +2999,44 @@ function buildCompoundStates(d1P, d1LagnaSign, d9Houses, d9LagnaSign){
       const isDK=(klH.includes(9)||tlH.includes(9))&&(klH.includes(10)||tlH.includes(10));
       const inDus=[6,8,12].includes(kh)||[6,8,12].includes(th);
       const strength=(rajaDig(kl)&&rajaDig(tl))?"strong":(rajaDig(kl)||rajaDig(tl))?"moderate":inDus?"through-struggle":"moderate";
-      rajaYogas.push({ planets:[kl,tl], relation, house:(kh===th?kh:null), dharmaKarmadhipati:isDK, inDusthana:inDus, strength,
+      // TRADE-OFF: a yoga planet sitting in a dusthana ALSO drags the non-dusthana houses it
+      // rules — e.g. a 9th-lord in the 8th that also rules the 4th stresses home/stability.
+      const tradeoffs=[];
+      for(const pl of [kl,tl]){ const ph2=hof(pl); if(ph2 && [6,8,12].includes(ph2)){ const ruled=(lordHousesOf[pl]||[]).filter(h=>![6,8,12].includes(h)&&h!==ph2);
+        if(ruled.length) tradeoffs.push(pl+" also rules your "+ruled.map(ordinalD).join(" & ")+", which its placement in the "+ordinalD(ph2)+" puts under some pressure — the yoga lifts status, but those areas are worked harder for it"); } }
+      rajaYogas.push({ planets:[kl,tl], relation, house:(kh===th?kh:null), dharmaKarmadhipati:isDK, inDusthana:inDus, strength, tradeoff:(tradeoffs.join("; ")||null),
         reading:(isDK?"A Dharma-Karmadhipati Raja Yoga":"A Raja Yoga")+" forms between "+kl+" and "+tl+" ("+relation+(kh===th?(" in your "+ordinalD(kh)+" house"):"")+") — "+(isDK?"the rulers of fortune (9th) and career (10th) joined is a classic mark of rising status, authority and breakthrough":"an angular ruler joined to a trinal ruler lifts status and success")+(inDus?", and placed in a house of depth it tends to deliver through upheaval, research or sudden breakthroughs rather than a smooth climb — a strength, not merely a disruption":"")+".",
         why:(isDK?"Dharma-Karmadhipati":"Raja")+" Yoga: "+kl+" ("+klH.map(ordinalD).join("/")+" lord) + "+tl+" ("+tlH.map(ordinalD).join("/")+" lord), "+relation+(kh===th?(" in the "+ordinalD(kh)):"")+(inDus?" (in a house of transformation)":"")+"." });
     }}
 
-    return { neechaBhanga, retroStrength, houseProfiles, yogas, nakshatra, rajaYogas };
+    // ── 1e. Badhaka (house of obstruction) — by Lagna modality ──
+    let badhaka=null;
+    try{
+      const lagIdx2=V_SIGNS.indexOf(d1LagnaSign);
+      const modality=lagIdx2%3;                       // 0 movable, 1 fixed, 2 dual
+      const bHouse = modality===0?11 : modality===1?9 : 7;
+      const bLord = houseLord(d1LagnaSign, bHouse);
+      if(bLord) badhaka={ house:bHouse, planet:bLord, modality:(modality===0?"movable":modality===1?"fixed":"dual"),
+        reading:"For your "+(modality===0?"movable":modality===1?"fixed":"dual")+" Ascendant, the "+ordinalD(bHouse)+" is the Badhakasthana — the house of obstruction — so its ruler "+bLord+" carries a built-in tendency to delay or block, a friction worth naming even where "+bLord+" is otherwise strong or a benefic.",
+        why:"the "+ordinalD(bHouse)+" is the Badhaka for a "+d1LagnaSign+" ("+(modality===0?"movable":modality===1?"fixed":"dual")+") Ascendant; its lord "+bLord+" is the Badhakesh." };
+    }catch(_){}
+
+    // ── 1f. Combustion — a planet too near the Sun (its significations burn / internalise) ──
+    const COMBUST_ORB={Moon:12,Mars:17,Mercury:14,Jupiter:11,Venus:10,Saturn:15};
+    const combustion=[];
+    try{
+      const sunLon=lonOf("Sun");
+      if(sunLon!=null){ for(const p of ["Moon","Mars","Mercury","Jupiter","Venus","Saturn"]){
+        const pl=lonOf(p); if(pl==null) continue;
+        let d=Math.abs(pl-sunLon); if(d>180) d=360-d;
+        let orb=COMBUST_ORB[p]; if((p==="Mercury"||p==="Venus")&&d1P[p]&&d1P[p].retro) orb=(p==="Mercury"?12:8);
+        if(d<=orb && d>0.5) combustion.push({ planet:p, orb:+d.toFixed(1),
+          reading:p+" is close to the Sun (combust) — its significations tend to be absorbed into ego and identity, and work best expressed with quiet confidence rather than for show.",
+          why:p+" within "+d.toFixed(1)+"° of the Sun (combust; orb "+orb+"°)." }); }
+      }
+    }catch(_){}
+
+    return { neechaBhanga, retroStrength, houseProfiles, yogas, nakshatra, rajaYogas, badhaka, combustion };
   }catch(_){ return null; }
 }
 
@@ -4140,6 +4173,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     try{ if(careerCompass) careerCompass.nakshatra = (compound&&compound.nakshatra||[]).filter(n=> n.planet===hLord || n.planet===_ama); }catch(_){}
     try{ if(careerCompass) careerCompass.money = buildMoneyFlow(d1P, d1LagnaSign, compound, houseStates); }catch(_){}
     try{ if(careerCompass) careerCompass.rajaYogas = (compound&&compound.rajaYogas)||[]; }catch(_){}
+    try{ if(careerCompass){ careerCompass.badhaka = (compound&&compound.badhaka)||null; careerCompass.combustion = (compound&&compound.combustion)||[]; careerCompass.retroStrength = (compound&&compound.retroStrength)||[]; } }catch(_){}
     try{ if(careerCompass){ const nk=(compound&&compound.nakshatra)||[]; const hints=[];
       const mn=nk.find(n=>n.planet==="Moon"); const hn=nk.find(n=>n.planet===hLord);
       if(mn&&NAK_SECTOR[mn.nakshatra]) hints.push({source:"Moon (vocational inclination)", nakshatra:mn.nakshatra, sectors:NAK_SECTOR[mn.nakshatra]});
