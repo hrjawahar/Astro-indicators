@@ -580,11 +580,32 @@ function computeVimshottari(moonLonSidereal, birthJD) {
 
 // ── SECTION 8: GEOCODING via Nominatim (OpenStreetMap) ───────────────────────
 
+// Resilient fetch: a HARD timeout so a slow/hanging upstream (Nominatim, TimeZoneDB) can never
+// stall the Function until Cloudflare kills it with a 503 HTML page. Caller handles the throw.
+async function fetchWithTimeout(url, opts = {}, ms = 6000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, { ...opts, signal: ctrl.signal }); }
+  finally { clearTimeout(timer); }
+}
+// Fetch JSON or throw a clear error — never let an HTML error page reach JSON.parse.
+async function fetchJsonSafe(url, opts, ms) {
+  const res = await fetchWithTimeout(url, opts, ms);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`upstream ${res.status}`);
+  try { return JSON.parse(text); } catch { throw new Error("upstream returned a non-JSON response"); }
+}
+const NOMINATIM_HEADERS = { "User-Agent": "AstroIndicators/3.0 (vedic chart calculator; support@astroindicators.com)" };
+
 async function geocode(query) {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1&accept-language=en`;
-  const res  = await fetch(url, { headers: { "User-Agent": "JyotishPrecisionApp/3.0 (jyotish chart calculator; contact@example.com)" } });
-  const data = await res.json();
-  if (!data || !data[0]) throw new Error(`Place not found: "${query}". Try a major city name or district.`);
+  let data = null, lastErr = null;
+  for (let attempt = 0; attempt < 2; attempt++) {           // one retry for a transient blip
+    try { data = await fetchJsonSafe(url, { headers: NOMINATIM_HEADERS }, 6000); break; }
+    catch (e) { lastErr = e; await new Promise(r => setTimeout(r, 400)); }
+  }
+  if (!data) throw new Error(`We couldn't reach the place-lookup service just now (${lastErr?.message || "timed out"}). Please try again in a moment, or enter a nearby major city or district.`);
+  if (!data[0]) throw new Error(`Place not found: "${query}". Try a major city name or district.`);
   return {
     lat: parseFloat(data[0].lat),
     lng: parseFloat(data[0].lon),
@@ -596,8 +617,8 @@ async function geocode(query) {
 // Autocomplete search — returns up to 8 suggestions for the UI dropdown
 async function searchPlaces(query) {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=8&addressdetails=1&accept-language=en`;
-  const res  = await fetch(url, { headers: { "User-Agent": "JyotishPrecisionApp/3.0 (jyotish chart calculator; contact@example.com)" } });
-  const data = await res.json();
+  let data = null;
+  try { data = await fetchJsonSafe(url, { headers: NOMINATIM_HEADERS }, 5000); } catch { return []; }
   return (data || []).map(r => ({
     lat:         parseFloat(r.lat),
     lng:         parseFloat(r.lon),
@@ -652,8 +673,7 @@ async function getTimezoneOffset(lat, lng, countryCode) {
   // 2. Try TimeZoneDB API (free tier, no key needed for basic lookup)
   try {
     const url = `https://api.timezonedb.com/v2.1/get-time-zone?key=TIMEZONEDB_FREE&format=json&by=position&lat=${lat}&lng=${lng}`;
-    const res  = await fetch(url);
-    const data = await res.json();
+    const data = await fetchJsonSafe(url, {}, 5000);
     if (data.status === "OK" && data.gmtOffset != null) {
       return data.gmtOffset / 3600; // convert seconds to hours
     }
