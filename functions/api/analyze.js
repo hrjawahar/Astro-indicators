@@ -2742,7 +2742,14 @@ function buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlace
         if(tenthProtected){ lk-=1; lkMit.push("the career house is structurally protected (its own ruler holds it)"); }
         const likelihood = lk>=3 ? "elevated" : lk>=1.5 ? "moderate" : "lower";
         const likelihoodWhy = (lkFactors.length?("raised by: "+lkFactors.join("; ")):"")+((lkFactors.length&&lkMit.length)?" — ":"")+(lkMit.length?("eased by: "+lkMit.join("; ")):"");
-        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity, mdStress:mdV, likelihood, likelihoodWhy, when, gradeWhy:stressWhy[mdV]||"" });
+        // CONSTRUCTIVE face (balance): when the period-lord is the career significator
+        // (Amatyakaraka) well placed in the 1st/10th/11th, its own period — alongside its
+        // testing edge — is a prime window to deliberately BUILD or LAUNCH one's own work.
+        const amaWell = amatyakaraka && d1P[amatyakaraka] && [1,10,11].includes(d1P[amatyakaraka].house);
+        const constructive = (amaWell && (ad.lord===amatyakaraka || md.lord===amatyakaraka))
+          ? ("this is "+amatyakaraka+"'s own period, and "+amatyakaraka+" is your career significator (Amatyakaraka) well placed in the "+ordinalD(d1P[amatyakaraka].house)+" — so alongside its testing edge, this is one of the strongest windows to deliberately build or launch something of your own, provided you accept a heavy workload and build slowly")
+          : null;
+        out.push({ years, sy, ey, planet:ad.lord, md:md.lord, severity, mdStress:mdV, likelihood, likelihoodWhy, when, constructive, gradeWhy:stressWhy[mdV]||"" });
       }
     }
     out.sort((a,b)=>a.sy-b.sy);
@@ -2781,6 +2788,36 @@ const CS_KENDRA = [1,4,7,10];
 // Nakshatra (27 lunar mansions) and their Vimshottari lords, repeating every 9.
 const NAK_LORDS = ["Ketu","Venus","Sun","Moon","Mars","Rahu","Jupiter","Saturn","Mercury"];
 const NAK_NAMES = ["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta","Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha","Uttara Ashadha","Shravana","Dhanishta","Shatabhisha","Purva Bhadrapada","Uttara Bhadrapada","Revati"];
+// Career-sector leanings per nakshatra (classical significations; used to sharpen Sector-Fit).
+const NAK_SECTOR = {
+  "Ashwini":"healthcare, medicine, transport, emergency/quick-turnaround work",
+  "Bharani":"logistics, ethics/law, discipline-heavy fields, life-and-death services",
+  "Krittika":"engineering, metals/fire work, sharp critique/editing, defence, culinary",
+  "Rohini":"agriculture and food, luxury and the arts, real estate, finance and banking",
+  "Mrigashira":"research and search, communication, travel, sales and exploration",
+  "Ardra":"analytics and data, pharma/chemistry, research, fields that thrive on change",
+  "Punarvasu":"teaching, hospitality, logistics, anything about renewal and second chances",
+  "Pushya":"counseling and care, public service, food and nourishment, steady institutions",
+  "Ashlesha":"strategy and psychology, chemicals/pharma, intelligence and advisory work",
+  "Magha":"leadership and administration, heritage/tradition, authority and institutions",
+  "Purva Phalguni":"arts and entertainment, luxury, hospitality, creative self-expression",
+  "Uttara Phalguni":"contracts and administration, philanthropy, structured helping professions",
+  "Hasta":"skilled hands and craft, trade, medicine, media and detailed work",
+  "Chitra":"design and architecture, engineering, aesthetics and visual work",
+  "Swati":"independent trade and business, diplomacy, aviation, flexible self-employment",
+  "Vishakha":"goal-driven enterprise, research, law, determined leadership",
+  "Anuradha":"organising networks and teams, foreign dealing, disciplined collaboration",
+  "Jyeshtha":"management and protection, administration, intelligence and oversight",
+  "Mula":"research and investigation, roots/pharma/herbs, philosophy, getting to the bottom of things",
+  "Purva Ashadha":"influence and debate, water/shipping, persuasion and public opinion",
+  "Uttara Ashadha":"leadership, government, building enduring institutions",
+  "Shravana":"listening, counseling and teaching, media and communication, structured advisory service",
+  "Dhanishta":"music and rhythm, real estate, wealth management, group and team work",
+  "Shatabhisha":"healing and technology, research, pharma, work with hidden or secret systems",
+  "Purva Bhadrapada":"transformation, finance and the occult, statistics and deep analysis",
+  "Uttara Bhadrapada":"depth and charity, foreign connections, research and counseling",
+  "Revati":"nurturing and travel, logistics, spiritual and artistic work"
+};
 function nakOf(longitude){
   const span=360/27; let idx=Math.floor((((longitude%360)+360)%360)/span);
   if(idx<0) idx=0; if(idx>26) idx=26;
@@ -2817,6 +2854,8 @@ function buildCompoundStates(d1P, d1LagnaSign, d9Houses, d9LagnaSign){
       const exH=exaltLord && hof(exaltLord);
       if(exH && (CS_KENDRA.includes(exH) || kendraFrom(moonH,exH)))
         conds.push("the planet exalted in that sign ("+exaltLord+") sits in an angle");
+      if(exH && exH===hof(p))   // exalted-planet CONJUNCT the debilitated planet (classical cancellation)
+        conds.push("the planet exalted in that sign ("+exaltLord+") is conjunct it");
       const d9s=d9sign[p];
       if(d9s && (EXALTATION[p]===d9s || (OWN_SIGNS[p]||[]).includes(d9s)))
         conds.push("in the navamsha it occupies its "+(EXALTATION[p]===d9s?"exaltation":"own")+" sign");
@@ -2914,7 +2953,38 @@ function buildCompoundStates(d1P, d1LagnaSign, d9Houses, d9LagnaSign){
         why:p+" in "+nk.name+" (star-lord "+lord+(hof(lord)?(", house "+hof(lord)):"")+"); "+effect+"." });
     }
 
-    return { neechaBhanga, retroStrength, houseProfiles, yogas, nakshatra };
+    // ── 1c(ii). Raja Yogas — a kendra-lord with a trikona-lord (conjunction / mutual aspect /
+    // exchange). The pinnacle is Dharma-Karmadhipati (9th-lord + 10th-lord). When it forms in a
+    // dusthana (6/8/12) it still delivers — through transformation, research and sudden
+    // breakthroughs — which is the balance the engine was missing (an 8th-house lord cluster is
+    // a Raja Yoga, not only "disruption").
+    const rajaYogas=[];
+    const lordHousesOf={}; for(let h=1;h<=12;h++){ const l=houseLord(d1LagnaSign,h); if(l){ (lordHousesOf[l]=lordHousesOf[l]||[]).push(h); } }
+    const kendraLords=[...new Set([1,4,7,10].map(h=>houseLord(d1LagnaSign,h)))];
+    const trikonaLords=[...new Set([1,5,9].map(h=>houseLord(d1LagnaSign,h)))];
+    const rajaDig=(p)=>["Exalted","Own sign"].includes(digOf(p))||nbFullSet.has(p);
+    const seenRY=new Set();
+    for(const kl of kendraLords){ for(const tl of trikonaLords){
+      if(!kl||!tl||kl===tl) continue; const key=[kl,tl].sort().join("-"); if(seenRY.has(key)) continue;
+      const kh=hof(kl), th=hof(tl); if(!kh||!th) continue;
+      // Only the UNAMBIGUOUS, strong forms count — conjunction and sign exchange (parivartana).
+      // Mutual aspect alone is too common (any opposition) and would dilute the signal; a
+      // mutual aspect is counted only when at least one lord is dignified (a genuine sambandha).
+      let relation=null;
+      if(kh===th) relation="conjunction";
+      else if((lordHousesOf[tl]||[]).includes(kh)&&(lordHousesOf[kl]||[]).includes(th)) relation="sign exchange";
+      else if(aspectsHouse(kl,kh,th)&&aspectsHouse(tl,th,kh)&&(["Exalted","Own sign"].includes(digOf(kl))||["Exalted","Own sign"].includes(digOf(tl))||nbFullSet.has(kl)||nbFullSet.has(tl))) relation="mutual aspect";
+      if(!relation) continue; seenRY.add(key);
+      const klH=lordHousesOf[kl]||[], tlH=lordHousesOf[tl]||[];
+      const isDK=(klH.includes(9)||tlH.includes(9))&&(klH.includes(10)||tlH.includes(10));
+      const inDus=[6,8,12].includes(kh)||[6,8,12].includes(th);
+      const strength=(rajaDig(kl)&&rajaDig(tl))?"strong":(rajaDig(kl)||rajaDig(tl))?"moderate":inDus?"through-struggle":"moderate";
+      rajaYogas.push({ planets:[kl,tl], relation, house:(kh===th?kh:null), dharmaKarmadhipati:isDK, inDusthana:inDus, strength,
+        reading:(isDK?"A Dharma-Karmadhipati Raja Yoga":"A Raja Yoga")+" forms between "+kl+" and "+tl+" ("+relation+(kh===th?(" in your "+ordinalD(kh)+" house"):"")+") — "+(isDK?"the rulers of fortune (9th) and career (10th) joined is a classic mark of rising status, authority and breakthrough":"an angular ruler joined to a trinal ruler lifts status and success")+(inDus?", and placed in a house of depth it tends to deliver through upheaval, research or sudden breakthroughs rather than a smooth climb — a strength, not merely a disruption":"")+".",
+        why:(isDK?"Dharma-Karmadhipati":"Raja")+" Yoga: "+kl+" ("+klH.map(ordinalD).join("/")+" lord) + "+tl+" ("+tlH.map(ordinalD).join("/")+" lord), "+relation+(kh===th?(" in the "+ordinalD(kh)):"")+(inDus?" (in a house of transformation)":"")+"." });
+    }}
+
+    return { neechaBhanga, retroStrength, houseProfiles, yogas, nakshatra, rajaYogas };
   }catch(_){ return null; }
 }
 
@@ -3256,7 +3326,13 @@ function buildForeignCareer(d1P, d1LagnaSign, compound){
     else if(core===1){ grade="mild"; statement="A foreign connection is possible — through travel, foreign-facing dealings or spells away — but it is a secondary thread, not a central one."; }
     else { grade="none"; statement="The chart does not particularly point abroad; the path is better rooted in your own region, with any foreign dealings kept opportunistic."; }
 
-    return { grade, score:core, earning, settling, statement, why };
+    // REMOTE-ONLY template: an exalted/own-sign planet in the 12th supports cross-border /
+    // remote / export work from a home base even when the 10th lord has NO 9th/12th link (so
+    // no relocation). Fills the V5 blind spot where the section was hard-suppressed.
+    const strongIn12 = occ(12).find(p=>strong(p));
+    const remoteOnly = (grade==="none"||grade==="mild") && !!strongIn12;
+    const remoteNote = remoteOnly ? (strongIn12+" sits strong in your 12th house — so while permanent relocation abroad is not indicated, cross-border consulting, remote or overseas clients, and export-linked work from your home base are genuinely supported") : null;
+    return { grade, score:core, earning, settling, statement, remoteOnly, remoteNote, why };
   }catch(_){ return null; }
 }
 
@@ -4040,6 +4116,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound); }catch(_){}
     try{ if(careerCompass) careerCompass.nakshatra = (compound&&compound.nakshatra||[]).filter(n=> n.planet===hLord || n.planet===_ama); }catch(_){}
     try{ if(careerCompass) careerCompass.money = buildMoneyFlow(d1P, d1LagnaSign, compound, houseStates); }catch(_){}
+    try{ if(careerCompass) careerCompass.rajaYogas = (compound&&compound.rajaYogas)||[]; }catch(_){}
+    try{ if(careerCompass){ const nk=(compound&&compound.nakshatra)||[]; const hints=[];
+      const mn=nk.find(n=>n.planet==="Moon"); const hn=nk.find(n=>n.planet===hLord);
+      if(mn&&NAK_SECTOR[mn.nakshatra]) hints.push({source:"Moon (vocational inclination)", nakshatra:mn.nakshatra, sectors:NAK_SECTOR[mn.nakshatra]});
+      if(hn&&hn.planet!=="Moon"&&NAK_SECTOR[hn.nakshatra]) hints.push({source:"career ruler "+hLord, nakshatra:hn.nakshatra, sectors:NAK_SECTOR[hn.nakshatra]});
+      careerCompass.sectorHints=hints; } }catch(_){}
     try{ if(careerCompass){ careerCompass.disruptions = buildCareerDisruptions(dashas, birthDate, d1LagnaSign, hLord, lordPlacement, d1P, _ama, compound, houseStates); } }catch(_){}
   }
 
@@ -4128,11 +4210,15 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     if(picks.length) remedyFacts={ focus:picks.slice(0,2), general:GENERAL_TEMPLES, domainTemple };  // 1–2 remedies
   } catch(_){}
 
+  // D9 placements WITH their signs, so the writer never infers a sign from the lagna
+  // (root of V5 Error A: a D9 conjunction mislabelled with the lagna sign).
+  const d9Placements={};
+  try{ const li=V_SIGNS.indexOf(d9LagnaSign); if(li>=0){ for(const[h,arr] of Object.entries(d9Houses||{})){ const hn=+h; if(!hn) continue; const sign=V_SIGNS[(li+hn-1)%12]; (arr||[]).forEach(p=>{ if(p) d9Placements[p]={house:hn, sign}; }); } } }catch(_){}
   return {
     domainKey, title:cfg.title, focus:cfg.focus, house:cfg.house, houseName:ordinalD(cfg.house),
     karaka:cfg.karaka, karakaPlanet, divisional:cfg.varga, vargaLabel:cfg.vargaLabel,
     d1:{ lagnaSign:d1LagnaSign, houseLord:hLord, lordPlacement, occupants, placements:d1P },
-    d9:{ lagnaSign:d9LagnaSign, houses:d9Houses },
+    d9:{ lagnaSign:d9LagnaSign, houses:d9Houses, placements:d9Placements },
     vargaChart, convergences, flags, neechaBhanga, dashaTiming, dusthanaReadings, careerCompass, futureCompass, remedyFacts,
     lifeStage: flags.lifeStage
   };
