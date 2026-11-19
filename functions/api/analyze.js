@@ -71,6 +71,25 @@ const OWN_SIGNS = {
   Venus:["Taurus","Libra"], Saturn:["Capricorn","Aquarius"],
   Rahu:[], Ketu:[]
 };
+// Naisargika (natural permanent) planetary friendship — used to report a planet's sign
+// relationship (friend/enemy/neutral) so the engine matches the birth-chart sheet instead of
+// flatly calling a friend-sign placement "neutral". (The nodes have no standard rulership.)
+const NAT_FRIEND = {
+  Sun:["Moon","Mars","Jupiter"], Moon:["Sun","Mercury"], Mars:["Sun","Moon","Jupiter"],
+  Mercury:["Sun","Venus"], Jupiter:["Sun","Moon","Mars"], Venus:["Mercury","Saturn"], Saturn:["Mercury","Venus"]
+};
+const NAT_ENEMY = {
+  Sun:["Venus","Saturn"], Moon:[], Mars:["Mercury"], Mercury:["Moon"],
+  Jupiter:["Mercury","Venus"], Venus:["Sun","Moon"], Saturn:["Sun","Moon","Mars"]
+};
+function natRelation(planet, sign){
+  const lord = V_LORD[sign];
+  if(!lord || !NAT_FRIEND[planet]) return null;   // nodes / unknown
+  if(lord === planet) return "own";
+  if(NAT_FRIEND[planet].includes(lord)) return "friend";
+  if((NAT_ENEMY[planet]||[]).includes(lord)) return "enemy";
+  return "neutral";
+}
 
 function dignityModifier(planet, sign) {
   if (!planet || !sign) return 0;
@@ -2365,7 +2384,7 @@ function d1PlacementsFromDegrees(degrees, lagnaSign, retroMap){
   if(!degrees||lagnaSign==null) return null;
   const lagIdx=V_SIGNS.indexOf(lagnaSign); if(lagIdx<0) return null;
   const out={};
-  for(const[p,lon] of Object.entries(degrees)){ if(lon==null)continue; const si=vSi(lon); const house=((si-lagIdx+12)%12)+1; out[p]={sign:V_SIGNS[si],house,degInSign:+vDis(lon).toFixed(1),dignity:vDig(p,V_SIGNS[si]),retro:!!(retroMap&&retroMap[p])}; }
+  for(const[p,lon] of Object.entries(degrees)){ if(lon==null)continue; const si=vSi(lon); const house=((si-lagIdx+12)%12)+1; out[p]={sign:V_SIGNS[si],house,degInSign:+vDis(lon).toFixed(1),dignity:vDig(p,V_SIGNS[si]),signRelation:natRelation(p,V_SIGNS[si]),retro:!!(retroMap&&retroMap[p])}; }
   return out;
 }
 function houseLord(lagnaSign, houseNum){
@@ -3306,8 +3325,12 @@ function buildForeignCareer(d1P, d1LagnaSign, compound){
     let core=0; const why=[]; let earning=false, settling=false;
     // 1. Rahu (foreign karaka) in the 12th — the sharpest single foreign signal
     if(inHouse("Rahu",[12])){ core++; why.push("the foreign significator sits in the house of distant lands (12th) — a strong pull abroad"); }
-    // 2. travel-house exchange — 12th lord in the 9th, or 9th lord in the 12th
-    if((l12&&inHouse(l12,[9])) || (l9&&inHouse(l9,[12]))){ core++; why.push("the houses of distant lands and long journeys are linked (their rulers exchange) — foreign ground recurs in the life"); }
+    // 2. travel-house link — 12th lord in the 9th, or 9th lord in the 12th. This is a one-way
+    // dispositor LINK (the ruler of one sits in the other), NOT a mutual sign exchange
+    // (parivartana) — so it must never be called an "exchange".
+    if((l12&&inHouse(l12,[9])) || (l9&&inHouse(l9,[12]))){ core++;
+      const dir = (l12&&inHouse(l12,[9])) ? ("the ruler of distant lands ("+l12+") sits in your 9th of long journeys") : ("the ruler of long journeys ("+l9+") sits in your 12th of distant lands");
+      why.push(dir+" — the foreign-and-journeys axis is connected, so foreign ground recurs in the life"); }
     // 3. career abroad — the 10th lord in the 12th or 9th
     if(l10&&inHouse(l10,[12,9])){ core++; earning=true; why.push("the career ruler "+l10+" (10th lord) sits in your "+ordinalD(hOf(l10))+" — a foreign house — so work and standing can genuinely come from abroad or foreign-facing dealing"); }
     // 4. roots uprooted to foreign — the 4th lord carried into the 12th
