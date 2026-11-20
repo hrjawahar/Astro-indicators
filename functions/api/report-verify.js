@@ -149,6 +149,8 @@ function activatorSet(facts){
   // PD-level precision windows (marriage): their MD/AD/PD lords are valid timing significators.
   const mt = facts.flags && facts.flags.marriageTiming;
   if(mt && Array.isArray(mt.windows)) mt.windows.forEach(w=>{ (String(w.stack||"").split(/[–\-]/)).forEach(x=>add(x.trim())); });
+  const aw = facts.flags && facts.flags.marriageADWindows;
+  if(aw && Array.isArray(aw.windows)) aw.windows.forEach(w=>{ (String(w.lords||"").split(/[–\-]/)).forEach(x=>add(x.trim())); });
   return s;
 }
 function checkTiming(text, domainKey, facts, out){

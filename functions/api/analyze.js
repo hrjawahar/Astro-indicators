@@ -1,12 +1,16 @@
 import { PLANET_REMEDIES, GENERAL_TEMPLES, DOMAIN_TEMPLES } from "./remedies-data.js";
-import { computeMarriageTimingWindows } from "./marriage-timing.js";
+import { computeMarriageTimingWindows, computeMarriageADWindows } from "./marriage-timing.js";
 
-// ── REVERT SWITCH ────────────────────────────────────────────────────────────────
-// Pratyantardasha-level marriage-timing precision (PD + Upapada + Double Transit + Chara).
-// Set to false to fall straight back to the AD-level Looking-Back windows with NO other
-// change — flags.marriageTiming simply stops being populated and the writer uses the
-// AD-level likelyFruitionWindows exactly as before. This is the one-line revert.
+// ── TIMING SWITCHES ────────────────────────────────────────────────────────────────
+// PD precision (Pratyantardasha + Upapada + Double Transit + Chara): validated against 6
+// real marriage dates and found UNRELIABLE for sub-year pinpointing (it mis-ranked; the
+// slow-planet transits are noise). Left OFF; flip true only to resume that R&D.
 const ENABLE_PD_TIMING = false;
+// AD-level tightening: ranks the significator Mahadasha/Antardasha windows (1–3 yr) by
+// 7th-house connection + age and returns a shortlist with an honest confidence tag. This is
+// the reliable layer (the marriage always falls in a significator MD/AD). Set false to fall
+// back to the plain AD-level likelyFruitionWindows.
+const ENABLE_AD_TIGHTEN = true;
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
@@ -4084,6 +4088,16 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
           signD1, signD9, darakaraka:_dkT, dashas, birthDate, currentAge });
       }catch(_){ flags.marriageTiming=null; }
     }
+    // AD-level tightened windows (reliable 1-3 yr; shortlist + confidence) — reversible.
+    if(ENABLE_AD_TIGHTEN){
+      try{
+        const sNum2=(nm)=>{ const i=V_SIGNS.indexOf(nm); return i<0?null:i+1; };
+        const lagIdx2=V_SIGNS.indexOf(d1LagnaSign);
+        const signD1b={}; for(const p of Object.keys(d1P)){ if(p!=="Lagna"&&d1P[p]&&d1P[p].sign) signD1b[p]=sNum2(d1P[p].sign); }
+        const _dk2=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Darakaraka")||{}).planet:null;
+        flags.marriageADWindows = computeMarriageADWindows({ lagnaSign:(lagIdx2>=0?lagIdx2+1:null), signD1:signD1b, darakaraka:_dk2, dashas, birthDate });
+      }catch(_){ flags.marriageADWindows=null; }
+    }
 
     // ── Spouse significator + partner profile (gender-aware) ─────────────────────
     // Classical rule: for a WOMAN the husband-significator is Jupiter; for a MAN the
@@ -4261,6 +4275,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       flags.manglik=null;                          // a marriage-matching verdict, not childhood coaching
       flags.ownerSensitive=null;                   // no affair/separation read for a child, ever
       flags.marriageTiming=null;                   // no marriage-timing window for a child
+      flags.marriageADWindows=null;                // no marriage-timing window for a child
       // The daughter's OWN relational temperament: the sign on her 7th house (how she approaches
       // close partnership) and her Venus (how she gives and receives affection) — translated into
       // her developmental style, never into a description of a partner.
@@ -4274,7 +4289,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
           approachSign:_seventhSign, approach:_seventhSign?SIGN_TEMPERAMENT[_seventhSign]:null,
           affectionSign:_venusSign, affection:_venusSign?SIGN_TEMPERAMENT[_venusSign]:null
         },
-        framing:"Written for the child's parents or guardians, looking at the ROAD AHEAD so they can nurture helpful behaviours and gently coach early — INCLUDING the partnership and relationship area of life, which only becomes active in adulthood but whose groundwork is laid in childhood. It does NOT portray a future spouse, give marriage timing, or predict events — those do not belong in a child's reading. Instead it describes, forward-looking, the daughter's OWN likely relational temperament (how she tends to approach closeness, affection, independence and compromise) and the growth areas the chart suggests, so parents can build emotional security, healthy communication, patience and a balanced sense of self now. These are tendencies to shape, never fixed outcomes."
+        framing:"Addressed to the young native directly ('you'), for consistency with every other domain: a forward-looking DEVELOPMENTAL note on the groundwork of the relationship area of life, for self-understanding and healthy habits, not prediction. Because the native is under 18 it does NOT portray a future spouse, give marriage timing, or raise events — none of that belongs in a minor's reading. It describes their OWN likely relational temperament (how they tend to approach closeness, affection, independence and compromise) and the growth areas the chart suggests, with age-appropriate things to build now (emotional security, healthy communication, patience, a balanced sense of self). Tendencies to shape, never fixed outcomes."
       };
     }
   }

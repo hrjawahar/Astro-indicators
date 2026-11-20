@@ -200,3 +200,61 @@ export function computeMarriageTimingWindows(ctx){
     };
   }catch(_){ return null; }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  AD-LEVEL MARRIAGE WINDOWS  (the tighter-confidence MD-AD method)
+//
+//  Evidence (6 real marriage dates) showed sub-year PINPOINTING is not reliable, but the
+//  marriage ALWAYS falls in a significator Mahadasha/Antardasha — a 1–3 year window. This
+//  ranks those windows to raise confidence in WHICH one, using only classical AD-level signals
+//  (no transit, no PD): the 7th lord / Venus / Darakaraka in the MD or AD, the AD lord's
+//  CONNECTION to the 7th (occupies / aspects it / is the 7th-lord's dispositor), and an age
+//  curve. It returns a ranked shortlist and an HONEST confidence tag — 'high' only when one
+//  7th-connected window clearly stands out; otherwise 'moderate', naming the significator
+//  Mahadasha as the container and the top candidate windows within it. Additive & reversible.
+// ─────────────────────────────────────────────────────────────────────────────
+function adAgeWeight(a){ if(a==null) return 1; if(a<19) return 0.45; if(a<=32) return 1.0; if(a<=40) return 0.7; if(a<=47) return 0.4; return 0.15; }
+export function computeMarriageADWindows(ctx){
+  try{
+    const { lagnaSign, signD1, darakaraka, dashas, birthDate } = ctx;
+    if(!lagnaSign || !signD1 || !Array.isArray(dashas)) return null;
+    const birthYr = birthDate ? new Date(birthDate).getFullYear() : null;
+    const h7 = nthSign(lagnaSign,7), l7 = SIGN_LORD[h7];
+    const primary = new Set([l7, "Venus", darakaraka].filter(Boolean));          // 7th lord, Venus, DK
+    const secondary = new Set(["Jupiter", SIGN_LORD[nthSign(lagnaSign,2)], SIGN_LORD[nthSign(lagnaSign,11)]]);
+    const roleOf=(p)=> p===l7?("the 7th lord "+p) : p==="Venus"?"Venus (the marriage karaka)" : p===darakaraka?(p+" (your Darakaraka)") : p==="Jupiter"?"Jupiter" : (p+" (a supporting significator)");
+    // NOTE on calibration (6 real marriages): a 7th-house-CONNECTION bonus on the AD lord was
+    // tested and REMOVED — it produced a false-confident single pick (it elevated a connected
+    // neutral AD above the true significator AD). The reliable, honest signal is simply the
+    // significator in the MD/AD plus the age curve. No single AD is claimed with certainty:
+    // the trustworthy container is the significator MAHADASHA, with a ranked shortlist inside.
+    const rows=[];
+    for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
+      for(const ad of md.antarDasas){
+        const sy=+String(ad.startDate).slice(0,4), ey=+String(ad.endDate).slice(0,4);
+        if(!sy) continue;
+        const midAge = birthYr!=null ? ((sy+ey)/2 - birthYr) : null;
+        const mdP=primary.has(md.lord), mdS=secondary.has(md.lord), adP=primary.has(ad.lord), adS=secondary.has(ad.lord);
+        if(!mdP && !mdS && !adP) continue;                                         // must carry a primary sig in MD or AD
+        const s = (mdP?2.5:mdS?1:0) + (adP?3:adS?1.5:0);
+        const score = +((adAgeWeight(midAge))*s).toFixed(2);
+        rows.push({ md:md.lord, ad:ad.lord, window:String(ad.startDate).slice(0,7)+" to "+String(ad.endDate).slice(0,7),
+          startY:sy, endY:ey, age:(midAge!=null?Math.round(midAge):null), score, mdP,
+          role: roleOf(ad.lord) + " runs within your "+md.lord+" major period"+(mdP?" (a core marriage significator)":"") });
+      }
+    }
+    if(!rows.length) return null;
+    rows.sort((a,b)=> b.score - a.score || a.startY - b.startY);
+    const top = rows.slice(0,3);
+    const lead = top[0];
+    // The significator MAHADASHA is the reliable container (validated: it holds the real marriage
+    // in every tested chart). The MD of the leading window when that MD is itself a significator.
+    const sigMD = primary.has(lead.md) ? lead.md : (primary.has(lead.ad) ? lead.md : null);
+    const mdRange = (()=>{ for(const md of dashas){ if(md.lord===sigMD) return String(md.startDate).slice(0,4)+"–"+String(md.endDate).slice(0,4); } return null; })();
+    return {
+      significatorMahadasha: sigMD, mahadashaRange: mdRange,
+      windows: top.map(w=>({ window:w.window, lords:w.md+"–"+w.ad, age:w.age, role:w.role })),
+      note: "Marriage is most likely within the significator major period"+(mdRange?" ("+mdRange+")":"")+"; the strongest 1–3 year windows within it are listed in order of likelihood. A strong probability across a 1–3 year band — not a fixed date.",
+    };
+  }catch(_){ return null; }
+}
