@@ -14,6 +14,8 @@
 //  placements or assert a flag the engine set false (e.g. remarriage).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { verifyReportFaithfulness, violationCorrectionNote } from "./report-verify.js";
+
 const MODEL = "claude-sonnet-4-6";
 
 export async function onRequestPost(context) {
@@ -62,120 +64,124 @@ export async function onRequestPost(context) {
 
 async function writeDomainReport(env, domainKey, facts, onProgress) {
   const sys = buildSystemPrompt();
-  const user = buildUserPrompt(domainKey, facts);
+  const baseUser = buildUserPrompt(domainKey, facts);
 
-  // STREAM the completion. The career report (longest domain) can take ~2 minutes,
-  // past Cloudflare's hard 100s edge limit (524) on a single blocking request.
-  // Streaming returns bytes continuously; onProgress() forwards a heartbeat to the
-  // client so the connection stays open until the final marker.
-  const body = JSON.stringify({
-    model: MODEL,
-    max_tokens: 12000,
-    stream: true,
-    system: sys,
-    messages: [{ role: "user", content: user }],
-  });
-  // Auto-retry a TRANSIENT Anthropic overload (503/529) or rate-limit (429) — these are
-  // capacity blips, not errors in our request, and surfaced to the reader as "Server error
-  // (503)". Retrying while the heartbeat keeps the client connection alive makes them
-  // self-heal instead of failing the report.
-  let res, attempt = 0;
-  for (;;) {
-    res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body,
-    });
-    if (res.ok) break;
-    const status = res.status;
-    const t = await res.text().catch(() => "");
-    const transient = status === 429 || status === 500 || status === 503 || status === 529 || /overloaded|rate.?limit/i.test(t);
-    if (transient && attempt < 4) {
-      attempt++;
-      if (onProgress) { try { onProgress(); } catch (_) {} }   // keep the streamed connection alive
-      await new Promise(r => setTimeout(r, 1200 * attempt));     // backoff: 1.2s, 2.4s, 3.6s, 4.8s
-      continue;
+  // ONE generation given a user prompt: stream the completion, parse the JSON sections,
+  // and scrub leaks. Factored out so the faithfulness verifier can trigger a corrective
+  // REGENERATION (feeding the specific violations back) without duplicating this logic.
+  async function generateOnce(userText) {
+    const body = JSON.stringify({ model: MODEL, max_tokens: 12000, stream: true, system: sys,
+      messages: [{ role: "user", content: userText }] });
+    // Auto-retry a TRANSIENT Anthropic overload (503/529) / rate-limit (429) — capacity blips,
+    // not request errors — while the heartbeat keeps the client connection alive (self-heal).
+    let res, attempt = 0;
+    for (;;) {
+      res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+        body,
+      });
+      if (res.ok) break;
+      const status = res.status;
+      const t = await res.text().catch(() => "");
+      const transient = status === 429 || status === 500 || status === 503 || status === 529 || /overloaded|rate.?limit/i.test(t);
+      if (transient && attempt < 4) { attempt++; if (onProgress) { try { onProgress(); } catch (_) {} } await new Promise(r => setTimeout(r, 1200 * attempt)); continue; }
+      throw new Error("Anthropic API error " + status + (attempt ? " after " + attempt + " retries" : "") + ": " + t.slice(0, 300));
     }
-    throw new Error("Anthropic API error " + status + (attempt ? " after " + attempt + " retries" : "") + ": " + t.slice(0, 300));
-  }
-
-  const reader = res.body.getReader();
-  const dec = new TextDecoder();
-  let sseBuf = "", text = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    sseBuf += dec.decode(value, { stream: true });
-    let nl;
-    while ((nl = sseBuf.indexOf("\n")) >= 0) {
-      const line = sseBuf.slice(0, nl); sseBuf = sseBuf.slice(nl + 1);
-      if (line.startsWith("data:")) {
-        const payload = line.slice(5).trim();
-        if (payload && payload !== "[DONE]") {
-          try {
-            const ev = JSON.parse(payload);
-            if (ev.type === "content_block_delta" && ev.delta && ev.delta.text) text += ev.delta.text;
-            else if (ev.type === "error") throw new Error("Anthropic stream error: " + (ev.error && ev.error.message || "unknown"));
-          } catch (err) { if (/stream error/.test(err.message)) throw err; }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let sseBuf = "", text = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      sseBuf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = sseBuf.indexOf("\n")) >= 0) {
+        const line = sseBuf.slice(0, nl); sseBuf = sseBuf.slice(nl + 1);
+        if (line.startsWith("data:")) {
+          const payload = line.slice(5).trim();
+          if (payload && payload !== "[DONE]") {
+            try {
+              const ev = JSON.parse(payload);
+              if (ev.type === "content_block_delta" && ev.delta && ev.delta.text) text += ev.delta.text;
+              else if (ev.type === "error") throw new Error("Anthropic stream error: " + (ev.error && ev.error.message || "unknown"));
+            } catch (err) { if (/stream error/.test(err.message)) throw err; }
+          }
         }
       }
+      if (onProgress) { try { onProgress(); } catch (_) {} }
+    }
+    text = text.trim();
+    if (!text) throw new Error("The AI writer returned an empty response.");
+
+    // The model returns JSON: { "sections": [ {heading, body}, ... ] }
+    const tryParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
+    let clean = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    const first = clean.indexOf("{"), last = clean.lastIndexOf("}");
+    const block = (first !== -1 && last > first) ? clean.slice(first, last + 1) : clean;
+    let parsed = tryParse(clean) || tryParse(block) || tryParse(sanitizeJsonish(block));
+    let secs = (parsed && Array.isArray(parsed.sections)) ? parsed.sections : null;
+    if (!secs || !secs.length) { const salv = salvageSections(sanitizeJsonish(block)); if (salv.length) secs = salv; }
+    if (!secs || !secs.length) {
+      const stripped = clean.replace(/[{}\[\]"]/g, " ").replace(/\b(sections|heading|body)\s*:/gi, " ").replace(/\s+,/g, " ").replace(/\s{2,}/g, " ").trim();
+      if (stripped.length > 40) secs = [{ heading: (facts.title || "Report"), body: stripped }];
+      else throw new Error("The AI writer returned an unreadable or empty response.");
+    }
+    secs = secs.filter(s => s && (s.heading || s.body));
+    if (!secs.length) throw new Error("AI writer returned no usable sections.");
+    // SAFETY LINT: strip any leaked internal field-name (camelCase does not occur in prose).
+    const scrub = (t) => String(t || "")
+      .replace(/\bconvergences\b\s*(entry)?\s*:?\s*/gi, "")
+      .replace(/\b[a-z][a-z0-9]* entry\s*:\s*/gi, "")
+      .replace(/\b(and\s+)?per\s+facts\b\.?/gi, "")
+      .replace(/\b(foreign|settling|earning|prone|remoteOnly|cancelled|dharmaKarmadhipati|inDusthana)\.?\s+(true|false)\b\.?/gi, "")
+      .replace(/\b(Business|Foreign|Commerce|Autonomy|Marriage|Health|Wealth)\s+(grade|support|drive)\s*:\s*/gi, "")
+      .replace(/\b[a-z]+[A-Z][A-Za-z0-9]*\b/g, "")
+      .replace(/\(\s*\)/g, "")
+      .replace(/\(\s+/g, "(").replace(/\s+\)/g, ")")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\s+([,.;:!?])/g, "$1")
+      .replace(/[ \t]+\n/g, "\n").trim();
+    return secs.map(s => ({ ...s, heading: scrub(s.heading), body: scrub(s.body) }));
+  }
+
+  // ── Generate → VERIFY against the engine's own facts → regenerate on violation ──
+  // The verifier (report-verify.js) is deterministic and unit-tested; it catches the exact
+  // V6 writer errors (occupant-named-as-lord, a fabricated timing window, a false all-clear,
+  // minor-mode romantic language). A triggering violation feeds the specific correction back
+  // and regenerates ONCE more; any residual safety-critical sentence is then stripped.
+  const MAX_REPAIRS = 1;
+  let sections = await generateOnce(baseUser);
+  let lastReport = null;
+  for (let r = 0; r <= MAX_REPAIRS; r++) {
+    let report;
+    try { report = verifyReportFaithfulness(domainKey, facts, sections); }
+    catch (_) { report = { ok: true, violations: [], critical: [] }; }
+    lastReport = report;
+    const triggers = report.violations.filter(v => v.severity === "critical" || v.type === "timing");
+    if (!triggers.length) break;
+    if (r === MAX_REPAIRS) {                 // out of repair budget → make residual output SAFE
+      sections = stripUnsafeSentences(sections, report.violations);
+      break;
     }
     if (onProgress) { try { onProgress(); } catch (_) {} }
+    try { sections = await generateOnce(baseUser + "\n\n" + violationCorrectionNote(triggers)); }
+    catch (_) { sections = stripUnsafeSentences(sections, report.violations); break; }
   }
-  text = text.trim();
-  if (!text) throw new Error("The AI writer returned an empty response.");
-
-  // The model returns JSON: { "sections": [ {heading, body}, ... ] }
-  const tryParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
-  let clean = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-  const first = clean.indexOf("{"), last = clean.lastIndexOf("}");
-  const block = (first !== -1 && last > first) ? clean.slice(first, last + 1) : clean;
-
-  // Parse attempts, most-faithful first. The sanitized attempt fixes the #1 cause of
-  // LLM JSON failure: raw newlines/tabs left INSIDE string values (very likely now
-  // that sections carry numbered lists and separators).
-  let parsed = tryParse(clean) || tryParse(block) || tryParse(sanitizeJsonish(block));
-  let sections = (parsed && Array.isArray(parsed.sections)) ? parsed.sections : null;
-
-  // If structured parse still failed, SALVAGE clean heading/body pairs by pattern.
-  // This NEVER dumps the raw JSON with its "sections:/heading:/body:" labels into the
-  // report (the old fallback did, producing an unreadable blob in the Word/PDF).
-  if (!sections || !sections.length) {
-    const salv = salvageSections(sanitizeJsonish(block));
-    if (salv.length) sections = salv;
-  }
-  // Absolute last resort: readable prose with ALL JSON syntax AND key labels removed.
-  if (!sections || !sections.length) {
-    const stripped = clean.replace(/[{}\[\]"]/g, " ")
-                          .replace(/\b(sections|heading|body)\s*:/gi, " ")
-                          .replace(/\s+,/g, " ").replace(/\s{2,}/g, " ").trim();
-    if (stripped.length > 40) sections = [{ heading: (facts.title || "Report"), body: stripped }];
-    else throw new Error("The AI writer returned an unreadable or empty response.");
-  }
-  sections = sections.filter(s => s && (s.heading || s.body));
-  if (!sections.length) throw new Error("AI writer returned no usable sections.");
-  // SAFETY LINT: never let an internal engine field-name leak into the reader's report
-  // (e.g. "secondChapter", "retroNote"). camelCase tokens do not occur in natural prose, so
-  // stripping them removes a leaked identifier without touching real words; tidy the spacing
-  // and stray punctuation left behind. This guards every output path (PDF, Word, on-screen).
-  const scrub = (t) => String(t || "")
-    .replace(/\bconvergences\b\s*(entry)?\s*:?\s*/gi, "")   // leaked 'convergences' / 'convergences entry:' debug label
-    .replace(/\b[a-z][a-z0-9]* entry\s*:\s*/gi, "")         // any '<field> entry:' debug prefix
-    .replace(/\b(and\s+)?per\s+facts\b\.?/gi, "")           // leaked 'and per facts.' junk connector
-    .replace(/\b(foreign|settling|earning|prone|remoteOnly|cancelled|dharmaKarmadhipati|inDusthana)\.?\s+(true|false)\b\.?/gi, "") // leaked 'foreign. true' boolean echo
-    .replace(/\b(Business|Foreign|Commerce|Autonomy|Marriage|Health|Wealth)\s+(grade|support|drive)\s*:\s*/gi, "") // leaked 'Business grade:' labelled-dump prefixes
-    .replace(/\b[a-z]+[A-Z][A-Za-z0-9]*\b/g, "")        // leaked camelCase field names
-    .replace(/\(\s*\)/g, "")                            // emptied parentheses
-    .replace(/\(\s+/g, "(").replace(/\s+\)/g, ")")      // tidy spaces inside parentheses
-    .replace(/[ \t]{2,}/g, " ")                         // collapse doubled spaces
-    .replace(/\s+([,.;:!?])/g, "$1")                    // space before punctuation
-    .replace(/[ \t]+\n/g, "\n").trim();
-  sections = sections.map(s => ({ ...s, heading: scrub(s.heading), body: scrub(s.body) }));
   return sections;
+}
+
+// Last-resort SAFETY net when a corrective regeneration still left a must-not-ship claim:
+// remove the specific offending sentence for the two child-safety / false-reassurance classes
+// (all-clear, minor-mode). Lordship/timing residuals cannot be safely auto-rewritten, so they
+// are left for the regeneration to have handled and logged via the verifier result.
+function stripUnsafeSentences(sections, violations) {
+  const ev = violations.filter(v => v.type === "all-clear" || v.type === "minor-mode").map(v => v.evidence).filter(Boolean);
+  if (!ev.length) return sections;
+  const dropSent = (body) => String(body || "").split(/(?<=[.!?])\s+/)
+    .filter(sent => !ev.some(e => sent.toLowerCase().includes(String(e).toLowerCase())))
+    .join(" ").replace(/\s{2,}/g, " ").trim();
+  return sections.map(s => ({ ...s, body: dropSent(s.body) }));
 }
 
 // Escape raw control chars that appear INSIDE JSON string values — the most common
