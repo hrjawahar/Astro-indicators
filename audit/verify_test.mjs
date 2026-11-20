@@ -27,9 +27,13 @@ expect("legitimate all-clear when severity=clear NOT flagged", !has(verifyReport
 // ---- MINOR MODE ----
 console.log("MINOR MODE:");
 let fminor={d1:{lagnaSign:"Scorpio",placements:{},occupants:[]},flags:{minorMarriageMode:true,marriageAfflictionDetail:{severity:"strong",factors:[]}}};
-expect("'your husband' in minor mode flagged", has(verifyReportFaithfulness("marriage",fminor,sec("Your husband will be a strong-willed person.")),"minor-mode"));
-expect("'second marriage' in minor mode flagged", has(verifyReportFaithfulness("marriage",fminor,sec("A second marriage is possible later in life.")),"minor-mode"));
+expect("'your husband will be' spouse portrait flagged", has(verifyReportFaithfulness("marriage",fminor,sec("Your husband will be a strong-willed person.")),"minor-mode"));
+expect("'her future husband' flagged", has(verifyReportFaithfulness("marriage",fminor,sec("Her future husband is likely to be older.")),"minor-mode"));
+expect("'second marriage' event flagged", has(verifyReportFaithfulness("marriage",fminor,sec("A second marriage is possible later in life.")),"minor-mode"));
+expect("dated marriage timing flagged", has(verifyReportFaithfulness("marriage",fminor,sec("She is likely to marry around 2035.")),"minor-mode"));
 expect("guardian temperament note NOT flagged", !has(verifyReportFaithfulness("marriage",fminor,sec("For the parents: the chart shows a strong-willed temperament to channel with patience.")),"minor-mode"));
+expect("forward-looking coaching about future partnerships NOT flagged", !has(verifyReportFaithfulness("marriage",fminor,sec("As she grows, her close relationships may ask for patience; nurturing emotional security now will help her future partnerships be steady and healthy.")),"minor-mode"));
+expect("general 'healthy marriage later' (no date/spouse) NOT flagged", !has(verifyReportFaithfulness("marriage",fminor,sec("The groundwork you lay now supports a healthy marriage later in her life.")),"minor-mode"));
 
 // ---- TIMING ----
 console.log("TIMING:");

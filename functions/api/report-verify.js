@@ -110,12 +110,23 @@ function checkAllClear(text, facts, out){
 // ── 3. MINOR-MODE faithfulness (child-safety hard gate) ──────────────────────────
 function checkMinorMode(text, facts, out){
   if(!(facts && facts.flags && facts.flags.minorMarriageMode)) return;
-  const BAD_RE = /\b(husband|wife|spouse|your partner|life[- ]partner|second marriage|re-?marriage|romantic|romance|marry|married|wedding|when you (?:will )?marry)\b/i;
-  const m = BAD_RE.exec(text);
-  if(m){
-    out.push({ type:"minor-mode", severity:"critical",
-      detail:"The native is a minor (guardian mode): the report must contain NO spouse/romantic/marriage-timing language, yet the prose uses '"+m[0]+"'.",
-      evidence: m[0] });
+  // Guardian mode is forward-looking parenting guidance — it MAY discuss her future relational
+  // temperament, partnership tendencies and coaching. Only the genuinely inappropriate specifics
+  // are barred: a spouse portrait, dated romantic/marriage timing, a second-marriage/divorce
+  // event prediction, a romantic framing of the child, or romantic remedies.
+  const BAD = [
+    [/\b(?:your|her|the future)\s+(?:husband|wife)\b/i, "a spouse portrait ('your/her husband/wife')"],
+    [/\b(?:husband|wife)\b[^.]{0,40}?\b(?:will be|is likely|tends to be|will come|you will|she will)\b/i, "a spouse prediction"],
+    [/\b(?:marry|marriage|wedding|married)\b[^.]{0,40}?\b(?:19|20)\d{2}\b/i, "dated marriage timing"],
+    [/\b(?:marry|married|marriage|wedding)\b[^.]{0,30}?\bage\s+\d/i, "an age for marriage"],
+    [/\bsecond marriage\b|\bre-?marriage\b|\bwill (?:divorce|remarry)\b/i, "a second-marriage / divorce event prediction"],
+    [/\bromantic (?:life|relationship|partner|remedy|remedies)\b|\blove (?:affair|marriage)\b|\bboyfriend\b|\bgirlfriend\b/i, "romantic framing of a child"],
+  ];
+  for(const [re, label] of BAD){
+    const m = re.exec(text);
+    if(m){ out.push({ type:"minor-mode", severity:"critical",
+      detail:"The native is a minor (guardian mode): "+label+" is not allowed. The prose uses '"+m[0].trim()+"'. Keep to her developmental temperament and parent coaching.",
+      evidence: m[0].trim().slice(0,100) }); }
   }
 }
 

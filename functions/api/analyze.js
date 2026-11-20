@@ -4051,26 +4051,39 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     flags.maritalInference=maritalInference;
 
     // ── Minor (under 18): guardian-facing mode ───────────────────────────────────
-    // A child's marriage report is read by parents, not the child. It must NOT describe a
-    // spouse, give romantic timing, raise second marriages, or prescribe romantic remedies.
-    // Those payloads are STRIPPED here so there is nothing for the writer to render. In their
-    // place the chart's genuine STRUCTURAL red-flag probabilities in the partnership area (from
-    // the affliction assessment) are surfaced FOR THE GUARDIANS as early awareness, with
-    // developmental guidance — honest about cautions, never a verdict, and never romantic.
+    // A child's marriage report is read by PARENTS. It must NOT portray a future spouse, give
+    // romantic/marriage timing, predict a second marriage as an event, address the child as a
+    // romantic being, or prescribe romantic remedies — those payloads are stripped. But parents
+    // genuinely want the ROAD AHEAD so they can nurture behaviours and coach early, INCLUDING
+    // the partnership/relationship areas that only matter after 18. So guardian mode is NOT a
+    // blackout: it surfaces, FORWARD-LOOKING and for the parents, (a) the daughter's own
+    // relational TEMPERAMENT (how she is likely to approach closeness, affection and partnership
+    // as an adult — her style, not a spouse's), (b) the structural growth areas from the
+    // affliction assessment, and (c) the developmental framing, so the writer can turn these
+    // into concrete, age-appropriate coaching. Honest about cautions, never a verdict, never
+    // romantic prediction.
     if(currentAge!=null && currentAge < 18){
       flags.minorMarriageMode=true;
       flags.marriageReader="guardian";
-      flags.partnerProfile=null;
-      flags.secondChapter=null;
+      flags.partnerProfile=null;                   // no spouse portrait for a child
+      flags.secondChapter=null;                    // no second-marriage-as-event
       flags.maritalInference=null;
       flags.remarriageIndicated=false;
-      flags.manglik=null;                          // not surfaced to/about a child as a marital verdict
+      flags.manglik=null;                          // a marriage-matching verdict, not childhood coaching
+      // The daughter's OWN relational temperament: the sign on her 7th house (how she approaches
+      // close partnership) and her Venus (how she gives and receives affection) — translated into
+      // her developmental style, never into a description of a partner.
+      const _lagIdx=V_SIGNS.indexOf(d1LagnaSign);
+      const _seventhSign = _lagIdx>=0 ? V_SIGNS[(_lagIdx+6)%12] : null;
+      const _venusSign = d1P.Venus ? d1P.Venus.sign : null;
       flags.guardianNote={
         age:currentAge, redFlag: marAff.afflicted, severity: marAff.severity,
         factors: marAff.factors, clearChecks: marAff.clearChecks,
-        framing: marAff.afflicted
-          ? "Written for the child's parents or guardians. It does NOT describe a future spouse or give romantic timing — none of that belongs in a child's reading. It names, gently and without alarm, the structural tendencies the chart shows in the partnership/relationship area of life, so temperament, emotional security and healthy relationship patterns can be nurtured early. These are probabilities to be aware of, never fixed outcomes — and early, supportive guidance is exactly what shapes them."
-          : "Written for the child's parents or guardians. The partnership area of the chart shows no major structural red flags at this stage. No spouse description or romantic timing is given for a child; this simply reassures that the area looks steady, to be revisited in adulthood."
+        relationalTemperament:{
+          approachSign:_seventhSign, approach:_seventhSign?SIGN_TEMPERAMENT[_seventhSign]:null,
+          affectionSign:_venusSign, affection:_venusSign?SIGN_TEMPERAMENT[_venusSign]:null
+        },
+        framing:"Written for the child's parents or guardians, looking at the ROAD AHEAD so they can nurture helpful behaviours and gently coach early — INCLUDING the partnership and relationship area of life, which only becomes active in adulthood but whose groundwork is laid in childhood. It does NOT portray a future spouse, give marriage timing, or predict events — those do not belong in a child's reading. Instead it describes, forward-looking, the daughter's OWN likely relational temperament (how she tends to approach closeness, affection, independence and compromise) and the growth areas the chart suggests, so parents can build emotional security, healthy communication, patience and a balanced sense of self now. These are tendencies to shape, never fixed outcomes."
       };
     }
   }
