@@ -4504,16 +4504,28 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         // period, or a 6th/11th-lord career period, is caught — not only the primary lord.
         .filter(w=> domainActivators.has(w.ad))
         // A FRUITION window must not be one the engine ALREADY flagged as a TESTING window
-        // (those live in pastWindows). This precisely drops the mislabel — e.g. a late
-        // Mars/5th-lord window (2023–24) that is actually a testing period being read as "when
-        // the marriage formalised" for a native who married in 2006–07 — WITHOUT over-excluding
-        // a benefic like Venus that merely happens to rule a dusthana among its two signs.
-        .filter(w=> !pastWindows.some(pw=>pw.years===w.years && pw.ad===w.ad));
+        // (those live in pastWindows) — EXCEPT when the window is led by the house-lord or the
+        // karaka itself. A period ruled by the 7th lord or the marriage karaka ACTIVATES the
+        // event regardless of that planet's dignity: an afflicted (debilitated/combust) 7th lord
+        // like Mercury here still marks the marriage window; its affliction colours HOW it
+        // unfolds, it does not demote it to "mere testing". Without this exception the single
+        // most important window (e.g. Venus-MD / Mercury-AD = karaka period activating the 7th
+        // lord) was being discarded as a stressor sub-period — the V6 Native-2 timing error.
+        .filter(w=> (w.ad===hLord || w.ad===karakaPlanet) ||
+                    !pastWindows.some(pw=>pw.years===w.years && pw.ad===w.ad));
       // earliest ADULT such window is the likeliest FIRST fruition (met / career launch /
       // first child); a later distinct one is the culminating step (marriage / major advance /
       // further development). Looking Back names both so the reader connects chart to history.
       pastDomain.sort((a,b)=> (startYearOf(a.years)||0) - (startYearOf(b.years)||0));
-      const noteOf=(w)=> w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a supporting activation of this area");
+      // When the Mahadasha ITSELF is the karaka's, the house-lord's, or the domain's NATURAL
+      // significator (Venus for marriage, Jupiter for children, …), say so — that is a
+      // doubly-strong activation (the significator's own major period), the likeliest true window.
+      const NAT_KARAKA={ marriage:"Venus", children:"Jupiter", career:"Saturn", mother:"Moon", siblings:"Mars", self:"Sun" };
+      const natK = NAT_KARAKA[domainKey];
+      const mdNote=(w)=> w.md===karakaPlanet ? " within your "+w.md+" major period (the "+cfg.karaka+"'s own period)"
+                       : w.md===hLord ? " within your "+w.md+" major period (your "+ordinalD(cfg.house)+"-lord's own period)"
+                       : w.md===natK ? " within your "+w.md+" major period ("+w.md+", the natural significator of "+cfg.focus+")" : "";
+      const noteOf=(w)=> (w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a supporting activation of this area")) + mdNote(w);
       const roleFirst = domainKey==="marriage" ? "the most likely window for meeting and a defining commitment"
         : domainKey==="career" ? "the most likely window for a first major step or launch in your working life"
         : domainKey==="children" ? "the most likely window for a first child or a major creative beginning"
