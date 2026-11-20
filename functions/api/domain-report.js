@@ -15,6 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { verifyReportFaithfulness, violationCorrectionNote } from "./report-verify.js";
+import { safeEqual } from "../utils/discount-lib.js";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -29,6 +30,20 @@ export async function onRequestPost(context) {
   const domainKey = String(body.domainKey || "");
   const facts = body.facts;
   if (!domainKey || !facts) return json({ error: "Missing domainKey or facts." }, 400);
+
+  // AUDIENCE: "client" (default, gated + softened) or "owner" (confidential, full, candid).
+  // Owner mode exposes sensitive unfiltered material, so it is gated behind the owner admin
+  // key (same mechanism as the discount admin), not a mere request flag.
+  let audience = "client";
+  if (String(body.audience || "") === "owner") {
+    const adminKey = env.DISCOUNT_ADMIN_KEY;
+    if (!adminKey || adminKey.length < 16) return json({ error: "Owner mode not configured (set DISCOUNT_ADMIN_KEY)." }, 500);
+    if (!safeEqual(request.headers.get("X-Admin-Key"), adminKey)) {
+      await new Promise(r => setTimeout(r, 600));
+      return json({ error: "Owner mode requires the admin key." }, 401);
+    }
+    audience = "owner";
+  }
 
   // Stream a heartbeat during the (long) generation, then send the final JSON after
   // a "\n\u0000__RESULT__" marker. Returning the streaming Response immediately means
@@ -46,7 +61,7 @@ export async function onRequestPost(context) {
       })();
       let payload;
       try {
-        const sections = await writeDomainReport(env, domainKey, facts, beat);
+        const sections = await writeDomainReport(env, domainKey, facts, beat, audience);
         payload = { success: true, sections };
       } catch (e) {
         payload = { error: e.message || "AI writer failure." };
@@ -62,9 +77,9 @@ export async function onRequestPost(context) {
   });
 }
 
-async function writeDomainReport(env, domainKey, facts, onProgress) {
-  const sys = buildSystemPrompt();
-  const baseUser = buildUserPrompt(domainKey, facts);
+async function writeDomainReport(env, domainKey, facts, onProgress, audience) {
+  const sys = buildSystemPrompt(audience);
+  const baseUser = buildUserPrompt(domainKey, facts, audience);
 
   // ONE generation given a user prompt: stream the completion, parse the JSON sections,
   // and scrub leaks. Factored out so the faithfulness verifier can trigger a corrective
@@ -217,9 +232,12 @@ function salvageSections(raw) {
   return secs;
 }
 
-function buildSystemPrompt() {
+function buildSystemPrompt(audience) {
   return [
     "You are a careful, credible Vedic astrologer writing one section-structured report for AstroIndicators.",
+    (audience === "owner"
+      ? "AUDIENCE: this is the CONFIDENTIAL OWNER/CONSULTATION edition for the astrologer's own eyes — candid and complete, not shown to the client. Follow the OWNER / CONSULTATION MODE block in the user message: it relaxes the client-facing softening but keeps factual fidelity, probability-not-certainty, and the absolute child-safety line."
+      : "AUDIENCE: this is the CLIENT-FACING edition — the person themselves reads it."),
     "VOICE: measured, precise, warm; second person ('you','your'); describe structural tendencies, not fixed fate; hedge honestly where the chart is genuinely ambiguous. Name-blind (never invent or use a person's name).",
     "EMPHASIS: wrap the 2–4 most important phrases or verdicts in each section in **double asterisks** for bold emphasis (e.g. **your career authority runs through depth, not visibility**). Use it sparingly — only the lines a reader should remember. Also start each paragraph on its own line (use blank lines between paragraphs).",
     "FIRST-READ CLARITY (the single most important writing rule): the reader must get the CRUX in ONE read. Write the plain prose in simple, everyday language a non-astrologer grasps instantly — short, concrete sentences. Do NOT use abstract or literary phrasing in the plain text (avoid lines like 'a track that deepens and internalises' or 'Saturn's thread runs through everything' — say what that actually MEANS in plain words). Open each section with its single most important point in one clear sentence, THEN unpack it. The one or two most durable, decision-shaping insights of the whole reading must be stated so plainly and prominently — bolded, and echoed in the final reminder — that no reader could slip past them.",
@@ -423,10 +441,18 @@ function trimFactsForWriter(facts) {
   } catch (_) { return facts; }
 }
 
-function buildUserPrompt(domainKey, facts) {
+function buildUserPrompt(domainKey, facts, audience) {
+  const owner = (audience === "owner");
+  // CLIENT: trim the chart (anti-decode) AND remove owner-only sensitive signals so they can
+  // never surface. OWNER: keep the FULL packet, sensitive signals included.
+  if (owner) {
+    facts = { ...facts };   // full, untrimmed
+  } else {
+    facts = trimFactsForWriter(facts);
+    if (facts.flags && facts.flags.ownerSensitive) { facts = { ...facts, flags: { ...facts.flags, ownerSensitive: undefined } }; }
+  }
   // Hand the model the structured facts as JSON, plus a short style exemplar drawn
   // from the validated Career sample (keeps the voice/structure honest).
-  facts = trimFactsForWriter(facts);
   const exemplar = [
     "TWO VOICES — study both. The report has a PLAIN-PROSE voice (what the reader reads) and a WHY-LINE voice (the '» ' box beneath). The prose now NAMES and TRANSLATES the key placements and RECONCILES them into one verdict the reader self-connects to; the why-lines carry the fuller technical derivation. Do NOT copy either exemplar's chart facts — they are SHAPE only.",
     "",
@@ -438,11 +464,22 @@ function buildUserPrompt(domainKey, facts) {
     "Notice how the prose: (1) NAMES each placement (Venus in the 8th, Ketu in the 1st, Rahu in the 7th) and TRANSLATES it in the same breath; (2) RECONCILES the three into ONE verdict the reader maps onto themselves ('Ketu in my 1st — that's my independence'); (3) mirrors a lived pattern ('you may recognise this already…'); and (4) gives an accountable, dated direction naming what the reader controls. Match THIS in every section — the fuller mechanics still go in the '» ' lines.",
   ].join("\n");
 
+  const ownerBlock = owner ? [
+    "══════════ OWNER / CONSULTATION MODE — CONFIDENTIAL, NOT FOR THE CLIENT ══════════",
+    "This version is written for the ASTROLOGER'S OWN EYES, to prepare for a consultation — it is NOT shown to the client. Be fully CANDID and COMPLETE: state what the chart actually shows, including sensitive matters a client-facing report would soften or omit. DROP the client-facing requirements to reassure, to euphemise, or to give a one-line all-clear. You are briefing a professional.",
+    "COVER, across this domain, every material indication AND its strength — the strengths and the problems alike: debilitation and affliction read plainly, the hard periods named, and the sensitive risks stated directly WHEN THE CHART'S MARKERS GENUINELY CONVERGE (never from a lone marker): e.g. for marriage, susceptibility to a bond outside the primary one (facts.flags.ownerSensitive.affairRisk) and the risk of separation or divorce (facts.flags.ownerSensitive.separationRisk) — render these ONLY at level 'notable' or 'strong', naming the exact factors the engine lists, as a strong PROBABILITY the astrologer can explore with the client, and say plainly when the level is 'possible' (a watch-point) or 'none' (not indicated). For other domains be equally direct about severe health vulnerabilities, addiction or self-undoing tendencies, financial-ruin risk, and deep psychological strain where the facts show them.",
+    "STILL TRUE even here: speak in PROBABILITIES and tendencies, never a dated certainty or a verdict of doom; use ONLY the facts packet (never invent a placement, lordship, dignity or window); and the CHILD-SAFETY line is absolute — if facts.flags.minorMarriageMode is set the native is a child, so there is NO affair/romantic/spouse content whatsoever: give only the candid STRUCTURAL and developmental read for the guardian (facts.flags.guardianNote).",
+    "Structure and the '» ' why-lines work as usual; the difference is candour and completeness, not format.",
+    "═════════════════════════════════════════════════════════════════════════════════",
+    "",
+  ].join("\n") : "";
+
   return [
     "Write the '" + (facts.title || domainKey) + "' report for this chart.",
     "Domain focus: " + (facts.focus || domainKey) + ".",
     "Divisional chart used: " + (facts.vargaLabel || "D1 + D9") + ".",
     "",
+    ownerBlock,
     exemplar,
     "",
     "FACTS PACKET (your only source of astrological truth):",

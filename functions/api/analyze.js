@@ -3371,6 +3371,57 @@ function scoreMarriageAffliction(ctx){
   }catch(_){ return { score:0, severity:"clear", afflicted:false, factors:[], clearChecks:[] }; }
 }
 
+// ── OWNER-ONLY sensitive marriage indications (for the astrologer's confidential consultation) ──
+// These are the blunt classical reads a professional needs but a client report must NOT volunteer:
+// susceptibility to a bond OUTSIDE the primary one (fidelity), and the risk of separation/divorce.
+// Graded by CONVERGENCE so a lone marker never "pinpoints" anything — only a genuine cluster reads
+// 'notable'/'strong'. Returned under flags.ownerSensitive and STRIPPED from the client packet.
+// ADULT-ONLY: nulled for a minor (there is no such read for a child).
+function buildMarriageOwnerSensitive(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hLord, marAff){
+  try{
+    const H=(p)=>d1P[p]&&d1P[p].house;
+    const conj=(a,b)=>H(a)&&H(b)&&H(a)===H(b);
+    const asp=(a,b)=>{ const h=H(a),t=H(b); return h&&t&&h!==t&&aspectsHouse(a,h,t); };
+    const link=(a,b)=>conj(a,b)||asp(a,b)||asp(b,a);     // conjunction or either-way aspect
+    const sixthLord=houseLord(d1LagnaSign,6), twelfthLord=houseLord(d1LagnaSign,12);
+    const lagIdx=V_SIGNS.indexOf(d1LagnaSign);
+    const dual=(lagIdx%3===2);
+
+    // ── Fidelity / outside-bond susceptibility ──
+    // A real affair indication needs a SECRECY/EXCESS CORE (the 12th house of the bed and the
+    // hidden, or the Venus–Rahu over-reach signature), not merely common passion-links. Passion
+    // markers alone cap at 'possible'; 'notable'/'strong' require a core AND convergence.
+    const aF=[]; let aScore=0; const addA=(w,t)=>{aScore+=w;aF.push(t);};
+    const venusRahu = link("Venus","Rahu");
+    const seventhIn12 = H(hLord)===12;
+    const venusIn12mal = H("Venus")===12 && (venusRahu || link("Venus","Mars") || link("Venus","Saturn"));
+    const rahuIn7venus = H("Rahu")===7 && venusRahu;
+    const coreAffair = venusRahu || seventhIn12 || venusIn12mal || rahuIn7venus;
+    if(venusRahu) addA(2,"Venus (desire) linked with Rahu (excess, the unconventional) — the classic over-reach-of-desire signature");
+    if(seventhIn12) addA(2,"the 7th lord "+hLord+" sits in the 12th (the bed and private/secret pleasures)");
+    if(venusIn12mal) addA(2,"Venus in the 12th under a malefic link (private/secret indulgence)");
+    if(rahuIn7venus) addA(1,"Rahu in the 7th tied to Venus");
+    if(link("Venus","Mars")) addA(1,"Venus linked with Mars — strong physical passion seeking outlet");
+    if(link("Moon","Rahu")) addA(1,"Moon with Rahu — emotional restlessness drawn to the novel");
+    if(twelfthLord && H(twelfthLord)===7) addA(1,"the 12th lord "+twelfthLord+" sits in the 7th — private-pleasure themes tied into partnership");
+    const aLevel = (coreAffair && aScore>=5)?"strong" : (coreAffair && aScore>=3)?"notable" : aScore>=1?"possible":"none";
+
+    // ── Separation / divorce risk ──
+    const sF=[]; let sScore=0; const addS=(w,t)=>{sScore+=w;sF.push(t);};
+    if(H("Ketu")===7) addS(2,"Ketu in the 7th — a detaching, severing signature in the house of union");
+    if((H("Mars")===7||asp("Mars",hLord==="Mars"?"Venus":hLord)) && (H("Saturn")===7||asp("Saturn","Venus"))) addS(1,"Mars and Saturn both pressuring the partnership axis (rupture-and-coldness)");
+    if(sixthLord && H(sixthLord)===7) addS(2,"the 6th lord (separation/dispute) "+sixthLord+" sits in the 7th");
+    if(H(hLord)===6) addS(2,"the 7th lord "+hLord+" sits in the 6th (the house of divorce and discord)");
+    if(d1P[hLord]&&d1P[hLord].dignity==="Debilitated"&&[6,8,12].includes(H(hLord))) addS(1,"the 7th lord "+hLord+" is debilitated in a dusthana");
+    if(marAff && marAff.factors && marAff.factors.some(f=>/navamsha.*7th house holds/.test(f))) addS(1,"the navamsha 7th (the marriage varga) is itself afflicted");
+    if(H("Rahu")===1&&H("Ketu")===7 || H("Rahu")===7&&H("Ketu")===1) addS(1,"the Rahu–Ketu axis falls across the 1st/7th (self vs partner karmic axis)");
+    const sLevel = sScore>=5?"strong":sScore>=3?"notable":sScore>=1?"possible":"none";
+
+    return { affairRisk:{ level:aLevel, score:aScore, factors:aF },
+             separationRisk:{ level:sLevel, score:sScore, factors:sF } };
+  }catch(_){ return null; }
+}
+
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
 // partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
 // (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
@@ -3895,6 +3946,9 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     flags.remarriageIndicated=!!(ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak));
     // Manglik checkpoint — transparent calculation, applied cancellations, non-alarmist net reading.
     try{ flags.manglik = buildManglikCheckpoint(d1P, d1LagnaSign); }catch(_){ flags.manglik=null; }
+    // OWNER-ONLY sensitive indications (fidelity / separation) — for the astrologer's confidential
+    // consultation. Stripped from the client packet in the report writer; nulled for minors below.
+    try{ flags.ownerSensitive = buildMarriageOwnerSensitive(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hLord, marAff); }catch(_){ flags.ownerSensitive=null; }
 
     // ── Spouse significator + partner profile (gender-aware) ─────────────────────
     // Classical rule: for a WOMAN the husband-significator is Jupiter; for a MAN the
@@ -4070,6 +4124,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       flags.maritalInference=null;
       flags.remarriageIndicated=false;
       flags.manglik=null;                          // a marriage-matching verdict, not childhood coaching
+      flags.ownerSensitive=null;                   // no affair/separation read for a child, ever
       // The daughter's OWN relational temperament: the sign on her 7th house (how she approaches
       // close partnership) and her Venus (how she gives and receives affection) — translated into
       // her developmental style, never into a description of a partner.
