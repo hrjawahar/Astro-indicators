@@ -50,5 +50,22 @@ let fok={d1:{lagnaSign:"Aquarius",houseLord:"Sun",placements:{Sun:{dignity:"neut
 const rc=verifyReportFaithfulness("marriage",fok,sec("Your 7th lord Sun sits in the 8th house. There is a real factor to hold with care here."));
 expect("clean report → no critical violations", rc.critical.length===0);
 
+// ---- BADHAKESH (new fact) ----
+console.log("BADHAKESH:");
+let fbk={d1:{lagnaSign:"Aquarius",placements:{},occupants:[]}}; // Aquarius fixed -> 9th Libra -> Venus
+expect("'Badhakesh Venus' correct (Aquarius) NOT flagged", !has(verifyReportFaithfulness("marriage",fbk,sec("The Badhakesh Venus sits in your 7th house.")),"badhakesh"));
+expect("'Badhakesh Saturn' wrong (Aquarius) flagged", has(verifyReportFaithfulness("marriage",fbk,sec("The Badhakesh Saturn blocks the area.")),"badhakesh"));
+let fbp={d1:{lagnaSign:"Pisces",placements:{},occupants:[]}}; // Pisces dual -> 7th Virgo -> Mercury
+expect("'Venus is the Badhakesh' wrong (Pisces) flagged", has(verifyReportFaithfulness("marriage",fbp,sec("Venus here is the Badhakesh for your Ascendant.")),"badhakesh"));
+expect("'Badhakesh Mercury' correct (Pisces) NOT flagged", !has(verifyReportFaithfulness("marriage",fbp,sec("The Badhakesh Mercury rules obstruction.")),"badhakesh"));
+
+// ---- AVASTHA (new fact) ----
+console.log("AVASTHA:");
+let fav={d1:{lagnaSign:"Aquarius",placements:{Venus:{sign:"Leo",degInSign:1},Mars:{sign:"Aries",degInSign:15}},occupants:[]}};
+expect("Venus@1Leo 'infant (Bala) state' correct NOT flagged", !has(verifyReportFaithfulness("marriage",fav,sec("Venus, at 1° Leo, is in its infant (Bala) state, giving a fraction of its results.")),"avastha"));
+expect("Venus@1Leo claimed 'full strength (Yuva)' flagged", has(verifyReportFaithfulness("marriage",fav,sec("Venus is at full strength (Yuva) in Leo.")),"avastha"));
+expect("Mars@15Aapollo 'dead (Mrita) state' flagged (true Yuva)", has(verifyReportFaithfulness("marriage",fav,sec("Mars sits in its dead (Mrita) state here.")),"avastha"));
+expect("no avastha claim NOT flagged", !has(verifyReportFaithfulness("marriage",fav,sec("Venus in Leo adds warmth to the bond.")),"avastha"));
+
 console.log("\n"+pass+" passed, "+fail+" failed");
 process.exit(fail?1:0);

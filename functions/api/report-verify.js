@@ -38,6 +38,20 @@ function houseLordOf(lagnaSign, houseNum){
   const li = ORDER.indexOf(lagnaSign); if(li<0||!houseNum) return null;
   return SIGN_LORD[ORDER[(li + houseNum - 1) % 12]];
 }
+// Badhakesh (ruler of obstruction) by Ascendant modality — mirrors the engine's rule exactly:
+// movable Lagna → 11th, fixed → 9th, dual → 7th; its lord is the Badhakesh.
+function badhakeshOf(lagnaSign){
+  const li = ORDER.indexOf(lagnaSign); if(li<0) return null;
+  const bHouse = (li%3===0) ? 11 : (li%3===1) ? 9 : 7;
+  return { house: bHouse, planet: houseLordOf(lagnaSign, bHouse) };
+}
+// Bālādi avasthā state by degree within sign — mirrors the engine's planetAvastha exactly.
+function avasthaOf(sign, deg){
+  const si = ORDER.indexOf(sign); if(si<0 || deg==null) return null;
+  const odd = (si % 2 === 0);
+  const seg = Math.max(0, Math.min(4, Math.floor(deg / 6)));
+  return (odd ? ["Bala","Kumara","Yuva","Vriddha","Mrita"] : ["Mrita","Vriddha","Yuva","Kumara","Bala"])[seg];
+}
 function plainText(sections){ return (sections||[]).map(s=> (s.heading?s.heading+". ":"") + (s.body||"") ).join("\n\n"); }
 const PL_ALT = PLANETS.join("|");
 
@@ -171,6 +185,55 @@ function checkDignity(text, facts, out){
   }
 }
 
+// ── 7. BADHAKESH faithfulness (new fact) ─────────────────────────────────────────
+// Any prose that names a planet as the Badhakesh must match the engine's Badhakesh for
+// this Ascendant (an identity claim, like lordship).
+function checkBadhakesh(text, lagnaSign, out){
+  if(!lagnaSign) return;
+  const bk = badhakeshOf(lagnaSign); if(!bk || !bk.planet) return;
+  const pats = [
+    new RegExp("Badhakesh(?:[^.]{0,25}?)\\b(" + PL_ALT + ")\\b","gi"),      // "Badhakesh (ruler of obstruction) Venus"
+    new RegExp("\\b(" + PL_ALT + ")\\b(?:[^.]{0,25}?)\\bBadhakesh\\b","gi"), // "Venus … is the Badhakesh"
+  ];
+  const seen=new Set();
+  for(const re of pats){ let m;
+    while((m = re.exec(text))){ const planet=m[1]; if(!planet||seen.has(planet)) continue; seen.add(planet);
+      if(planet!==bk.planet){
+        out.push({ type:"badhakesh", severity:"critical",
+          detail:"Prose names "+planet+" as the Badhakesh, but for a "+lagnaSign+" Ascendant the Badhakesh is "+bk.planet+" (ruler of the "+ORD(bk.house)+", the house of obstruction).",
+          evidence: m[0].trim().slice(0,100) });
+      }
+    }
+  }
+}
+
+// ── 8. AVASTHĀ faithfulness (new fact) ───────────────────────────────────────────
+// If prose assigns a planet a Bālādi state, it must match the engine's degree-derived state.
+function checkAvastha(text, facts, out){
+  const pl = facts && facts.d1 && facts.d1.placements; if(!pl) return;
+  const TERMS = [
+    [/\bB[aā]la\b|infant state|too immature/i, "Bala"],
+    [/\bMrita\b|dead state|unable to deliver/i, "Mrita"],
+    [/\bVriddha\b|old state|strength is waning/i, "Vriddha"],
+    [/\bKum[aā]ra\b|adolescent state/i, "Kumara"],
+    [/\bYuva\b|youth state|at full strength/i, "Yuva"],
+  ];
+  for(const p of PLANETS){
+    const info = pl[p]; if(!info || info.sign==null || info.degInSign==null) continue;
+    const trueState = avasthaOf(info.sign, info.degInSign); if(!trueState) continue;
+    // find any avasthā term within 60 chars of the planet name (either order)
+    const near = new RegExp("(?:\\b"+p+"\\b[\\s\\S]{0,60}?("+TERMS.map(t=>t[0].source).join("|")+")|("+TERMS.map(t=>t[0].source).join("|")+")[\\s\\S]{0,60}?\\b"+p+"\\b)","i");
+    const m = near.exec(text); if(!m) continue;
+    const frag = m[0];
+    let claimed=null; for(const [re,st] of TERMS){ if(re.test(frag)){ claimed=st; break; } }
+    if(claimed && claimed!==trueState){
+      out.push({ type:"avastha", severity:"warn",
+        detail:"Prose puts "+p+" in its "+claimed+" state, but at "+info.degInSign+"° "+info.sign+" the engine's avasthā for "+p+" is "+trueState+".",
+        evidence: frag.trim().replace(/\s+/g," ").slice(0,110) });
+    }
+  }
+}
+
 // ── 6. LEAK residue ──────────────────────────────────────────────────────────────
 function checkLeaks(text, out){
   const CAMEL=/\b[a-z]+[A-Z][A-Za-z0-9]*\b/g; let m;
@@ -186,6 +249,8 @@ export function verifyReportFaithfulness(domainKey, facts, sections){
   try{ if(domainKey==="marriage") checkMinorMode(text, facts, out); }catch(_){}
   try{ checkTiming(text, domainKey, facts, out); }catch(_){}
   try{ checkDignity(text, facts, out); }catch(_){}
+  try{ checkBadhakesh(text, lagnaSign, out); }catch(_){}
+  try{ checkAvastha(text, facts, out); }catch(_){}
   try{ checkLeaks(text, out); }catch(_){}
   const critical = out.filter(v=>v.severity==="critical");
   return { ok: critical.length===0, violations: out, critical };
