@@ -1357,3 +1357,8 @@ export async function onRequestGet(context) {
     return Response.json([]);
   }
 }
+
+// ── Test/analysis exports (additive only — no handler or logic change) ──
+export { dateToJulianDay, computePlanetPositions, lahiriAyanamsha, toSidereal,
+  computeASC, lonToSign, lonToDegree, getNavamshaSign, buildD9,
+  assignD9PlanetsToHouses, computeVimshottari, getNakshatraPada, isRetrograde, SIGNS };

@@ -6,7 +6,7 @@ import { computeMarriageTimingWindows } from "./marriage-timing.js";
 // Set to false to fall straight back to the AD-level Looking-Back windows with NO other
 // change — flags.marriageTiming simply stops being populated and the writer uses the
 // AD-level likelyFruitionWindows exactly as before. This is the one-line revert.
-const ENABLE_PD_TIMING = true;
+const ENABLE_PD_TIMING = false;
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
