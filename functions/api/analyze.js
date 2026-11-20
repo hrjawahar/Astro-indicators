@@ -3239,6 +3239,138 @@ function buildManglikCheckpoint(d1P, d1LagnaSign){
   }catch(_){ return null; }
 }
 
+// ── Bālādi Avasthā (planetary life-stage by degree within its sign) ──────────────
+// A planet's capacity to deliver its results is graded by WHERE in its sign it sits.
+// Odd (vishama) signs run Bāla→Kumāra→Yuva→Vriddha→Mrita in 6° steps; even (sama) signs
+// run the reverse. Yuva (youth) is full strength; Bāla (infant) and Vriddha (old) are
+// weak; Mrita (dead) is near-powerless. This is why a 1° Venus — even a Yogakaraka —
+// cannot be read as "strong" merely for sitting in its house (the V6 Native-4 error).
+const AVASTHA_STRENGTH = { Bala:0.25, Kumara:0.5, Yuva:1.0, Vriddha:0.25, Mrita:0.0 };
+function planetAvastha(sign, degInSign){
+  if(sign==null || degInSign==null) return null;
+  const si = V_SIGNS.indexOf(sign); if(si<0) return null;
+  const odd = (si % 2 === 0);                         // Aries(0), Gemini(2), Leo(4)… = odd/vishama
+  const seg = Math.max(0, Math.min(4, Math.floor(degInSign / 6)));
+  const state = (odd ? ["Bala","Kumara","Yuva","Vriddha","Mrita"]
+                     : ["Mrita","Vriddha","Yuva","Kumara","Bala"])[seg];
+  return { state, strength:AVASTHA_STRENGTH[state],
+    weak:(state==="Bala"||state==="Mrita"),           // the genuinely result-sapping states
+    waning:(state==="Vriddha"),
+    note: state==="Bala" ? "in its infant (Bāla) state — too immature to give more than a fraction of its results"
+        : state==="Mrita" ? "in its dead (Mrita) state — almost unable to deliver its results"
+        : state==="Vriddha" ? "in its old (Vriddha) state — its strength is waning"
+        : state==="Kumara" ? "in its adolescent (Kumāra) state — growing but not yet at full strength"
+        : "in its youth (Yuva) state — at full strength" };
+}
+
+// ── Marriage affliction — a classically-grounded MULTI-FACTOR assessment ──────────
+// Replaces the old single test (which fired only on a malefic physically IN the D1 7th).
+// It weighs, from BOTH the birth chart and the navamsha (D9, the marriage varga):
+//   • malefic OCCUPATION of the 7th, and malefic ASPECTS onto it (Saturn 3/10, Mars 4/8,
+//     nodes 5/9, any 7th) — the aspect dimension was the core V6 "false clear" gap;
+//   • the 7th lord's condition (debilitation / dusthana / weak avasthā / malefic aspect);
+//   • Venus, the Kalatrakaraka, in D1 AND D9 — debilitated Venus in the navamsha is a
+//     PRIMARY classical marital-strain signal and was being ignored entirely;
+//   • the Darakaraka (Jaimini spouse karaka) in a dusthana or debilitated;
+//   • the Badhakesh sitting in the 7th; and the D9 7th-house occupants + 7th-lord caution.
+// It returns a graded severity so the "checks come back clear" reassurance can fire ONLY
+// when the chart is genuinely clear — never again as a blanket false all-clear.
+function scoreMarriageAffliction(ctx){
+  try{
+    const { d1P, d9Houses, d9LagnaSign, hLord, lordPlacement, occupants,
+            darakaraka, badhaka, d9LordCaution } = ctx;
+    // Only the HEAVY malefics afflict a house classically; the Sun is a mild, near-universal
+    // influence and is NOT counted (its 7th-aspect from the 1st is far too common to mean
+    // anything). BENEFICS (Jupiter above all, then Venus / unafflicted Mercury) PROTECT the
+    // 7th — Jupiter's aspect on the 7th is a classical blessing — and must offset malefic
+    // pressure, or the test flags almost every chart.
+    const MAL = ["Saturn","Mars","Rahu","Ketu"];
+    const HEAVY = ["Ketu","Rahu","Saturn"];
+    const BEN = ["Jupiter","Venus"];
+    const factors=[], clearChecks=[]; let score=0;
+    const add=(w,txt)=>{ score+=w; if(txt) factors.push(txt); };
+    const aspectors=(house,list)=>{ const out=[]; for(const p of list){ const pl=d1P[p]; if(pl&&pl.house&&pl.house!==house&&aspectsHouse(p,pl.house,house)) out.push(p); } return out; };
+    const occOf=(house,list)=>Object.keys(d1P).filter(p=>list.includes(p)&&d1P[p]&&d1P[p].house===house);
+
+    // F1 — the 7th house NET pressure: heavy-malefic occupation + aspect, OFFSET by benefic
+    // occupation/aspect (Jupiter/Venus). Capped so it cannot alone dominate the verdict.
+    const occ7mal = occOf(7, MAL);
+    const asp7mal = aspectors(7, MAL).filter(p=>!occ7mal.includes(p));
+    const prot7   = occOf(7, BEN).concat(aspectors(7, BEN));
+    const malHits7 = occ7mal.length + asp7mal.length;
+    let house7 = (occ7mal.length?occ7mal.some(p=>HEAVY.includes(p))?2:1:0) + (asp7mal.length?1:0);
+    if(prot7.length) house7 = Math.max(0, house7 - (prot7.includes("Jupiter")?2:1));   // Jupiter protects most
+    house7 = Math.min(house7, 3);
+    if(house7>0){ const parts=[]; if(occ7mal.length) parts.push(occ7mal.join(", ")+" in it"); if(asp7mal.length) parts.push(asp7mal.join(", ")+" aspecting it"); add(house7, "your 7th house is under malefic pressure ("+parts.join("; ")+")"+(prot7.length?", only partly eased by "+prot7.join(", ")+"'s benefic aspect":"")); }
+    else if(malHits7 && prot7.length) clearChecks.push("malefic pressure on your 7th house is offset by "+prot7.join(", ")+"'s benefic aspect");
+    else clearChecks.push("your 7th house is free of malefic pressure");
+
+    // F2 — the 7th lord's own condition
+    if(lordPlacement){ const lp=lordPlacement, lw=[]; let w=0;
+      if(lp.dignity==="Debilitated"){ lw.push("debilitated"); w+=2; }
+      if([6,8,12].includes(lp.house)){ lw.push("in the "+ordinalD(lp.house)+" house"); w+=1; }
+      const av=planetAvastha(lp.sign, lp.degInSign); if(av&&av.weak){ lw.push(av.note); w+=1; }
+      if(aspectors(lp.house, MAL).length && !aspectors(lp.house, BEN).length){ lw.push("under malefic aspect"); w+=1; }
+      if(w>0) add(Math.min(w,3), "your 7th lord "+hLord+" is "+lw.join(", "));
+      else clearChecks.push("your 7th lord "+hLord+" is soundly placed");
+    }
+
+    // F3 — Venus (Kalatrakaraka) in the birth chart
+    const ven=d1P["Venus"];
+    if(ven){ const vw=[]; let w=0;
+      if(ven.dignity==="Debilitated"){ vw.push("debilitated"); w+=1; }
+      if([6,8,12].includes(ven.house)){ vw.push("in the "+ordinalD(ven.house)+" house"); w+=1; }
+      const av=planetAvastha(ven.sign, ven.degInSign); if(av&&av.weak){ vw.push(av.note); w+=1; }
+      if(w>0) add(Math.min(w,2), "Venus, the natural significator of marriage, is "+vw.join(", "));
+      else clearChecks.push("Venus, the marriage significator, is well placed");
+    }
+
+    // F4 — Darakaraka (Jaimini spouse karaka) debilitated or in a dusthana
+    if(darakaraka && d1P[darakaraka] && darakaraka!=="Venus"){ const dp=d1P[darakaraka];
+      if(dp.dignity==="Debilitated"||[6,8,12].includes(dp.house))
+        add(1, "your Darakaraka "+darakaraka+" (the chart's own spouse significator) sits "+(dp.dignity==="Debilitated"?"debilitated":"in the "+ordinalD(dp.house)+" house"));
+    }
+
+    // F5 — Badhakesh (ruler of obstruction) sitting in the 7th
+    if(badhaka && badhaka.planet && d1P[badhaka.planet] && d1P[badhaka.planet].house===7)
+      add(1, "the Badhakesh (ruler of obstruction) "+badhaka.planet+" sits in your 7th house — a classical cause of recurring obstacles or delay in marriage");
+
+    // ── Navamsha (D9) — the marriage varga, weighted strongly ──
+    const d9lag = V_SIGNS.indexOf(d9LagnaSign);
+    const d9HouseOf=(p)=>{ for(let h=1;h<=12;h++){ if(((d9Houses||{})[h]||[]).includes(p)) return h; } return null; };
+
+    // F6 — the D9 7th house: heavy-malefic occupants, offset by a benefic there
+    const d9_7 = (d9Houses||{})[7]||[];
+    const d9_7mal = d9_7.filter(p=>HEAVY.includes(p)||p==="Mars");
+    const d9_7ben = d9_7.filter(p=>BEN.includes(p));
+    if(d9_7mal.length){ let w=Math.min(d9_7mal.length,2); if(d9_7ben.length) w=Math.max(1,w-1);
+      add(w, "in the navamsha (the marriage chart) your 7th house holds "+d9_7mal.join(", ")+(d9_7ben.length?" with "+d9_7ben.join(", ")+" also there":"")); }
+    else clearChecks.push("the navamsha 7th house is free of malefics");
+
+    // F7 — Venus in the D9 (debilitated navamsha Venus = a primary strain signal)
+    const venD9H=d9HouseOf("Venus"); const venD9S=(venD9H!=null&&d9lag>=0)?V_SIGNS[(d9lag+venD9H-1)%12]:null;
+    if(venD9S){ const deb=(dignityLabel("Venus",venD9S)==="Debilitated"), dus=[6,8,12].includes(venD9H);
+      if(deb) add(2, "Venus is debilitated in the navamsha — a primary classical sign of strain or dissatisfaction in married life");
+      else if(dus) add(1, "Venus sits in the "+ordinalD(venD9H)+" house of the navamsha");
+      else clearChecks.push("Venus holds up in the navamsha");
+    }
+
+    // F8 — D9 (navamsha) caution computed upstream (the marriage varga's own 7th-lord test).
+    // Worded without a bare "lord" reference; the named mechanics live in d9LordCaution itself.
+    if(d9LordCaution) add(1, "the navamsha (marriage chart) independently adds a note of caution as life matures");
+
+    // Severity banding — recalibrated WITH benefic mitigation so a genuinely clean chart reads
+    // clear/mild and only a real convergence of factors reaches 'strong'. 'afflicted' (the gate
+    // on the all-clear) means moderate+, i.e. a real, named convergence — not a lone mild note.
+    let severity;
+    if(score<=1)      severity="clear";
+    else if(score<=3) severity="mild";
+    else if(score<=5) severity="moderate";
+    else              severity="strong";
+    return { score, severity, afflicted:(severity==="moderate"||severity==="strong"), factors, clearChecks };
+  }catch(_){ return { score:0, severity:"clear", afflicted:false, factors:[], clearChecks:[] }; }
+}
+
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
 // partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
 // (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
@@ -3575,8 +3707,14 @@ function buildDomainCompass(domainKey, cfg, hLord, karakaPlanet, d1P, d1LagnaSig
     // 7. Combustion / retrograde of domain-relevant planets.
     const combustion = (compound.combustion||[]).filter(c => rel.has(c.planet));
     const retrograde = (compound.retroStrength||[]).filter(r => rel.has(r.planet));
-    // 8. Badhaka only when it falls on this domain's house or its lord.
-    const badhaka = (compound.badhaka && (compound.badhaka.house===H || compound.badhaka.planet===hLord)) ? compound.badhaka : null;
+    // 8. Badhaka when it falls on this domain's house OR its lord OR when the Badhakesh
+    //    PLANET itself sits in the domain house (e.g. Venus, the 9th-lord Badhakesh for an
+    //    Aquarius Lagna, sitting in the 7th — the V6 Native-4 miss).
+    const badhaka = (compound.badhaka && (
+        compound.badhaka.house===H ||
+        compound.badhaka.planet===hLord ||
+        (d1P[compound.badhaka.planet] && d1P[compound.badhaka.planet].house===H)
+      )) ? compound.badhaka : null;
 
     const anything = houseState || derivState || lordState || karakaState || rajaYogas.length ||
       yogas.length || neechaBhanga.length || nakshatra.length || combustion.length || retrograde.length || badhaka;
@@ -3744,8 +3882,16 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const ketuIn7=sevOcc.includes("Ketu"), rahuIn7=sevOcc.includes("Rahu");
     const maleficIn7=sevOcc.some(p=>["Saturn","Mars","Rahu","Ketu","Sun"].includes(p));
     const lordWeak=lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house));
-    const afflicted = ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak) || !!d9LordCaution;
+    const _dk=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Darakaraka")||{}).planet:null;
+    // Classically-grounded MULTI-FACTOR affliction assessment — replaces the old
+    // occupant-only test that produced the V6 false "checks come back clear". It weighs
+    // D1 7th occupation AND aspects, the 7th-lord condition, Venus (Kalatrakaraka) in D1
+    // and D9, the Darakaraka, the Badhakesh-in-7th, and the D9 7th house + lord.
+    const marAff = scoreMarriageAffliction({ d1P, d9Houses, d9LagnaSign, hLord, lordPlacement,
+      occupants, darakaraka:_dk, badhaka:(compound&&compound.badhaka)||null, d9LordCaution });
+    const afflicted = marAff.afflicted;
     flags.marriageAfflicted=!!afflicted;
+    flags.marriageAfflictionDetail=marAff;          // {score,severity,factors,clearChecks}
     flags.remarriageIndicated=!!(ketuIn7 || (maleficIn7 && lordWeak) || (rahuIn7 && lordWeak));
     // Manglik checkpoint — transparent calculation, applied cancellations, non-alarmist net reading.
     try{ flags.manglik = buildManglikCheckpoint(d1P, d1LagnaSign); }catch(_){ flags.manglik=null; }
@@ -3839,8 +3985,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // When the chart carries remarriage/affliction signals, give the writer a CHART-BASED
     // basis for the possibility (so it isn't an abstract cliffhanger) plus its D9 colour —
     // framed gently as a layered relational life, never a prediction.
+    // The "second significant union" possibility is a HEAVY, rare claim: raise it ONLY on the
+    // structural remarriage markers (Ketu in 7th, or a pressured 7th with a weak ruler) AND a
+    // genuinely strong overall affliction — never on a broad/moderate affliction alone, which
+    // would over-claim remarriage (a V6-class error).
     let secondChapter=null;
-    if(flags.remarriageIndicated || afflicted){
+    if(flags.remarriageIndicated && marAff.severity==="strong"){
       const basis=[];
       if(ketuIn7) basis.push("Ketu in the marriage house (a detaching, karmic signature there)");
       if(maleficIn7 && lordWeak) basis.push("the marriage house under pressure with its ruler placed in a testing house");
@@ -3899,6 +4049,30 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       maritalInference={ age:AGE, nativeGender:g, spouseWord, spouseNeutral, status, focus, statusNote, soft:true, declared:false };
     }
     flags.maritalInference=maritalInference;
+
+    // ── Minor (under 18): guardian-facing mode ───────────────────────────────────
+    // A child's marriage report is read by parents, not the child. It must NOT describe a
+    // spouse, give romantic timing, raise second marriages, or prescribe romantic remedies.
+    // Those payloads are STRIPPED here so there is nothing for the writer to render. In their
+    // place the chart's genuine STRUCTURAL red-flag probabilities in the partnership area (from
+    // the affliction assessment) are surfaced FOR THE GUARDIANS as early awareness, with
+    // developmental guidance — honest about cautions, never a verdict, and never romantic.
+    if(currentAge!=null && currentAge < 18){
+      flags.minorMarriageMode=true;
+      flags.marriageReader="guardian";
+      flags.partnerProfile=null;
+      flags.secondChapter=null;
+      flags.maritalInference=null;
+      flags.remarriageIndicated=false;
+      flags.manglik=null;                          // not surfaced to/about a child as a marital verdict
+      flags.guardianNote={
+        age:currentAge, redFlag: marAff.afflicted, severity: marAff.severity,
+        factors: marAff.factors, clearChecks: marAff.clearChecks,
+        framing: marAff.afflicted
+          ? "Written for the child's parents or guardians. It does NOT describe a future spouse or give romantic timing — none of that belongs in a child's reading. It names, gently and without alarm, the structural tendencies the chart shows in the partnership/relationship area of life, so temperament, emotional security and healthy relationship patterns can be nurtured early. These are probabilities to be aware of, never fixed outcomes — and early, supportive guidance is exactly what shapes them."
+          : "Written for the child's parents or guardians. The partnership area of the chart shows no major structural red flags at this stage. No spouse description or romantic timing is given for a child; this simply reassures that the area looks steady, to be revisited in adulthood."
+      };
+    }
   }
   if(domainKey==="children"){
     const fifthAfflicted=(lordPlacement&&(lordPlacement.dignity==="Debilitated"||[6,8,12].includes(lordPlacement.house)))
