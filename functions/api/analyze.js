@@ -3422,6 +3422,116 @@ function buildMarriageOwnerSensitive(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hL
   }catch(_){ return null; }
 }
 
+// ── OWNER-ONLY sensitive indications for the NON-marriage domains ────────────────
+// Same purpose as the marriage one: the blunt, graded reads a professional needs for a
+// consultation but a client report must not volunteer. Each risk is graded none/possible/
+// notable/strong by CONVERGENCE (a lone marker never pinpoints). Owner-only; stripped from the
+// client packet. RESPONSIBLE BOUNDARIES: never a death/longevity timing, never self-harm —
+// those are neither sound from a chart nor safe to assert; health risks are framed as
+// vulnerabilities and tendencies "to watch", always probabilities, never diagnoses or verdicts.
+function buildOwnerSensitive(domainKey, d1P, d1LagnaSign, d9Houses, hLord, karakaPlanet, occupants){
+  try{
+    const MAL=["Saturn","Mars","Rahu","Ketu"];
+    const H=(p)=>d1P[p]&&d1P[p].house;
+    const dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const inDus=(p)=>[6,8,12].includes(H(p));
+    const debil=(p)=>dig(p)==="Debilitated";
+    // Structural weakness ONLY (debilitated or in a dusthana) — NOT "under some malefic aspect",
+    // which is near-universal and was the over-firing cause. Malefic ASPECT counts only as a
+    // CLUSTER (two or more heavy malefics on the house), a genuine convergence.
+    const weak=(p)=> !!(debil(p)||inDus(p));
+    const malIn=(h)=>Object.keys(d1P).filter(p=>MAL.includes(p)&&H(p)===h);
+    const aspCluster=(h)=>MAL.filter(p=>{ const ph=H(p); return ph&&ph!==h&&aspectsHouse(p,ph,h); });
+    const conj=(a,b)=>H(a)&&H(b)&&H(a)===H(b);                 // same house (the strong, rarer link)
+    const conjMal=(p)=>H(p)&&MAL.some(m=>m!==p&&H(m)===H(p));  // significator joined by a heavy malefic
+    const lord=(h)=>houseLord(d1LagnaSign,h);
+    // CONVERGENCE bands: a single core significator weak reads only 'possible'; 'notable' needs a
+    // genuine convergence (two cores, or a core plus supporting pressure); 'strong' a full stack.
+    const grade=(s)=> s>=6?"strong":s>=4?"notable":s>=1?"possible":"none";
+    const risk=(F)=>{ const f=F.filter(Boolean); const s=f.reduce((a,x)=>a+x[0],0); return { level:grade(s), score:s, factors:f.map(x=>x[1]) }; };
+    const L=lord, out={};
+    const coreWeak=(p,label)=> (p&&weak(p)) && [2, label+" "+p+" is "+(debil(p)?"debilitated":"in a dusthana (6/8/12)")];
+    const occ=(h,label)=> (malIn(h).length>0) && [1,"the malefic(s) "+malIn(h).join(", ")+" sit in "+label];
+    const cluster=(h,label)=> (aspCluster(h).length>=2) && [1, aspCluster(h).join(" and ")+" both aspect "+label];
+
+    if(domainKey==="career"){
+      const l10=L(10);
+      out.setbackRisk = risk([
+        coreWeak(l10,"the 10th lord"),
+        occ(10,"the 10th (career) house"),
+        cluster(10,"the 10th house"),
+        (L(8)&&l10&&conj(l10,L(8)))&&[1,"the 10th lord "+l10+" sits with the 8th lord (sudden reversals)"],
+      ]);
+      out.reputationRisk = risk([
+        (H("Rahu")===10||H("Ketu")===10)&&[2,"a node ("+(H("Rahu")===10?"Rahu":"Ketu")+") sits in the 10th — reputation can swing or be clouded"],
+        (l10&&conj(l10,"Rahu"))&&[2,"the 10th lord "+l10+" is conjoined Rahu (image/perception volatility)"],
+        (L(6)&&H(L(6))===10)&&[1,"the 6th lord (disputes/litigation) "+L(6)+" sits in the 10th"],
+      ]);
+    } else if(domainKey==="health"){
+      const lagL=L(1);
+      out.chronicVulnerability = risk([
+        coreWeak(lagL,"the Ascendant lord (vitality)"),
+        coreWeak("Moon","the Moon (constitution)"),
+        (conjMal("Moon"))&&[1,"the Moon (constitution) is joined by a malefic"],
+        occ(1,"the Ascendant"),
+        cluster(1,"the Ascendant"),
+      ]);
+      out.mentalStrain = risk([   // "to watch", never a diagnosis
+        coreWeak("Moon","the Moon (mind/emotion)"),
+        (conj("Moon","Rahu")||conj("Moon","Ketu"))&&[2,"the Moon is conjoined a node (restlessness, disturbed sleep or anxiety to watch)"],
+        (conj("Moon","Saturn"))&&[1,"the Moon sits with Saturn (a tendency to low mood to watch)"],
+        (conjMal("Moon")&&!conj("Moon","Rahu")&&!conj("Moon","Ketu")&&!conj("Moon","Saturn"))&&[1,"the Moon is joined by a malefic (Mars — agitation to watch)"],
+        (weak("Mercury"))&&[1,"Mercury (nervous system) is weak"],
+      ]);
+      out.addictionTendency = risk([  // susceptibility to escapism/substance — "to watch"
+        (conj("Rahu","Moon")||conj("Rahu","Venus"))&&[2,"Rahu sits with the Moon or Venus (a pull toward excess or escape to watch)"],
+        (H("Venus")===12&&conj("Venus","Rahu"))&&[2,"Venus with Rahu in the 12th (indulgence/escape)"],
+        occ(12,"the 12th (indulgence and loss)"),
+      ]);
+    } else if(domainKey==="self"){
+      const lagL=L(1);
+      out.selfUndoingPattern = risk([
+        coreWeak(lagL,"the Ascendant lord"),
+        coreWeak("Moon","the Moon (self-image/emotion)"),
+        (conjMal("Moon"))&&[1,"the Moon (self-image) is joined by a malefic"],
+        (H("Ketu")===1)&&[1,"Ketu on the Ascendant (a sense of self that can feel unanchored)"],
+        occ(1,"the Ascendant"),
+      ]);
+    } else if(domainKey==="children"){
+      const l5=L(5);
+      out.progenyDifficulty = risk([   // fertility is sensitive — probability, consult a doctor
+        coreWeak(l5,"the 5th lord"),
+        coreWeak("Jupiter","Jupiter (the significator of progeny)"),
+        (conjMal("Jupiter"))&&[1,"Jupiter (progeny significator) is joined by a malefic"],
+        occ(5,"the 5th house of children"),
+        cluster(5,"the 5th house"),
+      ]);
+    } else if(domainKey==="mother"){
+      const l4=L(4);
+      out.motherConcern = risk([   // strain / health-vigilance, NEVER a loss prediction
+        coreWeak(l4,"the 4th lord"),
+        coreWeak("Moon","the Moon (the significator of the mother)"),
+        (conjMal("Moon"))&&[1,"the Moon (mother significator) is joined by a malefic"],
+        occ(4,"the 4th (home/mother)"),
+        cluster(4,"the 4th house"),
+      ]);
+    } else if(domainKey==="siblings"){
+      const l3=L(3);
+      out.siblingStrain = risk([
+        coreWeak(l3,"the 3rd lord"),
+        coreWeak("Mars","Mars (the significator of siblings/courage)"),
+        (conjMal("Mars"))&&[1,"Mars (sibling significator) is joined by another malefic"],
+        occ(3,"the 3rd house of siblings"),
+        cluster(3,"the 3rd house"),
+      ]);
+    } else return null;
+
+    // keep only signals that actually have something to say
+    const any = Object.values(out).some(r=>r && r.level!=="none");
+    return any ? out : out;   // return even all-'none' so the writer can give a clean all-clear
+  }catch(_){ return null; }
+}
+
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
 // partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
 // (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
@@ -4493,6 +4603,13 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   let domainCompass=null;
   if(domainKey!=="career"){
     try{ domainCompass = buildDomainCompass(domainKey, cfg, hLord, karakaPlanet, d1P, d1LagnaSign, compound, houseStates); }catch(_){ domainCompass=null; }
+  }
+
+  // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
+  //    above, and nulls it for minors). Graded risk signals for the confidential owner edition;
+  //    stripped from the client packet by the report writer.
+  if(domainKey!=="marriage" && flags.ownerSensitive===undefined){
+    try{ flags.ownerSensitive = buildOwnerSensitive(domainKey, d1P, d1LagnaSign, d9Houses, hLord, karakaPlanet, occupants); }catch(_){ flags.ownerSensitive=null; }
   }
 
   // ── Future Compass (all domains): consolidated, weighted, dated forward view ──
