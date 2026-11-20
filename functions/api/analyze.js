@@ -1,4 +1,12 @@
 import { PLANET_REMEDIES, GENERAL_TEMPLES, DOMAIN_TEMPLES } from "./remedies-data.js";
+import { computeMarriageTimingWindows } from "./marriage-timing.js";
+
+// ── REVERT SWITCH ────────────────────────────────────────────────────────────────
+// Pratyantardasha-level marriage-timing precision (PD + Upapada + Double Transit + Chara).
+// Set to false to fall straight back to the AD-level Looking-Back windows with NO other
+// change — flags.marriageTiming simply stops being populated and the writer uses the
+// AD-level likelyFruitionWindows exactly as before. This is the one-line revert.
+const ENABLE_PD_TIMING = true;
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
@@ -4059,6 +4067,23 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // OWNER-ONLY sensitive indications (fidelity / separation) — for the astrologer's confidential
     // consultation. Stripped from the client packet in the report writer; nulled for minors below.
     try{ flags.ownerSensitive = buildMarriageOwnerSensitive(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hLord, marAff); }catch(_){ flags.ownerSensitive=null; }
+    // PD-level timing precision — ADD-ON, reversible via ENABLE_PD_TIMING; AD-level windows below
+    // are left untouched. Adults only (minors never get a marriage-timing window).
+    if(ENABLE_PD_TIMING){
+      try{
+        const sNum=(nm)=>{ const i=V_SIGNS.indexOf(nm); return i<0?null:i+1; };
+        const lagIdx=V_SIGNS.indexOf(d1LagnaSign);
+        const d9lagIdx=V_SIGNS.indexOf(d9LagnaSign);
+        const signD1={}, signD9={};
+        for(const p of Object.keys(d1P)){ if(p==="Lagna")continue; if(d1P[p]&&d1P[p].sign) signD1[p]=sNum(d1P[p].sign); }
+        // D9 sign per planet from the D9 house map (sign = nth from D9 lagna)
+        for(let h=1;h<=12;h++){ for(const p of (d9Houses[h]||[])){ if(d9lagIdx>=0) signD9[p]=((d9lagIdx+h-1)%12)+1; } }
+        const _dkT=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Darakaraka")||{}).planet:null;
+        flags.marriageTiming = computeMarriageTimingWindows({
+          lagnaSign:(lagIdx>=0?lagIdx+1:null), d9LagnaSign:(d9lagIdx>=0?d9lagIdx+1:null),
+          signD1, signD9, darakaraka:_dkT, dashas, birthDate, currentAge });
+      }catch(_){ flags.marriageTiming=null; }
+    }
 
     // ── Spouse significator + partner profile (gender-aware) ─────────────────────
     // Classical rule: for a WOMAN the husband-significator is Jupiter; for a MAN the
@@ -4235,6 +4260,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       flags.remarriageIndicated=false;
       flags.manglik=null;                          // a marriage-matching verdict, not childhood coaching
       flags.ownerSensitive=null;                   // no affair/separation read for a child, ever
+      flags.marriageTiming=null;                   // no marriage-timing window for a child
       // The daughter's OWN relational temperament: the sign on her 7th house (how she approaches
       // close partnership) and her Venus (how she gives and receives affection) — translated into
       // her developmental style, never into a description of a partner.

@@ -146,6 +146,9 @@ function activatorSet(facts){
   if(dt.current) add(dt.current.lord);
   if(dt.currentAD){ add(dt.currentAD.md); add(dt.currentAD.ad); }
   (facts.futureCompass && facts.futureCompass.bands || []).forEach(b=>(b.drivers||[]).forEach(add));
+  // PD-level precision windows (marriage): their MD/AD/PD lords are valid timing significators.
+  const mt = facts.flags && facts.flags.marriageTiming;
+  if(mt && Array.isArray(mt.windows)) mt.windows.forEach(w=>{ (String(w.stack||"").split(/[–\-]/)).forEach(x=>add(x.trim())); });
   return s;
 }
 function checkTiming(text, domainKey, facts, out){
