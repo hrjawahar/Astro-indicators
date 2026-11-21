@@ -1,5 +1,5 @@
 import { PLANET_REMEDIES, GENERAL_TEMPLES, DOMAIN_TEMPLES } from "./remedies-data.js";
-import { computeMarriageTimingWindows, computeMarriageADWindows } from "./marriage-timing.js";
+import { computeMarriageTimingWindows, computeMarriageADWindows, computeDelayGate, computeMarriageLifecycle, computeSeparationTiming } from "./marriage-timing.js";
 
 // ── TIMING SWITCHES ────────────────────────────────────────────────────────────────
 // PD precision (Pratyantardasha + Upapada + Double Transit + Chara): validated against 6
@@ -11,6 +11,17 @@ const ENABLE_PD_TIMING = false;
 // the reliable layer (the marriage always falls in a significator MD/AD). Set false to fall
 // back to the plain AD-level likelyFruitionWindows.
 const ENABLE_AD_TIGHTEN = true;
+// Delay Gate + Romance/Marriage conversion filter (Phase 1): a Restriction Index (Saturn/Ketu
+// pressure on the 1–7 axis) sets an astronomy-anchored age gate (~Saturn return when locked);
+// windows before the gate are relationship/proposal windows, the first primary-significator
+// window after it is the legal-marriage window. Classical rule only — constants NOT fitted to
+// any case. Set false to fall back to flat AD windows (flags.marriageADWindows).
+const ENABLE_AGE_GATE = true;
+// Separation / dissolution timing (Phase 2): ONLY when the structural separation severity graded
+// upstream is notable+ (a real separative core), finds the first 6th/8th/12th-lord sub-period
+// at/after the marriage window as the dissolution trigger. Strong probability, minority of charts.
+// Set false to remove all separation-timing output.
+const ENABLE_SEPARATION = true;
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
@@ -4098,6 +4109,35 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         flags.marriageADWindows = computeMarriageADWindows({ lagnaSign:(lagIdx2>=0?lagIdx2+1:null), signD1:signD1b, darakaraka:_dk2, dashas, birthDate });
       }catch(_){ flags.marriageADWindows=null; }
     }
+    // ── Phase 1: Delay Gate + Romance/Marriage conversion filter (reversible via ENABLE_AGE_GATE).
+    // Classifies the AD windows against an astronomy-anchored delay gate: windows before it are
+    // relationship/proposal windows, the first primary-significator window after it is the legal-
+    // marriage window. When present, the writer prefers this over the flat marriageADWindows.
+    if(ENABLE_AGE_GATE){
+      try{
+        const lagNum = V_SIGNS.indexOf(d1LagnaSign)+1 || null;
+        const _dkG=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Darakaraka")||{}).planet:null;
+        const delayGate = computeDelayGate({ lagnaSign:lagNum, d1P, d9Houses, hLord });
+        flags.marriageDelayGate = delayGate;
+        flags.marriageLifecycle = delayGate
+          ? computeMarriageLifecycle({ lagnaSign:lagNum, darakaraka:_dkG, dashas, birthDate, delayGate })
+          : null;
+      }catch(_){ flags.marriageDelayGate=null; flags.marriageLifecycle=null; }
+    }
+    // ── Phase 2: Separation / dissolution timing (reversible via ENABLE_SEPARATION). Only fires a
+    // dissolution window when the structural separation severity (ownerSensitive) is notable+.
+    if(ENABLE_SEPARATION){
+      try{
+        const lagNum2 = V_SIGNS.indexOf(d1LagnaSign)+1 || null;
+        const sepRisk = flags.ownerSensitive && flags.ownerSensitive.separationRisk ? flags.ownerSensitive.separationRisk : null;
+        const marWin = (flags.marriageLifecycle && flags.marriageLifecycle.marriageWindow)
+          ? flags.marriageLifecycle.marriageWindow
+          : (flags.marriageADWindows && flags.marriageADWindows.windows ? flags.marriageADWindows.windows[0] : null);
+        flags.separationTiming = sepRisk
+          ? computeSeparationTiming({ separationRisk:sepRisk, marriageWindow:marWin, dashas, lagnaSign:lagNum2 })
+          : null;
+      }catch(_){ flags.separationTiming=null; }
+    }
 
     // ── Spouse significator + partner profile (gender-aware) ─────────────────────
     // Classical rule: for a WOMAN the husband-significator is Jupiter; for a MAN the
@@ -4276,6 +4316,9 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       flags.ownerSensitive=null;                   // no affair/separation read for a child, ever
       flags.marriageTiming=null;                   // no marriage-timing window for a child
       flags.marriageADWindows=null;                // no marriage-timing window for a child
+      flags.marriageDelayGate=null;                // no delay gate / romance window for a child
+      flags.marriageLifecycle=null;                // no romance/marriage lifecycle for a child
+      flags.separationTiming=null;                 // no separation/dissolution read for a child, ever
       // The daughter's OWN relational temperament: the sign on her 7th house (how she approaches
       // close partnership) and her Venus (how she gives and receives affection) — translated into
       // her developmental style, never into a description of a partner.

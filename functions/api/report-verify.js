@@ -151,6 +151,17 @@ function activatorSet(facts){
   if(mt && Array.isArray(mt.windows)) mt.windows.forEach(w=>{ (String(w.stack||"").split(/[–\-]/)).forEach(x=>add(x.trim())); });
   const aw = facts.flags && facts.flags.marriageADWindows;
   if(aw && Array.isArray(aw.windows)) aw.windows.forEach(w=>{ (String(w.lords||"").split(/[–\-]/)).forEach(x=>add(x.trim())); });
+  // Lifecycle windows (Phase 1): romance, legal-marriage and secondary windows all carry engine-
+  // supplied MD–AD lords; the delay-gate significator Mahadasha is a valid activator too.
+  const lc = facts.flags && facts.flags.marriageLifecycle;
+  if(lc){
+    const eat=(w)=>{ if(w&&w.lords) String(w.lords).split(/[–\-]/).forEach(x=>add(x.trim())); };
+    (lc.romanceWindows||[]).forEach(eat); eat(lc.marriageWindow); (lc.secondaryWindows||[]).forEach(eat);
+    add(lc.significatorMahadasha);
+  }
+  // Separation dissolution window (Phase 2): its MD–AD lords are valid separation-timing significators.
+  const st = facts.flags && facts.flags.separationTiming;
+  if(st && st.dissolutionWindow && st.dissolutionWindow.lords) String(st.dissolutionWindow.lords).split(/[–\-]/).forEach(x=>add(x.trim()));
   return s;
 }
 function checkTiming(text, domainKey, facts, out){

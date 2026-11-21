@@ -258,3 +258,173 @@ export function computeMarriageADWindows(ctx){
     };
   }catch(_){ return null; }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PHASE 1 — DELAY GATE + ROMANCE/MARRIAGE CONVERSION FILTER   (classical, reversible)
+//
+//  V8 research insight, built from CLASSICAL RULE (not tuned to any case):
+//   • Saturn/Ketu pressure on the 1–7 axis defers LEGAL marriage toward the first Saturn
+//     return (~29.5y). A clear axis marries from the cultural marriageable floor.
+//   • A strong significator window that completes BEFORE that gate is a relationship /
+//     proposal window (intense, may not formalize) — NOT the legal-marriage window.
+//
+//  The age-gate constants are anchored to ASTRONOMY (Saturn's orbital return) and a
+//  configurable cultural floor — deliberately NOT V8's fitted "21 + 9×index". Nothing
+//  here is tuned to reproduce a known marriage date. Gated behind ENABLE_AGE_GATE; off =
+//  the engine falls back to computeMarriageADWindows (unchanged).
+// ─────────────────────────────────────────────────────────────────────────────
+const _SNUM = (name)=>{ const i = SIGN_NAME.indexOf(name); return i>0 ? i : null; };   // "Leo"→5
+
+export function computeDelayGate(ctx){
+  try{
+    const { lagnaSign, d1P, d9Houses, hLord } = ctx;
+    if(!lagnaSign || !d1P) return null;
+    const H  = (p)=> d1P[p] && d1P[p].house;
+    const SG = (p)=> (d1P[p] && d1P[p].sign) ? _SNUM(d1P[p].sign) : null;
+    const h7sign = nthSign(lagnaSign,7);
+    const l7 = hLord || SIGN_LORD[h7sign];
+    const l7sign = SG(l7), venSign = SG("Venus"), satSign = SG("Saturn");
+    const factors=[]; let raw=0; const add=(w,t)=>{ raw+=w; if(t) factors.push(t); };
+
+    // 1. Natural restrictors (Saturn / Ketu) occupying the 1–7 (self–partner) axis.
+    if([1,7].includes(H("Saturn"))) add(3, "Saturn sits on your 1st/7th (self–partner) axis");
+    if([1,7].includes(H("Ketu")))   add(3, "Ketu sits on your 1st/7th axis (a detaching pull on union)");
+    // 2. Saturn's aspect on the 7th house, the 7th lord, or Venus (the marriage karaka).
+    if(satSign){ const reach = planetSignAspects("Saturn", satSign); const hits=[];
+      if(reach.has(h7sign)) hits.push("your 7th house");
+      if(l7sign && reach.has(l7sign)) hits.push("your 7th lord "+l7);
+      if(venSign && reach.has(venSign)) hits.push("Venus");
+      if(hits.length) add(2, "Saturn casts its aspect on "+hits.join(" / "));
+    }
+    // 3. The 7th lord weak: in a dusthana (6/8/12) or retrograde.
+    if(l7 && d1P[l7]){
+      if([6,8,12].includes(H(l7))) add(2, "your 7th lord "+l7+" sits in the "+H(l7)+"th house");
+      else if(d1P[l7].retro)       add(2, "your 7th lord "+l7+" is retrograde");
+    }
+    // 4. Navamsha confirmation: a restrictor in the D9 7th (the marriage varga).
+    const d97 = (d9Houses||{})[7]||[];
+    const d97r = d97.filter(p=> p==="Saturn"||p==="Ketu");
+    if(d97r.length) add(2, "the navamsha 7th house (marriage varga) carries "+d97r.join(", "));
+    // 5. Benefic relief: an unafflicted Jupiter/Venus on the 7th eases the lock.
+    for(const b of ["Jupiter","Venus"]){ const bs=SG(b); if(!bs) continue;
+      if(H(b)===7 || planetSignAspects(b,bs).has(h7sign)){ add(-2, b+" "+(H(b)===7?"in":"aspecting")+" your 7th house eases the delay"); break; }
+    }
+
+    const friction = Math.max(0, Math.min(10, raw));
+    const restrictionIndex = +(friction/10).toFixed(2);
+    // Astronomy-anchored age gate: clear axis → cultural floor; fully locked axis → Saturn return.
+    const BASE = 20, SATURN_RETURN = 29.5;                 // classical anchors (configurable, not fitted)
+    const ageGate = +(BASE + restrictionIndex*(SATURN_RETURN - BASE)).toFixed(1);
+    const tier = restrictionIndex<=0.25 ? "low" : restrictionIndex<=0.55 ? "moderate" : "high";
+    return { restrictionIndex, ageGate, tier, factors, base:BASE, saturnReturn:SATURN_RETURN };
+  }catch(_){ return null; }
+}
+
+export function computeMarriageLifecycle(ctx){
+  try{
+    const { lagnaSign, darakaraka, dashas, birthDate, delayGate } = ctx;
+    if(!lagnaSign || !Array.isArray(dashas) || !delayGate) return null;
+    const birthYr = birthDate ? new Date(birthDate).getFullYear() : null;
+    if(birthYr==null) return null;
+    const h7 = nthSign(lagnaSign,7), l7 = SIGN_LORD[h7];
+    const primary   = new Set([l7, "Venus", darakaraka].filter(Boolean));          // 7th lord, Venus, DK
+    const secondary = new Set(["Jupiter", SIGN_LORD[nthSign(lagnaSign,2)], SIGN_LORD[nthSign(lagnaSign,11)]]);
+    const roleOf=(p)=> p===l7?("the 7th lord "+p) : p==="Venus"?"Venus (the marriage karaka)" : p===darakaraka?(p+" (your Darakaraka)") : p==="Jupiter"?"Jupiter" : (p+" (a supporting significator)");
+    const gate = delayGate.ageGate;
+
+    const rows=[];
+    for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
+      for(const ad of md.antarDasas){
+        const sy=+String(ad.startDate).slice(0,4), ey=+String(ad.endDate).slice(0,4);
+        if(!sy) continue;
+        const startAge = sy - birthYr, endAge = ey - birthYr, midAge=(startAge+endAge)/2;
+        const mdP=primary.has(md.lord), mdS=secondary.has(md.lord), adP=primary.has(ad.lord), adS=secondary.has(ad.lord);
+        if(!mdP && !mdS && !adP) continue;                                         // must carry a primary sig in MD or AD
+        const s = (mdP?2.5:mdS?1:0) + (adP?3:adS?1.5:0);
+        const score = +((adAgeWeight(midAge))*s).toFixed(2);
+        rows.push({ md:md.lord, ad:ad.lord, window:String(ad.startDate).slice(0,7)+" to "+String(ad.endDate).slice(0,7),
+          startY:sy, endY:ey, startAge, endAge, age:Math.round(midAge), score, mdP, adP,
+          role: roleOf(ad.lord)+" runs within your "+md.lord+" major period"+(mdP?" (a core marriage significator)":"") });
+      }
+    }
+    if(!rows.length) return null;
+
+    // Conversion filter: a qualifying window that COMPLETES before the delay gate is a
+    // relationship/proposal window (may not formalize); windows reaching the gate are legal-
+    // marriage candidates. First-trigger firing: the FIRST chronological post-gate window driven
+    // by a PRIMARY significator (7th lord / Venus / DK) in its MD or AD is the legal-marriage window.
+    const chrono = rows.slice().sort((a,b)=> a.startY-b.startY || a.endY-b.endY);
+    const romance=[], postGate=[];
+    for(const w of chrono){ if(w.endAge < gate) romance.push(w); else postGate.push(w); }
+    const byScore=(arr)=>arr.slice().sort((a,b)=> b.score-a.score || a.startY-b.startY);
+
+    let primaryWin = null;
+    if(postGate.length){
+      primaryWin = postGate.find(w=> w.adP || primary.has(w.md)) || byScore(postGate)[0];
+    }
+    const secondaryWins = postGate.filter(w=> w!==primaryWin);
+    const sigMD = primaryWin ? (primary.has(primaryWin.md) ? primaryWin.md : (primary.has(primaryWin.ad) ? primaryWin.md : null)) : null;
+    const mdRange = (()=>{ if(!sigMD) return null; for(const md of dashas){ if(md.lord===sigMD) return String(md.startDate).slice(0,4)+"–"+String(md.endDate).slice(0,4);} return null; })();
+    const fmt=(w)=> w? { window:w.window, lords:w.md+"–"+w.ad, age:w.age, role:w.role } : null;
+
+    return {
+      delayGate: { restrictionIndex:delayGate.restrictionIndex, ageGate:gate, tier:delayGate.tier, factors:delayGate.factors },
+      romanceWindows: byScore(romance).slice(0,2).map(w=>({ ...fmt(w), note:"a strong relationship or proposal window — intense, but may not formalize into a legal marriage" })),
+      marriageWindow: fmt(primaryWin),
+      significatorMahadasha: sigMD, mahadashaRange: mdRange,
+      secondaryWindows: byScore(secondaryWins).slice(0,2).map(fmt),
+      note: primaryWin
+        ? ("Your legal-marriage window opens from about age "+Math.ceil(gate)+" (your chart's delay gate, "+delayGate.tier+" restriction); the strongest band is "+primaryWin.window+". A strong probability across a 1–3 year band — not a fixed date.")
+        : ("No clearly qualifying marriage window was isolated after the delay gate (age "+Math.ceil(gate)+")."),
+    };
+  }catch(_){ return null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PHASE 2 — SEPARATION / DISSOLUTION TIMING   (classical, reversible)
+//
+//  Takes the structural separation severity already graded upstream (buildMarriageOwnerSensitive:
+//  Ketu in 7th, 7th lord in/ruling 6th-8th, Venus afflicted, etc.). ONLY when that severity is
+//  notable+ (a genuine separative core — a minority of charts) does it look for the dissolution
+//  TRIGGER: the first Antardasha at/after the marriage window ruled by a 6th/8th/12th lord
+//  (litigation / upheaval / loss of the bond). Conditional on the marriage window; strong
+//  probability, never certainty. Gated behind ENABLE_SEPARATION; nulled for minors upstream.
+// ─────────────────────────────────────────────────────────────────────────────
+export function computeSeparationTiming(ctx){
+  try{
+    const { separationRisk, marriageWindow, dashas, lagnaSign } = ctx;
+    if(!separationRisk || !Array.isArray(dashas) || !lagnaSign) return null;
+    const level = separationRisk.level;
+    if(level!=="notable" && level!=="strong")
+      return { applicable:false, severity:level||"none", factors:separationRisk.factors||[] };
+
+    const l6=SIGN_LORD[nthSign(lagnaSign,6)], l8=SIGN_LORD[nthSign(lagnaSign,8)], l12=SIGN_LORD[nthSign(lagnaSign,12)];
+    const roleFor=(p)=> p===l6?"6th (disputes / litigation)" : p===l8?"8th (upheaval / crisis)" : "12th (loss / separation)";
+    const dusLords=new Set([l6,l8,l12].filter(Boolean));
+    const anchorYr = marriageWindow && marriageWindow.window ? +String(marriageWindow.window).slice(0,4) : null;
+
+    let found=null;
+    for(const md of dashas){ if(!Array.isArray(md.antarDasas)) continue;
+      for(const ad of md.antarDasas){
+        const sy=+String(ad.startDate).slice(0,4); if(!sy) continue;
+        if(anchorYr!=null && sy < anchorYr) continue;              // only the period AT/AFTER the marriage window
+        if(dusLords.has(ad.lord)){
+          found = { window:String(ad.startDate).slice(0,7)+" to "+String(ad.endDate).slice(0,7),
+            lords:md.lord+"–"+ad.lord,
+            yearsAfter:(anchorYr!=null? sy-anchorYr : null),
+            role:"the "+ad.lord+" sub-period rules your "+roleFor(ad.lord)+" house" };
+          break;
+        }
+      }
+      if(found) break;
+    }
+
+    return {
+      applicable:true, severity:level, factors:separationRisk.factors||[],
+      dissolutionWindow: found,
+      note: found
+        ? ("If marriage occurs in the indicated window, the sub-period most vulnerable to rupture or formal separation is "+found.window+" — a strong probability given the chart's structural strain, not a certainty.")
+        : "The chart carries a notable structural separation signature, though no single post-marriage sub-period stands out as a dissolution trigger — treat it as a standing caution, not a dated event.",
+    };
+  }catch(_){ return null; }
+}
