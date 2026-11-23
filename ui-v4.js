@@ -184,11 +184,11 @@ const CONSULT_CONFIG = {
           return;
         }
 
-        // OWNER BYPASS: if this browser has the owner flag, unlock the report
-        // directly without going through Razorpay (no dummy card needed). Set once
-        // in the owner's console:  localStorage.setItem("ai_owner","own-kSfeE_BD9rv3_GSIKVpAA583")
+        // OWNER BYPASS: if this browser holds the owner's own key (= server OWNER_REPORT_KEY),
+        // unlock the report without Razorpay. No secret lives in this public source; the owner
+        // sets it once:  localStorage.setItem("ai_owner_key","<your OWNER_REPORT_KEY>")
         var _ownerMode = false;
-        try { _ownerMode = (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583"); } catch (e) {}
+        try { _ownerMode = !!(localStorage.getItem("ai_owner_key")||"").trim(); } catch (e) {}
         if (_ownerMode) {
           window.AI_unlocked = window.AI_unlocked || {};
           window.AI_unlocked[item] = chartId();
@@ -2180,9 +2180,9 @@ const CONSULT_CONFIG = {
    ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
   "use strict";
-  var OWNER_KEY = "own-kSfeE_BD9rv3_GSIKVpAA583";
   function isOwner() {
-    try { return localStorage.getItem("ai_owner") === OWNER_KEY; } catch (e) { return false; }
+    // Owner = this browser holds a non-empty owner key (validated server-side for the owner edition).
+    try { return !!(localStorage.getItem("ai_owner_key")||"").trim(); } catch (e) { return false; }
   }
 
   // ── Discount-link visitors get this same chart download ────────────────────

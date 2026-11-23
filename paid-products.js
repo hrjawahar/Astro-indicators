@@ -626,8 +626,18 @@
   async function fetchStreamedReport(url, payload) {
     const MARK = "\u0000__RESULT__";
     const INTERRUPTED = "The connection dropped before the report finished. Please try again in a moment.";
+    // Owner edition: when the owner's key is present in THIS browser, send it in its own header
+    // (X-Owner-Key) and request the owner audience for domain reports. The server validates the key
+    // against OWNER_REPORT_KEY; a customer (no key) always gets the client edition.
+    const _ownerKey = (function(){ try{ return (localStorage.getItem("ai_owner_key")||"").trim(); }catch(e){ return ""; } })();
     const once = async () => {
-      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const headers = { "Content-Type": "application/json" };
+      let body = payload;
+      if (_ownerKey) {
+        headers["X-Owner-Key"] = _ownerKey;
+        if (/\/api\/domain-report\b/.test(url)) body = Object.assign({}, payload, { audience: "owner" });
+      }
+      const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
       if (!res.ok || !res.body) {
         const t = await res.text().catch(() => "");
         try { return JSON.parse(t); } catch (_) { throw new Error("Server error (" + res.status + ")."); }
@@ -3280,7 +3290,7 @@
       const st = await srv({ action:"status", chartId: cid, item, paymentId: _pid });
       if (st && st.paid) { (window.AI_unlocked=window.AI_unlocked||{})[item]=cid; run(); return; }
     }
-    let owner=false; try{ owner = (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583"); }catch(e){}
+    let owner=false; try{ owner = !!(localStorage.getItem("ai_owner_key")||"").trim(); }catch(e){}
     if (owner) { (window.AI_unlocked=window.AI_unlocked||{})[item]=cid; run(); return; }
 
     const email = requireEmail(item, amount, label, run);
@@ -3301,7 +3311,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     // owner mode: reveal the internal tabs (Dasa/Domains/Summary) hidden from customers
-    try { if (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583")
+    try { if (!!(localStorage.getItem("ai_owner_key")||"").trim())
       document.body.classList.add("ai-owner"); } catch (e) {}
     const liBtn = $("liPayBtn");
     if (liBtn) { liBtn.textContent = `Unlock the full report — ₹${price("lifeIndicators",999)}`;

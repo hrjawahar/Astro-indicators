@@ -1611,13 +1611,13 @@ function renderDashaScreen(data) {
   timeline.innerHTML="";
   const nowMs=new Date().getTime();
 
-  // Owner override: if this browser has the owner flag set, ALL MD periods are
-  // unlocked (so the owner can read any period for reference / consultations).
-  // Set it once in the owner's browser console:
-  //   localStorage.setItem("ai_owner", "own-kSfeE_BD9rv3_GSIKVpAA583")
-  // Customers never have this, so the lock applies to them normally.
+  // Owner override: the owner stores their OWN secret key (= the server's OWNER_REPORT_KEY) in
+  // this browser; its mere presence unlocks the UI for reference/consultations. There is NO secret
+  // in this public source — the real gate is server-side (X-Owner-Key is validated against
+  // OWNER_REPORT_KEY for the owner edition), so a customer cannot bypass anything by reading this.
+  //   localStorage.setItem("ai_owner_key", "<your OWNER_REPORT_KEY from Cloudflare>")
   var _ownerMode = false;
-  try { _ownerMode = (localStorage.getItem("ai_owner") === "own-kSfeE_BD9rv3_GSIKVpAA583"); } catch(e){}
+  try { _ownerMode = !!(localStorage.getItem("ai_owner_key")||"").trim(); } catch(e){}
 
   // Paid Dasa report covers a 3-period window: PREVIOUS + CURRENT + FOLLOWING MD.
   // Any other MD (and its ADs) is locked — clicking it must NOT call the API.
