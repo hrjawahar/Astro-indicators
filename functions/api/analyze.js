@@ -22,6 +22,16 @@ const ENABLE_AGE_GATE = true;
 // at/after the marriage window as the dissolution trigger. Strong probability, minority of charts.
 // Set false to remove all separation-timing output.
 const ENABLE_SEPARATION = true;
+// SOP-depth modules (classical, switch-gated, reversible; constants never tuned to known charts):
+//  • D10 lens + Karakamsha + AK–AmK for career (D10 presented separately, with a birth-time note)
+//  • Marriage classifiers: love-vs-arranged, foreign/cross-cultural spouse, wealth-through-marriage
+//  • Owner-only ADULT intimacy temperament + affair-ignition timing (gated off for public + minors)
+const ENABLE_D10_LENS = true;
+const ENABLE_MARRIAGE_CLASSIFIERS = true;
+const ENABLE_OWNER_INTIMATE = true;
+// The single list of OWNER-ONLY flags the public (paid-user) packet must never carry. The gate in
+// the report writer strips exactly these; add any future sensitive flag here, nowhere else.
+const OWNER_ONLY_FLAGS = ["ownerSensitive","intimacyProfile","affairTiming"];
 //  Jyotish Precision Analyzer  |  analyze.js  |  v3.0
 //  All four scoring tiers applied against computed chart data from chart.js
 //
@@ -3908,6 +3918,200 @@ function buildDomainCompass(domainKey, cfg, hLord, karakaPlanet, d1P, d1LagnaSig
       rajaYogas, yogas, neechaBhanga, nakshatra, combustion, retrograde, badhaka };
   }catch(_){ return null; }
 }
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SOP-DEPTH MODULES (Career D10 lens / Karakamsha / AK–AmK ; Marriage classifiers ;
+//  owner-only intimacy & affair timing). All classical, convergence-graded, switch-gated,
+//  reversible. Built from rules — NO constant tuned to any known chart.
+// ═══════════════════════════════════════════════════════════════════════════════
+const _vHouseOf=(vc,p)=> (vc&&vc.placements&&vc.placements[p])?vc.placements[p].house:null;
+function _vLordOfHouse(vc,h){ if(!vc||!vc.lagnaSign) return null; const li=V_SIGNS.indexOf(vc.lagnaSign); if(li<0) return null; return V_LORD[V_SIGNS[(li+h-1)%12]]; }
+
+// ── Career: the full D10 (Dashamsha) surgical lens — SEPARATE from the D1+D9 verdict ──
+function buildD10Lens(vc, d1LagnaSign){
+  try{
+    if(!vc||!vc.lagnaSign||!vc.placements||!vc.houses) return null;
+    const occN=(h)=>((vc.houses[h])||[]).length;
+    const d10L=V_LORD[vc.lagnaSign], d10Lh=_vHouseOf(vc,d10L);
+    const d10LDesc = d10Lh==null?null : ([1,10].includes(d10Lh)?"commands the professional environment directly":[3,6,11].includes(d10Lh)?"climbs through effort, competition and networks":[5,9].includes(d10Lh)?"earns standing through knowledge, mentors or fortune":[8,12].includes(d10Lh)?"works behind the scenes, in research, or through periodic reinvention":"operates steadily in a supporting capacity");
+    const tenthLord=_vLordOfHouse(vc,10), tenthLordH=_vHouseOf(vc,tenthLord);
+    const sunH=_vHouseOf(vc,"Sun"), satH=_vHouseOf(vc,"Saturn"); const karakaNote=[];
+    if([1,10,11,9].includes(sunH)) karakaNote.push("the Sun (authority) is well placed in the D10 — enduring status / leadership");
+    if([1,10,3,6,11].includes(satH)) karakaNote.push("Saturn (work-ethic, institutions) is well placed in the D10 — durable professional stamina");
+    const sixth=occN(6), seventh=occN(7), gains=occN(2)+occN(11); let workMode=null;
+    if(seventh>sixth && seventh>0) workMode={lean:"consulting / client-facing / independent practice", basis:"the D10 7th (clients, advisory) outweighs the D10 6th"};
+    else if(sixth>0 && sixth>=seventh) workMode={lean:"salaried / structured service / execution", basis:"the D10 6th (daily service, competition) carries the weight"};
+    else if(gains>0) workMode={lean:"gains convert through networks and fees", basis:"the D10 2nd/11th (revenue, networks) are emphasised"};
+    const d1TenthLord=houseLord(d1LagnaSign,10), crossH=_vHouseOf(vc,d1TenthLord);
+    const crossNote = crossH==null?null : ([1,2,4,5,7,9,10,11].includes(crossH)?"your D1 career promise carries cleanly into the professional sphere (D10 "+crossH+"th)":[6,8,12].includes(crossH)?"your career manifests through pivots, behind-the-scenes strategy or reinvention (your D1 10th lord "+d1TenthLord+" falls in the D10 "+crossH+"th)":"your career promise is workable in the D10 ("+crossH+"th)");
+    return { d10Lagna:vc.lagnaSign, d10LagnaLord:{planet:d10L,house:d10Lh,note:d10LDesc},
+      d10TenthLord:{planet:tenthLord,house:tenthLordH}, d10TenthOccupants:(vc.houses[10]||[]),
+      karakaNote, workMode, crossLink:{d1TenthLord,d10House:crossH,note:crossNote},
+      confidence:"D10 is birth-time-sensitive (the D10 Lagna shifts about every 12 minutes); treat this as a strong-probability refinement that depends on an accurate birth time, read ALONGSIDE — not above — the D1+D9 foundation." };
+  }catch(_){ return null; }
+}
+function buildKarakamsha(charaKarakas, d9Houses, d9LagnaSign){
+  try{
+    const ak=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Atmakaraka")||{}).planet:null;
+    if(!ak||!d9LagnaSign||!d9Houses) return null;
+    let akH=null; for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(ak)){akH=h;break;} }
+    if(akH==null) return null;
+    const li=V_SIGNS.indexOf(d9LagnaSign); if(li<0) return null;
+    const kSign=V_SIGNS[(li+akH-1)%12]; const tenthH=((akH-1+9)%12)+1;
+    return { atmakaraka:ak, karakamshaSign:kSign, occupants:(d9Houses[akH]||[]),
+      tenthFromKarakamsha:{ sign:V_SIGNS[(li+tenthH-1)%12], occupants:(d9Houses[tenthH]||[]) },
+      note:"Karakamsha (the Atmakaraka "+ak+"'s navamsha sign) and the 10th from it are the classical pointer to the true nature of vocation and calling." };
+  }catch(_){ return null; }
+}
+function buildAkAmkRelation(charaKarakas, d1P){
+  try{
+    const g=(r)=>(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role===r)||{}).planet:null;
+    const ak=g("Atmakaraka"), amk=g("Amatyakaraka");
+    if(!ak||!amk||!d1P[ak]||!d1P[amk]) return null;
+    const a=d1P[ak].house, m=d1P[amk].house; if(!a||!m) return null;
+    const fwd=((m-a+12)%12)+1, back=((a-m+12)%12)+1; const rel=new Set([fwd,back]);
+    const shadashtak=rel.has(6)&&rel.has(8), dwirdwadash=rel.has(2)&&rel.has(12);
+    const smooth=[1,5,9,4,7,10,11].some(x=>rel.has(x));
+    let verdict,note;
+    if(shadashtak||dwirdwadash){ verdict="friction"; note="The soul significator ("+ak+") and the career significator ("+amk+") sit in a "+(shadashtak?"6/8 (Shadashtak)":"2/12 (Dwirdwadash)")+" relationship — career tends to pivot or feel misaligned until work is brought into line with personal values."; }
+    else if(smooth){ verdict="aligned"; note="The soul ("+ak+") and career ("+amk+") significators sit in a "+fwd+"/"+back+" relationship — a naturally aligned, mutually supportive link between who you are and how you work."; }
+    else { verdict="neutral"; note="The soul ("+ak+") and career ("+amk+") significators sit "+fwd+" houses apart — a workable, neutral relationship."; }
+    return { atmakaraka:ak, amatyakaraka:amk, houses:{ak:a,amk:m}, distance:fwd, verdict, note };
+  }catch(_){ return null; }
+}
+
+// ── Marriage: Upapada (Arudha of the 12th) + nature / foreign / wealth classifiers ──
+function _arudhaSign(houseNum, lagnaSign, d1P){
+  try{
+    const li=V_SIGNS.indexOf(lagnaSign); if(li<0) return null;
+    const houseSignIdx=(li+houseNum-1)%12, lord=V_LORD[V_SIGNS[houseSignIdx]];
+    if(!lord||!d1P[lord]||!d1P[lord].sign) return null;
+    const lordSignIdx=V_SIGNS.indexOf(d1P[lord].sign); if(lordSignIdx<0) return null;
+    const d=((lordSignIdx-houseSignIdx+12)%12)+1; let arIdx=(lordSignIdx+d-1)%12;
+    const relToHouse=((arIdx-houseSignIdx+12)%12)+1;
+    if(relToHouse===1||relToHouse===7) arIdx=(arIdx+9)%12;   // classical Arudha exception
+    return V_SIGNS[arIdx];
+  }catch(_){ return null; }
+}
+function buildMarriageNature(d1P, d1LagnaSign, hLord){
+  try{
+    const H=(p)=>d1P[p]&&d1P[p].house;
+    const link=(a,b)=>{ if(!a||!b)return false; const ha=H(a),hb=H(b); if(!ha||!hb)return false; return ha===hb||aspectsHouse(a,ha,hb)||aspectsHouse(b,hb,ha); };
+    const l5=houseLord(d1LagnaSign,5), l7=hLord||houseLord(d1LagnaSign,7), l2=houseLord(d1LagnaSign,2), l9=houseLord(d1LagnaSign,9);
+    let loveScore=0; const loveF=[];
+    if(l5&&l7&&link(l5,l7)){ loveScore+=2; loveF.push("your 5th lord "+l5+" (romance) and 7th lord "+l7+" (marriage) are linked"); }
+    if(l7&&H(l7)===5){ loveScore+=1; loveF.push("the 7th lord "+l7+" sits in the 5th (house of love)"); }
+    if(l5&&H(l5)===7){ loveScore+=1; loveF.push("the 5th lord "+l5+" sits in the 7th"); }
+    if(H("Venus")===5||H("Venus")===7){ loveScore+=1; loveF.push("Venus sits in the 5th/7th"); }
+    if((l7&&link("Rahu",l7))||H("Rahu")===7){ loveScore+=1; loveF.push("Rahu touches the marriage axis (self-chosen / unconventional union)"); }
+    let arrScore=0; const arrF=[];
+    if(l7&&((l2&&link(l7,l2))||(l9&&link(l7,l9)))){ arrScore+=2; arrF.push("your 7th lord "+l7+" is tied to the 2nd/9th (family and dharma)"); }
+    if((l7&&link("Jupiter",l7))||H("Jupiter")===7){ arrScore+=1; arrF.push("Jupiter (tradition, elders) influences the 7th"); }
+    if((l7&&link("Saturn",l7))||H("Saturn")===7){ arrScore+=1; arrF.push("Saturn (convention, duty) influences the 7th"); }
+    const margin=Math.abs(loveScore-arrScore);
+    const verdict = (margin>=2&&loveScore>arrScore)?"love-leaning":(margin>=2&&arrScore>loveScore)?"arranged-leaning":(loveScore||arrScore)?"mixed":"unmarked";
+    return { verdict, loveScore, arrScore, loveFactors:loveF, arrangedFactors:arrF,
+      note:"A leaning in HOW the union is likely to form (self-chosen vs family-arranged) — a strong probability, not a rule; modern unions often blend both." };
+  }catch(_){ return null; }
+}
+function buildForeignSpouse(d1P, d1LagnaSign, hLord, darakaraka, ulSign){
+  try{
+    const H=(p)=>d1P[p]&&d1P[p].house;
+    const conj=(a,b)=>{ const ha=H(a),hb=H(b); return ha&&hb&&ha===hb; };
+    const asp=(a,b)=>{ const ha=H(a),hb=H(b); return ha&&hb&&ha!==hb&&aspectsHouse(a,ha,hb); };
+    const l7=hLord||houseLord(d1LagnaSign,7), l12=houseLord(d1LagnaSign,12), l9=houseLord(d1LagnaSign,9);
+    let score=0; const F=[]; let coreForeign=false, coreCommunity=false;
+    // CORE community: Rahu IN the 7th, or CONJUNCT the 7th lord / Darakaraka (occupancy-grade). A lone
+    // Rahu ASPECT is only a light hint (+1), never enough on its own — this is the over-fire fix.
+    if(H("Rahu")===7){ score+=2; coreCommunity=true; F.push("Rahu sits in the 7th — a partner from a different community, background or convention"); }
+    else if((l7&&conj("Rahu",l7))||(darakaraka&&conj("Rahu",darakaraka))){ score+=2; coreCommunity=true; F.push("Rahu is conjunct the 7th lord "+(l7||"")+" / Darakaraka — a different-community or unconventional background"); }
+    else if(l7&&asp("Rahu",l7)){ score+=1; F.push("Rahu aspects the 7th lord "+l7+" (a lighter cross-community hint)"); }
+    // CORE foreign: occupancy links across the 7th and the 9th/12th (distant / overseas).
+    if(l7&&H(l7)===12){ score+=2; coreForeign=true; F.push("the 7th lord "+l7+" sits in the 12th — a foreign or distant spouse / settling abroad"); }
+    if(l12&&H(l12)===7){ score+=2; coreForeign=true; F.push("the 12th lord "+l12+" sits in the 7th (a foreign / distant partnership)"); }
+    if(l7&&H(l7)===9){ score+=1; coreForeign=true; F.push("the 7th lord "+l7+" sits in the 9th — met through study, travel or different roots"); }
+    if(l9&&H(l9)===7){ score+=1; coreForeign=true; F.push("the 9th lord "+l9+" sits in the 7th"); }
+    // SUPPORT only (count once a core exists): Saturn/Mars conjunct Rahu on the axis; UL movable.
+    const hasCore=coreForeign||coreCommunity;
+    if((conj("Saturn","Rahu")||conj("Mars","Rahu"))&&(H("Rahu")===7||(l7&&conj("Rahu",l7)))){ score+=1; F.push("a Rahu + Saturn/Mars conjunction on the 7th (a different linguistic / regional background)"); }
+    if(ulSign&&["Aries","Cancer","Libra","Capricorn"].includes(ulSign)&&hasCore){ score+=1; F.push("the Upapada is in a movable sign (relocation / cross-cultural integration)"); }
+    // notable+ REQUIRES a genuine core (occupancy/conjunction), never a lone aspect.
+    const level = (hasCore&&score>=5)?"strong":(hasCore&&score>=3)?"notable":score>=1?"possible":"none";
+    const kind = (coreForeign&&score>=4)?"foreign/overseas likely":coreCommunity?"different community (likely same country)":"conventional";
+    return { level, score, kind, factors:F, note:"A strong probability of a cross-community or foreign-background partner when these boundary-crossing signatures converge — not a certainty." };
+  }catch(_){ return null; }
+}
+function buildWealthThroughMarriage(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hLord, ulSign){
+  try{
+    const H=(p)=>d1P[p]&&d1P[p].house;
+    const conj=(a,b)=>{ const ha=H(a),hb=H(b); return ha&&hb&&ha===hb; };
+    const l7=hLord||houseLord(d1LagnaSign,7), l2=houseLord(d1LagnaSign,2), l9=houseLord(d1LagnaSign,9), l11=houseLord(d1LagnaSign,11);
+    let score=0; const F=[]; let core=false;
+    // CORE: the 7th lord itself forms a Dhana yoga (occupies 2/9/11, or JOINS a 2/9/11 lord, or is
+    // navamsha-dignified). Aspect alone no longer qualifies — the over-fire fix.
+    if(l7&&[2,9,11].includes(H(l7))){ score+=2; core=true; F.push("the 7th lord "+l7+" sits in the "+H(l7)+"th (a wealth/fortune house) — marriage unlocks gain"); }
+    if(l7&&[l2,l9,l11].some(x=>x&&conj(l7,x))){ score+=1; core=true; F.push("the 7th lord "+l7+" joins a 2nd/9th/11th lord (a Dhana yoga through partnership)"); }
+    const eighthBen=["Jupiter","Venus","Mercury"].filter(p=>H(p)===8);
+    if(eighthBen.length){ score+=1; F.push("benefic(s) "+eighthBen.join(", ")+" in the 8th (the spouse's resources / shared wealth)"); }
+    const d9DigGood=(p)=>{ for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(p)){ const li=V_SIGNS.indexOf(d9LagnaSign); if(li<0)return false; const s=V_SIGNS[(li+h-1)%12]; return V_EX[p]===s||(V_OWN[p]||[]).includes(s); } } return false; };
+    if(l7&&d9DigGood(l7)){ score+=1; core=true; F.push("the 7th lord "+l7+" is exalted/own-sign in the navamsha — a sharp rise in standard of living after marriage"); }
+    else if(d9DigGood("Venus")){ score+=1; F.push("Venus is exalted/own-sign in the navamsha"); }
+    if(ulSign){ const uli=V_SIGNS.indexOf(ulSign); if(uli>=0){ const ul2=V_SIGNS[(uli+1)%12];
+      const ul2ben=Object.keys(d1P).filter(p=>["Jupiter","Venus"].includes(p)&&d1P[p].sign===ul2);
+      if(ul2ben.length){ score+=1; F.push("a benefic in the 2nd from Upapada (sustained prosperity and longevity of the marriage)"); } } }
+    // notable+ REQUIRES the 7th-lord dhana core, not supporting factors alone.
+    const level = (core&&score>=5)?"strong":(core&&score>=3)?"notable":score>=1?"possible":"none";
+    return { level, score, factors:F, note:"A strong probability of material uplift through marriage (Bhagyodaya) when these signatures converge — not a guarantee." };
+  }catch(_){ return null; }
+}
+
+// ── Owner-only, ADULT-only: intimacy temperament + affair-ignition timing ──
+function buildIntimacyProfile(d1P, gender){
+  try{
+    const H=(p)=>d1P[p]&&d1P[p].house, dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const g=String(gender||"").toLowerCase();
+    const strong=(p)=>dig(p)==="Exalted"||dig(p)==="Own sign";
+    const weak=(p)=>dig(p)==="Debilitated"||(d1P[p]&&d1P[p].combust);
+    const link=(a,b)=>{ const ha=H(a),hb=H(b); if(!ha||!hb)return false; return ha===hb||aspectsHouse(a,ha,hb)||aspectsHouse(b,hb,ha); };
+    let drive=0; const F=[];
+    if(g==="male"){
+      if(strong("Mars")){drive+=1;F.push("Mars is dignified (physical stamina)");} if(weak("Mars")){drive-=1;F.push("Mars is weak (lower vitality)");}
+      if(!weak("Venus")) drive+=1; else {drive-=1;F.push("Venus is afflicted (reduced ease with intimacy)");}
+      if(strong("Sun")) drive+=1;
+    } else if(g==="female"){
+      if(!weak("Moon")) drive+=1; else {drive-=1;F.push("the Moon is afflicted (emotional guardedness can block closeness)");}
+      if(link("Mars","Venus")){drive+=1;F.push("a Mars–Venus connection (warmth and sensual responsiveness)");}
+      if(weak("Venus")) drive-=1;
+    } else {
+      if(link("Mars","Venus")) drive+=1; if(!weak("Venus")) drive+=1;
+    }
+    for(const p of ["Jupiter","Venus"]){ if(H(p)===8||H(p)===12){ drive+=1; F.push(p+" supports the 8th/12th (fulfilment)"); break; } }
+    if(H("Saturn")===12||H("Ketu")===12){ drive-=1; F.push("Saturn/Ketu in the 12th (periods of low drive or distance)"); }
+    const level = drive>=3?"high":drive>=1?"moderate":drive<=-1?"reserved":"average";
+    return { level, score:drive, gender:g||"unspecified", factors:F,
+      note:"A temperament reading of intimacy drive and warmth (3rd/7th/8th/12th with the gender-polarity karakas) — owner/consultation use only, a tendency, not a verdict." };
+  }catch(_){ return null; }
+}
+function buildAffairTiming(affairRisk, dashas, d1P, d1LagnaSign, hLord, birthDate){
+  try{
+    if(!affairRisk||affairRisk.level==="none"||!Array.isArray(dashas)) return { applicable:false };
+    const H=(p)=>d1P[p]&&d1P[p].house;
+    const l8=houseLord(d1LagnaSign,8), l12=houseLord(d1LagnaSign,12);
+    const trig=new Set(["Rahu","Venus"]); if(l8)trig.add(l8); if(l12)trig.add(l12);
+    if(hLord&&[8,12].includes(H(hLord))) trig.add(hLord);
+    const birthYr=birthDate?new Date(birthDate).getFullYear():null; const wins=[];
+    for(const md of dashas){ if(!Array.isArray(md.antarDasas))continue;
+      for(const ad of md.antarDasas){
+        const pair=(md.lord==="Rahu"&&ad.lord==="Venus")||(md.lord==="Venus"&&ad.lord==="Rahu");
+        const dus=trig.has(ad.lord)&&trig.has(md.lord);
+        if(pair||dus){ const sy=String(ad.startDate).slice(0,7), ey=String(ad.endDate).slice(0,7);
+          wins.push({ window:sy+" to "+ey, lords:md.lord+"–"+ad.lord, age:birthYr?(+ey.slice(0,4)-birthYr):null,
+            kind:pair?"Rahu–Venus (desire + the unconventional)":"a desire/secrecy period" }); } }
+    }
+    return { applicable:wins.length>0, severity:affairRisk.level, windows:wins.slice(0,3),
+      note:"Periods when the chart's built-in susceptibility can be IGNITED — a strong probability of TEMPTATION, which a conscious native may well decline; never a claim that an affair occurred. Owner/consultation use only." };
+  }catch(_){ return null; }
+}
+
 function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap, gender, maritalStatus){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
@@ -4082,6 +4286,20 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // OWNER-ONLY sensitive indications (fidelity / separation) — for the astrologer's confidential
     // consultation. Stripped from the client packet in the report writer; nulled for minors below.
     try{ flags.ownerSensitive = buildMarriageOwnerSensitive(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hLord, marAff); }catch(_){ flags.ownerSensitive=null; }
+    // ── SOP marriage classifiers (public-safe): Upapada + love/arranged + foreign + wealth.
+    const _ulSign = _arudhaSign(12, d1LagnaSign, d1P);
+    flags.upapadaSign = _ulSign;
+    if(ENABLE_MARRIAGE_CLASSIFIERS){
+      try{ flags.marriageNature = buildMarriageNature(d1P, d1LagnaSign, hLord); }catch(_){ flags.marriageNature=null; }
+      try{ flags.foreignSpouse = buildForeignSpouse(d1P, d1LagnaSign, hLord, _dk, _ulSign); }catch(_){ flags.foreignSpouse=null; }
+      try{ flags.wealthThroughMarriage = buildWealthThroughMarriage(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hLord, _ulSign); }catch(_){ flags.wealthThroughMarriage=null; }
+    }
+    // ── Owner-only, ADULT-only: intimacy temperament + affair-ignition timing. Computed here;
+    // nulled for minors in the minor block below; stripped from the public packet by the gate.
+    if(ENABLE_OWNER_INTIMATE){
+      try{ flags.intimacyProfile = buildIntimacyProfile(d1P, gender); }catch(_){ flags.intimacyProfile=null; }
+      try{ flags.affairTiming = buildAffairTiming(flags.ownerSensitive&&flags.ownerSensitive.affairRisk, dashas, d1P, d1LagnaSign, hLord, birthDate); }catch(_){ flags.affairTiming=null; }
+    }
     // PD-level timing precision — ADD-ON, reversible via ENABLE_PD_TIMING; AD-level windows below
     // are left untouched. Adults only (minors never get a marriage-timing window).
     if(ENABLE_PD_TIMING){
@@ -4319,6 +4537,11 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       flags.marriageDelayGate=null;                // no delay gate / romance window for a child
       flags.marriageLifecycle=null;                // no romance/marriage lifecycle for a child
       flags.separationTiming=null;                 // no separation/dissolution read for a child, ever
+      flags.marriageNature=null;                   // no love/arranged-marriage read for a child
+      flags.foreignSpouse=null;                    // no foreign-spouse read for a child
+      flags.wealthThroughMarriage=null;            // no wealth-through-marriage read for a child
+      flags.intimacyProfile=null;                  // no intimacy read for a child, ever
+      flags.affairTiming=null;                     // no affair-timing read for a child, ever
       // The daughter's OWN relational temperament: the sign on her 7th house (how she approaches
       // close partnership) and her Venus (how she gives and receives affection) — translated into
       // her developmental style, never into a description of a partner.
@@ -4680,6 +4903,14 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   if(domainKey==="career"){
     const _ama=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Amatyakaraka")||{}).planet:null;
     try{ careerCompass = buildCareerCompass(hLord, lordPlacement, vargaChart, d9Houses, d9LagnaSign); }catch(_){ careerCompass=null; }
+    // ── SOP career depth: the full D10 surgical lens (separate layer), Karakamsha, AK–AmK.
+    if(ENABLE_D10_LENS){
+      try{ flags.careerDivisional = {
+        d10Lens: buildD10Lens(vargaChart, d1LagnaSign),
+        karakamsha: buildKarakamsha(charaKarakas, d9Houses, d9LagnaSign),
+        akAmk: buildAkAmkRelation(charaKarakas, d1P)
+      }; }catch(_){ flags.careerDivisional=null; }
+    }
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign, _ama, compound); }catch(_){}
     try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound); }catch(_){}
     try{ if(careerCompass) careerCompass.nakshatra = (compound&&compound.nakshatra||[]).filter(n=> n.planet===hLord || n.planet===_ama); }catch(_){}

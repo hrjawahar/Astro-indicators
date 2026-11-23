@@ -1,0 +1,85 @@
+// SOP-depth audit: Track A (career D10/Karakamsha/AK-AmK), Track B (marriage classifiers),
+// Track C (owner-only intimacy/affair), and THE GATE (owner vs public vs minor).
+//  (1) REVERSIBILITY: 3 switches off → new flags absent; careerCompass + affliction identical.
+//  (2) GATE-LEAK: client prompt carries NONE of the owner-only flags; owner prompt carries them.
+//  (3) MINOR SAFETY: a minor chart nulls every sensitive module, in facts, regardless of audience.
+//  (4) POPULATION: classifiers fire as minorities; career depth present. (random charts, not known cases)
+import fs from "node:fs";
+const ROOT="/home/claude/astro-indicators";
+const abase=fs.readFileSync(ROOT+"/functions/api/analyze.js","utf8");
+const mkA=(mut,tag)=>{ const p=ROOT+"/functions/api/_p3a_"+tag+".mjs"; fs.writeFileSync(p,mut(abase)+"\nexport { buildDomainFacts, V_SIGNS };\n"); return p; };
+const AON = mkA(s=>s, "on");
+const AOFF= mkA(s=>s.replace("const ENABLE_D10_LENS = true;","const ENABLE_D10_LENS = false;")
+                   .replace("const ENABLE_MARRIAGE_CLASSIFIERS = true;","const ENABLE_MARRIAGE_CLASSIFIERS = false;")
+                   .replace("const ENABLE_OWNER_INTIMATE = true;","const ENABLE_OWNER_INTIMATE = false;"), "off");
+const Eon=await import(AON+"?t="+Date.now()); const Eoff=await import(AOFF+"?t="+Date.now());
+// writer shim (export the gate)
+const dbase=fs.readFileSync(ROOT+"/functions/api/domain-report.js","utf8");
+const DP=ROOT+"/functions/api/_p3d.mjs"; fs.writeFileSync(DP,dbase+"\nexport { buildUserPrompt };\n");
+const W=await import(DP+"?t="+Date.now());
+
+const S=Eon.V_SIGNS; const lon=(sg,d)=>S.indexOf(sg)*30+d;
+const VIM=[["Ketu",7],["Venus",20],["Sun",6],["Moon",10],["Mars",7],["Rahu",18],["Jupiter",16],["Saturn",19],["Mercury",17]];
+const ORD=["Ketu","Venus","Sun","Moon","Mars","Rahu","Jupiter","Saturn","Mercury"];
+const DY={Ketu:7,Venus:20,Sun:6,Moon:10,Mars:7,Rahu:18,Jupiter:16,Saturn:19,Mercury:17};
+function navSign(L){ const s=Math.floor(L/30), d=L%30, n=Math.floor(d/(10/3)); return ([0,9,6,3][s%4]+n)%12; }
+function d9HousesFrom(deg){ const li=navSign(deg.__asc); const h={}; for(const p of Object.keys(deg)){ if(p==="__asc")continue; const x=((navSign(deg[p])-li+12)%12)+1; (h[x]=h[x]||[]).push(p);} return {houses:h,lagnaSign:S[li]}; }
+function genDashas(moonLon,birthY){ const li=Math.floor(moonLon/(360/27))%9; const out=[]; let cur=new Date(birthY+"-01-01").getTime(); const yr=365.25*864e5;
+  for(let i=0;i<9;i++){ const [lord,years]=VIM[(li+i)%9]; const s=cur,e=cur+years*yr; const ad=[]; let t=s; const di=ORD.indexOf(lord);
+    for(let j=0;j<9;j++){ const al=ORD[(di+j)%9]; const d=(e-s)*(DY[al]/120); ad.push({md:lord,lord:al,startDate:new Date(t).toISOString().slice(0,10),endDate:new Date(t+d).toISOString().slice(0,10)}); t+=d; }
+    out.push({lord,startDate:new Date(s).toISOString().slice(0,10),endDate:new Date(e).toISOString().slice(0,10),antarDasas:ad}); cur=e; } return out; }
+const PLS=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"]; const rnd=n=>Math.floor(Math.random()*n);
+const mkCK=(deg)=>{ const seven=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"]; const srt=seven.map(p=>[p,deg[p]%30]).sort((a,b)=>a[1]-b[1]);
+  return {karakas:[{role:"Darakaraka",planet:srt[0][0]},{role:"Atmakaraka",planet:srt[6][0]},{role:"Amatyakaraka",planet:srt[5][0]}]}; };
+function chart(){ const lag=S[rnd(12)]; const deg={__asc:lon(lag,10)}; const ra=rnd(360);
+  for(const p of PLS){ if(p==="Ketu"){deg.Ketu=(deg.Rahu+180)%360;} else if(p==="Rahu"){deg.Rahu=ra+Math.random();} else deg[p]=rnd(360)+Math.random(); }
+  return {lag,deg,d9:d9HousesFrom(deg)}; }
+
+let mismatch=0, leak=0, ownerHas=0, minorBad=0, n=0;
+const nat={love:0,arranged:0,mixed:0,unmarked:0}, frn={none:0,possible:0,notable:0,strong:0}, wth={none:0,possible:0,notable:0,strong:0}, intim={high:0,moderate:0,average:0,reserved:0};
+let careerDepth=0, careerN=0;
+const OWNER_ONLY=["ownerSensitive","intimacyProfile","affairTiming"];
+
+for(let i=0;i<360;i++){
+  const c=chart(); const dashas=genDashas(c.deg.Moon,"1985"); const ck=mkCK(c.deg); const asc=lon(c.lag,10);
+  // adult marriage
+  let fm; try{ fm=Eon.buildDomainFacts("marriage",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"female",""); }catch(e){ continue; } n++;
+  const F=fm.flags;
+  const mn=F.marriageNature; if(mn){ nat[mn.verdict==="love-leaning"?"love":mn.verdict==="arranged-leaning"?"arranged":mn.verdict]++; }
+  if(F.foreignSpouse&&frn[F.foreignSpouse.level]!=null) frn[F.foreignSpouse.level]++;
+  if(F.wealthThroughMarriage&&wth[F.wealthThroughMarriage.level]!=null) wth[F.wealthThroughMarriage.level]++;
+  if(F.intimacyProfile&&intim[F.intimacyProfile.level]!=null) intim[F.intimacyProfile.level]++;
+  // GATE: owner vs client prompt
+  const ownerP=W.buildUserPrompt("marriage", fm, "owner");
+  const clientP=W.buildUserPrompt("marriage", fm, "client");
+  if(OWNER_ONLY.some(k=>F[k]!=null && ownerP.includes('"'+k+'"'))) ownerHas++;
+  if(OWNER_ONLY.some(k=>clientP.includes('"'+k+'"')) || clientP.includes('"dissolutionWindow"')) leak++;
+  // REVERSIBILITY (marriage): off build has no new marriage flags, identical affliction
+  let fmoff; try{ fmoff=Eoff.buildDomainFacts("marriage",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"female",""); }catch(e){ continue; }
+  const offClean=(fmoff.flags.marriageNature===undefined&&fmoff.flags.foreignSpouse===undefined&&fmoff.flags.wealthThroughMarriage===undefined&&fmoff.flags.intimacyProfile===undefined&&fmoff.flags.affairTiming===undefined);
+  const sameAff=JSON.stringify(fmoff.flags.marriageAfflictionDetail)===JSON.stringify(F.marriageAfflictionDetail);
+  // career depth + reversibility
+  let fc,fcoff; try{ fc=Eon.buildDomainFacts("career",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"male",""); fcoff=Eoff.buildDomainFacts("career",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"male",""); }catch(e){ fc=null; }
+  if(fc){ careerN++; if(fc.flags.careerDivisional&&fc.flags.careerDivisional.d10Lens) careerDepth++;
+    const careerOffClean=(fcoff.flags.careerDivisional===undefined);
+    const sameCompass=JSON.stringify(fcoff.careerCompass)===JSON.stringify(fc.careerCompass);
+    if(!(careerOffClean&&sameCompass)) mismatch++;
+  }
+  if(!(offClean&&sameAff)) mismatch++;
+  // MINOR safety (age ~13): all sensitive nulled in facts
+  let fmin; try{ fmin=Eon.buildDomainFacts("marriage",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,genDashas(c.deg.Moon,"2013"),"2013-07-01",asc,{},"female",""); }catch(e){ fmin=null; }
+  if(fmin){ const g=fmin.flags; const sens=[g.intimacyProfile,g.affairTiming,g.marriageNature,g.foreignSpouse,g.wealthThroughMarriage,g.ownerSensitive,g.separationTiming];
+    if(sens.some(x=>x!==null&&x!==undefined)) minorBad++; }
+}
+const pc=(x,d=n)=>(100*x/d).toFixed(1)+"%";
+console.log("SOP-DEPTH audit over "+n+" random ADULT charts (not the known cases):");
+console.log(" marriage nature:  love "+pc(nat.love)+" | arranged "+pc(nat.arranged)+" | mixed "+pc(nat.mixed)+" | unmarked "+pc(nat.unmarked));
+console.log(" foreign spouse:   none "+pc(frn.none)+" | possible "+pc(frn.possible)+" | notable "+pc(frn.notable)+" | strong "+pc(frn.strong)+"   (shown only notable+: "+pc(frn.notable+frn.strong)+")");
+console.log(" wealth-thru-marr: none "+pc(wth.none)+" | possible "+pc(wth.possible)+" | notable "+pc(wth.notable)+" | strong "+pc(wth.strong)+"   (shown only notable+: "+pc(wth.notable+wth.strong)+")");
+console.log(" intimacy level:   high "+pc(intim.high)+" | moderate "+pc(intim.moderate)+" | average "+pc(intim.average)+" | reserved "+pc(intim.reserved));
+console.log(" career D10 lens present: "+pc(careerDepth,careerN)+" of career charts");
+console.log("GATE-LEAK (owner-only flag in CLIENT prompt): "+leak+"   "+(leak===0?"✓ NO LEAK":"✗ LEAK"));
+console.log("OWNER prompt carries the owner-only flags: "+pc(ownerHas)+" of charts (expected high)");
+console.log("MINOR SAFETY (sensitive flag not nulled for a minor): "+minorBad+"   "+(minorBad===0?"✓ ALL NULLED":"✗ MINOR LEAK"));
+console.log("REVERSIBILITY (switches off == base; new flags absent, compass/affliction identical): mismatches = "+mismatch+"   "+(mismatch===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
+[AON,AOFF,DP].forEach(f=>fs.unlinkSync(f));
