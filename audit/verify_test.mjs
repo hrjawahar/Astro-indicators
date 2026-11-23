@@ -27,10 +27,14 @@ expect("legitimate all-clear when severity=clear NOT flagged", !has(verifyReport
 // ---- MINOR MODE ----
 console.log("MINOR MODE:");
 let fminor={d1:{lagnaSign:"Scorpio",placements:{},occupants:[]},flags:{minorMarriageMode:true,marriageAfflictionDetail:{severity:"strong",factors:[]}}};
-expect("'your husband will be' spouse portrait flagged", has(verifyReportFaithfulness("marriage",fminor,sec("Your husband will be a strong-willed person.")),"minor-mode"));
-expect("'her future husband' flagged", has(verifyReportFaithfulness("marriage",fminor,sec("Her future husband is likely to be older.")),"minor-mode"));
-expect("'second marriage' event flagged", has(verifyReportFaithfulness("marriage",fminor,sec("A second marriage is possible later in life.")),"minor-mode"));
-expect("dated marriage timing flagged", has(verifyReportFaithfulness("marriage",fminor,sec("She is likely to marry around 2035.")),"minor-mode"));
+// NEW POLICY (life-event overview for parents): adulthood partner nature, adulthood timing and
+// second marriage are ALLOWED for a minor; only sexual / affair / pre-18 content is barred.
+expect("sexual/intimacy content flagged", has(verifyReportFaithfulness("marriage",fminor,sec("Her intimacy and sexual stamina will be strong.")),"minor-mode"));
+expect("affair/infidelity content flagged", has(verifyReportFaithfulness("marriage",fminor,sec("There is a risk of an extramarital affair.")),"minor-mode"));
+expect("current romantic framing (boyfriend) flagged", has(verifyReportFaithfulness("marriage",fminor,sec("She may have a boyfriend soon.")),"minor-mode"));
+expect("relationship before age 18 flagged", has(verifyReportFaithfulness("marriage",fminor,sec("A relationship as a teenager is likely.")),"minor-mode"));
+expect("adulthood spouse-nature NOT flagged (allowed life event)", !has(verifyReportFaithfulness("marriage",fminor,sec("In adulthood, your future partner is likely to be steady and older.")),"minor-mode"));
+expect("second marriage as life event NOT flagged", !has(verifyReportFaithfulness("marriage",fminor,sec("A second significant union later in adult life is possible.")),"minor-mode"));
 expect("guardian temperament note NOT flagged", !has(verifyReportFaithfulness("marriage",fminor,sec("For the parents: the chart shows a strong-willed temperament to channel with patience.")),"minor-mode"));
 expect("forward-looking coaching about future partnerships NOT flagged", !has(verifyReportFaithfulness("marriage",fminor,sec("As she grows, her close relationships may ask for patience; nurturing emotional security now will help her future partnerships be steady and healthy.")),"minor-mode"));
 expect("general 'healthy marriage later' (no date/spouse) NOT flagged", !has(verifyReportFaithfulness("marriage",fminor,sec("The groundwork you lay now supports a healthy marriage later in her life.")),"minor-mode"));

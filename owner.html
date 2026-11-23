@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Owner Access — AstroIndicators</title>
+<style>
+  :root { --bg:#0e1117; --card:#161b22; --line:#2a313c; --fg:#e6edf3; --muted:#9aa4b2; --accent:#d4a84b; --ok:#3fb950; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; display:flex; min-height:100vh; align-items:center; justify-content:center; padding:24px; }
+  .card { width:100%; max-width:460px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; }
+  input[type=password], input[type=text] { width:100%; padding:11px 12px; background:#0b0e14; border:1px solid var(--line); border-radius:9px; color:var(--fg); font-size:15px; }
+  .row { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  button { flex:1; min-width:120px; padding:11px 14px; border-radius:9px; border:1px solid var(--line); background:var(--accent); color:#1a1200; font-weight:600; font-size:15px; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--muted); }
+  button:disabled { opacity:.6; cursor:default; }
+  .status { margin-top:18px; font-size:14px; padding:11px 12px; border-radius:9px; display:none; }
+  .status.show { display:block; }
+  .status.ok { background:rgba(63,185,80,.12); border:1px solid var(--ok); color:#7ee787; }
+  .status.bad { background:rgba(248,81,73,.12); border:1px solid var(--bad); color:#ff9a93; }
+  .status.info { background:rgba(212,168,75,.10); border:1px solid var(--accent); color:#e8c983; }
+  a.applink { display:inline-block; margin-top:14px; color:var(--accent); text-decoration:none; font-weight:600; }
+  .foot { margin-top:18px; font-size:12px; color:var(--muted); line-height:1.5; }
+  .chk { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; vertical-align:middle; }
+  .chk.on { background:var(--ok); } .chk.off { background:var(--bad); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Owner access</h1>
+    <p class="sub">Enter your owner key once. It is stored only in this browser and never appears in the site's code. Reports you generate here come back as the full owner edition.</p>
+
+    <div id="current" class="status info"></div>
+
+    <label for="k">Owner key</label>
+    <input id="k" type="password" autocomplete="off" spellcheck="false" placeholder="your OWNER_REPORT_KEY" />
+
+    <div class="row">
+      <button id="save">Verify &amp; activate</button>
+      <button id="show" class="ghost" type="button">Show</button>
+      <button id="clear" class="ghost" type="button">Turn off</button>
+    </div>
+
+    <div id="status" class="status"></div>
+    <a class="applink" id="toApp" href="/">Go to the report app →</a>
+
+    <p class="foot">The key is checked against the server's <code>OWNER_REPORT_KEY</code> (kept separate from the discount key). This page only confirms a match — it never shows or stores the server's value. Clear it on a shared device.</p>
+  </div>
+
+<script>
+(function(){
+  var KEY = "ai_owner_key";
+  function get(){ try { return (localStorage.getItem(KEY)||"").trim(); } catch(e){ return ""; } }
+  function cur(){
+    var c = document.getElementById("current");
+    var has = !!get();
+    c.className = "status info show";
+    c.innerHTML = '<span class="chk '+(has?"on":"off")+'"></span>' + (has ? "Owner mode is ON in this browser." : "Owner mode is OFF in this browser.");
+  }
+  function setStatus(kind, msg){
+    var s = document.getElementById("status");
+    s.className = "status show " + kind;
+    s.textContent = msg;
+  }
+  document.getElementById("show").onclick = function(){
+    var i = document.getElementById("k");
+    i.type = i.type === "password" ? "text" : "password";
+    this.textContent = i.type === "password" ? "Show" : "Hide";
+  };
+  document.getElementById("clear").onclick = function(){
+    try { localStorage.removeItem(KEY); } catch(e){}
+    setStatus("info", "Owner mode turned off in this browser.");
+    cur();
+  };
+  document.getElementById("save").onclick = async function(){
+    var btn = this, k = document.getElementById("k").value.trim();
+    if (!k){ setStatus("bad", "Enter your owner key first."); return; }
+    btn.disabled = true; btn.textContent = "Checking…";
+    try {
+      var res = await fetch("/api/ownercheck", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ key:k }) });
+      var data = await res.json();
+      if (!data.configured){ setStatus("bad", "The server has no OWNER_REPORT_KEY set yet (or it's under 16 characters). Set it in Cloudflare and redeploy, then try again."); }
+      else if (!data.match){ setStatus("bad", "That key doesn't match the server's OWNER_REPORT_KEY. Check for stray spaces or angle brackets."); }
+      else {
+        try { localStorage.setItem(KEY, k); } catch(e){}
+        setStatus("ok", "Verified. Owner mode is now active in this browser — open the report app and generate as usual.");
+      }
+    } catch(e){
+      setStatus("bad", "Couldn't reach the server to verify. Try again in a moment.");
+    } finally { btn.disabled = false; btn.textContent = "Verify & activate"; cur(); }
+  };
+  // prefill status; if a key is already stored, offer it masked
+  if (get()) document.getElementById("k").value = get();
+  cur();
+})();
+</script>
+</body>
+</html>

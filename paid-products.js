@@ -652,8 +652,18 @@
       if (!jsonStr) throw new Error(INTERRUPTED);   // stream cut before the final marker
       return JSON.parse(jsonStr);
     };
-    try { return await once(); }
-    catch (e) { if (String(e && e.message) === INTERRUPTED) return await once(); throw e; }  // one auto-retry on a dropped stream
+    // Auto-retry transient failures — a dropped stream (edge timeout) OR a 5xx (preview redeploy,
+    // Cloudflare hiccup) — up to 3 attempts with short backoff. Auth/validation (4xx) never retried.
+    let lastErr;
+    for (let i = 0; i < 3; i++) {
+      try { return await once(); }
+      catch (e) {
+        lastErr = e; const m = String((e && e.message) || "");
+        if ((m === INTERRUPTED || /^Server error \(5\d\d\)/.test(m)) && i < 2) { await new Promise(s => setTimeout(s, 900 * (i + 1))); continue; }
+        throw e;
+      }
+    }
+    throw lastErr;
   }
 
   async function openTransitReport() {
@@ -2644,10 +2654,26 @@
     if (w9 && !w9.firstChild) w9.innerHTML = chartSVG(m.d9.lagnaSign, m.d9.houses);
   }
 
+  // Fit each visible page's body to the fixed page box: shrink the font just enough that the
+  // content fits with NO manual scroll and NO top/bottom overshoot. Only if it still can't fit at
+  // the floor do we fall back to a quiet scroll. Deterministic — runs on every render/flip.
+  function fitPage(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll(".pg .bd").forEach(function (bd) {
+      bd.style.fontSize = ""; bd.style.lineHeight = ""; bd.style.overflowY = "hidden";
+      var size = parseFloat(getComputedStyle(bd).fontSize) || 13.6;
+      var floor = size * 0.8, guard = 0;
+      while (bd.scrollHeight > bd.clientHeight + 1 && size > floor && guard < 28) {
+        size -= 0.4; guard++; bd.style.fontSize = size + "px";
+      }
+      if (bd.scrollHeight > bd.clientHeight + 1) bd.style.overflowY = "auto";  // last resort only
+    });
+  }
   function bookRender() {
     const P = _book.pages;
     $("fbStatic").innerHTML = P[_book.idx];
     paintCharts();
+    requestAnimationFrame(function () { fitPage($("fbStatic")); });
 
     $("fbPrev").disabled = _book.idx === 0;
     $("fbNext").disabled = _book.idx === P.length - 1;
@@ -2668,6 +2694,7 @@
     paintCharts();
     $("fbLeafFront").innerHTML = forward ? P[_book.idx] : P[to];
     $("fbLeafBack").innerHTML  = forward ? P[to] : P[_book.idx];
+    requestAnimationFrame(function () { fitPage($("fbStatic")); fitPage($("fbLeafFront")); fitPage($("fbLeafBack")); });
     leaf.style.transition = "none";
     leaf.style.transform = "rotateY(" + (forward ? 0 : -180) + "deg)";
     leaf.style.display = "block";

@@ -3979,6 +3979,41 @@ function buildAkAmkRelation(charaKarakas, d1P){
   }catch(_){ return null; }
 }
 
+// ── Career: concrete vocation fields (planet→field families, refined by the 10th-lord's element) ──
+const _CAREER_FIELDS = {
+  Sun:["government & public administration","leadership & senior management","politics or civil services","power, energy & authority-linked roles"],
+  Moon:["public-facing & community roles","hospitality, food & beverages","healthcare & caregiving","travel, consumer goods & residential real estate"],
+  Mars:["engineering & technical fields","defence, police or security","surgery & emergency medicine","construction, real estate & manufacturing","sports & physical professions"],
+  Mercury:["commerce, trading & accounting","writing, editing & communications","software, data & analytics","consulting & advisory","technical teaching"],
+  Jupiter:["teaching & academia","law & the judiciary","finance, banking & wealth advisory","counselling, coaching & guidance","publishing & knowledge work"],
+  Venus:["arts, design & creative fields","media & entertainment","fashion, beauty & luxury goods","hospitality & diplomacy","music & performance"],
+  Saturn:["infrastructure, operations & logistics","mining, oil, steel & heavy industry","agriculture & land-based work","long-service institutions & the judiciary","process manufacturing"],
+  Rahu:["technology & IT","aviation, import-export & foreign trade","pharmaceuticals & chemicals","markets, speculation & new-age ventures","electronics & disruptive fields"],
+  Ketu:["IT & research","pharma, medicine & healing","spiritual, occult & niche specialties","forensics & investigation"],
+};
+const _ELEMENT_FLAVOR = { fire:"dynamic, leadership-led or entrepreneurial", earth:"structured, material and operational", air:"communication-, network- or technology-driven", water:"creative, caring or research-oriented" };
+const _SIGN_ELEMENT = { Aries:"fire",Leo:"fire",Sagittarius:"fire", Taurus:"earth",Virgo:"earth",Capricorn:"earth", Gemini:"air",Libra:"air",Aquarius:"air", Cancer:"water",Scorpio:"water",Pisces:"water" };
+function buildCareerFields(ctx){
+  try{
+    const { tenthLord, d1P, vargaChart, charaKarakas } = ctx;
+    if(!tenthLord || !d1P) return null;
+    const amk=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role==="Amatyakaraka")||{}).planet:null;
+    const d10TenthLord=(vargaChart&&vargaChart.lagnaSign)? V_LORD[V_SIGNS[(V_SIGNS.indexOf(vargaChart.lagnaSign)+9)%12]] : null;
+    const tenthOcc=Object.keys(d1P).filter(p=> d1P[p] && d1P[p].house===10);
+    const order=[tenthLord, d10TenthLord, amk, tenthOcc[0]].filter(Boolean);   // most-weighted significators first
+    const seen=new Set(); const fields=[];
+    for(const p of order){ const fam=_CAREER_FIELDS[p]; if(!fam) continue;
+      for(const f of fam.slice(0,2)){ if(!seen.has(f)){ seen.add(f); fields.push(f); } if(fields.length>=5) break; }
+      if(fields.length>=5) break;
+    }
+    const sign=d1P[tenthLord] && d1P[tenthLord].sign; const elem=sign? _SIGN_ELEMENT[sign] : null;
+    if(!fields.length) return null;
+    return { tenthLord, d10TenthLord, amatyakaraka:amk, occupant:tenthOcc[0]||null, fields:fields.slice(0,5),
+      elementFlavor: elem? _ELEMENT_FLAVOR[elem] : null,
+      note:"Concrete field families indicated by your 10th lord "+tenthLord+(d10TenthLord?(", the D10 10th lord "+d10TenthLord):"")+(amk?(" and your Amatyakaraka "+amk):"")+" — the most chart-aligned directions (a strong probability, not the only possible paths)." };
+  }catch(_){ return null; }
+}
+
 // ── Marriage: Upapada (Arudha of the 12th) + nature / foreign / wealth classifiers ──
 function _arudhaSign(houseNum, lagnaSign, d1P){
   try{
@@ -4524,27 +4559,27 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // into concrete, age-appropriate coaching. Honest about cautions, never a verdict, never
     // romantic prediction.
     if(currentAge!=null && currentAge < 18){
-      flags.minorMarriageMode=true;
+      flags.minorMarriageMode=true;                // this chart is a minor (parents are the usual readers)
+      flags.minorLifeEventMode=true;               // POLICY: a forward-looking life-event OVERVIEW is allowed
       flags.marriageReader="guardian";
-      flags.partnerProfile=null;                   // no spouse portrait for a child
-      flags.secondChapter=null;                    // no second-marriage-as-event
-      flags.maritalInference=null;
-      flags.remarriageIndicated=false;
-      flags.manglik=null;                          // a marriage-matching verdict, not childhood coaching
-      flags.ownerSensitive=null;                   // no affair/separation read for a child, ever
-      flags.marriageTiming=null;                   // no marriage-timing window for a child
-      flags.marriageADWindows=null;                // no marriage-timing window for a child
-      flags.marriageDelayGate=null;                // no delay gate / romance window for a child
-      flags.marriageLifecycle=null;                // no romance/marriage lifecycle for a child
-      flags.separationTiming=null;                 // no separation/dissolution read for a child, ever
-      flags.marriageNature=null;                   // no love/arranged-marriage read for a child
-      flags.foreignSpouse=null;                    // no foreign-spouse read for a child
-      flags.wealthThroughMarriage=null;            // no wealth-through-marriage read for a child
-      flags.intimacyProfile=null;                  // no intimacy read for a child, ever
-      flags.affairTiming=null;                     // no affair-timing read for a child, ever
-      // The daughter's OWN relational temperament: the sign on her 7th house (how she approaches
-      // close partnership) and her Venus (how she gives and receives affection) — translated into
-      // her developmental style, never into a description of a partner.
+      // SEXUAL-NATURE modules are NEVER produced for a minor, in ANY mode (owner included). This is
+      // the one firm line: no intimacy/stamina read, no affair/infidelity read about a child.
+      flags.intimacyProfile=null;
+      flags.affairTiming=null;
+      // Keep the structural SEPARATION read (a life event parents may ask about) but drop the AFFAIR
+      // sub-read from the owner-sensitive block.
+      if(flags.ownerSensitive) flags.ownerSensitive={ ...flags.ownerSensitive, affairRisk:null };
+      // Never surface a relationship/romance window that falls before 18 — all relationship and
+      // marriage material for a minor is framed in ADULTHOOD only.
+      if(flags.marriageLifecycle && Array.isArray(flags.marriageLifecycle.romanceWindows)){
+        flags.marriageLifecycle={ ...flags.marriageLifecycle,
+          romanceWindows: flags.marriageLifecycle.romanceWindows.filter(w=> w.age==null || w.age>=18) };
+      }
+      // EVERYTHING ELSE IS KEPT as a parent-consultation life-event overview: partnerProfile,
+      // secondChapter, maritalInference, remarriageIndicated, manglik, marriageADWindows,
+      // marriageDelayGate, marriageLifecycle, separationTiming, marriageNature, foreignSpouse,
+      // wealthThroughMarriage. The writer frames all timing as adulthood, non-romantic, with the
+      // standing disclaimer; the paid edition renders it subtly, the owner edition in full.
       const _lagIdx=V_SIGNS.indexOf(d1LagnaSign);
       const _seventhSign = _lagIdx>=0 ? V_SIGNS[(_lagIdx+6)%12] : null;
       const _venusSign = d1P.Venus ? d1P.Venus.sign : null;
@@ -4555,7 +4590,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
           approachSign:_seventhSign, approach:_seventhSign?SIGN_TEMPERAMENT[_seventhSign]:null,
           affectionSign:_venusSign, affection:_venusSign?SIGN_TEMPERAMENT[_venusSign]:null
         },
-        framing:"Addressed to the young native directly ('you'), for consistency with every other domain: a forward-looking DEVELOPMENTAL note on the groundwork of the relationship area of life, for self-understanding and healthy habits, not prediction. Because the native is under 18 it does NOT portray a future spouse, give marriage timing, or raise events — none of that belongs in a minor's reading. It describes their OWN likely relational temperament (how they tend to approach closeness, affection, independence and compromise) and the growth areas the chart suggests, with age-appropriate things to build now (emotional security, healthy communication, patience, a balanced sense of self). Tendencies to shape, never fixed outcomes."
+        framing:"This chart is a minor; the usual reader is a parent during consultation. Present the relationship/marriage material as a FORWARD-LOOKING LIFE-EVENT OVERVIEW for the parents — every timing framed as happening in ADULTHOOD (never as a minor), non-romantic and non-sexual in tone, with the standing disclaimer that these are probabilities to guide nurturing, not fixed outcomes. The sexual-nature modules (intimacy, affair) are deliberately absent and must never be inferred. Also surface the child's OWN relational TEMPERAMENT (how they approach closeness, affection, independence and compromise) as age-appropriate coaching."
       };
     }
   }
@@ -4910,6 +4945,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         karakamsha: buildKarakamsha(charaKarakas, d9Houses, d9LagnaSign),
         akAmk: buildAkAmkRelation(charaKarakas, d1P)
       }; }catch(_){ flags.careerDivisional=null; }
+      try{ flags.careerFields = buildCareerFields({ tenthLord:hLord, d1P, vargaChart, charaKarakas }); }catch(_){ flags.careerFields=null; }
     }
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign, _ama, compound); }catch(_){}
     try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound); }catch(_){}

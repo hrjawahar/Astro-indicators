@@ -110,22 +110,22 @@ function checkAllClear(text, facts, out){
 // ── 3. MINOR-MODE faithfulness (child-safety hard gate) ──────────────────────────
 function checkMinorMode(text, facts, out){
   if(!(facts && facts.flags && facts.flags.minorMarriageMode)) return;
-  // Guardian mode is forward-looking parenting guidance — it MAY discuss her future relational
-  // temperament, partnership tendencies and coaching. Only the genuinely inappropriate specifics
-  // are barred: a spouse portrait, dated romantic/marriage timing, a second-marriage/divorce
-  // event prediction, a romantic framing of the child, or romantic remedies.
+  // POLICY: a minor's reading MAY give a forward-looking life-event OVERVIEW for the parents —
+  // future partner nature, adulthood marriage timing, foreign/wealth/second-marriage, separation as
+  // a life event — framed in adulthood. Only the genuinely child-unsafe specifics are barred, and
+  // they are barred in EVERY mode (owner included): any sexual / intimacy content about the child,
+  // any affair / infidelity content, a current romantic framing of the child, and any relationship
+  // or marriage placed before age 18.
   const BAD = [
-    [/\b(?:your|her|the future)\s+(?:husband|wife)\b/i, "a spouse portrait ('your/her husband/wife')"],
-    [/\b(?:husband|wife)\b[^.]{0,40}?\b(?:will be|is likely|tends to be|will come|you will|she will)\b/i, "a spouse prediction"],
-    [/\b(?:marry|marriage|wedding|married)\b[^.]{0,40}?\b(?:19|20)\d{2}\b/i, "dated marriage timing"],
-    [/\b(?:marry|married|marriage|wedding)\b[^.]{0,30}?\bage\s+\d/i, "an age for marriage"],
-    [/\bsecond marriage\b|\bre-?marriage\b|\bwill (?:divorce|remarry)\b/i, "a second-marriage / divorce event prediction"],
-    [/\bromantic (?:life|relationship|partner|remedy|remedies)\b|\blove (?:affair|marriage)\b|\bboyfriend\b|\bgirlfriend\b/i, "romantic framing of a child"],
+    [/\b(?:intimac|sexual|sex life|stamina|lovemaking|libido|in the bedroom|carnal)\w*/i, "sexual / intimacy content about a minor"],
+    [/\b(?:affair|infidelit|unfaithful|extramarital|adulter|cheat(?:ing|s)?)\b/i, "affair / infidelity content about a minor"],
+    [/\b(?:boyfriend|girlfriend)\b|\byour (?:current|teenage) (?:romance|relationship)\b/i, "a current romantic framing of the child"],
+    [/\b(?:marry|married|marriage|wedding|romance|relationship)\b[^.]{0,36}?\b(?:at (?:age )?1[0-7]\b|as a (?:teenager|child|minor)|before (?:you turn|turning) 18|while (?:still )?(?:a|in) (?:minor|school))/i, "a relationship or marriage placed before age 18"],
   ];
   for(const [re, label] of BAD){
     const m = re.exec(text);
     if(m){ out.push({ type:"minor-mode", severity:"critical",
-      detail:"The native is a minor (guardian mode): "+label+" is not allowed. The prose uses '"+m[0].trim()+"'. Keep to her developmental temperament and parent coaching.",
+      detail:"The native is a minor: "+label+" is barred in all modes. The prose uses '"+m[0].trim()+"'. Keep marriage/relationship material in an adulthood frame and never sexual.",
       evidence: m[0].trim().slice(0,100) }); }
   }
 }
@@ -289,5 +289,5 @@ export function violationCorrectionNote(violations){
   const lines = violations.map(v=>"- ["+v.type.toUpperCase()+"] "+v.detail+(v.evidence?"  (you wrote: \""+v.evidence+"\")":""));
   return ["Your previous draft contained FACTUAL errors against the chart. Regenerate the FULL report, keeping your voice and structure, but FIX exactly these — do not repeat them, and change nothing else that was correct:",
           ...lines,
-          "Use ONLY the planets, lordships, dignities and timing windows given in the facts. Never rename a house's lord, never give an all-clear the facts do not support, and (for a minor) never use spouse/romantic language."].join("\n");
+          "Use ONLY the planets, lordships, dignities and timing windows given in the facts. Never rename a house's lord, never give an all-clear the facts do not support, and (for a minor) keep all marriage/relationship material in an adulthood frame with never any sexual, intimacy or affair content."].join("\n");
 }

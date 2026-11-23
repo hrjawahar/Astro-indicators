@@ -642,8 +642,22 @@ async function generate() {
   genText.innerHTML = `<span class="spinner"></span>Calculating chart...`;
   setStatus("Step 1 of 2 — Computing planetary positions via Swiss Ephemeris...", "loading");
 
+  // Transient 5xx / network blips (preview redeploys, Cloudflare edge hiccups) self-heal with a
+  // short backoff instead of surfacing as a scary 503 HTML page. 4xx (incl. auth) never retried.
+  const _fetchRetry = async (url, opts, tries = 3) => {
+    let last;
+    for (let i = 0; i < tries; i++) {
+      try {
+        const r = await fetch(url, opts);
+        if (r.status >= 500 && r.status <= 599 && i < tries - 1) { await new Promise(s => setTimeout(s, 800 * (i + 1))); continue; }
+        return r;
+      } catch (e) { last = e; if (i < tries - 1) { await new Promise(s => setTimeout(s, 800 * (i + 1))); continue; } throw e; }
+    }
+    if (last) throw last;
+  };
+
   try {
-    const chartRes = await fetch("/api/chart", {
+    const chartRes = await _fetchRetry("/api/chart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, utcOffset: form.utcOffset ? parseFloat(form.utcOffset) : null })
@@ -675,7 +689,7 @@ async function generate() {
       maritalStatus: form.maritalStatus    || "",
     };
 
-    const analysisRes = await fetch("/api/analyze", {
+    const analysisRes = await _fetchRetry("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(analysisPayload)

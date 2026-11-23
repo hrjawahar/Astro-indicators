@@ -35,7 +35,7 @@ function chart(){ const lag=S[rnd(12)]; const deg={__asc:lon(lag,10)}; const ra=
   for(const p of PLS){ if(p==="Ketu"){deg.Ketu=(deg.Rahu+180)%360;} else if(p==="Rahu"){deg.Rahu=ra+Math.random();} else deg[p]=rnd(360)+Math.random(); }
   return {lag,deg,d9:d9HousesFrom(deg)}; }
 
-let mismatch=0, leak=0, ownerHas=0, minorBad=0, n=0;
+let mismatch=0, leak=0, ownerHas=0, minorSexualLeak=0, minorLifeOK=0, minorPre18=0, careerFieldsN=0, n=0;
 const nat={love:0,arranged:0,mixed:0,unmarked:0}, frn={none:0,possible:0,notable:0,strong:0}, wth={none:0,possible:0,notable:0,strong:0}, intim={high:0,moderate:0,average:0,reserved:0};
 let careerDepth=0, careerN=0;
 const OWNER_ONLY=["ownerSensitive","intimacyProfile","affairTiming"];
@@ -61,15 +61,24 @@ for(let i=0;i<360;i++){
   // career depth + reversibility
   let fc,fcoff; try{ fc=Eon.buildDomainFacts("career",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"male",""); fcoff=Eoff.buildDomainFacts("career",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"male",""); }catch(e){ fc=null; }
   if(fc){ careerN++; if(fc.flags.careerDivisional&&fc.flags.careerDivisional.d10Lens) careerDepth++;
-    const careerOffClean=(fcoff.flags.careerDivisional===undefined);
+    const careerOffClean=(fcoff.flags.careerDivisional===undefined && fcoff.flags.careerFields===undefined);
     const sameCompass=JSON.stringify(fcoff.careerCompass)===JSON.stringify(fc.careerCompass);
     if(!(careerOffClean&&sameCompass)) mismatch++;
   }
   if(!(offClean&&sameAff)) mismatch++;
   // MINOR safety (age ~13): all sensitive nulled in facts
   let fmin; try{ fmin=Eon.buildDomainFacts("marriage",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,genDashas(c.deg.Moon,"2013"),"2013-07-01",asc,{},"female",""); }catch(e){ fmin=null; }
-  if(fmin){ const g=fmin.flags; const sens=[g.intimacyProfile,g.affairTiming,g.marriageNature,g.foreignSpouse,g.wealthThroughMarriage,g.ownerSensitive,g.separationTiming];
-    if(sens.some(x=>x!==null&&x!==undefined)) minorBad++; }
+  if(fmin){ const g=fmin.flags;
+    // NEW POLICY: sexual modules MUST be absent for a minor (owner included); life-event facts KEPT.
+    const sexual = (g.intimacyProfile!==null && g.intimacyProfile!==undefined)
+      || (g.affairTiming!==null && g.affairTiming!==undefined)
+      || (g.ownerSensitive && g.ownerSensitive.affairRisk!=null);
+    if(sexual) minorSexualLeak++;
+    const lifeEvent = !!(g.marriageLifecycle || g.partnerProfile || g.foreignSpouse || g.marriageADWindows || g.marriageNature || g.separationTiming);
+    if(lifeEvent) minorLifeOK++;
+    if(g.marriageLifecycle && Array.isArray(g.marriageLifecycle.romanceWindows) && g.marriageLifecycle.romanceWindows.some(w=>w.age!=null && w.age<18)) minorPre18++;
+  }
+  if(fc && fc.flags.careerFields && Array.isArray(fc.flags.careerFields.fields) && fc.flags.careerFields.fields.length) careerFieldsN++;
 }
 const pc=(x,d=n)=>(100*x/d).toFixed(1)+"%";
 console.log("SOP-DEPTH audit over "+n+" random ADULT charts (not the known cases):");
@@ -80,6 +89,9 @@ console.log(" intimacy level:   high "+pc(intim.high)+" | moderate "+pc(intim.mo
 console.log(" career D10 lens present: "+pc(careerDepth,careerN)+" of career charts");
 console.log("GATE-LEAK (owner-only flag in CLIENT prompt): "+leak+"   "+(leak===0?"✓ NO LEAK":"✗ LEAK"));
 console.log("OWNER prompt carries the owner-only flags: "+pc(ownerHas)+" of charts (expected high)");
-console.log("MINOR SAFETY (sensitive flag not nulled for a minor): "+minorBad+"   "+(minorBad===0?"✓ ALL NULLED":"✗ MINOR LEAK"));
+console.log("MINOR — sexual modules present (MUST be 0): "+minorSexualLeak+"   "+(minorSexualLeak===0?"✓ NONE":"✗ SEXUAL LEAK"));
+console.log("MINOR — life-event overview present: "+pc(minorLifeOK)+" of minor charts (policy: kept for parent consultation)");
+console.log("MINOR — relationship window before age 18 (MUST be 0): "+minorPre18+"   "+(minorPre18===0?"✓ NONE":"✗ PRE-18"));
+console.log("CAREER — concrete fields produced: "+pc(careerFieldsN,careerN)+" of career charts");
 console.log("REVERSIBILITY (switches off == base; new flags absent, compass/affliction identical): mismatches = "+mismatch+"   "+(mismatch===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
 [AON,AOFF,DP].forEach(f=>fs.unlinkSync(f));
