@@ -3250,6 +3250,11 @@ function buildManglikCheckpoint(d1P, d1LagnaSign){
     if(mars.sign==="Cancer") soft("Mars debilitated in Cancer","some schools treat debilitated Mars as cancelling the dosha, others as weak rather than absent");
     if(["Leo","Aquarius"].includes(mars.sign)) soft("Mars in "+mars.sign,"several commentaries hold Mars here produces no dosha");
     if(venus && venus.house===mars.house) soft("Venus conjunct Mars","read by some as mitigating, by others as intensifying desire — weigh with care");
+    // V10: classical HOUSE-SPECIFIC sign exemptions (BPHS / Muhurta Chintamani) — Mars in a given
+    // dosha house in a specific sign is held NOT to cause the dosha. A key false-alarm reducer.
+    const HOUSE_SIGN_EXEMPT = { 2:["Gemini","Virgo"], 4:["Aries","Scorpio"], 7:["Cancer","Capricorn"], 8:["Sagittarius","Pisces"], 12:["Taurus","Libra"] };
+    if(HOUSE_SIGN_EXEMPT[mars.house] && HOUSE_SIGN_EXEMPT[mars.house].includes(mars.sign))
+      full("Mars in the "+ordinalD(mars.house)+" house in "+mars.sign, "a classical house-specific exemption — Mars in this house in "+mars.sign+" is traditionally held not to cause the dosha");
     const fullCancellers = cancellations.filter(c=>c.applies==="full");
     const partialCancellers = cancellations.filter(c=>c.applies==="partial");
     const contestedCancellers = cancellations.filter(c=>c.applies==="contested");
@@ -4180,6 +4185,90 @@ function buildWealthThroughMarriage(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hLo
   }catch(_){ return null; }
 }
 
+// ── Marriage ARCHETYPE heading — a synthesized characterizing title (V10 style) ──
+// Composes an evocative-but-grounded headline (e.g. "Karmic / Unconventional Union with Second-
+// Half Healing") from signatures the engine already holds: nodes / retrograde on the 7th axis
+// (karmic), foreign/cross-cultural spouse, love-vs-arranged, Saturn / delay gate (duty-driven /
+// second half), strong Venus-Mars (passionate), Mercury/air 7th (intellectual), and the D1-afflicted
+// / D9-strong contrast (second-half healing). Purely a label over existing flags; no new judgement.
+function buildMarriageArchetype(ctx){
+  try{
+    const { d1P, d1LagnaSign, hLord, marAff, marriageNature, foreignSpouse, delayGate, separationRisk, d9Houses } = ctx;
+    if(!d1P || !d1LagnaSign) return null;
+    const H=(p)=>d1P[p]&&d1P[p].house, dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const strong=(p)=>dig(p)==="Exalted"||dig(p)==="Own sign";
+    const l7=hLord; const lagIdx=V_SIGNS.indexOf(d1LagnaSign);
+    const seventhSign = lagIdx>=0 ? V_SIGNS[(lagIdx+6)%12] : null;
+    const d9H=(p)=>{ if(!d9Houses) return null; for(let h=1;h<=12;h++) if((d9Houses[h]||[]).includes(p)) return h; return null; };
+    const nodeOn17 = [1,7].includes(H("Rahu")) || [1,7].includes(H("Ketu"));
+    const retro7 = l7 && d1P[l7] && d1P[l7].retro;
+    const karmic = nodeOn17 || retro7;
+    const crosscult = foreignSpouse && (foreignSpouse.level==="notable"||foreignSpouse.level==="strong");
+    const unconventional = H("Rahu")===7 || (karmic && marriageNature && marriageNature.verdict==="love-leaning");
+    const dutyDriven = (l7==="Saturn") || H("Saturn")===7 || (delayGate && delayGate.tier==="high") || (marriageNature && marriageNature.verdict==="arranged-leaning");
+    const afflicted = marAff && (marAff.severity==="moderate"||marAff.severity==="strong");
+    const passionate = (strong("Venus")||strong("Mars")) && [1,5,7].some(h=>[H("Venus"),H("Mars")].includes(h)) && !(marAff&&marAff.severity==="strong");
+    const intellectual = H("Mercury")===7 || ["Gemini","Virgo","Aquarius","Libra"].includes(seventhSign);
+    const vH=d9H("Venus"); const d9Strong = (vH && [1,2,4,5,7,9,10,11].includes(vH)) || (d9Houses && (d9Houses[7]||[]).some(p=>["Jupiter","Venus"].includes(p)));
+    const friction = (separationRisk && (separationRisk.level==="notable"||separationRisk.level==="strong")) || afflicted;
+    const delayed = delayGate && (delayGate.tier==="high"||delayGate.tier==="moderate");
+    const secondHalfHealing = afflicted && d9Strong;
+
+    const desc=[];
+    if(karmic) desc.push("Karmic");
+    if(crosscult) desc.push("Cross-Cultural"); else if(unconventional) desc.push("Unconventional");
+    if(desc.length<2 && dutyDriven) desc.push("Duty-Driven");
+    if(desc.length<2 && passionate) desc.push("Passionate");
+    if(desc.length<2 && intellectual) desc.push("Intellectual");
+    if(!desc.length) desc.push(friction ? "Committed" : "Harmonious");
+    const noun = (karmic||unconventional||crosscult||passionate) ? "Union" : "Partnership";
+    let suffix = secondHalfHealing ? "with Second-Half Healing"
+      : (delayed ? "Maturing in the Second Half"
+      : (friction ? "Requiring Patience"
+      : (d9Strong ? "with Lasting Harmony" : null)));
+    if(desc[0]==="Harmonious" && suffix==="with Lasting Harmony") suffix=null;  // avoid 'Harmonious … Lasting Harmony'
+    const archetype = desc.slice(0,2).join(" / ") + " " + noun + (suffix?(" "+suffix):"");
+    return { archetype, components:{ karmic:!!karmic, crosscult:!!crosscult, unconventional:!!unconventional, dutyDriven:!!dutyDriven, passionate:!!passionate, intellectual:!!intellectual, secondHalfHealing:!!secondHalfHealing, delayed:!!delayed, friction:!!friction, d9Strong:!!d9Strong } };
+  }catch(_){ return null; }
+}
+
+// ── FOREIGN EDUCATION (under-25 only) — study-abroad probability for parent planning (V10) ──
+// Education houses (4th schooling, 5th higher intelligence, 9th higher education) linked to the
+// foreign axis (9th/12th, Rahu), with the karakas Jupiter (wisdom) and Mercury (analytical study).
+// The 9th is pivotal — it is BOTH higher education and distant lands. Graded, with the study-age
+// dasha window. Gated to currentAge < 25 (nulled otherwise); classical, a strong probability.
+function buildForeignEducation(ctx){
+  try{
+    const { d1P, d1LagnaSign, dashas, birthDate, currentAge } = ctx;
+    if(!d1P || !d1LagnaSign || currentAge==null || currentAge>=25) return null;
+    const H=(p)=>d1P[p]&&d1P[p].house, L=(h)=>houseLord(d1LagnaSign,h);
+    const aspH=(p,h)=> d1P[p] && typeof aspectsHouse==="function" && aspectsHouse(p, d1P[p].house, h);
+    const l4=L(4), l5=L(5), l9=L(9), l12=L(12);
+    let score=0; const why=[];
+    if(H("Jupiter")===9 || H("Mercury")===9){ score+=1; why.push("an education significator (Jupiter/Mercury) in your 9th of higher learning and distant lands"); }
+    if(l9 && H(l9)===12){ score+=2; why.push("your 9th lord "+l9+" of higher education sits in the 12th (foreign lands) — study abroad is strongly favoured"); }
+    if(l12 && H(l12)===9){ score+=2; why.push("your 12th lord "+l12+" sits in the 9th — the foreign and higher-education axis is linked"); }
+    if(l5 && [9,12].includes(H(l5))){ score+=1; why.push("your 5th lord "+l5+" (intelligence and learning) reaches a foreign house"); }
+    if(l4 && [9,12].includes(H(l4))){ score+=1; why.push("your 4th lord "+l4+" (schooling and roots) reaches a foreign house — education away from home"); }
+    if(H("Jupiter")===12 || H("Mercury")===12){ score+=1; why.push("an education karaka in the 12th — learning in a foreign setting"); }
+    if(H("Rahu")===9 || aspH("Rahu",9)){ score+=1; why.push("Rahu touches your 9th — a strong pull toward foreign universities"); }
+    const probability = score>=4?"strong":score>=3?"moderate":score>=2?"mild":"low";  // a lone +1 hint stays 'low' (silent)
+    // study-age dasha window (ages ~16–24) favouring a move for education
+    let window=null;
+    if(Array.isArray(dashas) && birthDate){
+      const byr=new Date(birthDate).getFullYear();
+      const fav=new Set([l5,l9,l12,"Jupiter","Mercury","Rahu"].filter(Boolean));
+      for(const md of dashas){ if(!Array.isArray(md.antarDasas))continue;
+        for(const ad of md.antarDasas){ const sy=+String(ad.startDate).slice(0,4); const age=byr&&sy?sy-byr:null;
+          if(age!=null && age>=16 && age<=24 && (fav.has(ad.lord)||fav.has(md.lord))){
+            window={ window:String(ad.startDate).slice(0,7)+" to "+String(ad.endDate).slice(0,7), lords:md.lord+"–"+ad.lord, age, role:"a period favouring higher study, including abroad" }; break; } }
+        if(window) break; }
+    }
+    return { probability, score, factors:why, window,
+      note:"The chance of higher education in a foreign land — valuable for a family to plan toward, a strong probability when these signatures converge, never a certainty." };
+  }catch(_){ return null; }
+}
+
 // ── Owner-only, ADULT-only: intimacy temperament + affair-ignition timing ──
 function buildIntimacyProfile(d1P, gender){
   try{
@@ -4381,6 +4470,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   }
   flags.watchOutFor = watchOutFor;
 
+  if(domainKey==="self"){
+    // Foreign education (under-25 only; the builder returns null otherwise) — for parent planning.
+    try{ flags.foreignEducation = buildForeignEducation({ d1P, d1LagnaSign, dashas, birthDate, currentAge }); }catch(_){ flags.foreignEducation=null; }
+  }
   if(domainKey==="marriage"){
     const sevOcc=occupants.map(o=>o.planet);
     const ketuIn7=sevOcc.includes("Ketu"), rahuIn7=sevOcc.includes("Rahu");
@@ -4410,6 +4503,14 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       try{ flags.foreignSpouse = buildForeignSpouse(d1P, d1LagnaSign, hLord, _dk, _ulSign); }catch(_){ flags.foreignSpouse=null; }
       try{ flags.wealthThroughMarriage = buildWealthThroughMarriage(d1P, d1LagnaSign, d9Houses, d9LagnaSign, hLord, _ulSign); }catch(_){ flags.wealthThroughMarriage=null; }
     }
+    // V10: archetype heading + Karako Bhava Nashaya (Venus in the 7th) + Upapada longevity/friction axis.
+    try{ flags.marriageArchetype = buildMarriageArchetype({ d1P, d1LagnaSign, hLord, marAff, marriageNature:flags.marriageNature, foreignSpouse:flags.foreignSpouse, delayGate:flags.marriageDelayGate, separationRisk:(flags.ownerSensitive&&flags.ownerSensitive.separationRisk), d9Houses }); }catch(_){ flags.marriageArchetype=null; }
+    flags.venusKarakoBhava = (d1P.Venus && d1P.Venus.house===7)
+      ? { note:"Venus, the significator of marriage, sits in the 7th house itself (Karako Bhava Nashaya) — a pull toward high romantic idealism, over-giving or restlessness rather than effortless ease; the union rewards grounded, realistic expectations." } : null;
+    if(_ulSign){ const uli=V_SIGNS.indexOf(_ulSign);
+      if(uli>=0){ const ul7=V_SIGNS[(uli+6)%12], ul8=V_SIGNS[(uli+7)%12];
+        const malIn=(sg)=>Object.keys(d1P).filter(p=>["Saturn","Rahu","Ketu","Mars"].includes(p)&&d1P[p].sign===sg);
+        flags.upapadaAxis={ ul7, ul8, malefics7:malIn(ul7), malefics8:malIn(ul8) }; } }
     // ── Owner-only, ADULT-only: intimacy temperament + affair-ignition timing. Computed here;
     // nulled for minors in the minor block below; stripped from the public packet by the gate.
     if(ENABLE_OWNER_INTIMATE){
@@ -4681,6 +4782,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
                         ||!!d9LordCaution;  // NOW also catches the D9 maturation caution
     flags.progenyHighCare=!!fifthAfflicted;
     flags.progenySoulCentral=!!domainIsSoulCentral;
+    // V10: Karako Bhava Nashaya — Jupiter (the progeny karaka) in the 5th house itself, worse in a
+    // barren sign (Leo/Virgo), can delay or limit childbirth unless the 5th lord or D7 supports it.
+    const _jup=d1P.Jupiter;
+    flags.jupiterKarakoBhava = (_jup && _jup.house===5)
+      ? { barren:["Leo","Virgo"].includes(_jup.sign),
+          note:"Jupiter, the significator of children, sits in the 5th house itself (Karako Bhava Nashaya)"+(["Leo","Virgo"].includes(_jup.sign)?" in a barren sign — this can delay or limit childbirth unless the 5th lord or the Saptamsha (D7) clearly supports it":" — read the 5th lord and the D7 before concluding on timing or numbers") } : null;
   }
   if(domainKey==="health"){
     flags.healthWatch=true;
