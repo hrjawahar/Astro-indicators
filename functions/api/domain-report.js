@@ -19,6 +19,13 @@ import { safeEqual } from "../utils/discount-lib.js";
 
 const MODEL = "claude-sonnet-4-6";
 
+// ── Reversibility switch ──────────────────────────────────────────────────────
+// FRONT_GLANCE: move the "At a Glance" verdict summary to the FIRST section (page 1)
+// for BOTH audiences, using curated domain-specific labels grounded in engine flags,
+// split by audience (affair/separation/remarriage-window lines are owner-only).
+// Set false to revert to the legacy behaviour (owner-only, appended as the LAST section).
+const ENABLE_FRONT_GLANCE = true;
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   if (!env.ANTHROPIC_API_KEY) return json({ error: "AI writer not configured (ANTHROPIC_API_KEY)." }, 500);
@@ -188,21 +195,33 @@ async function writeDomainReport(env, domainKey, facts, onProgress, audience) {
     try { sections = await generateOnce(baseUser + "\n\n" + violationCorrectionNote(triggers)); }
     catch (_) { sections = stripUnsafeSentences(sections, report.violations); break; }
   }
-  // OWNER-ONLY "At a Glance" summary: a final page with a one-line verdict per section heading, so
-  // the astrologer can scan the whole report at once in consultation. The writer is asked to produce
-  // it (crisper); this is the deterministic GUARANTEE — if the writer omitted it, build it from the
-  // section headings + each section's lead sentence, so it always exists and never misses a heading.
-  if (audience === "owner") {
-    const hasGlance = sections.some(s => s && s.heading && /at a glance|one[- ]?line verdict/i.test(s.heading));
-    if (!hasGlance) { const g = buildGlanceSummary(sections); if (g) sections = [...sections, g]; }
+  // "At a Glance" placement. The writer is asked to produce it (crisper, curated labels);
+  // this block GUARANTEES it exists and sits where it should.
+  if (ENABLE_FRONT_GLANCE) {
+    // FRONT for BOTH audiences. Find the writer's glance, move it to index 0; if the writer
+    // omitted it, build the deterministic curated fallback and place it first.
+    const gi = sections.findIndex(s => s && s.heading && /at a glance/i.test(s.heading));
+    if (gi > 0) { const [g] = sections.splice(gi, 1); sections.unshift(g); }
+    else if (gi === -1) { const g = buildGlanceSummary(sections, audience); if (g) sections.unshift(g); }
+    // gi === 0 → already at the front
+  } else {
+    // Legacy behaviour: owner-only, appended LAST.
+    if (audience === "owner") {
+      const hasGlance = sections.some(s => s && s.heading && /at a glance|one[- ]?line verdict/i.test(s.heading));
+      if (!hasGlance) { const g = buildGlanceSummary(sections, "owner"); if (g) sections = [...sections, g]; }
+    }
   }
   return sections;
 }
 
-// Deterministic one-line-per-heading summary (owner fallback). Verdict = the section's lead
-// sentence, stripped of '» ' why-lines and markdown, trimmed to one line.
-function buildGlanceSummary(sections) {
+// Deterministic "At a Glance" fallback (used only if the writer omits it). Verdict = each
+// section's lead sentence, stripped of '» ' why-lines and markdown, trimmed to one line.
+// Audience-gated: for the CLIENT edition, drop the owner-sensitive strands (affair / separation /
+// intimacy / remarriage-window) so a leaked owner line can never reach a paid reader.
+function buildGlanceSummary(sections, audience) {
   const skip = /at a glance|one[- ]?line verdict|^summary$/i;
+  const ownerOnly = /affair|infidelity|separation|divorce|intimacy|remarriage|second (union|marriage)/i;
+  const client = audience !== "owner";
   const items = [];
   for (const s of sections) {
     if (!s || !s.heading) continue;
@@ -210,12 +229,16 @@ function buildGlanceSummary(sections) {
     if (!heading || skip.test(heading)) continue;
     let body = String(s.body || "").replace(/»[^\n]*/g, "").replace(/[#*_`>]/g, "").replace(/\s+/g, " ").trim();
     if (!body) continue;
+    if (client && (ownerOnly.test(heading) || ownerOnly.test(body.slice(0, 160)))) continue;
     let first = (body.match(/^[^.!?]*[.!?]/) || [body])[0].trim();
     if (first.length > 170) first = first.slice(0, 167).replace(/\s+\S*$/, "") + "…";
     items.push("- **" + heading + "** — " + first);
   }
   if (!items.length) return null;
-  return { heading: "At a Glance — One-Line Verdicts", body: "A quick scan of each section's bottom line (owner view).\n\n" + items.join("\n") };
+  const intro = client
+    ? "Your report in one scan — the bottom line of each part. The detail follows on the pages after."
+    : "Owner scan — the bottom line of each part, including the consultation-only strands.";
+  return { heading: "At a Glance — Your Report in One Scan", body: intro + "\n\n" + items.join("\n") };
 }
 
 // Last-resort SAFETY net when a corrective regeneration still left a must-not-ship claim:
@@ -322,7 +345,9 @@ function buildSystemPrompt(audience) {
     "",
     "WATCH OUT FOR (the conditional caution): flags.watchOutFor is the engine's decision about whether this chart has a GENUINE, scored convergence that earns a prominent caution. If flags.watchOutFor is present (a non-empty string), you MUST surface it in the 'What This Means For You' section under a bold '**Watch out for:**' label, conveying its content faithfully — framed as a hint to PREPARE, with timing, never as a verdict or diagnosis. If flags.watchOutFor is ABSENT, there is NO clear convergence — do NOT invent a caution, do NOT add a 'Watch out for' line; give the calm plain reading. flags.severityTier ('plain'|'moderate'|'strong') tells you how much weight the cautions deserve: 'plain' = keep it light and ordinary; 'moderate' = a measured note; 'strong' = give it real, noticeable emphasis (this is the rare, genuinely-loaded chart). NEVER escalate beyond the tier the engine set.",
     "",
-    "AT-A-GLANCE SUMMARY (OWNER / CONSULTATION MODE ONLY — add this ONLY when writing the owner edition; the client edition must NOT contain it). As the VERY LAST section, add one titled exactly 'At a Glance — One-Line Verdicts'. Its body is a '- ' bulleted list with ONE line per PRECEDING section heading in the SAME ORDER they appear, each as '**<that section's heading>** — <a single crisp verdict line>'. The verdict is the distilled bottom line of that section (e.g. '**Marriage & Relationships: Karmic / Unconventional Union** — a deep, testing bond that steadies strongly in the second half'), not a restatement of the whole section, no '» ' why-lines, one line each. Mirror every real content heading (skip only this summary itself). This lets the astrologer scan the entire report at a glance in consultation.",
+    "AT-A-GLANCE — FRONT SUMMARY (BOTH editions; this is the reader's first page). Make the VERY FIRST section of the report, titled exactly 'At a Glance — Your Report in One Scan'. It is a fast, scannable verdict board so a reader (or the astrologer) gets the whole picture in under a minute before the detailed pages. RULES: (1) CURATED LABELS, not the section headings — use the short domain-specific labels listed below, NOT a mirror of the later section titles; a reader should see plain life-topics here ('Marriage & relationship', 'Marriage window'), not chart sections. (2) One '- ' bullet per label, each '**<Label>** — <one or two plain, everyday sentences>', probability language never certainty, grounded ONLY in the engine flag named for that label; if that flag is absent / below threshold / 'unmarked', OMIT the whole line (never pad). (3) No '» ' why-lines, no jargon, no dates invented — carry the window ranges exactly as the engine gives them. (4) This front board is a SIGNPOST; the detailed pages still carry the full reading, so keep each line tight. ORDER the lines as listed per domain below.",
+    "AT-A-GLANCE — LABELS BY DOMAIN (use only the labels whose flag is present/above-threshold). MARRIAGE: '**Marriage & relationship**' (from flags.marriageArchetype + marriageAfflictionDetail.severity — the nature of the union and how steady it is) · '**Manglik**' (from flags.manglik.netStrength — the plain result: not Manglik / effectively cancelled / mild, never a bare 'you are Manglik') · '**Love vs arranged**' (flags.marriageNature, only if not 'unmarked') · '**Foreign / cross-cultural spouse**' (flags.foreignSpouse, only if level notable/strong) · '**Wealth through marriage**' (flags.wealthThroughMarriage, only if notable/strong) · '**Relationship window**' (flags.marriageLifecycle.romanceWindows — a significant bond forming, explicitly NOT a wedding) · '**Marriage window**' (flags.marriageLifecycle.marriageWindow or marriageADWindows — the likeliest 1–3 year band, after the delay gate) · then the OWNER-ONLY strands below. CAREER: '**Career & work model**' (the kind of work and how it operates — depth vs visibility, employment vs enterprise — from the core career reading + flags.disruptionSignature) · '**Wealth & income**' (the earning pattern from the career/earning axis) · '**Foreign relocation**' (flags.foreignCareer settlement layer — permanent move vs remote/home-anchored, with any window) · then the OWNER-ONLY career strand below. SELF: '**Core nature**' · '**Education abroad**' (flags.foreignEducation, only if mild+). CHILDREN: '**Progeny**' (gentle, from the progeny reading; carry flags.jupiterKarakoBhava as care not verdict). HEALTH / SIBLINGS / MOTHER and any other domain: pick 3–5 plain life-topic labels that match the report's own main findings, same one-line treatment. If a domain has no curated list here, derive 3–5 plain labels from the report's bottom lines.",
+    "AT-A-GLANCE — AUDIENCE SPLIT (strict gating; this is the sensitive-content line the owner asked for). The OWNER / CONSULTATION edition INCLUDES these extra lines at the end of the board, the CLIENT edition must NOT contain them or any echo of them: '**Affair risk**' (flags.affairTiming — susceptibility windows as temptation the native may decline, never a claim one happened) · '**Separation risk**' (flags.separationTiming, only if applicable — structural strain as a strong probability) · '**Remarriage window**' (only if flags.remarriageIndicated — the structural possibility of a second union, with its caveat). These three facts are stripped from the client packet, so if they are absent you are writing the client edition and must leave them out entirely. In the CLIENT edition the board ends after the public labels; never hint that owner-only lines were removed.",
     "AGE-AWARE FRAMING (critical for credibility): the facts include flags.currentAge and flags.isMinorForDomain. If flags.isMinorForDomain is TRUE, the native is a child or teen for whom this life-area (marriage, career, or children) is NOT yet lived — present tense ('your marriage operates through…') is jarring and destroys credibility. Write the ENTIRE report in FUTURE-ORIENTED language: 'as you grow into adulthood, your approach to partnership will tend toward…', 'when this area becomes active in your life (typically from your early twenties)…', 'the blueprint you carry for your future career is…'. Describe structural tendencies as a blueprint for the life ahead, never as already happening. Childhood dasha windows are already filtered from the facts, so present the given windows as future/upcoming from around age 21. If flags.healthLongTermFuture is true, keep present tense for current vitality but frame long-term cautions as 'as you grow older'. If flags.isMinorForDomain is false/absent, write normally in the present tense.",
     "DISRUPTION SIGNATURE: if flags.disruptionSignature is present (the domain lord or significator sits in the 8th house — the classical pattern of periodic deep-change-and-reinvention), you MUST name it explicitly using the word 'disruption' at least once: 'Your [domain] operates through a pattern of periodic disruption and reinvention rather than steady linear ascent.' Keep intensity tier-appropriate (plain/moderate = matter-of-fact; strong = real weight), always with its constructive dimension (disruption here is the engine of depth and mastery, not loss). If the native is a minor for this domain, phrase it in the future tense.",
     "DUSTHANA FLAVOURS (facts.dusthanaReadings): when a domain-relevant planet sits in the 6th, 8th, or 12th house, the facts include a plain-English 'reading' naming the specific flavour (6th = obstacles/struggle/service; 8th = transformation/sudden change/depth; 12th = loss/withdrawal/behind-the-scenes) TOGETHER with its constructive dimension. Use these readings in the 'D1 Foundation' and 'What This Means For You' sections to describe the theme precisely. CRITICAL — pitch the TONE to flags.severityTier: if the tier is 'plain' (this dusthana placement is the ONLY affliction), keep the wording CALM and matter-of-fact ('your career runs through depth and transformation') — do NOT alarm. If the tier is 'moderate' or 'strong' (the dusthana placement is compounded by OTHER factors), you may use a slightly more attention-drawing, prepare-oriented tone. ALWAYS include the constructive dimension so it never reads as doom. Never turn a dusthana placement alone into a warning.",
@@ -429,7 +454,7 @@ function buildSystemPrompt(audience) {
     "GOLDEN RULE — NO REPETITION: each section must add NEW information and the report must always move FORWARD, never circle. State every finding ONCE, in the section where it most belongs — the whole direction at a glance in the 'In Brief' box, the birth-chart foundation in the First-Half section, what MATURES in the Second-Half section, the cross-chart confidence in 'Where the Charts Agree', the lived takeaway in 'What This Means For You'. Never explain the same placement or make the same point twice. A later section may briefly REFER back to something, but must not re-narrate it. Do NOT teach the reader how to read or connect the charts — they want what it MEANS for them, not a lesson. SPECIFIC ANTI-REPETITION ENFORCEMENT (a real failure mode — the core verdict got repeated on five+ pages): state the CENTRAL VERDICT and any key timing warning (e.g. 'depth over visibility', 'prepare before the 2026–2029 window') ONCE, in full, in the one section that owns it; every OTHER section must earn its place with NEW practical content or a genuinely different angle, not a reworded echo. The CLOSING NOTE gives emotional encouragement and synthesis and must NOT restate the timing warning or the core verdict word-for-word — if the closing would just repeat, make it instead a short, forward, human send-off. Before finishing, check: if two sections make the same point, cut it from the weaker one.",
     "LIFE-STAGE WEIGHTING (apply across the WHOLE report when facts.lifeStage is present; use facts.lifeStage.emphasis as the directive). Foreground the phase the reader is ACTUALLY in: band 'established' (an older reader) → lead with the CURRENT and forward chapter — what is live now and in the years ahead (mastery, the second half, the business or role they are in now) — and COMPRESS the early/past arc to a brief 'you may recognise…' recognition anchor, never the centrepiece; the reader is living the later chapter and wants what is ahead, not a replay of what passed. Band 'establishing' (a younger reader) → foreground what to BUILD now and just ahead (foundation, first establishment), keep the past brief. Band 'building' → balance present momentum with the decade ahead. This changes EMPHASIS and ORDER only — NEVER the predictions themselves (same facts, weighted to where the reader stands). Do NOT announce the reader's age or print 'life stage' as a label; just weight the reading. Concretely, for a 48-year-old entrepreneur the current business/enterprise angle leads and the past corporate chapter becomes a short recognition note — the same chart at 28 would lead with the corporate-establishment angle.",
     "HOLDING-WINDOW → ACTION CHECKLIST (do not leave the reader told only to 'wait'): whenever the guidance is to hold steady / avoid irreversible moves across a long stretch (a current testing or preparation window of a year or more), you MUST pair it with a concrete 'what to actively build before it' checklist of 2–4 doable steps, so a restless reader has agency rather than paralysis. Draw the steps from the domain and the chart's own signals (for career/wealth, e.g.: build a 12-month liquidity reserve while avoiding new debt; pilot small, low-capital versions of the next move to test it; put existing partnerships/agreements on clear paper; keep skills, licences and options current). Make them specific and sequenced, not platitudes. The holding window is the WHY; the checklist is the WHAT-NOW.",
-    "Use these section headings in order (NOTE: there is NO separate 'how to read' section — the report opens with the 'In Brief' box):",
+    "Use these section headings in order. The report's FIRST section is the 'At a Glance — Your Report in One Scan' board defined in the AT-A-GLANCE — FRONT SUMMARY rule above (curated labels, audience-split); it comes BEFORE everything numbered below. After it come these, in this order (NOTE: there is NO separate 'how to read' section — the 'In Brief' box follows the At-a-Glance board):",
     " 1. 'Your [DOMAIN] in Brief'  (replace [DOMAIN] with the life-area, e.g. 'Your Career in Brief'. A short AT-A-GLANCE box — the WHOLE direction in a few seconds, for the reader who reads once and won't scroll. EXACTLY these four '- ' bullet lines, each ONE short plain sentence led by a **bold** label, NO astrology words anywhere, and NO theme line: '- **In one line:** <what kind of [life-area] is theirs — fold in the two-phase arc: what the first half of life is about vs the second half>'; '- **Your biggest strength:** <the single most durable strength>'; '- **What to watch or change:** <the one thing to be careful of or shift>'; '- **When it matters most:** <the key upcoming time window in plain years, from the timing facts>'. Keep every line tight and directive. This box replaces any separate 'how to read' or opening-map text.)",
     " 2. 'The First Half of Life — Your Foundation'  (what the BIRTH CHART (D1) SIGNIFIES for this area — the plain, warm, second-person meaning of your foundation here, NAMING and TRANSLATING the key placements per the Name-Reconcile-Translate standard (not pure-abstract, not a jargon dump). Do NOT restate the In-Brief arc. Put the placements and the chart table as '- ' rows (Planet — Sign — House — Dignity) inside '» ' why-lines only. End with a '★ ' theme.)",
     " 3. 'The Second Half of Life — How It Matures'  (what the DEEPER CHART (D9) SIGNIFIES for how this area MATURES in the second half — cover ONLY what shifts, deepens, or is ADDED beyond the first-half foundation; do NOT restate the First-Half section. If flags.shift is present, OPEN with it as a **bold** standalone line in plain words. Weave in the life-stage (late thirties onward). Mechanics in '» ' lines only. End with a '★ ' theme.)",
