@@ -188,7 +188,34 @@ async function writeDomainReport(env, domainKey, facts, onProgress, audience) {
     try { sections = await generateOnce(baseUser + "\n\n" + violationCorrectionNote(triggers)); }
     catch (_) { sections = stripUnsafeSentences(sections, report.violations); break; }
   }
+  // OWNER-ONLY "At a Glance" summary: a final page with a one-line verdict per section heading, so
+  // the astrologer can scan the whole report at once in consultation. The writer is asked to produce
+  // it (crisper); this is the deterministic GUARANTEE — if the writer omitted it, build it from the
+  // section headings + each section's lead sentence, so it always exists and never misses a heading.
+  if (audience === "owner") {
+    const hasGlance = sections.some(s => s && s.heading && /at a glance|one[- ]?line verdict/i.test(s.heading));
+    if (!hasGlance) { const g = buildGlanceSummary(sections); if (g) sections = [...sections, g]; }
+  }
   return sections;
+}
+
+// Deterministic one-line-per-heading summary (owner fallback). Verdict = the section's lead
+// sentence, stripped of '» ' why-lines and markdown, trimmed to one line.
+function buildGlanceSummary(sections) {
+  const skip = /at a glance|one[- ]?line verdict|^summary$/i;
+  const items = [];
+  for (const s of sections) {
+    if (!s || !s.heading) continue;
+    const heading = String(s.heading).replace(/[#*]/g, "").trim();
+    if (!heading || skip.test(heading)) continue;
+    let body = String(s.body || "").replace(/»[^\n]*/g, "").replace(/[#*_`>]/g, "").replace(/\s+/g, " ").trim();
+    if (!body) continue;
+    let first = (body.match(/^[^.!?]*[.!?]/) || [body])[0].trim();
+    if (first.length > 170) first = first.slice(0, 167).replace(/\s+\S*$/, "") + "…";
+    items.push("- **" + heading + "** — " + first);
+  }
+  if (!items.length) return null;
+  return { heading: "At a Glance — One-Line Verdicts", body: "A quick scan of each section's bottom line (owner view).\n\n" + items.join("\n") };
 }
 
 // Last-resort SAFETY net when a corrective regeneration still left a must-not-ship claim:
@@ -295,6 +322,7 @@ function buildSystemPrompt(audience) {
     "",
     "WATCH OUT FOR (the conditional caution): flags.watchOutFor is the engine's decision about whether this chart has a GENUINE, scored convergence that earns a prominent caution. If flags.watchOutFor is present (a non-empty string), you MUST surface it in the 'What This Means For You' section under a bold '**Watch out for:**' label, conveying its content faithfully — framed as a hint to PREPARE, with timing, never as a verdict or diagnosis. If flags.watchOutFor is ABSENT, there is NO clear convergence — do NOT invent a caution, do NOT add a 'Watch out for' line; give the calm plain reading. flags.severityTier ('plain'|'moderate'|'strong') tells you how much weight the cautions deserve: 'plain' = keep it light and ordinary; 'moderate' = a measured note; 'strong' = give it real, noticeable emphasis (this is the rare, genuinely-loaded chart). NEVER escalate beyond the tier the engine set.",
     "",
+    "AT-A-GLANCE SUMMARY (OWNER / CONSULTATION MODE ONLY — add this ONLY when writing the owner edition; the client edition must NOT contain it). As the VERY LAST section, add one titled exactly 'At a Glance — One-Line Verdicts'. Its body is a '- ' bulleted list with ONE line per PRECEDING section heading in the SAME ORDER they appear, each as '**<that section's heading>** — <a single crisp verdict line>'. The verdict is the distilled bottom line of that section (e.g. '**Marriage & Relationships: Karmic / Unconventional Union** — a deep, testing bond that steadies strongly in the second half'), not a restatement of the whole section, no '» ' why-lines, one line each. Mirror every real content heading (skip only this summary itself). This lets the astrologer scan the entire report at a glance in consultation.",
     "AGE-AWARE FRAMING (critical for credibility): the facts include flags.currentAge and flags.isMinorForDomain. If flags.isMinorForDomain is TRUE, the native is a child or teen for whom this life-area (marriage, career, or children) is NOT yet lived — present tense ('your marriage operates through…') is jarring and destroys credibility. Write the ENTIRE report in FUTURE-ORIENTED language: 'as you grow into adulthood, your approach to partnership will tend toward…', 'when this area becomes active in your life (typically from your early twenties)…', 'the blueprint you carry for your future career is…'. Describe structural tendencies as a blueprint for the life ahead, never as already happening. Childhood dasha windows are already filtered from the facts, so present the given windows as future/upcoming from around age 21. If flags.healthLongTermFuture is true, keep present tense for current vitality but frame long-term cautions as 'as you grow older'. If flags.isMinorForDomain is false/absent, write normally in the present tense.",
     "DISRUPTION SIGNATURE: if flags.disruptionSignature is present (the domain lord or significator sits in the 8th house — the classical pattern of periodic deep-change-and-reinvention), you MUST name it explicitly using the word 'disruption' at least once: 'Your [domain] operates through a pattern of periodic disruption and reinvention rather than steady linear ascent.' Keep intensity tier-appropriate (plain/moderate = matter-of-fact; strong = real weight), always with its constructive dimension (disruption here is the engine of depth and mastery, not loss). If the native is a minor for this domain, phrase it in the future tense.",
     "DUSTHANA FLAVOURS (facts.dusthanaReadings): when a domain-relevant planet sits in the 6th, 8th, or 12th house, the facts include a plain-English 'reading' naming the specific flavour (6th = obstacles/struggle/service; 8th = transformation/sudden change/depth; 12th = loss/withdrawal/behind-the-scenes) TOGETHER with its constructive dimension. Use these readings in the 'D1 Foundation' and 'What This Means For You' sections to describe the theme precisely. CRITICAL — pitch the TONE to flags.severityTier: if the tier is 'plain' (this dusthana placement is the ONLY affliction), keep the wording CALM and matter-of-fact ('your career runs through depth and transformation') — do NOT alarm. If the tier is 'moderate' or 'strong' (the dusthana placement is compounded by OTHER factors), you may use a slightly more attention-drawing, prepare-oriented tone. ALWAYS include the constructive dimension so it never reads as doom. Never turn a dusthana placement alone into a warning.",
