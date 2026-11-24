@@ -3299,10 +3299,10 @@ function planetAvastha(sign, degInSign){
   return { state, strength:AVASTHA_STRENGTH[state],
     weak:(state==="Bala"||state==="Mrita"),           // the genuinely result-sapping states
     waning:(state==="Vriddha"),
-    note: state==="Bala" ? "in its infant (Bāla) state — too immature to give more than a fraction of its results"
+    note: state==="Bala" ? "in its infant (Bala) state — too immature to give more than a fraction of its results"
         : state==="Mrita" ? "in its dead (Mrita) state — almost unable to deliver its results"
         : state==="Vriddha" ? "in its old (Vriddha) state — its strength is waning"
-        : state==="Kumara" ? "in its adolescent (Kumāra) state — growing but not yet at full strength"
+        : state==="Kumara" ? "in its adolescent (Kumara) state — growing but not yet at full strength"
         : "in its youth (Yuva) state — at full strength" };
 }
 
@@ -4298,7 +4298,7 @@ function buildIntimacyProfile(d1P, gender){
 }
 function buildAffairTiming(affairRisk, dashas, d1P, d1LagnaSign, hLord, birthDate){
   try{
-    if(!affairRisk||affairRisk.level==="none"||!Array.isArray(dashas)) return { applicable:false };
+    if(!affairRisk||affairRisk.level==="none"||!Array.isArray(dashas)) return null;
     const H=(p)=>d1P[p]&&d1P[p].house;
     const l8=houseLord(d1LagnaSign,8), l12=houseLord(d1LagnaSign,12);
     const trig=new Set(["Rahu","Venus"]); if(l8)trig.add(l8); if(l12)trig.add(l12);
@@ -4383,6 +4383,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // domain mode differs between D1 and D9, that pivot is the reader's key takeaway.
   // We flag it so the writer can OPEN the D9 section with a bold verdict line.
   let shiftHeadline=null;
+  // maturationDirection: the HONEST shape of the second half vs the first, from the SAME D1-vs-D9
+  // comparison. 'rises' = D9 lifts a testing D1 (genuine friction→smooth); 'protect-peak' = a strong
+  // D1 weakens in D9 (the early peak needs renewal, NOT a rosy maturation); 'shifts' = the mode
+  // changes (depth/inward) without a clear up or down. The writer uses this so the second-half
+  // HEADING and framing match the chart instead of always reading "How It Matures".
+  let maturationDirection="shifts";
   if(hLord && d1P[hLord]){
     const d1dig=d1P[hLord].dignity, d1house=d1P[hLord].house;
     let d9h=null; if(d9Houses){ for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(hLord)){ d9h=h; break; } } }
@@ -4392,12 +4398,13 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     const kp = karakaPlanet && d1P[karakaPlanet] ? d1P[karakaPlanet] : null;
     const lordDepth = [8,12].includes(d1house);           // lord in transformation/withdrawal house
     const karakaDepth = kp && [8,12].includes(kp.house);
-    if(d1Kendra && d9Dusthana) shiftHeadline=`Your ${cfg.focus} begins in the foreground (a strong D1 placement) but the D9 pulls it toward a quieter, more inward, or independent second-half expression — the visible early mode is likely to give way as life matures.`;
-    else if(d1Dusthana && d9Kendra) shiftHeadline=`Your ${cfg.focus} may feel constrained early (a testing D1 placement) but the D9 lifts it into real strength — the second half of life is where this area comes into its own.`;
-    else if(lordDepth || karakaDepth) shiftHeadline=`Your ${cfg.focus} is structured around depth rather than surface visibility — as life matures, expect a move away from conventional, front-stage expression toward more independent, specialised, or behind-the-scenes work.`;
-    else if(d9Dusthana && !d1Dusthana) shiftHeadline=`As life matures, your ${cfg.focus} shifts toward a more inward, behind-the-scenes, or independent mode than its early expression.`;
+    if(d1Kendra && d9Dusthana){ shiftHeadline=`Your ${cfg.focus} begins in the foreground (a strong D1 placement) but the D9 pulls it toward a quieter, more inward, or independent second-half expression — the visible early mode is likely to give way as life matures.`; maturationDirection="protect-peak"; }
+    else if(d1Dusthana && d9Kendra){ shiftHeadline=`Your ${cfg.focus} may feel constrained early (a testing D1 placement) but the D9 lifts it into real strength — the second half of life is where this area comes into its own.`; maturationDirection="rises"; }
+    else if(lordDepth || karakaDepth){ shiftHeadline=`Your ${cfg.focus} is structured around depth rather than surface visibility — as life matures, expect a move away from conventional, front-stage expression toward more independent, specialised, or behind-the-scenes work.`; maturationDirection="shifts"; }
+    else if(d9Dusthana && !d1Dusthana){ shiftHeadline=`As life matures, your ${cfg.focus} shifts toward a more inward, behind-the-scenes, or independent mode than its early expression.`; maturationDirection="shifts"; }
   }
   flags.shift = shiftHeadline || null;
+  flags.maturationDirection = maturationDirection;
 
   // Disruption signature: the domain lord OR karaka sitting in the 8th house is the
   // classical "periodic disruption and reinvention" pattern. When present, the report
@@ -4515,7 +4522,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     // nulled for minors in the minor block below; stripped from the public packet by the gate.
     if(ENABLE_OWNER_INTIMATE){
       try{ flags.intimacyProfile = buildIntimacyProfile(d1P, gender); }catch(_){ flags.intimacyProfile=null; }
-      try{ flags.affairTiming = buildAffairTiming(flags.ownerSensitive&&flags.ownerSensitive.affairRisk, dashas, d1P, d1LagnaSign, hLord, birthDate); }catch(_){ flags.affairTiming=null; }
+      try{ const _at = buildAffairTiming(flags.ownerSensitive&&flags.ownerSensitive.affairRisk, dashas, d1P, d1LagnaSign, hLord, birthDate); flags.affairTiming = (_at && _at.applicable) ? _at : null; }catch(_){ flags.affairTiming=null; }
     }
     // PD-level timing precision — ADD-ON, reversible via ENABLE_PD_TIMING; AD-level windows below
     // are left untouched. Adults only (minors never get a marriage-timing window).
@@ -4568,9 +4575,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         const marWin = (flags.marriageLifecycle && flags.marriageLifecycle.marriageWindow)
           ? flags.marriageLifecycle.marriageWindow
           : (flags.marriageADWindows && flags.marriageADWindows.windows ? flags.marriageADWindows.windows[0] : null);
-        flags.separationTiming = sepRisk
+        const _st = sepRisk
           ? computeSeparationTiming({ separationRisk:sepRisk, marriageWindow:marWin, dashas, lagnaSign:lagNum2 })
           : null;
+        flags.separationTiming = (_st && _st.applicable) ? _st : null;
       }catch(_){ flags.separationTiming=null; }
     }
 

@@ -1328,10 +1328,16 @@
           <span class="pnum">${n++}</span></div>`);
       });
     };
-    sections.forEach((sec, si) => {
-      emitSection(sec);
-      if (si === 0 && cmp) P.push(cmp.replace(/<span class="pnum">0<\/span>/, `<span class="pnum">${n++}</span>`));
-    });
+    sections.forEach((sec) => { emitSection(sec); });
+    // Chart Comparison table → moved to the BACK as a TECHNICAL APPENDIX (reader-flow fix):
+    // beginners get the plain reading first instead of hitting a 9-planet "table wall" on page 2,
+    // while the astrology-literate reader still has the full cross-chart table, now clearly labelled.
+    if (cmp) {
+      const appendix = cmp
+        .replace('<div class="pg"><div class="rule">', '<div class="pg"><div class="kick">Technical Appendix</div><div class="rule">')
+        .replace(/<span class="pnum">0<\/span>/, `<span class="pnum">${n++}</span>`);
+      P.push(appendix);
+    }
     // Close with disclaimer (stronger for health)
     const disc = (domainKey==="health")
       ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
