@@ -652,14 +652,16 @@
       if (!jsonStr) throw new Error(INTERRUPTED);   // stream cut before the final marker
       return JSON.parse(jsonStr);
     };
-    // Auto-retry transient failures — a dropped stream (edge timeout) OR a 5xx (preview redeploy,
-    // Cloudflare hiccup) — up to 3 attempts with short backoff. Auth/validation (4xx) never retried.
+    // Auto-retry transient failures ONCE only (2 attempts total). The report is a long LLM stream,
+    // so retrying it many times would re-run a 60-90s generation repeatedly and can itself sustain a
+    // Cloudflare rate-limit/overload — exactly the "can't generate a second report" symptom. One
+    // gentle retry with a longer backoff lets a transient blip clear without hammering. 4xx/auth never retried.
     let lastErr;
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       try { return await once(); }
       catch (e) {
         lastErr = e; const m = String((e && e.message) || "");
-        if ((m === INTERRUPTED || /^Server error \(5\d\d\)/.test(m)) && i < 2) { await new Promise(s => setTimeout(s, 900 * (i + 1))); continue; }
+        if ((m === INTERRUPTED || /^Server error \(5\d\d\)/.test(m)) && i < 1) { await new Promise(s => setTimeout(s, 1500)); continue; }
         throw e;
       }
     }

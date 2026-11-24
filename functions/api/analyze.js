@@ -29,6 +29,11 @@ const ENABLE_SEPARATION = true;
 const ENABLE_D10_LENS = true;
 const ENABLE_MARRIAGE_CLASSIFIERS = true;
 const ENABLE_OWNER_INTIMATE = true;
+// Foreign SETTLEMENT depth (V9): separates permanent relocation from remote/temporary work using
+// the 4th-house axis, the 4th-lord-as-9th-lord/Badhakesh signature, Rahu on the 4/8/12 axis, sign
+// modality, retrograde pull-home, a D10 4th/9th cross-check and relocation dasha windows. Set false
+// to fall back to the prior remote-only foreign reading (existing fields are always preserved).
+const ENABLE_FOREIGN_SETTLEMENT = true;
 // The single list of OWNER-ONLY flags the public (paid-user) packet must never carry. The gate in
 // the report writer strips exactly these; add any future sensitive flag here, nowhere else.
 const OWNER_ONLY_FLAGS = ["ownerSensitive","intimacyProfile","affairTiming"];
@@ -3669,7 +3674,7 @@ function buildBusinessLean(d1P, d1LagnaSign, amatyakaraka, compound){
 // career/earning houses' CONNECTION to the foreign houses (earning abroad vs. mere travel).
 // Permanency is the 4th–12th relationship. Graded, conservative — a tendency, never a promise
 // of a visa or a country.
-function buildForeignCareer(d1P, d1LagnaSign, compound){
+function buildForeignCareer(d1P, d1LagnaSign, compound, dashas, vargaChart, birthDate){
   try{
     const L=(h)=>houseLord(d1LagnaSign,h);
     const occ=(h)=>occupantsOfHouse(d1P,h);
@@ -3716,7 +3721,78 @@ function buildForeignCareer(d1P, d1LagnaSign, compound){
     const strongIn12 = occ(12).find(p=>strong(p));
     const remoteOnly = (grade==="none"||grade==="mild") && !!strongIn12;
     const remoteNote = remoteOnly ? (strongIn12+" sits strong in your 12th house — so while permanent relocation abroad is not indicated, cross-border consulting, remote or overseas clients, and export-linked work from your home base are genuinely supported") : null;
-    return { grade, score:core, earning, settling, statement, remoteOnly, remoteNote, why };
+
+    const base = { grade, score:core, earning, settling, statement, remoteOnly, remoteNote, why };
+    if(!ENABLE_FOREIGN_SETTLEMENT) return base;
+
+    // ── PERMANENT SETTLEMENT vs REMOTE/TEMPORARY (V9 relocation rules) ─────────────────────
+    // Separate physical relocation from foreign WORK, using the 4th-house (homeland) axis — the
+    // fix for the false "remote-only" negative. Classical, graded, a minority signature.
+    const l1=L(1), l3=L(3), l6=L(6), l8=L(8);
+    const aspH=(p,h)=> d1P[p] && typeof aspectsHouse==="function" && aspectsHouse(p, d1P[p].house, h);
+    const ownSign=(p)=> d1P[p] && (V_OWN[p]||[]).includes(d1P[p].sign);
+    const retro=(p)=> d1P[p] && d1P[p].retro;
+    const lagIdx=V_SIGNS.indexOf(d1LagnaSign);
+    const houseSign=(h)=> lagIdx>=0 ? V_SIGNS[(lagIdx+h-1)%12] : null;
+    const badhakesh = (compound && compound.badhaka && compound.badhaka.planet) || null;
+    const modL=signNature(d1LagnaSign), mod4=signNature(houseSign(4)), mod12=signNature(houseSign(12));
+
+    let setScore=0; const setWhy=[]; let anchor=false, periodic=false;
+    // A. 4th lord tied to the 9th or 12th (placement or aspect)
+    if(l4 && (inHouse(l4,[9,12]) || aspH(l4,9) || aspH(l4,12))){ setScore+=1; setWhy.push("your 4th lord of home "+l4+" is tied to your foreign axis (9th/12th)"); }
+    // B. THE decisive rule — the 4th lord is ALSO the 9th lord or the Badhakesh (uproot-and-resettle)
+    if(l4 && (l4===l9 || l4===badhakesh)){ setScore+=2; setWhy.push("your 4th lord "+l4+" also "+(l4===l9?"rules your 9th house of distant lands":"serves as your Badhakesh, the uprooting planet")+" — the classic signature of leaving the birthplace to settle in a far land"); }
+    // C. Rahu on the 4/8/12 axis (occupancy or aspect)
+    if(inHouse("Rahu",[4,8,12]) || aspH("Rahu",4) || aspH("Rahu",8) || aspH("Rahu",12)){ setScore+=1; setWhy.push("Rahu, the significator of foreign lands, activates your 4th/8th/12th axis — a pull to physically relocate"); }
+    // D. sign modality on the home axis — movable favours uprooting, fixed anchors
+    if(mod4==="movable" || modL==="movable"){ setScore+=1; setWhy.push("movable signs on your Ascendant / home axis — a change of base comes more readily"); }
+    if(mod4==="fixed" && modL==="fixed"){ anchor=true; setWhy.push("fixed signs on both your Ascendant and home axis — a strong pull to stay rooted"); }
+    // E. home-anchor rule — 1st and 9th lords both in own signs, with no 4th-lord-to-12th link
+    if(l1&&l9&&ownSign(l1)&&ownSign(l9) && !(l4&&inHouse(l4,[12]))){ anchor=true; setWhy.push("your Ascendant lord "+l1+" and your 9th lord "+l9+" both sit in their own signs — a deeply rooted bond to the homeland"); }
+    // F. retrograde 3rd/4th lord in the 12th — foreign spells that pull back home (periodic, not permanent)
+    if((l4&&inHouse(l4,[12])&&retro(l4)) || (l3&&inHouse(l3,[12])&&retro(l3))){ periodic=true;
+      const rp=(l4&&inHouse(l4,[12])&&retro(l4))?l4:l3; const rh=(rp===l4)?"4th":"3rd";
+      setWhy.push("your retrograde "+rh+" lord "+rp+" sits in the 12th — foreign spells that tend to pull you back home rather than a permanent move"); }
+    // G. D10 cross-check — when the D1 10th lord is in the 12th, a D10 Ascendant-lord in the D10 9th
+    //    anchors the professional identity in a foreign land (overrides a 'remote-from-home' reading)
+    if(vargaChart && vargaChart.lagnaSign && l10 && inHouse(l10,[12]) && vargaChart.placements){
+      const d10L=V_LORD[vargaChart.lagnaSign];
+      const d10Lh=vargaChart.placements[d10L] ? vargaChart.placements[d10L].house : null;
+      if(d10Lh===9){ setScore+=1; setWhy.push("in your career varga (D10) the professional Ascendant lord sits in the 9th — your working identity is anchored in a foreign land, not merely remote from home"); }
+    }
+    // Vipareeta Raja Yoga through the foreign/8th axis — crisis or distant lands invert into gain
+    const vipAbroad = (l8&&inHouse(l8,[6,8,12])) || (l12&&inHouse(l12,[6,8,12]));
+    if(vipAbroad){ const vipP=(l8&&inHouse(l8,[6,8,12]))?l8:l12;
+      setWhy.push("your "+(vipP===l8?"8th":"12th")+" lord "+vipP+" placed in a difficult house forms a Vipareeta Raja Yoga — upheaval, foreign lands or restructuring can invert into real gain"); }
+
+    let settlementProbability, settlementMode;
+    if(anchor && setScore<3){ settlementProbability="low"; settlementMode="home-anchored"; }
+    else if(setScore>=3){ settlementProbability=periodic?"moderate":"high"; settlementMode=periodic?"remote-temporary":"permanent"; }
+    else if(setScore===2){ settlementProbability="moderate"; settlementMode=periodic?"remote-temporary":"permanent-leaning"; }
+    else if(setScore===1 || remoteOnly){ settlementProbability="low"; settlementMode="remote-temporary"; }
+    else { settlementProbability="low"; settlementMode="home-based"; }
+
+    const settlementStatement =
+      settlementMode==="permanent" ? "The chart genuinely supports PERMANENT settlement abroad — the base of life can shift to a distant land, not merely remote work from home."
+      : settlementMode==="permanent-leaning" ? "There is real support for settling abroad, though whether it becomes permanent rests on choices and timing."
+      : settlementMode==="remote-temporary" ? "Foreign connection favours spells abroad, overseas assignments or remote / cross-border work from a home base, rather than a permanent move."
+      : settlementMode==="home-anchored" ? "You are strongly rooted to your homeland; foreign dealings stay opportunistic rather than a relocation."
+      : "Any foreign dealings are best kept opportunistic, from a home base.";
+
+    // Relocation dasha windows — 6th (visas), 8th (upheaval), 12th (foreign) lord sub-periods, only
+    // when a genuine settlement signature is present (never for a home-anchored chart).
+    let relocationWindows=null;
+    if((settlementProbability==="high"||settlementProbability==="moderate") && settlementMode!=="home-anchored" && Array.isArray(dashas) && birthDate){
+      const relLords=new Set([l6,l8,l12].filter(Boolean)); const byr=new Date(birthDate).getFullYear(); const wins=[];
+      for(const md of dashas){ if(!Array.isArray(md.antarDasas))continue;
+        for(const ad of md.antarDasas){ if(relLords.has(ad.lord)){ const sy=+String(ad.startDate).slice(0,4);
+          wins.push({ window:String(ad.startDate).slice(0,7)+" to "+String(ad.endDate).slice(0,7), lords:md.lord+"–"+ad.lord, age:(byr&&sy)?sy-byr:null,
+            role:"the "+ad.lord+" sub-period rules your "+(ad.lord===l6?"6th (visas, paperwork, service)":ad.lord===l8?"8th (upheaval, major transition)":"12th (foreign lands, leaving the known)")+" — a window that can activate a move abroad" }); } } }
+      relocationWindows = wins.slice(0,4);
+    }
+
+    return { ...base, settlementProbability, settlementMode, settlementStatement, settlementFactors:setWhy,
+      relocationWindows, vipareetaAbroad:!!vipAbroad, modality:{ ascendant:modL, fourth:mod4, twelfth:mod12 } };
   }catch(_){ return null; }
 }
 
@@ -3993,6 +4069,11 @@ const _CAREER_FIELDS = {
 };
 const _ELEMENT_FLAVOR = { fire:"dynamic, leadership-led or entrepreneurial", earth:"structured, material and operational", air:"communication-, network- or technology-driven", water:"creative, caring or research-oriented" };
 const _SIGN_ELEMENT = { Aries:"fire",Leo:"fire",Sagittarius:"fire", Taurus:"earth",Virgo:"earth",Capricorn:"earth", Gemini:"air",Libra:"air",Aquarius:"air", Cancer:"water",Scorpio:"water",Pisces:"water" };
+// Sign MODALITY (chara/sthira/dwiswabhava) — a standard Vedic primitive: movable signs favour
+// change, travel and relocation; fixed signs anchor and stay put; dual signs bring periodic,
+// adaptive movement. Reusable across the engine; used first by the foreign-settlement reading.
+const _SIGN_MODALITY = { Aries:"movable",Cancer:"movable",Libra:"movable",Capricorn:"movable", Taurus:"fixed",Leo:"fixed",Scorpio:"fixed",Aquarius:"fixed", Gemini:"dual",Virgo:"dual",Sagittarius:"dual",Pisces:"dual" };
+function signNature(sign){ return _SIGN_MODALITY[sign] || null; }
 function buildCareerFields(ctx){
   try{
     const { tenthLord, d1P, vargaChart, charaKarakas } = ctx;
@@ -4948,7 +5029,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       try{ flags.careerFields = buildCareerFields({ tenthLord:hLord, d1P, vargaChart, charaKarakas }); }catch(_){ flags.careerFields=null; }
     }
     try{ if(careerCompass) careerCompass.businessLean = buildBusinessLean(d1P, d1LagnaSign, _ama, compound); }catch(_){}
-    try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound); }catch(_){}
+    try{ if(careerCompass) careerCompass.foreign = buildForeignCareer(d1P, d1LagnaSign, compound, dashas, vargaChart, birthDate); }catch(_){}
     try{ if(careerCompass) careerCompass.nakshatra = (compound&&compound.nakshatra||[]).filter(n=> n.planet===hLord || n.planet===_ama); }catch(_){}
     try{ if(careerCompass) careerCompass.money = buildMoneyFlow(d1P, d1LagnaSign, compound, houseStates); }catch(_){}
     try{ if(careerCompass) careerCompass.rajaYogas = (compound&&compound.rajaYogas)||[]; }catch(_){}
