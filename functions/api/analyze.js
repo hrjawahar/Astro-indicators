@@ -4947,6 +4947,21 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     }
     const rows=[]; const adWindows=[]; const pastWindows=[]; const forwardADs=[];
     let current=null, currentAD=null;
+    // PAST OVERVIEW (connect-the-dots anchor): the LAST COMPLETED Mahadasha and the LAST
+    // COMPLETED Antardasha — the long chapter and the recent sub-chapter the reader has just
+    // closed. A plain generic life-theme per lord lets the writer open "Looking back" with a
+    // retrospective the reader recognises emotionally, before the domain-specific windows.
+    const _PLANET_THEME = {
+      Sun:"identity, authority, recognition and standing on your own",
+      Moon:"emotions, home, the mother and inner security",
+      Mars:"drive, courage, conflict, property and decisive action",
+      Mercury:"communication, learning, commerce and the intellect",
+      Jupiter:"growth, wisdom, mentors, children and good fortune",
+      Venus:"relationships, comfort, pleasure and material ease",
+      Saturn:"duty, discipline, delay, hard work and slow consolidation",
+      Rahu:"ambition, the unconventional, foreign pulls and sudden rise",
+      Ketu:"detachment, letting go, spirituality and an inward turn" };
+    let lastCompletedMD=null, lastCompletedAD=null;
     for(const md of dashas){
       const st=md.startDate?new Date(md.startDate).getTime():null;
       const en=md.endDate?new Date(md.endDate).getTime():null;
@@ -4954,6 +4969,9 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       const relevant = keyPlanets.has(md.lord);
       const isCurrentMD = (st!=null&&en!=null&&now>=st&&now<en);
       if(isCurrentMD) current={lord:md.lord,years:yrs,relevant};
+      if(en!=null && en<now && (!lastCompletedMD || en>lastCompletedMD._en)){
+        lastCompletedMD={ lord:md.lord, years:yrs, ended:yr(md.endDate), theme:_PLANET_THEME[md.lord]||null, _en:en };
+      }
       if(relevant) rows.push({lord:md.lord,years:yrs,note:(md.lord===hLord?"rules your "+ordinalD(cfg.house)+" house of "+cfg.focus:md.lord===karakaPlanet?"the "+cfg.karaka+", your domain significator":"active in your "+ordinalD(cfg.house)+" house")});
       // scan antardashas
       if(Array.isArray(md.antarDasas)){
@@ -4966,6 +4984,9 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
             // and the reader never wonders whether the boundary year is Now or Ahead.
             let until=""; try{ until = new Date(ad.endDate).toLocaleString("en-US",{month:"long",year:"numeric"}); }catch(_){}
             currentAD={md:md.lord,ad:ad.lord,years:ayrs,until};
+          }
+          if(aen!=null && aen<now && (!lastCompletedAD || aen>lastCompletedAD._en)){
+            lastCompletedAD={ md:md.lord, ad:ad.lord, years:ayrs, ended:yr(ad.endDate), theme:_PLANET_THEME[ad.lord]||null, _en:aen };
           }
           // FORWARD-AD POOL (for the Future Compass): every AD that is current or still
           // ahead — regardless of whether its lord is a domain karaka. This is the fix for
@@ -5100,7 +5121,9 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         role: i===0 ? roleFirst : roleSecond }));
       likelyFruitionWindow = likelyFruitionWindows[0] || null;   // kept for back-compat
     }catch(_){}
-    dashaTiming={ current, currentAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, forwardADs:fw, likelyFruitionWindow, likelyFruitionWindows, realTermAge, realTermYear };
+    if(lastCompletedMD) delete lastCompletedMD._en;
+    if(lastCompletedAD) delete lastCompletedAD._en;
+    dashaTiming={ current, currentAD, lastCompletedMD, lastCompletedAD, relevantPeriods:rows.slice(0,6), keyWindows:kw, pastWindows:pw, forwardADs:fw, likelyFruitionWindow, likelyFruitionWindows, realTermAge, realTermYear };
     // now that timing exists, enrich the watch-out-for with the nearest key window
     if(flags.watchOutFor && dashaTiming.keyWindows){
       // AUDIT FIX (same bug class as the remedy past-window): keyWindows are chronological,
