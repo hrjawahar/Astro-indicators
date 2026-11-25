@@ -230,14 +230,22 @@ async function writeDomainReport(env, domainKey, facts, onProgress, audience) {
 // tokens (a colon-label with a bare true/false, a 'level' / 'factors' / 'applicable' / 'severity'
 // field dump, a stray '».' marker) never occur in correctly-translated prose, so dropping the
 // whole line is safe and removes the leak without harming the surrounding reading.
-const _LEAK_RE = /(\bapplicable\s*[:=])|(\blevel\s*['"])|(\bfactors\s*[—:])|(\b(severity|netStrength|restrictionIndex|ageGate|loveFactors|arrangedFactors|dissolutionWindow)\s*[:=])|(:\s*(true|false)\b)|(»\s*\.?\s*:)/i;
+// Lines that are GENUINE field-dumps (garbage) → drop the whole line.
+const _DROP_RE = /(\bapplicable\s*[:=])|(\blevel\s*['"])|(\bfactors\s*[—:])|(\b(severity|netStrength|restrictionIndex|ageGate|loveFactors|arrangedFactors|dissolutionWindow|maturationDirection)\s*[:=])|(:\s*(true|false)\b)/i;
 function scrubArtifacts(sections) {
   if (!Array.isArray(sections)) return sections;
   return sections.map(s => {
     if (!s || !s.body) return s;
-    const lines = String(s.body).split("\n");
-    const kept = lines.filter(ln => !(ln.trim() && _LEAK_RE.test(ln)));
-    const body = kept.join("\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    const lines = String(s.body).split("\n").map(ln => ln
+      // strip a leaked control-value tacked onto an otherwise-good line ("…Taurus.: shifts." → "…Taurus.")
+      .replace(/\s*[.;]?\s*:\s*(rises|shifts|protect[- ]?peak|protect[- ]?leaning)\b\.?/gi, ".")
+      // repair a stray "».:" why-line marker
+      .replace(/»\s*\.\s*:\s*/g, "» ")
+      // strip an inline "applicable: true/false" fragment
+      .replace(/\s*\.*\s*\bapplicable\s*:\s*(true|false)\b\.?/gi, "")
+    );
+    const kept = lines.filter(ln => !(ln.trim() && _DROP_RE.test(ln)));
+    const body = kept.join("\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
     return { ...s, body };
   });
 }
@@ -469,6 +477,7 @@ function buildSystemPrompt(audience) {
     " • Open the whole section with one plain line that these are optional practices to meet the period from steadiness, not fixes for fear. CLOSE it with this empowering note, in your own warm words: these are suggestions, and the reader is free to choose remedies and practices from their own trusted sources and spiritual guidance — what matters is a steadier inner state, not any one prescribed ritual.",
     " • TONE: empowering and optional — 'practices that help you meet this period from steadiness', never 'you must do this or else'. Keep planet mechanics in '» ' why-lines; the practices themselves are plain and doable.",
     "",
+    "CONTROL SIGNALS ARE NEVER PRINTED: facts.flags.maturationDirection ('rises' / 'shifts' / 'protect-peak') is an INTERNAL steering value that tells you which heading and framing to choose — it is NOT content. NEVER write the words 'rises', 'shifts', or 'protect-peak' as a label or append them to a sentence or a '» ' why-line (e.g. never end a line with '… Taurus.: shifts'). The same holds for any raw flag field name or value (applicable, level, factors, severity): translate them into plain meaning, never echo the raw token.",
     "THE NARRATIVE SPINE (every report follows it): FIRST HALF of life read from D1 → SECOND HALF shown in D9 (its DIRECTION set by facts.flags.maturationDirection — a rise, a change of mode, or a strong-first-half that needs protecting; NOT automatically a 'maturation' into something better) → the divisional chart independently CONFIRMS the pattern. Emphasise convergences (where two charts agree) as the credibility core — the facts packet lists them.",
     "",
     "═══ STRUCTURE & MARKERS (how to shape every section's body) ═══",
