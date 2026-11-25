@@ -267,13 +267,37 @@ function checkLeaks(text, out){
   while((m=CAMEL.exec(text))){ if(!/^(D1|D9|D10)$/.test(m[0])){ out.push({ type:"leak", severity:"warn", detail:"A camelCase identifier survived into the prose: "+m[0], evidence:m[0] }); break; } }
 }
 
-export function verifyReportFaithfulness(domainKey, facts, sections){
+// ── CLIENT-SENSITIVE guard (paid edition only) ───────────────────────────────────
+// Enforces the sensitive-framing contract for the PAID reader: no numeric risk scores,
+// no medical/clinical intimacy claims, no explicit terms, and — for marriage — no
+// affair/infidelity/divorce verdict and no third-party accusation about the spouse.
+// These are owner-only; in the paid edition they must appear as the empowering reframe.
+function checkClientSensitive(text, domainKey, out){
+  const push=(detail,evidence)=>out.push({type:"client-sensitive",severity:"critical",detail,evidence});
+  let m = text.match(/\b\d{1,2}\s*\/\s*10\b/) || text.match(/\brisk\s*score\b/i) || text.match(/\bscore\s*[:=]\s*\d/i);
+  if(m) push("a numeric risk score reached the paid reader — scores are owner-only; use the empowering reframe", m[0]);
+  m = text.match(/\b(erectile|impotence|libido|sexual dysfunction|low testosterone|premature ejaculation)\b/i);
+  if(m) push("a medical/clinical intimacy claim appeared — keep intimacy strictly psychological and energetic", m[0]);
+  m = text.match(/\b(sex drive|intercourse|orgasm|arousal|genital\w*)\b/i);
+  if(m) push("an explicit term appeared — use tasteful 'physical closeness / warmth / vitality' language", m[0]);
+  if(domainKey==="marriage"){
+    m = text.match(/\b(affair|infidelity|unfaithful|cheating)\b/i);
+    if(m) push("an affair/infidelity term appeared in the paid edition — reframe as a 'boundaries & novelty' watch-point, never name it", m[0]);
+    m = text.match(/\b(your|the)\s+(spouse|partner|husband|wife)\b[^.]{0,40}\b(affair|cheat\w*|unfaithful|betray\w*)\b/i);
+    if(m) push("a third-party accusation about the spouse appeared — frame only the native's own tendencies and choices", m[0]);
+    m = text.match(/\bdivorce\b/i) || text.match(/\bthe marriage (will|is likely to|is going to) end\b/i);
+    if(m) push("a divorce prediction appeared in the paid edition — reframe as 'chapters that ask for conscious recommitment'", m[0]);
+  }
+}
+
+export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   const text = plainText(sections);
   const lagnaSign = facts && facts.d1 && facts.d1.lagnaSign;
   const out = [];
   try{ checkLordship(text, lagnaSign, out); }catch(_){}
   try{ if(domainKey==="marriage") checkAllClear(text, facts, out); }catch(_){}
   try{ if(domainKey==="marriage") checkMinorMode(text, facts, out); }catch(_){}
+  try{ if(audience!=="owner") checkClientSensitive(text, domainKey, out); }catch(_){}
   try{ checkTiming(text, domainKey, facts, out); }catch(_){}
   try{ checkDignity(text, facts, out); }catch(_){}
   try{ checkBadhakesh(text, lagnaSign, out); }catch(_){}

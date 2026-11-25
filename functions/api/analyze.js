@@ -29,6 +29,10 @@ const ENABLE_SEPARATION = true;
 const ENABLE_D10_LENS = true;
 const ENABLE_MARRIAGE_CLASSIFIERS = true;
 const ENABLE_OWNER_INTIMATE = true;
+// Client-safe sensitive reframe (paid edition gets relationshipResilience: a score-free, agency-
+// anchored version of the intimacy/affair/separation strands). Off → relationshipResilience is null
+// and the paid edition carries no sensitive line (the conservative fully-gated fallback).
+const ENABLE_SENSITIVE_REFRAME = true;
 // Foreign SETTLEMENT depth (V9): separates permanent relocation from remote/temporary work using
 // the 4th-house axis, the 4th-lord-as-9th-lord/Badhakesh signature, Rahu on the 4/8/12 axis, sign
 // modality, retrograde pull-home, a D10 4th/9th cross-check and relocation dasha windows. Set false
@@ -4296,6 +4300,45 @@ function buildIntimacyProfile(d1P, gender){
       note:"A temperament reading of intimacy drive and warmth (3rd/7th/8th/12th with the gender-polarity karakas) — owner/consultation use only, a tendency, not a verdict." };
   }catch(_){ return null; }
 }
+// CLIENT-SAFE relationship reframe (paid edition). Takes the candid owner signals and returns ONLY
+// empowering, score-free, agency-anchored language per the sensitive-framing standard: no numeric
+// scores, no "affair"/"separation"/"divorce" words, no medical/clinical claims, no third-party
+// accusation. The candid flags stay owner-only; THIS is what the paid reader receives instead.
+function buildRelationshipResilience({ affairRisk, separationRisk, intimacyProfile, venusDignity, marsDignity }){
+  try{
+    const sev = (r)=> r && r.level ? r.level : "none";          // none|possible|mild|notable|strong
+    const heavy = (l)=> l==="notable"||l==="strong"||l==="high";
+    const some  = (l)=> !!l && l!=="none";
+    const sepL = sev(separationRisk), affL = sev(affairRisk);
+    // Resilience level is the INVERSE framing of structural strain — never a risk score.
+    let level, atAGlanceLine;
+    if(heavy(sepL)){
+      level="attentive";
+      atAGlanceLine="Moderate — this partnership thrives on active communication and clear boundaries through its higher-pressure chapters, and rewards conscious recommitment over coasting.";
+    } else if(some(sepL)||some(affL)){
+      level="steady";
+      atAGlanceLine="Steady — honest check-ins and clear boundaries keep the bond strong through its busier, higher-stress stretches.";
+    } else {
+      level="resilient";
+      atAGlanceLine="Resilient — the chart supports a stable, warm partnership that rewards everyday care.";
+    }
+    // Vitality / physical resonance — psychological & energetic only, dignity-aware (no medical claims).
+    const vWeak = venusDignity==="Debilitated"||venusDignity==="combust";
+    const mWeak = marsDignity==="Debilitated";
+    const iLow  = intimacyProfile && (intimacyProfile.level==="reserved"||intimacyProfile.level==="average");
+    const vitalityLine = (vWeak||mWeak||iLow)
+      ? "Physical closeness for you runs deep but unevenly — it thrives when stress is paced and rest protected, and when warmth is built on emotional safety and trust rather than spontaneous pressure."
+      : "Physical closeness for you is tied to emotional safety and steady energy; pacing how you spend yourself and protecting rest keeps warmth and desire alive over the long run.";
+    const boundariesWatch = some(affL)
+      ? "In restless or high-pressure chapters, a pull toward novelty or outside validation can rise. Noticing that urge early lets you channel it back into the commitment you value rather than seeking distraction outside it."
+      : null;
+    const frictionWatch = some(sepL)
+      ? "This chart prizes honesty over surface harmony. Rather than drifting through quiet dissatisfaction, the bond reaches clear turning points that ask both partners to consciously recommit or redefine their terms — a renegotiation, not a verdict."
+      : null;
+    return { level, atAGlanceLine, vitalityLine, boundariesWatch, frictionWatch,
+      note:"Client-safe relationship reframe — tendencies and choices, never scores, diagnoses, or claims about events. Paid edition." };
+  }catch(_){ return null; }
+}
 function buildAffairTiming(affairRisk, dashas, d1P, d1LagnaSign, hLord, birthDate){
   try{
     if(!affairRisk||affairRisk.level==="none"||!Array.isArray(dashas)) return null;
@@ -4581,6 +4624,16 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         flags.separationTiming = (_st && _st.applicable) ? _st : null;
       }catch(_){ flags.separationTiming=null; }
     }
+    // CLIENT-SAFE reframe of the sensitive strands. The paid edition receives THIS (score-free,
+    // agency-anchored); the candid flags above stay owner-only. Nulled for minors in the minor block.
+    try{
+      flags.relationshipResilience = ENABLE_SENSITIVE_REFRAME ? buildRelationshipResilience({
+        affairRisk: flags.ownerSensitive && flags.ownerSensitive.affairRisk,
+        separationRisk: flags.ownerSensitive && flags.ownerSensitive.separationRisk,
+        intimacyProfile: flags.intimacyProfile,
+        venusDignity: d1P.Venus && (d1P.Venus.combust ? "combust" : d1P.Venus.dignity),
+        marsDignity: d1P.Mars && d1P.Mars.dignity }) : null;
+    }catch(_){ flags.relationshipResilience=null; }
 
     // ── Spouse significator + partner profile (gender-aware) ─────────────────────
     // Classical rule: for a WOMAN the husband-significator is Jupiter; for a MAN the
@@ -4756,6 +4809,8 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       // the one firm line: no intimacy/stamina read, no affair/infidelity read about a child.
       flags.intimacyProfile=null;
       flags.affairTiming=null;
+      // The client-safe reframe carries vitality/affair strands too — never for a minor, any edition.
+      flags.relationshipResilience=null;
       // Keep the structural SEPARATION read (a life event parents may ask about) but drop the AFFAIR
       // sub-read from the owner-sensitive block.
       if(flags.ownerSensitive) flags.ownerSensitive={ ...flags.ownerSensitive, affairRisk:null };
