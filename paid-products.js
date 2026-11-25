@@ -93,13 +93,19 @@
       <div id="aiPrepPct" style="font-size:.82rem;color:#c9a84c;font-weight:700;letter-spacing:.02em">Preparing your reading… 4%</div>
       <div style="font-size:.78rem;opacity:.72;margin-top:8px">this usually takes 1–2 minutes · please keep this page open</div>
     </div>`;
-    const t0 = Date.now(), EST = estMs || 90000;
+    const t0 = Date.now(), EST = estMs || 140000;
+    let shown = 4;
     const iv = setInterval(()=>{
       const el = document.getElementById("aiPrepBar"); if(!el){ clearInterval(iv); return; }
-      const frac = Math.min(1, (Date.now()-t0)/EST);
-      const pct = Math.min(92, Math.round(4 + frac*88));
+      const frac = (Date.now()-t0)/EST;
+      // Climb to ~90% over the estimate, then creep ASYMPTOTICALLY toward 99% so it is never
+      // frozen while a longer-than-estimated generation finishes (closes 4% of the gap each tick).
+      if (frac < 1) shown = Math.max(shown, 4 + frac*86);
+      else shown = shown + (99 - shown)*0.04;
+      const pct = Math.min(99, Math.round(shown));
       el.style.width = pct + "%";
-      const p = document.getElementById("aiPrepPct"); if(p) p.textContent = "Preparing your reading… " + pct + "%";
+      const p = document.getElementById("aiPrepPct");
+      if(p) p.textContent = (pct >= 88 ? "Almost ready — finishing the writing… " : "Preparing your reading… ") + pct + "%";
     }, 700);
     return {
       done(){ clearInterval(iv); const el=document.getElementById("aiPrepBar"); if(el) el.style.width="100%";
@@ -986,7 +992,7 @@
   async function openDomainReport(domainKey) {
     const host = $("domainReport"); if (!host) return;
     try { primeAudio(); } catch (_) {}   // unlock audio inside the click gesture, for the ready-chime
-    const prep = startPreparing(host, `Reading your ${esc(DOMAIN_LABELS[domainKey]||"domain")} blueprint…`, 95000);
+    const prep = startPreparing(host, `Reading your ${esc(DOMAIN_LABELS[domainKey]||"domain")} blueprint…`, 140000);
     try { host.scrollIntoView(); } catch (_) {}
     try {
       const cid = window.AI_chartId();
