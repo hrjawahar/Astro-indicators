@@ -47,6 +47,67 @@
   const COVER_DISCLAIMER = "For educational, cultural and self-reflective purposes only — interpretive perspectives and probabilities, never certainties, and not a substitute for professional medical, psychological, relationship, legal, or financial advice.";
 
   function $(id){ return document.getElementById(id); }
+
+  // ── Preparation progress + temple-bell chime ─────────────────────────────────
+  // A time-based progress bar during the ~1–2 min report preparation, and a soft
+  // temple bell (synthesised via Web Audio — no asset to load) once it is ready.
+  let _audioCtx = null;
+  function primeAudio(){
+    try{
+      if(!_audioCtx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return null; _audioCtx = new AC(); }
+      if(_audioCtx.state === "suspended" && _audioCtx.resume) _audioCtx.resume();
+      return _audioCtx;
+    }catch(_){ return null; }
+  }
+  function playTempleBell(){
+    const ctx = primeAudio(); if(!ctx) return;
+    try{
+      const now = ctx.currentTime;
+      const master = ctx.createGain(); master.gain.value = 0.85; master.connect(ctx.destination);
+      // Inharmonic partials give the struck-metal "bell" timbre; long exponential decay.
+      const partials = [[1,1.0],[2.76,0.52],[5.40,0.26],[8.93,0.13]];
+      const strike = (t0, base, peak, dur) => {
+        const g = ctx.createGain(); g.connect(master);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(peak, t0 + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        partials.forEach(([ratio,amp])=>{
+          const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = base * ratio;
+          const og = ctx.createGain(); og.gain.value = amp; o.connect(og); og.connect(g);
+          o.start(t0); o.stop(t0 + dur + 0.1);
+        });
+      };
+      strike(now,        432, 0.55, 3.4);   // main toll
+      strike(now + 0.16, 432, 0.30, 3.0);   // soft second tap (temple double-strike)
+    }catch(_){}
+  }
+  // Renders a preparing screen with an animated bar; returns {done, stop}. The bar eases
+  // toward 92% over an estimate, then done() completes it to 100%.
+  function startPreparing(host, label, estMs){
+    if(!host) return { done(){}, stop(){} };
+    host.innerHTML = `<div class="pp-empty" style="max-width:430px;margin:0 auto;text-align:center">
+      <div style="font-weight:600;margin-bottom:4px">${label}</div>
+      <div style="margin:14px 0 7px;height:9px;background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.45);border-radius:999px;overflow:hidden">
+        <div id="aiPrepBar" style="height:100%;width:4%;background:linear-gradient(90deg,#b0821f,#e8d9ae);border-radius:999px;transition:width .6s ease"></div>
+      </div>
+      <div id="aiPrepPct" style="font-size:.82rem;color:#c9a84c;font-weight:700;letter-spacing:.02em">Preparing your reading… 4%</div>
+      <div style="font-size:.78rem;opacity:.72;margin-top:8px">this usually takes 1–2 minutes · please keep this page open</div>
+    </div>`;
+    const t0 = Date.now(), EST = estMs || 90000;
+    const iv = setInterval(()=>{
+      const el = document.getElementById("aiPrepBar"); if(!el){ clearInterval(iv); return; }
+      const frac = Math.min(1, (Date.now()-t0)/EST);
+      const pct = Math.min(92, Math.round(4 + frac*88));
+      el.style.width = pct + "%";
+      const p = document.getElementById("aiPrepPct"); if(p) p.textContent = "Preparing your reading… " + pct + "%";
+    }, 700);
+    return {
+      done(){ clearInterval(iv); const el=document.getElementById("aiPrepBar"); if(el) el.style.width="100%";
+              const p=document.getElementById("aiPrepPct"); if(p) p.textContent="Your reading is ready ✦"; },
+      stop(){ clearInterval(iv); }
+    };
+  }
+
   function ord(n){ return n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:(n%10<4?n%10:0)]); }
   const SIGN_LORD = { Aries:"Mars",Taurus:"Venus",Gemini:"Mercury",Cancer:"Moon",Leo:"Sun",Virgo:"Mercury",
     Libra:"Venus",Scorpio:"Mars",Sagittarius:"Jupiter",Capricorn:"Saturn",Aquarius:"Saturn",Pisces:"Jupiter" };
@@ -452,8 +513,29 @@
   // "Why this reading" box), "### " a sub-heading, "- " a bullet, "★ " a theme pill,
   // and **bold** inline. Any other line is an ordinary paragraph. Used by the transit,
   // domain and all-domains flipbooks so every paid report renders identically.
+  // Force block markers (» / ### / ★) onto their own lines even when the model ran them
+  // inline (the parser keys off line-start, so an inline "### Now" would otherwise print
+  // the literal "###"). Safe: these marker strings never occur mid-sentence in real prose.
+  function normalizeMarks(s) {
+    s = String(s || "");
+    s = s.replace(/[ \t]*\n?[ \t]*(»\s)/g, "\n$1");     // why-lines
+    s = s.replace(/[ \t]*\n?[ \t]*(###\s)/g, "\n\n$1"); // sub-headings
+    s = s.replace(/[ \t]*\n?[ \t]*(★\s)/g, "\n\n$1");   // theme pills
+    return s.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "");
+  }
+  // A "### " line may carry body text merged onto it ("### Now The current stretch…"). Split a
+  // short leading LABEL from the sentence that follows, so the heading stays a heading.
+  function splitHeading(h) {
+    h = String(h || "").trim();
+    let m = h.match(/^(.{1,24}?)\s+[—–-]\s+(.{40,})$/);              // "Label — long body…"
+    if (!m) m = h.match(/^(\S+(?:\s+\S+){0,2}?)\s+([A-Z][a-z].{40,})$/); // "Label Capitalised sentence…"
+    if (m && !/[.!?:]$/.test(m[1])) return { head: m[1].replace(/[—–-]\s*$/, "").trim(), rest: m[2].trim() };
+    // Long heading led by a single short capitalised label ("Ahead the windows begin to open…")
+    if (h.length > 40) { const m2 = h.match(/^([A-Z][a-z]{1,11})\s+(.{30,})$/); if (m2) return { head: m2[1], rest: m2[2].trim() }; }
+    return { head: h, rest: "" };
+  }
   function reportBodyHtml(chunk) {
-    const paras = String(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
+    const paras = normalizeMarks(chunk).split(/\n{2,}|\n/).map(x=>x.trim()).filter(Boolean);
     const mk = (x) => esc(x).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/\*/g, "");
     let bodyHtml = "", techBuf = [], ulBuf = [];
     const flushWhy = () => {
@@ -471,7 +553,7 @@
     };
     paras.forEach(p => {
       if (p.indexOf("» ") === 0) { flushUl(); techBuf.push(mk(p.slice(2))); }
-      else if (p.indexOf("### ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="font-weight:700;color:var(--ai-gold,#b0821f);font-size:1.03em;margin:13px 0 3px">${mk(p.slice(4))}</div>`; }
+      else if (p.indexOf("### ") === 0) { flushWhy(); flushUl(); const sh = splitHeading(p.slice(4)); bodyHtml += `<div style="font-weight:700;color:#5A4410;font-size:1.05em;margin:14px 0 4px">${mk(sh.head)}</div>`; if (sh.rest) bodyHtml += `<p style="margin:6px 0">${mk(sh.rest)}</p>`; }
       else if (p.indexOf("- ") === 0) { flushWhy(); ulBuf.push(mk(p.slice(2))); }
       else if (p.indexOf("★ ") === 0) { flushWhy(); flushUl(); bodyHtml += `<div style="margin:14px 0 6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ai-gold,#b0821f);opacity:.85">★ Theme to hold</span><span style="display:inline-block;padding:5px 13px;border-radius:999px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);font-weight:700;font-size:1.0em;color:inherit">${mk(p.slice(2))}</span></div>`; }
       else { flushWhy(); flushUl(); bodyHtml += `<p style="margin:8px 0">${mk(p)}</p>`; }
@@ -903,15 +985,15 @@
 
   async function openDomainReport(domainKey) {
     const host = $("domainReport"); if (!host) return;
-    host.innerHTML = `<div class="pp-empty">Reading your ${esc(DOMAIN_LABELS[domainKey]||"domain")} blueprint.<br>
-      <span style="display:inline-block;margin:10px 0;padding:5px 16px;background:rgba(201,168,76,0.16);border:1px solid rgba(201,168,76,0.6);border-radius:999px;color:#c9a84c;font-weight:700">⏱ This usually takes 1–2 minutes</span><br>
-      Please keep this page open.</div>`;
+    try { primeAudio(); } catch (_) {}   // unlock audio inside the click gesture, for the ready-chime
+    const prep = startPreparing(host, `Reading your ${esc(DOMAIN_LABELS[domainKey]||"domain")} blueprint…`, 95000);
     try { host.scrollIntoView(); } catch (_) {}
     try {
       const cid = window.AI_chartId();
       const item = DOMAIN_ITEM(domainKey);
       const cached = await srv({ action:"fetch", chartId: cid, item, lang:"en" });
       let sections = cached && cached.sections;
+      let freshlyGenerated = false;
       if (!sections) {
         const facts = (window.currentData && window.currentData.analysis
                       && window.currentData.analysis.domainFacts
@@ -919,6 +1001,7 @@
         if (!facts) throw new Error("Chart facts unavailable — please regenerate your chart.");
         const data = await fetchStreamedReport("/api/domain-report", { domainKey, facts });
         if (!data.success) throw new Error(data.error || "Report writer unavailable.");
+        freshlyGenerated = true;
         sections = data.sections || [];
         if (!Array.isArray(sections) || sections.length === 0)
           throw new Error("The report came back empty. Please try again in a moment.");
@@ -934,8 +1017,10 @@
       }
       _reportLang = "EN";
       _domCtx = { domainKey, host, cache: { EN: sections } };   // English source for the language picker
+      prep.done();
+      if (freshlyGenerated) { try { playTempleBell(); } catch (_) {} }  // ring once when a new reading is ready
       renderDomainFlipbook(host, domainKey, sections);
-    } catch (e) { host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
+    } catch (e) { prep.stop(); host.innerHTML = `<div class="pp-empty">${esc(e.message)}</div>`; }
   }
 
   // ── Chart glossary (AI-translation era) ──────────────────────────────────────
@@ -1295,10 +1380,11 @@
     P.push(readNotePage(3));
     const cmp = domainComparisonPage(domainKey, 0);
     let n = 4;
-    const PAGE_BUDGET = 1050;   // chars a single page comfortably holds
+    const PAGE_BUDGET = 760;   // chars a single page comfortably holds at a comfortable reading size
+                               // (lower = fewer chars/page = larger font; more pages is fine in a flip book)
     const emitSection = (sec) => {
       const heading = esc(sec.heading||"");
-      const paras = String(sec.body||"").split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+      const paras = normalizeMarks(sec.body).split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
       const total = paras.reduce((a,p)=>a+p.length+2, 0);
       // How many pages this section needs, then a BALANCED target per page so the
       // last page is never left with a lone orphan line.
@@ -2669,10 +2755,10 @@
     if (!root || !root.querySelectorAll) return;
     root.querySelectorAll(".pg .bd").forEach(function (bd) {
       bd.style.fontSize = ""; bd.style.lineHeight = ""; bd.style.overflowY = "hidden";
-      var size = parseFloat(getComputedStyle(bd).fontSize) || 13.6;
-      var floor = size * 0.8, guard = 0;
-      while (bd.scrollHeight > bd.clientHeight + 1 && size > floor && guard < 28) {
-        size -= 0.4; guard++; bd.style.fontSize = size + "px";
+      var size = parseFloat(getComputedStyle(bd).fontSize) || 15.5;
+      var floor = size * 0.9, guard = 0;   // never shrink below 90% — pages flow on instead of cramming
+      while (bd.scrollHeight > bd.clientHeight + 1 && size > floor && guard < 20) {
+        size -= 0.3; guard++; bd.style.fontSize = size + "px";
       }
       if (bd.scrollHeight > bd.clientHeight + 1) bd.style.overflowY = "auto";  // last resort only
     });
