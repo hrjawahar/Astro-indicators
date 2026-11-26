@@ -3620,13 +3620,14 @@ function buildOwnerSensitive(domainKey, d1P, d1LagnaSign, d9Houses, hLord, karak
 // The 3rd-lord courage matrix, Mars-drive nuance, younger-vs-elder sibling bonds, the
 // communication edge, and the convergence archetype — the domain-specific layer on top of
 // the universal engine (axis decoder, recurring lesson, agency matrix all apply already).
-function buildSiblingsDepth(d1P, d1LagnaSign, thirdLord){
+function buildSiblingsDepth(d1P, d1LagnaSign, thirdLord, vargaChart){
   try{
     const li = V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
     const signOfHouse = (h)=> V_SIGNS[(li + h - 1) % 12];
     const eleventhLord = SIGN_LORDS[signOfHouse(11)];
     const hof = (p)=> d1P[p] && d1P[p].house;
     const dig = (p)=> d1P[p] && d1P[p].dignity;
+    const occOf = (h)=> Object.keys(d1P).filter(p=>p!=="Lagna" && d1P[p].house===h);
     const strong = (p)=>{ const d=dig(p), h=hof(p); return d==="Exalted"||d==="Own sign"|| (h && [1,4,7,10].includes(h)); };
     const afflicted = (p)=>{ const d=dig(p), h=hof(p); return d==="Debilitated" || (h && [6,8,12].includes(h)); };
     const conj = (a,b)=>{ const ha=hof(a); return !!ha && hof(b)===ha; };
@@ -3665,6 +3666,29 @@ function buildSiblingsDepth(d1P, d1LagnaSign, thirdLord){
       ? { level:"strong", note:"a real edge in communication — writing, teaching, media, advisory or commercial skill, winning through clarity rather than force" }
       : { level:"workable", note:"communication that strengthens with deliberate practice" };
 
+    // 3rd-house OCCUPANTS (SOP Step 1.1) — malefics give Upachaya grit; Ketu an unconventional
+    // fearlessness; benefics a diplomatic, persuasive voice.
+    let thirdOccupants=null;
+    const occ3=occOf(3);
+    if(occ3.length){
+      const mal=occ3.filter(p=>["Mars","Sun","Saturn","Rahu"].includes(p));
+      const ben=occ3.filter(p=>["Jupiter","Venus","Mercury","Moon"].includes(p));
+      if(occ3.includes("Ketu")) thirdOccupants={flavour:"unconventional", planets:occ3, note:"an unconventional courage — fearless in a real crisis, indifferent to routine competition, with spells of detachment or distance from a sibling"};
+      else if(mal.length) thirdOccupants={flavour:"grit", planets:mal, note:"natural malefics in the 3rd are classically celebrated (Upachaya) — strong self-reliance, competitive grit and risk appetite, though they can add friction or distance with a younger sibling unless softened"};
+      else if(ben.length) thirdOccupants={flavour:"diplomatic", planets:ben, note:"benefics in the 3rd give diplomatic, persuasive communication and warm sibling bonds — you prefer winning through clarity over confrontation"};
+    }
+
+    // D3 cross-link (SOP Step 2.1): where the D1 3rd lord lands in the Drekkana. In a D3 6/8/12 it
+    // asks for clear boundaries and written agreements on early ventures or sibling partnerships.
+    let d1ThirdLordInD3=null;
+    try{
+      if(vargaChart&&vargaChart.placements&&thirdLord&&vargaChart.placements[thirdLord]){
+        const pp=vargaChart.placements[thirdLord];
+        d1ThirdLordInD3={ planet:thirdLord, d3House:pp.house, d3Sign:pp.sign,
+          dusthana:[6,8,12].includes(pp.house), strong:(pp.dignity==="Exalted"||pp.dignity==="Own sign"||[1,4,5,9,10,11].includes(pp.house)) };
+      }
+    }catch(_){}
+
     // Convergence archetype (plain label for the reader).
     let archetype;
     if(courageChannel && courageChannel.mode==="self-enterprise" && (marsDrive.grade==="decisive"))
@@ -3675,18 +3699,19 @@ function buildSiblingsDepth(d1P, d1LagnaSign, thirdLord){
       archetype = "The Patient Builder of Courage";
     else archetype = "The Steady Initiator";
 
-    return { courageChannel, marsDrive, siblingBonds, communicationEdge, archetype,
+    return { courageChannel, marsDrive, siblingBonds, communicationEdge, thirdOccupants, d1ThirdLordInD3, archetype,
       thirdLord, eleventhLord };
   }catch(_){ return null; }
 }
 // ── Mother, Home & Emotional Peace domain depth (SOP D4) ─────────────────────
 // The 4th-lord home matrix, Moon (Matrukaraka) emotional core, property/comfort outlook,
 // relocation signal and the convergence archetype.
-function buildMotherDepth(d1P, d1LagnaSign, fourthLord){
+function buildMotherDepth(d1P, d1LagnaSign, fourthLord, vargaChart){
   try{
     const hof=(p)=>d1P[p]&&d1P[p].house;
     const dig=(p)=>d1P[p]&&d1P[p].dignity;
     const sgn=(p)=>d1P[p]&&d1P[p].sign;
+    const occOf=(h)=>Object.keys(d1P).filter(p=>p!=="Lagna"&&d1P[p].house===h);
     const strong=(p)=>{const d=dig(p),h=hof(p);return d==="Exalted"||d==="Own sign"||(h&&[1,4,7,10].includes(h));};
     const afflicted=(p)=>{const d=dig(p),h=hof(p);return d==="Debilitated"||(h&&[6,8,12].includes(h));};
     const conj=(a,b)=>{const ha=hof(a);return !!ha&&hof(b)===ha;};
@@ -3722,6 +3747,25 @@ function buildMotherDepth(d1P, d1LagnaSign, fourthLord){
 
     const relocating = [3,9,12].includes(flH) || hof("Rahu")===4 || MOVABLE.includes(sgn("Moon"));
 
+    // 4th-house OCCUPANTS (SOP Step 1.1) — Saturn = a duty-heavy home that builds durable property
+    // later; Ketu = detachment from ancestral roots / a minimalist, observer stance at home.
+    // (Benefic warmth and Mars/Sun heat are already in propertyOutlook; Rahu-restlessness in relocating.)
+    let fourthOccupants=null;
+    const occ4=occOf(4);
+    if(occ4.includes("Saturn")) fourthOccupants={flavour:"duty", planets:["Saturn"], note:"Saturn in the 4th — a duty-heavy or emotionally restrained early home, and strong responsibility toward mother or family property; it builds durable real estate later, but asks you to consciously learn to relax at home"};
+    else if(occ4.includes("Ketu")) fourthOccupants={flavour:"detached", planets:["Ketu"], note:"Ketu in the 4th — some detachment from ancestral roots, a minimalist or quiet home preference, or a feeling of being an observer within your own family; a dedicated private sanctuary matters"};
+
+    // D4 cross-link (SOP Step 2.1): where the D1 4th lord lands in the Chaturthamsha. In a D4 6/8/12
+    // it advises thorough legal due diligence on property and patience with relocation timelines.
+    let d1FourthLordInD4=null;
+    try{
+      if(vargaChart&&vargaChart.placements&&fourthLord&&vargaChart.placements[fourthLord]){
+        const pp=vargaChart.placements[fourthLord];
+        d1FourthLordInD4={ planet:fourthLord, d4House:pp.house, d4Sign:pp.sign,
+          dusthana:[6,8,12].includes(pp.house), strong:(pp.dignity==="Exalted"||pp.dignity==="Own sign"||[1,4,5,9,10].includes(pp.house)) };
+      }
+    }catch(_){}
+
     // Convergence archetype (plain label).
     let archetype;
     if((homeChannel&&homeChannel.mode==="relocating") || hof("Rahu")===4) archetype="The Self-Built Sanctuary";
@@ -3730,7 +3774,7 @@ function buildMotherDepth(d1P, d1LagnaSign, fourthLord){
     else if(emotionalCore.grade==="sensitive" || emotionalCore.grade==="withdrawn") archetype="Peace Found Within, Not Without";
     else archetype="The Steady Homebuilder";
 
-    return { homeChannel, emotionalCore, propertyOutlook, relocating, archetype, fourthLord };
+    return { homeChannel, emotionalCore, propertyOutlook, relocating, fourthOccupants, d1FourthLordInD4, archetype, fourthLord };
   }catch(_){ return null; }
 }
 // ── Children, Progeny & Parent-Child Bond domain depth (SOP D5) ──────────────
@@ -5979,11 +6023,11 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // Siblings & Courage domain depth (SOP D3): the 3rd-lord courage matrix, Mars drive, younger-vs-
   // elder sibling bonds, communication edge and archetype.
   if(domainKey==="siblings"){
-    try{ flags.siblingsDepth = buildSiblingsDepth(d1P, d1LagnaSign, hLord); }catch(_){ flags.siblingsDepth=null; }
+    try{ flags.siblingsDepth = buildSiblingsDepth(d1P, d1LagnaSign, hLord, vargaChart); }catch(_){ flags.siblingsDepth=null; }
   }
   // Mother, Home & Emotional Peace domain depth (SOP D4).
   if(domainKey==="mother"){
-    try{ flags.motherDepth = buildMotherDepth(d1P, d1LagnaSign, hLord); }catch(_){ flags.motherDepth=null; }
+    try{ flags.motherDepth = buildMotherDepth(d1P, d1LagnaSign, hLord, vargaChart); }catch(_){ flags.motherDepth=null; }
   }
   // Children, Progeny & Parent-Child Bond domain depth (SOP D5).
   if(domainKey==="children"){
