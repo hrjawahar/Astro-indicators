@@ -2440,7 +2440,7 @@ function occupantsOfHouse(d1P, houseNum){
 const DOMAIN_REPORT_CONFIG = {
   self:     { title:"Character Blueprint", focus:"self, character, and life-direction", house:1,  karaka:"Atmakaraka",    varga:null,  vargaLabel:"D1 + D9" },
   career:   { title:"Career Blueprint",    focus:"career path, timing, and direction", house:10, karaka:"Amatyakaraka",  varga:"D10", vargaLabel:"D10 (Dashamsha)" },
-  siblings: { title:"Courage Blueprint",   focus:"siblings, courage, and initiative",  house:3,  karaka:"Bhratrukaraka", varga:"D3",  vargaLabel:"D3 (Drekkana)" },
+  siblings: { title:"Siblings & Courage Blueprint", focus:"siblings, courage, and initiative",  house:3,  karaka:"Bhratrukaraka", varga:"D3",  vargaLabel:"D3 (Drekkana)" },
   mother:   { title:"Home Blueprint",      focus:"mother, home, and inner security",   house:4,  karaka:"Matrukaraka",   varga:"D4",  vargaLabel:"D4 (Chaturthamsha)" },
   children: { title:"Progeny Blueprint",   focus:"children, creativity, and progeny",  house:5,  karaka:"Putrakaraka",   varga:"D7",  vargaLabel:"D7 (Saptamsha)" },
   health:   { title:"Wellbeing Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
