@@ -2441,7 +2441,7 @@ const DOMAIN_REPORT_CONFIG = {
   self:     { title:"Character Blueprint", focus:"self, character, and life-direction", house:1,  karaka:"Atmakaraka",    varga:null,  vargaLabel:"D1 + D9" },
   career:   { title:"Career Blueprint",    focus:"career path, timing, and direction", house:10, karaka:"Amatyakaraka",  varga:"D10", vargaLabel:"D10 (Dashamsha)" },
   siblings: { title:"Siblings & Courage Blueprint", focus:"siblings, courage, and initiative",  house:3,  karaka:"Bhratrukaraka", varga:"D3",  vargaLabel:"D3 (Drekkana)" },
-  mother:   { title:"Home Blueprint",      focus:"mother, home, and inner security",   house:4,  karaka:"Matrukaraka",   varga:"D4",  vargaLabel:"D4 (Chaturthamsha)" },
+  mother:   { title:"Mother & Home Blueprint", focus:"mother, home, and inner security",   house:4,  karaka:"Matrukaraka",   varga:"D4",  vargaLabel:"D4 (Chaturthamsha)" },
   children: { title:"Progeny Blueprint",   focus:"children, creativity, and progeny",  house:5,  karaka:"Putrakaraka",   varga:"D7",  vargaLabel:"D7 (Saptamsha)" },
   health:   { title:"Wellbeing Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
@@ -3640,6 +3640,60 @@ function buildSiblingsDepth(d1P, d1LagnaSign, thirdLord){
 
     return { courageChannel, marsDrive, siblingBonds, communicationEdge, archetype,
       thirdLord, eleventhLord };
+  }catch(_){ return null; }
+}
+// ── Mother, Home & Emotional Peace domain depth (SOP D4) ─────────────────────
+// The 4th-lord home matrix, Moon (Matrukaraka) emotional core, property/comfort outlook,
+// relocation signal and the convergence archetype.
+function buildMotherDepth(d1P, d1LagnaSign, fourthLord){
+  try{
+    const hof=(p)=>d1P[p]&&d1P[p].house;
+    const dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const sgn=(p)=>d1P[p]&&d1P[p].sign;
+    const strong=(p)=>{const d=dig(p),h=hof(p);return d==="Exalted"||d==="Own sign"||(h&&[1,4,7,10].includes(h));};
+    const afflicted=(p)=>{const d=dig(p),h=hof(p);return d==="Debilitated"||(h&&[6,8,12].includes(h));};
+    const conj=(a,b)=>{const ha=hof(a);return !!ha&&hof(b)===ha;};
+    const MOVABLE=["Aries","Cancer","Libra","Capricorn"];
+
+    // 4th-lord placement matrix → how home & security are channelled.
+    const flH=hof(fourthLord);
+    let homeChannel=null;
+    if(flH){
+      if([1,4,5,9,10].includes(flH)) homeChannel={mode:"anchored", note:"a deep emotional anchor, maternal support, and smooth acquisition of home and property"};
+      else if([2,11].includes(flH)) homeChannel={mode:"asset-building", note:"real estate, family assets or home-based work that directly build wealth and financial stability"};
+      else if([3,9,12].includes(flH)) homeChannel={mode:"relocating", note:"a true home built away from the birthplace — distance from the hometown (or mother) in adulthood is natural growth, not loss"};
+      else if([6,8].includes(flH)) homeChannel={mode:"boundary", note:"domestic peace that asks for active boundary management — property, loans or maternal health reward patient, careful handling"};
+      else homeChannel={mode:"steady", note:"a home life built steadily, without strong pull toward either rooting or moving"};
+    }
+
+    // Moon (Matrukaraka) — the maternal bond and emotional core.
+    let emotionalCore;
+    const moonStrong = strong("Moon") || ["Taurus","Cancer","Pisces"].includes(sgn("Moon"));
+    if(conj("Moon","Saturn")) emotionalCore={grade:"duty-bound", note:"Moon with Saturn — a duty-bound, stoic mind (or a mother who carried heavy burdens); the growth is unlearning guilt around resting"};
+    else if(conj("Moon","Rahu")) emotionalCore={grade:"sensitive", note:"Moon with Rahu — heightened sensitivity and over-thinking, with domestic peace that fluctuates; grounding routines steady it"};
+    else if(conj("Moon","Ketu")) emotionalCore={grade:"withdrawn", note:"Moon with Ketu — deep intuition paired with inward withdrawal when overwhelmed; a dedicated quiet sanctuary at home is essential"};
+    else if(moonStrong && !afflicted("Moon")) emotionalCore={grade:"resilient", note:"a strong Moon — deep emotional resilience, a nurturing maternal bond, and a natural ability to self-soothe"};
+    else emotionalCore={grade:"tender", note:"a tender emotional core that steadies beautifully with routine, rest and a calm home base"};
+
+    // Property / comfort outlook (benefics, Venus, Mars/Sun on the 4th).
+    const beneOn4=["Jupiter","Venus"].some(b=>hof(b)===4)||hof("Mercury")===4;
+    const heatOn4=hof("Mars")===4||hof("Sun")===4;
+    let propertyOutlook;
+    if(beneOn4) propertyOutlook={grade:"blessed", note:"a strong foundation of emotional warmth, comfortable housing and a peaceful later life"};
+    else if(heatOn4) propertyOutlook={grade:"driven", note:"high energy in the home and a strong drive to acquire land and property — best softened by keeping debates cool at home"};
+    else propertyOutlook={grade:"steady", note:"comfort that grows through deliberate, patient home-building"};
+
+    const relocating = [3,9,12].includes(flH) || hof("Rahu")===4 || MOVABLE.includes(sgn("Moon"));
+
+    // Convergence archetype (plain label).
+    let archetype;
+    if((homeChannel&&homeChannel.mode==="relocating") || hof("Rahu")===4) archetype="The Self-Built Sanctuary";
+    else if(emotionalCore.grade==="duty-bound" || [6,10].includes(flH)) archetype="The Devoted Caretaker";
+    else if(propertyOutlook.grade==="blessed" && emotionalCore.grade==="resilient") archetype="Deeply Anchored & Home-Blessed";
+    else if(emotionalCore.grade==="sensitive" || emotionalCore.grade==="withdrawn") archetype="Peace Found Within, Not Without";
+    else archetype="The Steady Homebuilder";
+
+    return { homeChannel, emotionalCore, propertyOutlook, relocating, archetype, fourthLord };
   }catch(_){ return null; }
 }
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
@@ -5424,6 +5478,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // elder sibling bonds, communication edge and archetype.
   if(domainKey==="siblings"){
     try{ flags.siblingsDepth = buildSiblingsDepth(d1P, d1LagnaSign, hLord); }catch(_){ flags.siblingsDepth=null; }
+  }
+  // Mother, Home & Emotional Peace domain depth (SOP D4).
+  if(domainKey==="mother"){
+    try{ flags.motherDepth = buildMotherDepth(d1P, d1LagnaSign, hLord); }catch(_){ flags.motherDepth=null; }
   }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
