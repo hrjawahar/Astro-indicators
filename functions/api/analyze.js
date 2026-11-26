@@ -5074,21 +5074,29 @@ function buildRelationshipResilience({ affairRisk, separationRisk, intimacyProfi
 function buildAffairTiming(affairRisk, dashas, d1P, d1LagnaSign, hLord, birthDate){
   try{
     if(!affairRisk||affairRisk.level==="none"||!Array.isArray(dashas)) return null;
-    const H=(p)=>d1P[p]&&d1P[p].house;
-    const l8=houseLord(d1LagnaSign,8), l12=houseLord(d1LagnaSign,12);
-    const trig=new Set(["Rahu","Venus"]); if(l8)trig.add(l8); if(l12)trig.add(l12);
-    if(hLord&&[8,12].includes(H(hLord))) trig.add(hLord);
+    // The five classical affair-ignition MD–AD combinations (SOP Marriage, Part 2). The natal
+    // vulnerability gate above (affairRisk != none) is the "built-in signature"; THESE are the
+    // "dasha ignition" half. A window is TEMPTATION probability only — never a claim of an affair.
+    const l5=houseLord(d1LagnaSign,5), l7=hLord, l8=houseLord(d1LagnaSign,8), l12=houseLord(d1LagnaSign,12);
+    const pairIs=(a,b,x,y)=>(a===x&&b===y)||(a===y&&b===x);   // unordered MD–AD match
+    const classify=(md,ad)=>{
+      if(pairIs(md,ad,"Rahu","Venus")) return "Rahu–Venus (desire meets the unconventional)";
+      if(pairIs(md,ad,"Rahu","Mars"))  return "Rahu–Mars (taboo-breaking meets raw physical drive)";
+      if(pairIs(md,ad,"Rahu","Moon"))  return "Rahu–Moon (emotional restlessness seeking novelty)";
+      if(l8&&l12&&pairIs(md,ad,l8,l12)) return "the 8th–12th lock ("+l8+"–"+l12+": hidden, compartmentalized)";
+      if(l5&&pairIs(md,ad,l5,"Rahu"))   return "a 5th-ruler pull ("+l5+" with Rahu: romantic thrill plus secrecy)";
+      if(l7&&l8&&pairIs(md,ad,l7,l8))   return "a 7th–8th tie ("+l7+"–"+l8+": partnership meets the hidden)";
+      return null;
+    };
     const birthYr=birthDate?new Date(birthDate).getFullYear():null; const wins=[];
     for(const md of dashas){ if(!Array.isArray(md.antarDasas))continue;
       for(const ad of md.antarDasas){
-        const pair=(md.lord==="Rahu"&&ad.lord==="Venus")||(md.lord==="Venus"&&ad.lord==="Rahu");
-        const dus=trig.has(ad.lord)&&trig.has(md.lord);
-        if(pair||dus){ const sy=String(ad.startDate).slice(0,7), ey=String(ad.endDate).slice(0,7);
-          wins.push({ window:sy+" to "+ey, lords:md.lord+"–"+ad.lord, age:birthYr?(+ey.slice(0,4)-birthYr):null,
-            kind:pair?"Rahu–Venus (desire + the unconventional)":"a desire/secrecy period" }); } }
+        const kind=classify(md.lord, ad.lord);
+        if(kind){ const sy=String(ad.startDate).slice(0,7), ey=String(ad.endDate).slice(0,7);
+          wins.push({ window:sy+" to "+ey, lords:md.lord+"–"+ad.lord, age:birthYr?(+ey.slice(0,4)-birthYr):null, kind }); } }
     }
     return { applicable:wins.length>0, severity:affairRisk.level, windows:wins.slice(0,3),
-      note:"Periods when the chart's built-in susceptibility can be IGNITED — a strong probability of TEMPTATION, which a conscious native may well decline; never a claim that an affair occurred. Owner/consultation use only." };
+      note:"Periods when the chart's built-in susceptibility can be IGNITED — a strong probability of TEMPTATION, which a conscious native (strong 9th/Jupiter) may well decline; never a claim that an affair occurred. Owner/consultation use only." };
   }catch(_){ return null; }
 }
 
