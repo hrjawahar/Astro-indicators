@@ -4064,6 +4064,63 @@ function buildAkAmkRelation(charaKarakas, d1P){
   }catch(_){ return null; }
 }
 
+// ── Axis self-interpretation foundation ──────────────────────────────────────
+// The dominant HOUSE axis (where the chart's weight sits), recomputed cheaply from D1 so the
+// self-interpretation appendix can name it without threading the full classification through.
+function buildDominantAxis(d1P){
+  try{
+    const W = {'1-7':0,'4-10':0,'2-8':0,'5-11':0,'3-9':0};
+    const PW = {Sun:1.2,Moon:1.2,Mars:1,Mercury:1,Jupiter:1.2,Venus:1,Saturn:1,Rahu:1.1,Ketu:1.1};
+    for(const p of Object.keys(PW)){ const h = d1P[p] && d1P[p].house; if(!h) continue; const w = PW[p];
+      if([1,7].includes(h))  W['1-7']  += w;
+      if([4,10].includes(h)) W['4-10'] += w;
+      if([2,8].includes(h))  W['2-8']  += w;
+      if([5,11].includes(h)) W['5-11'] += w;
+      if([3,9].includes(h))  W['3-9']  += w; }
+    const top = Object.entries(W).sort((a,b)=>b[1]-a[1])[0];
+    if(!top || top[1] <= 0) return null;
+    return { pair: top[0], weight: +top[1].toFixed(1) };
+  }catch(_){ return null; }
+}
+// Plain-life meaning of each house, for the nodal recurring-lesson decoder (ASCII only).
+const _HOUSE_LIFE = { 1:"your own identity and how you show up", 2:"security, money and self-worth",
+  3:"courage, initiative and your own voice", 4:"home, roots and emotional ground",
+  5:"love, creativity, children and self-expression", 6:"work, service, health and daily routine",
+  7:"partnership and the other person", 8:"intimacy, shared resources and deep change",
+  9:"meaning, belief and the wider horizon", 10:"career, status and your public role",
+  11:"friendships, networks and gains", 12:"solitude, surrender and the inner world" };
+const _HOUSE_SHORT = {1:"self",2:"security",3:"initiative",4:"home",5:"the heart",6:"daily work",
+  7:"partnership",8:"deep intimacy",9:"meaning",10:"career",11:"community",12:"the inner world"};
+// THE RECURRING LESSON — the Rahu/Ketu (and, where it lands on the domain, Saturn) pattern that
+// repeats until consciously integrated. Framed for ACTION and, in marriage, as early-life emotional
+// protection. Universal; the domain note sharpens it when the nodes/Saturn touch the domain axis.
+function buildRecurringLesson(domainKey, d1P, cfg){
+  try{
+    const rh = d1P.Rahu && d1P.Rahu.house, kh = d1P.Ketu && d1P.Ketu.house, sh = d1P.Saturn && d1P.Saturn.house;
+    if(!rh || !kh) return null;
+    const pattern = "A quiet pattern repeats through your life: you keep reaching toward " + _HOUSE_LIFE[rh] +
+      " — magnetic, but never quite enough — while under-valuing " + _HOUSE_LIFE[kh] +
+      ", which already runs deep in you because it was mastered long ago. The same lesson circles back until you stop chasing the first at the cost of the second.";
+    const action = "Each time the restless pull toward " + _HOUSE_SHORT[rh] + " rises, steady yourself in your quiet strength in " +
+      _HOUSE_SHORT[kh] + ". The growth was never in the chase — it is in holding the two in balance.";
+    const why = "Rahu in your " + ordinalD(rh) + " house (the hunger) opposite Ketu in your " + ordinalD(kh) + " house (the dismissed gift).";
+    let domainNote = null;
+    if(domainKey === "marriage"){
+      if([1,7].includes(rh) || [1,7].includes(kh))
+        domainNote = "In closeness this is the core one: " + ((rh===7||kh===1)
+          ? "you can lose yourself in the other person, over-giving until you disappear"
+          : "you can hold a part of yourself back, treating deep connection as something you have already outgrown") +
+          ". Becoming aware of this early is a genuine emotional protection — it lets you connect fully without either abandoning yourself or quietly withdrawing, long before the pattern can cost you.";
+      else
+        domainNote = "In closeness, the same pull shows up as seeking in another person what is really yours to grow. Seeing it early protects you from asking anyone to fill a space only you can fill.";
+    }
+    let saturnLesson = null;
+    const dh = cfg && cfg.house;
+    if(sh && (sh === dh || (domainKey==="marriage" && sh===7)))
+      saturnLesson = "Saturn also sits in your " + ordinalD(sh) + " house, so this is an area life tests more than once — read its delays as training, not rejection, and the patience you build here becomes a lasting strength.";
+    return { pattern, why, action, domainNote, saturnLesson };
+  }catch(_){ return null; }
+}
 // ── Career: concrete vocation fields (planet→field families, refined by the 10th-lord's element) ──
 const _CAREER_FIELDS = {
   Sun:["government & public administration","leadership & senior management","politics or civil services","power, energy & authority-linked roles"],
@@ -5241,6 +5298,26 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   if(domainKey!=="career"){
     try{ domainCompass = buildDomainCompass(domainKey, cfg, hLord, karakaPlanet, d1P, d1LagnaSign, compound, houseStates); }catch(_){ domainCompass=null; }
   }
+
+  // ── Axis self-interpretation foundation (universal): the relationships the appendix decoder
+  //    explains, plus the recurring karmic lesson. Assembled from pieces already computed above.
+  try{
+    flags.chartAxes = {
+      akAmk: buildAkAmkRelation(charaKarakas, d1P),
+      karakamsha: buildKarakamsha(charaKarakas, d9Houses, d9LagnaSign),
+      dominantAxis: buildDominantAxis(d1P),
+      d1d9: flags.maturationDirection || null,
+      badhaka: (compound && compound.badhaka) || null,
+      upapada: flags.upapadaAxis || null
+    };
+  }catch(_){ flags.chartAxes=null; }
+  try{
+    flags.recurringLesson = buildRecurringLesson(domainKey, d1P, cfg);
+    // For minors, keep the self-awareness pattern (its early-life protection is the whole point)
+    // but drop the closeness/marital note and the domain-test note.
+    if(flags.recurringLesson && (flags.minorLifeEventMode || flags.minorMarriageMode))
+      flags.recurringLesson = { ...flags.recurringLesson, domainNote:null, saturnLesson:null };
+  }catch(_){ flags.recurringLesson=null; }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
   //    above, and nulls it for minors). Graded risk signals for the confidential owner edition;
