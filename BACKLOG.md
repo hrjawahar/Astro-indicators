@@ -2,6 +2,16 @@
 
 Small, non-urgent items parked by agreement. None block the current release.
 
+## Domain 10 — Foreign Settlement & Global Life (NEW standalone domain, parked)
+- The Mother & Home SOP doc also contained a full SOP for a **new** Domain 10
+  "Foreign Settlement & Global Life" (D1 -> D4 -> D9 -> D10 -> D12): the 4-9-12
+  relocation triangle, a 4-tier trajectory classification (permanent PR / study-then-
+  return / global-career-from-home / domestic roots), D12 parental-duty lens, and
+  visa/relocation timing.
+- **Decision deferred by the user:** new domains are to be deliberated after all SOPs
+  land, and foreign settlement inside the **career** domain stays as-is for now. So
+  Domain 10 is NOT built. Revisit when the user decides to add it as its own card.
+
 ## Owner-view control-value scrub
 - **What:** In the OWNER edition, the internal steering word `'rises'` (and, by
   extension, `'shifts'` / `'protect-peak'` — `flags.maturationDirection`) still shows
