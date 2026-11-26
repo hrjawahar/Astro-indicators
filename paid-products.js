@@ -1771,12 +1771,14 @@
           y+=16;
         } catch(_){}
       };
-      sections.forEach((sec, si) => {
+      sections.forEach((sec) => {
         const firstPara = (String(sec.body||"").split(/\n\s*\n|\n/).find(s=>s.trim())||"").length;
         sectionHeading(sec.heading||"", firstPara);
         bodyBlock(String(sec.body||""), 10.5, 10);
-        if (si === 0) drawComparison();
       });
+      // Chart Comparison table → TECHNICAL APPENDIX at the very end, matching the flip-book flow
+      // (previously drawn after the first section as a page-2 "table wall").
+      drawComparison();
       // disclaimer
       kbreak(70); y+=6;
       doc.setDrawColor(210,190,150); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=12;
