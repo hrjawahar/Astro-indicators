@@ -52,6 +52,17 @@ const ENABLE_CHILD_TEMPERAMENT = true;
 // NEVER a diagnosis, disease name, or life-span statement in ANY edition — constitutional
 // tendencies, anatomical stress zones and preventive windows only.
 const ENABLE_HEALTH_DEPTH = true;
+// NAISARGIKA (natural) significator fix. The domain "natural significator" must be the FIXED
+// naisargika karaka, NOT the Jaimini CHARA karaka (which is degree-ranked and varies per chart).
+// Using the chara karaka mislabels e.g. the Lagna lord as "the Putrakaraka / significator for
+// children". Applied ONLY to domains with ONE unambiguous natural karaka: children=Jupiter,
+// siblings=Mars, mother=Moon, marriage=Venus. SELF keeps its Atmakaraka (the soul planet genuinely
+// IS the self significator), and CAREER/HEALTH keep their chara karaka (their natural karaka is
+// multi-planet, and Amatyakaraka/Gnathikaraka are accepted significators there). Off -> prior
+// chara-karaka behaviour for every domain (clean revert).
+const ENABLE_NAISARGIKA_KARAKA = true;
+const NAISARGIKA_KARAKA = { children:"Jupiter", siblings:"Mars", mother:"Moon", marriage:"Venus" };
+const NAISARGIKA_ROLE   = { children:"Putrakaraka", siblings:"Bhratrukaraka", mother:"Matrukaraka", marriage:"Kalatrakaraka" };
 // The single list of OWNER-ONLY flags the public (paid-user) packet must never carry. The gate in
 // the report writer strips exactly these; add any future sensitive flag here, nowhere else.
 const OWNER_ONLY_FLAGS = ["ownerSensitive","intimacyProfile","affairTiming"];
@@ -3898,7 +3909,18 @@ function buildChildrenDepth(d1P, d1LagnaSign, fifthLord, d9Houses, d9LagnaSign, 
       reading:"Three or more markers converge toward a non-linear developmental rhythm / specialized-care indication. Frame empathetically for the parent — NEVER a clinical or medical label, NEVER a diagnosis. This is a probability to confirm against D7/D9 and to explore with developmental and medical professionals, alongside the child's own chart; emphasise early supportive therapies where helpful, sensory-friendly routines, and the child's unique visual/artistic/intuitive gifts (check Venus/benefics in D7)." }
       : null;
 
-    return { pacing, occupant, bondChannel, jupiter, archetype, fifthLord, temperament, ownerTemperament };
+    // D7 cross-link (SOP Phase 2.1): where the D1 5th lord lands in the Saptamsha. Cited in the
+    // why-box alongside the D7 5th-house occupant so both D7 signals are surfaced.
+    let d1FifthLordInD7=null;
+    try{
+      if(vargaChart&&vargaChart.placements&&fifthLord&&vargaChart.placements[fifthLord]){
+        const pp=vargaChart.placements[fifthLord];
+        d1FifthLordInD7={ planet:fifthLord, d7House:pp.house, d7Sign:pp.sign,
+          dusthana:[6,8,12].includes(pp.house) };
+      }
+    }catch(_){}
+
+    return { pacing, occupant, bondChannel, jupiter, archetype, fifthLord, d1FifthLordInD7, temperament, ownerTemperament };
   }catch(_){ return null; }
 }
 
@@ -5021,7 +5043,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   const hLord=houseLord(d1LagnaSign, cfg.house);
   const lordPlacement=hLord?d1P[hLord]:null;
   const occupants=Object.entries(d1P).filter(([p,v])=>v.house===cfg.house && p!=="Lagna").map(([p,v])=>({planet:p,...v}));
-  const karakaPlanet=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role===cfg.karaka)||{}).planet:null;
+  // The domain's natural significator. Prefer the FIXED naisargika karaka (correct classical
+  // "natural significator") for the domains that have one; otherwise the Jaimini chara karaka.
+  const charaKarakaPlanet=(charaKarakas&&charaKarakas.karakas)?(charaKarakas.karakas.find(k=>k.role===cfg.karaka)||{}).planet:null;
+  const useNaisargika = ENABLE_NAISARGIKA_KARAKA && NAISARGIKA_KARAKA[domainKey];
+  const karakaPlanet = useNaisargika ? NAISARGIKA_KARAKA[domainKey] : charaKarakaPlanet;
+  const karakaRole   = useNaisargika ? NAISARGIKA_ROLE[domainKey]   : cfg.karaka;
   let vargaChart=null;
   if(cfg.varga && cfg.varga!=="D9"){ vargaChart=buildVargaChart(cfg.varga, d1Degrees, ascLon); }
   const convergences=[];
@@ -5034,7 +5061,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     }
   }
   if(karakaPlanet && d1P[karakaPlanet] && (d1P[karakaPlanet].dignity==="Exalted"||d1P[karakaPlanet].dignity==="Own sign")){
-    convergences.push(`${karakaPlanet} (the ${cfg.karaka}) is strongly placed in D1 — a primary support for this domain.`);
+    convergences.push(`${karakaPlanet} (the ${karakaRole}) is strongly placed in D1 — a primary support for this domain.`);
   }
 
   // Deeper checks (added after validating against a real father/child case the
@@ -5159,7 +5186,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     if(r){ dusthanaReadings.push(r); seenD.add(planet); }
   };
   addDusthana(hLord, ordinalD(cfg.house)+"-lord");
-  addDusthana(karakaPlanet, cfg.karaka);
+  addDusthana(karakaPlanet, karakaRole);
   for(const o of occupants){ addDusthana(o.planet, "in your "+ordinalD(cfg.house)+" house"); }
   flags.severityTier = severity.tier;         // 'plain' | 'moderate' | 'strong'
   flags.severityScore = severity.score;
@@ -5677,7 +5704,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       if(en!=null && en<now && (!lastCompletedMD || en>lastCompletedMD._en)){
         lastCompletedMD={ lord:md.lord, years:yrs, ended:yr(md.endDate), theme:_PLANET_THEME[md.lord]||null, _en:en };
       }
-      if(relevant) rows.push({lord:md.lord,years:yrs,note:(md.lord===hLord?"rules your "+ordinalD(cfg.house)+" house of "+cfg.focus:md.lord===karakaPlanet?"the "+cfg.karaka+", your domain significator":"active in your "+ordinalD(cfg.house)+" house")});
+      if(relevant) rows.push({lord:md.lord,years:yrs,note:(md.lord===hLord?"rules your "+ordinalD(cfg.house)+" house of "+cfg.focus:md.lord===karakaPlanet?"the "+karakaRole+", your domain significator":"active in your "+ordinalD(cfg.house)+" house")});
       // scan antardashas
       if(Array.isArray(md.antarDasas)){
         for(const ad of md.antarDasas){
@@ -5711,7 +5738,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
             const upcoming = (ast!=null && ast>=now);
             adWindows.push({ md:md.lord, ad:ad.lord, years:ayrs, upcoming,
               note:(ad.lord===hLord? ad.lord+" (your "+ordinalD(cfg.house)+"-lord) sub-period within "+md.lord+" — a concentrated window for this area"
-                    : ad.lord===karakaPlanet? ad.lord+" (the "+cfg.karaka+") sub-period within "+md.lord+" — the domain significator activates here"
+                    : ad.lord===karakaPlanet? ad.lord+" (the "+karakaRole+") sub-period within "+md.lord+" — the domain significator activates here"
                     : ad.lord+" sub-period within "+md.lord+" — an active window for this area, tending to bring new developments or demands") });
           }
           // RETROSPECTIVE (read-only): a PAST sub-period whose lord is a genuine domain
@@ -5786,10 +5813,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       // doubly-strong activation (the significator's own major period), the likeliest true window.
       const NAT_KARAKA={ marriage:"Venus", children:"Jupiter", career:"Saturn", mother:"Moon", siblings:"Mars", self:"Sun" };
       const natK = NAT_KARAKA[domainKey];
-      const mdNote=(w)=> w.md===karakaPlanet ? " within your "+w.md+" major period (the "+cfg.karaka+"'s own period)"
+      const mdNote=(w)=> w.md===karakaPlanet ? " within your "+w.md+" major period (the "+karakaRole+"'s own period)"
                        : w.md===hLord ? " within your "+w.md+" major period (your "+ordinalD(cfg.house)+"-lord's own period)"
                        : w.md===natK ? " within your "+w.md+" major period ("+w.md+", the natural significator of "+cfg.focus+")" : "";
-      const noteOf=(w)=> (w.ad===karakaPlanet? (w.ad+" — the "+cfg.karaka+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a supporting activation of this area")) + mdNote(w);
+      const noteOf=(w)=> (w.ad===karakaPlanet? (w.ad+" — the "+karakaRole+", your domain significator") : w.ad===hLord ? (w.ad+" — your "+ordinalD(cfg.house)+"-lord") : (w.ad+" — a supporting activation of this area")) + mdNote(w);
       const roleFirst = domainKey==="marriage" ? "the most likely window for meeting and a defining commitment"
         : domainKey==="career" ? "the most likely window for a first major step or launch in your working life"
         : domainKey==="children" ? "the most likely window for a first child or a major creative beginning"

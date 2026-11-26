@@ -313,10 +313,21 @@ function checkHealthSafety(text, out){
   if(m) push("a specific diet/calorie/weight number appeared — keep all food and movement guidance qualitative (warm meals, hydration, steady movement, rhythm), never numeric targets", m[0]);
 }
 
+// ── RENDER-ARTIFACT guard (all editions) — catch empty inline-code spans and unresolved template
+// tokens that leak into the reader's PDF (e.g. "flagged `` at 'notable' level", or "{{flag}}").
+function checkRenderArtifacts(text, out){
+  const push=(detail,evidence)=>out.push({type:"render-artifact",severity:"critical",detail,evidence});
+  let m = text.match(/`\s*`/);
+  if(m) push("an empty inline-code span (``) reached the reader — name the thing in plain words, never a blank backtick placeholder", m[0]);
+  m = text.match(/\{\{[^}]*\}\}/) || text.match(/<\s*[a-z_]+\s*>/i);
+  if(m) push("an unresolved template token leaked into the report — bind it or write the value in plain words", m[0]);
+}
+
 export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   const text = plainText(sections);
   const lagnaSign = facts && facts.d1 && facts.d1.lagnaSign;
   const out = [];
+  try{ checkRenderArtifacts(text, out); }catch(_){}
   try{ checkLordship(text, lagnaSign, out); }catch(_){}
   try{ if(domainKey==="marriage") checkAllClear(text, facts, out); }catch(_){}
   try{ if(domainKey==="marriage") checkMinorMode(text, facts, out); }catch(_){}

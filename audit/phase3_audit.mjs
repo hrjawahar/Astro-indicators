@@ -13,6 +13,7 @@ const AOFF= mkA(s=>s.replace("const ENABLE_D10_LENS = true;","const ENABLE_D10_L
                    .replace("const ENABLE_MARRIAGE_CLASSIFIERS = true;","const ENABLE_MARRIAGE_CLASSIFIERS = false;")
                    .replace("const ENABLE_CHILD_TEMPERAMENT = true;","const ENABLE_CHILD_TEMPERAMENT = false;")
                    .replace("const ENABLE_HEALTH_DEPTH = true;","const ENABLE_HEALTH_DEPTH = false;")
+                   .replace("const ENABLE_NAISARGIKA_KARAKA = true;","const ENABLE_NAISARGIKA_KARAKA = false;")
                    .replace("const ENABLE_OWNER_INTIMATE = true;","const ENABLE_OWNER_INTIMATE = false;"), "off");
 const Eon=await import(AON+"?t="+Date.now()); const Eoff=await import(AOFF+"?t="+Date.now());
 // writer shim (export the gate)
