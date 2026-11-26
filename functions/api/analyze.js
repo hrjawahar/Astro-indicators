@@ -3945,6 +3945,18 @@ const _PLANET_DOSHA = {
 const _ELEMENT_DOSHA = (sign)=> _FIRE_SIGNS.includes(sign) ? "pitta"
   : _AIR_SIGNS.includes(sign) ? "vata"
   : (_EARTH_SIGNS.includes(sign)||_WATER_SIGNS_H.includes(sign)) ? "kapha" : null;
+// Kalapurusha (cosmic body) — each SIGN governs a body zone (head→feet). Used for anatomical
+// localization: the body area a planet's SIGN points to, per classical medical astrology. (The
+// earlier drekkana-third approximation mislabelled zones — e.g. an 8th-lord in Libra reads as the
+// kidneys/lower-back, not the chest.)
+const _SIGN_BODY = {
+  Aries:"head, brain and eyes", Taurus:"face, throat and neck",
+  Gemini:"shoulders, arms, lungs and nervous system", Cancer:"chest, ribcage and stomach",
+  Leo:"heart, upper back and spine", Virgo:"abdomen, intestines and digestion",
+  Libra:"kidneys, lower back and lumbar region", Scorpio:"pelvis, reproductive and excretory organs",
+  Sagittarius:"hips, thighs and liver", Capricorn:"knees, joints, bones and skin",
+  Aquarius:"calves, ankles and circulation", Pisces:"feet, lymphatic system and immunity"
+};
 const _DOSHA_PROFILE = {
   pitta:{ name:"Pitta", nature:"sharp digestion, high metabolic heat and strong drive",
     tendencies:"acidity or inflammation, skin or liver heat, eye strain, and burnout under sustained overwork",
@@ -4078,19 +4090,23 @@ function buildHealthDepth(d1P, d1LagnaSign, firstLord, d9Houses, d9LagnaSign, d1
     else if(flD1Strong&&(flD9Weak||d9Weak("Moon"))) maturation={dir:"protect-peak", note:"high youthful energy that can tempt you to skip sleep or diet in your 20s — the chart asks for conscious lifestyle upgrades in the late 30s and 40s"};
     else maturation={dir:"steady", note:"a fairly steady constitutional arc that rewards consistent habits across the decades"};
 
-    // ── D3 (Drekkana) body-zone localization + 22nd Drekkana (8th lord) watch.
+    // ── Anatomical localization (Kalapurusha by SIGN) + 22nd Drekkana (8th lord) watch.
+    //    The body zone of a planet is the area its SIGN governs; the Kharesh (8th-lord) zone is read
+    //    from the sign the 8th lord occupies (e.g. Libra -> kidneys/lower back), NOT a drekkana-third.
     let bodyZones=null, kharesh=null;
     try{
       const d3=buildVargaChart("D3", d1Degrees, ascLon);
-      const zoneOfDrekkana=(p)=>{ const deg=d1Degrees&&d1Degrees[p]; if(deg==null)return null; const within=((deg%30)+30)%30; const dk=Math.floor(within/10); return ["head, eyes, ears, throat and neck","chest, heart, lungs, upper back, stomach and digestion","lower back, kidneys, hips, knees and legs"][dk]; };
-      const z1=firstLord?zoneOfDrekkana(firstLord):null;
+      const zoneOfSign=(s)=> s ? _SIGN_BODY[s] : null;
+      const constitutionZone=_SIGN_BODY[signOfHouse(1)];          // the ascendant's own body area
       const eighthLord=L(8);
-      const z8=eighthLord?zoneOfDrekkana(eighthLord):null;
-      bodyZones={ constitutionZone:z1, eighthLord, watchZone:z8 };
-      // 22nd Drekkana = the 8th lord (Kharesh) and where it sits in D3 — a preventive-checkup zone
-      // during its dasha. Framed as rest/screening, never a diagnosis.
+      const eighthSign=signOfHouse(8);                            // the 8th house sign
+      const z8=zoneOfSign(sgn(eighthLord)) || zoneOfSign(eighthSign);  // where the 8th lord sits
+      bodyZones={ constitutionZone, eighthLord, eighthSign, watchZone:z8 };
+      // 22nd Drekkana = the 8th lord (Kharesh) — a preventive-checkup zone during its dasha. The
+      // anatomical area follows the sign the 8th lord occupies. Framed as rest/screening, never a
+      // diagnosis.
       if(eighthLord&&d3&&d3.placements&&d3.placements[eighthLord]){
-        kharesh={ planet:eighthLord, d3Sign:d3.placements[eighthLord].sign, zone:z8,
+        kharesh={ planet:eighthLord, d1Sign:sgn(eighthLord), d3Sign:d3.placements[eighthLord].sign, zone:z8,
           note:"When the 8th-lord period ("+eighthLord+") runs, treat the "+(z8||"relevant")+" area as a calm preventive-check and rest window — vigilance and screening, never alarm" };
       }
     }catch(_){}

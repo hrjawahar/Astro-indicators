@@ -205,7 +205,7 @@ async function writeDomainReport(env, domainKey, facts, onProgress, audience) {
   // but if one still slips through (e.g. the writer echoed a flag object into a '» ' line —
   // "».: level 'possible', factors — … applicable: false"), strip the offending line so no raw
   // engine artifact ever reaches the reader. Distinctive patterns only; normal prose is untouched.
-  sections = scrubArtifacts(sections);
+  sections = scrubArtifacts(sections, domainKey);
 
   // "At a Glance" placement. The writer is asked to produce it (crisper, curated labels);
   // this block GUARANTEES it exists and sits where it should.
@@ -232,19 +232,47 @@ async function writeDomainReport(env, domainKey, facts, onProgress, audience) {
 // whole line is safe and removes the leak without harming the surrounding reading.
 // Lines that are GENUINE field-dumps (garbage) → drop the whole line.
 const _DROP_RE = /(\bapplicable\s*[:=])|(\blevel\s*['"])|(\bfactors\s*[—:])|(\b(severity|netStrength|restrictionIndex|ageGate|loveFactors|arrangedFactors|dissolutionWindow|maturationDirection)\s*[:=])|(:\s*(true|false)\b)/i;
-function scrubArtifacts(sections) {
+// A reader-facing bullet or line whose entire verdict is a cross-domain / empty placeholder
+// ("Affair risk — Not applicable to this domain.", "— not indicated", "— not relevant here"):
+// these are a label leaked from another domain or a padded negative the board must never show.
+const _PLACEHOLDER_LINE_RE = /^[\s*>•\-]*\**[^*\n:—-]{0,40}\**\s*[—:-]\s*(not applicable|not indicated|not relevant|n\/a\b|does not apply)\b/i;
+// A raw field-path dump leaked into a why-line: "»: 'shifts' —", "».maturation.dir: 'rises' —",
+// "».relief: Jupiter…", ": Rahu phase". Repair to a clean "» " marker, keeping any trailing prose.
+function _repairRawPath(ln) {
+  return ln
+    .replace(/^\s*»?\s*\.?[\w.]*\.(?:dir|relief|grade|tone|level|note)\s*:?\s*(?:'[^']*')?\s*[—-]?\s*/i, "» ")
+    .replace(/^\s*»\s*:\s*'(?:rises|shifts|protect[- ]?peak|protect[- ]?leaning)'\s*[—-]?\s*/i, "» ")
+    .replace(/^\s*»?\s*\.[\w.]+\s*:\s*'[^']*'\s*[—-]\s*/i, "» ")
+    .replace(/^\s*»\s*:\s*(?=[A-Za-z])/i, "» ")
+    .replace(/^\s*:\s+(?=[A-Z])/,"» ");
+}
+// Labels that belong ONLY to the marriage domain; in any other domain a bullet carrying one is a
+// cross-domain leak and is dropped outright (the model sometimes lists them as "Not applicable").
+const _MARRIAGE_ONLY_LABEL_RE = /^[\s*>•\-]*\*{0,2}\s*(affair risk|separation risk|remarriage window|relationship resilience)\s*\*{0,2}\s*[—:-]/i;
+function scrubArtifacts(sections, domainKey) {
   if (!Array.isArray(sections)) return sections;
+  const nonMarriage = domainKey && domainKey !== "marriage";
   return sections.map(s => {
     if (!s || !s.body) return s;
-    const lines = String(s.body).split("\n").map(ln => ln
+    const lines = String(s.body).split("\n").map(ln => _repairRawPath(ln)
       // strip a leaked control-value tacked onto an otherwise-good line ("…Taurus.: shifts." → "…Taurus.")
       .replace(/\s*[.;]?\s*:\s*(rises|shifts|protect[- ]?peak|protect[- ]?leaning)\b\.?/gi, ".")
+      // strip an inline raw field path ("».maturation.dir: 'rises'" mid-line)
+      .replace(/»?\s*\.(?:maturation\.dir|dir|relief|grade|tone)\s*:\s*'[^']*'/gi, "")
       // repair a stray "».:" why-line marker
       .replace(/»\s*\.\s*:\s*/g, "» ")
       // strip an inline "applicable: true/false" fragment
       .replace(/\s*\.*\s*\bapplicable\s*:\s*(true|false)\b\.?/gi, "")
     );
-    const kept = lines.filter(ln => !(ln.trim() && _DROP_RE.test(ln)));
+    const kept = lines.filter(ln => {
+      const t = ln.trim();
+      if (!t) return true;                                   // keep blanks (paragraph spacing)
+      if (_DROP_RE.test(ln)) return false;                   // raw field-dump garbage
+      if (_PLACEHOLDER_LINE_RE.test(ln)) return false;       // cross-domain / empty placeholder bullet
+      if (nonMarriage && _MARRIAGE_ONLY_LABEL_RE.test(ln)) return false; // marriage-only label leaked into another domain
+      if (/^\s*»\s*[.:]*\s*$/.test(ln)) return false;        // a bare "»" / "»." / "»:" marker with no content
+      return true;
+    });
     const body = kept.join("\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
     return { ...s, body };
   });
