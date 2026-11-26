@@ -85,32 +85,32 @@
   // toward 92% over an estimate, then done() completes it to 100%.
   function startPreparing(host, label, estMs){
     if(!host) return { done(){}, stop(){} };
-    host.innerHTML = `<div class="pp-empty" style="max-width:430px;margin:0 auto;text-align:center">
+    host.innerHTML = `<div class="pp-empty" style="max-width:440px;margin:0 auto;text-align:center">
       <div style="font-weight:600;margin-bottom:4px">${label}</div>
       <div style="margin:14px 0 7px;height:9px;background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.45);border-radius:999px;overflow:hidden">
-        <div id="aiPrepBar" style="height:100%;width:4%;background:linear-gradient(90deg,#b0821f,#e8d9ae);border-radius:999px;transition:width .6s ease"></div>
+        <div id="aiPrepBar" class="busy" style="height:100%;width:4%;background:linear-gradient(90deg,#b0821f,#e8d9ae);border-radius:999px;transition:width .6s ease"></div>
       </div>
       <div id="aiPrepPct" style="font-size:.82rem;color:#c9a84c;font-weight:700;letter-spacing:.02em">Preparing your reading… 4%</div>
-      <div style="font-size:.78rem;opacity:.72;margin-top:8px">this usually takes 1–2 minutes · please keep this page open</div>
+      <div style="font-size:.78rem;opacity:.72;margin-top:8px">this usually takes 1–3 minutes · you can switch to other tabs — just keep this one open</div>
     </div>`;
-    const t0 = Date.now(), EST = estMs || 140000;
+    const t0 = Date.now(), EST = estMs || 170000;
     let shown = 4;
     const iv = setInterval(()=>{
       const el = document.getElementById("aiPrepBar"); if(!el){ clearInterval(iv); return; }
       const frac = (Date.now()-t0)/EST;
-      // Climb to ~90% over the estimate, then creep ASYMPTOTICALLY toward 99% so it is never
-      // frozen while a longer-than-estimated generation finishes (closes 4% of the gap each tick).
-      if (frac < 1) shown = Math.max(shown, 4 + frac*86);
-      else shown = shown + (99 - shown)*0.04;
-      const pct = Math.min(99, Math.round(shown));
+      // Climb to ~88% over the estimate, then creep slowly toward a 96% cap (headroom so done()
+      // visibly completes). The shimmer carries the "still working" signal, not the number.
+      if (frac < 1) shown = Math.max(shown, 4 + frac*84);
+      else shown = shown + (96 - shown)*0.05;
+      const pct = Math.min(96, Math.round(shown));
       el.style.width = pct + "%";
       const p = document.getElementById("aiPrepPct");
-      if(p) p.textContent = (pct >= 88 ? "Almost ready — finishing the writing… " : "Preparing your reading… ") + pct + "%";
+      if(p) p.textContent = (pct >= 85 ? "Almost ready — finishing the writing… " : "Preparing your reading… ") + pct + "%";
     }, 700);
     return {
-      done(){ clearInterval(iv); const el=document.getElementById("aiPrepBar"); if(el) el.style.width="100%";
+      done(){ clearInterval(iv); const el=document.getElementById("aiPrepBar"); if(el){ el.classList.remove("busy"); el.style.width="100%"; }
               const p=document.getElementById("aiPrepPct"); if(p) p.textContent="Your reading is ready ✦"; },
-      stop(){ clearInterval(iv); }
+      stop(){ clearInterval(iv); const el=document.getElementById("aiPrepBar"); if(el) el.classList.remove("busy"); }
     };
   }
 
