@@ -38,6 +38,13 @@ const ENABLE_SENSITIVE_REFRAME = true;
 // modality, retrograde pull-home, a D10 4th/9th cross-check and relocation dasha windows. Set false
 // to fall back to the prior remote-only foreign reading (existing fields are always preserved).
 const ENABLE_FOREIGN_SETTLEMENT = true;
+// Child TEMPERAMENT, sensitivity & special-care module (SOP D5 Step 1.3). On → childrenDepth carries
+// the temperament profiles + gentle special-care touch, and the candid special-care read is lifted to
+// the OWNER-ONLY flag childTemperamentOwner. Off → childrenDepth has no temperament layer and no
+// childTemperamentOwner is produced (identical to the prior children build — the conservative,
+// fully-gated fallback). The raw special-care fact is ALWAYS owner-only; the paid edition only ever
+// gets the brief, non-clinical touch.
+const ENABLE_CHILD_TEMPERAMENT = true;
 // The single list of OWNER-ONLY flags the public (paid-user) packet must never carry. The gate in
 // the report writer strips exactly these; add any future sensitive flag here, nowhere else.
 const OWNER_ONLY_FLAGS = ["ownerSensitive","intimacyProfile","affairTiming"];
@@ -3702,7 +3709,9 @@ function buildMotherDepth(d1P, d1LagnaSign, fourthLord){
 // writer: never infertility/denial from one chart, delay is pacing, medical reality works alongside.
 const _FRUITFUL_SIGNS = ["Cancer","Scorpio","Pisces","Taurus"];
 const _BARREN_SIGNS   = ["Aries","Leo","Virgo"];
-function buildChildrenDepth(d1P, d1LagnaSign, fifthLord){
+const _WATER_SIGNS    = ["Cancer","Scorpio","Pisces"];
+const _SENSITIVE_NAK  = ["Rohini","Ashlesha","Anuradha","Revati"];
+function buildChildrenDepth(d1P, d1LagnaSign, fifthLord, d9Houses, d9LagnaSign, vargaChart, compound, gender){
   try{
     const li=V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
     const signOfHouse=(h)=>V_SIGNS[(li+h-1)%12];
@@ -3757,7 +3766,120 @@ function buildChildrenDepth(d1P, d1LagnaSign, fifthLord){
     else if((occupant && occupant.grade==="smooth") || jupiter.grade==="protective") archetype="A Joyful, Easy Bond";
     else archetype="A Steady Path to Family";
 
-    return { pacing, occupant, bondChannel, jupiter, archetype, fifthLord };
+    // ── CHILD TEMPERAMENT, EMOTIONAL SENSITIVITY & SPECIAL-CARE MODULE (SOP D5 Step 1.3) ──
+    // Rotate the parent's chart (5th house = child's 1st/Ascendant) and read the 5th house/lord,
+    // Moon and Mercury. Four temperament profiles. Profiles 1/2/4 are gentle and shown to BOTH
+    // audiences. Profile 3 (special-care / non-linear development) is the SENSITIVE one: its RAW
+    // reading is OWNER-ONLY and lifted to flags.childTemperamentOwner; the paid reader gets only a
+    // brief, hopeful, NON-CLINICAL touch. Never a medical/clinical label in ANY edition — this is a
+    // probability to explore with developmental/medical professionals, never a diagnosis.
+    if(!ENABLE_CHILD_TEMPERAMENT){ return { pacing, occupant, bondChannel, jupiter, archetype, fifthLord }; }
+    const nakOf=(p)=>{ const n=(compound&&compound.nakshatra||[]).find(x=>x.planet===p); return n?n.nakshatra:null; };
+    const fifthLordSign=sgn(fifthLord);
+    const waterOn5=_WATER_SIGNS.includes(fifthSign) || _WATER_SIGNS.includes(fifthLordSign);
+    const moonLinked5=on5("Moon")||fifthLord==="Moon"||conj("Moon",fifthLord);
+    const sensitiveNak=_SENSITIVE_NAK.includes(nakOf(fifthLord))||_SENSITIVE_NAK.includes(nakOf("Moon"));
+    const combust=(p)=>(compound&&compound.combustion||[]).some(c=>c.planet===p);
+    const rel=(a,b)=>{const ha=hof(a),hb=hof(b); if(!ha||!hb)return null; return ((hb-ha)+12)%12;};
+    const shadashtak=(a,b)=>{const r=rel(a,b); return r===5||r===7;};
+    const dwirdwadash=(a,b)=>{const r=rel(a,b); return r===1||r===11;};
+    const linked5=(p)=>on5(p)||fifthLord===p||conj(p,fifthLord);
+    const L=(h)=>houseLord(d1LagnaSign,h);
+
+    const temperamentProfiles=[]; // client-safe (profiles 1,2,4)
+    // Profile 1 — Deeply Empathetic & Emotionally Sensitive.
+    if(waterOn5 || moonLinked5 || sensitiveNak){
+      temperamentProfiles.push({ key:"empathetic", title:"Deeply empathetic and emotionally attuned",
+        lever:"This child reads the emotional weather of the home. A calm tone, emotional validation and gentle, predictable routines reach them far better than raised voices or strict discipline." });
+    }
+    // Profile 2 — Sensory-Sensitive / Easily Overwhelmed.
+    const sensory = conj("Moon","Rahu")||conj("Mercury","Rahu") || [6,8,12].includes(flH) || (L(12)&&on5(L(12))) || (conj("Moon","Saturn")&&moonLinked5);
+    if(sensory){
+      temperamentProfiles.push({ key:"sensory", title:"Sensitive to over-stimulation, quick to tire",
+        lever:"Crowded schedules, loud environments and heavy academic pressure can overwhelm this child. Build in daily quiet downtime, keep screen-stimulation modest, and avoid over-packing extracurriculars." });
+    }
+    // Profile 4 — High-Energy / Intense & Reactive.
+    const fireFifth=["Aries","Leo","Sagittarius"].includes(fifthSign);
+    const highEnergy = ((on5("Mars")||on5("Sun")) && fireFifth && !(strong("Jupiter")||conj("Jupiter",fifthLord))) || conj(fifthLord,"Mars") || conj(fifthLord,"Rahu");
+    if(highEnergy){
+      temperamentProfiles.push({ key:"high-energy", title:"High-spirited, strong-willed and physically intense",
+        lever:"Big feelings and strong drive that curdle into frustration if bottled up. Channel the energy through sport, outdoor movement and clear, respectful boundaries rather than force." });
+    }
+
+    // Profile 3 — Special-Care / Non-Linear Development (OWNER-GATED; 3+ converging categories).
+    // Cat A — nodal & Saturn compression on the 5-11 axis / 5th / Jupiter.
+    const nodeOn511=(on5("Rahu")&&hof("Ketu")===11)||(on5("Ketu")&&hof("Rahu")===11);
+    const satNode=conj("Saturn","Rahu")||conj("Saturn","Ketu");
+    const satNodeTouches=satNode && (on5("Saturn")||on5("Rahu")||on5("Ketu")||conj("Saturn",fifthLord)||conj("Saturn","Jupiter"));
+    const catA=nodeOn511||satNodeTouches;
+    // Cat B — Mercury (speech/nervous processing) or Moon sensitivity linked to the 5th.
+    const mercAff = dig("Mercury")==="Debilitated"||combust("Mercury")||conj("Mercury","Saturn")||conj("Mercury","Rahu")||conj("Mercury","Ketu");
+    const moonAff = dig("Moon")==="Debilitated"||conj("Moon","Saturn")||conj("Moon","Rahu")||conj("Moon","Ketu");
+    const catB=(mercAff&&linked5("Mercury"))||(moonAff&&linked5("Moon"));
+    // Cat C — dusthana link.
+    const catC=[6,8,12].includes(flH) || [6,8,12].some(h=>{const l=L(h);return l&&hof(l)===5;});
+    // Cat D — D7 / D9 confirmation.
+    let catD=false; const d7why=[];
+    try{
+      if(vargaChart&&vargaChart.lagnaSign&&vargaChart.placements){
+        const d7lag=vargaChart.lagnaSign;
+        const d7LagLord=houseLord(d7lag,1), d7FifthLord=houseLord(d7lag,5);
+        const d7h=(p)=>vargaChart.placements[p]&&vargaChart.placements[p].house;
+        if([6,8,12].includes(d7h(d7LagLord))){ catD=true; d7why.push("the D7 Lagna lord "+d7LagLord+" falls in a D7 house of testing (6/8/12)"); }
+        if([6,8,12].includes(d7h(d7FifthLord))){ catD=true; d7why.push("the D7 5th lord "+d7FifthLord+" falls in a D7 house of testing (6/8/12)"); }
+      }
+    }catch(_){}
+    let jupWeakBoth=false;
+    try{
+      const jupWeakD1=afflicted("Jupiter")||dig("Jupiter")==="Debilitated";
+      const d9HouseOf=(p)=>{ if(!d9Houses)return null; for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(p))return h; } return null; };
+      const d9li=V_SIGNS.indexOf(d9LagnaSign); const jupD9h=d9HouseOf("Jupiter");
+      const jupD9sign=(jupD9h&&d9li>=0)?V_SIGNS[(d9li+jupD9h-1)%12]:null;
+      const jupWeakD9=(jupD9h&&[6,8,12].includes(jupD9h))||(jupD9sign&&vDig("Jupiter",jupD9sign)==="Debilitated");
+      jupWeakBoth=jupWeakD1&&jupWeakD9;
+      if(jupWeakBoth){ catD=true; }
+    }catch(_){}
+
+    const specialFactors=[];
+    if(catA) specialFactors.push(nodeOn511?"the Rahu–Ketu nodal axis falls across the 5th–11th":"Saturn sits tightly with a node touching the 5th house, the 5th lord or Jupiter");
+    if(catB) specialFactors.push(mercAff&&linked5("Mercury")?"Mercury (speech and nervous processing) is under strain and linked to the 5th":"the Moon is afflicted and linked to the 5th");
+    if(catC) specialFactors.push([6,8,12].includes(flH)?("the 5th lord "+fifthLord+" sits in a house of testing (6/8/12)"):"a 6/8/12 lord occupies the 5th");
+    if(catD) specialFactors.push(d7why.length?d7why.join("; "):"Jupiter (the progeny significator) is weak in both the birth chart and the D9");
+    const specialCount=[catA,catB,catC,catD].filter(Boolean).length;
+    const specialCare=specialCount>=3;
+
+    // CLIENT-SAFE brief, hopeful touch (paid) — no clinical label, no raw factor list.
+    const temperament={
+      profiles:temperamentProfiles,
+      extraSupport: specialCare ? {
+        present:true,
+        touch:"Some threads here suggest a child whose growth may unfold on its own non-linear rhythm rather than a standard peer checklist, and whose early years can ask for extra patience and attentive care. This is nothing to fear — met with calm routines, early supportive attention where it helps, and room to shine in their own way, these children flourish and often carry a distinctive, gifted spark." }
+        : { present:false }
+    };
+
+    // Mother's-chart / Father's-chart polarity filter (gender-aware, gentle, client-safe).
+    let parentPolarity=null;
+    const g=(gender||"").toLowerCase();
+    if(g==="female"||g==="f"){
+      const fires=shadashtak("Moon",fifthLord)||dwirdwadash("Moon",fifthLord)||((conj("Moon","Rahu")||conj("Moon","Saturn"))&&(on5("Rahu")||on5("Saturn")||conj("Saturn",fifthLord)));
+      if(fires) parentPolarity={ lens:"mother",
+        note:"Your maternal intuition runs especially strong — a real gift, and one that asks you to steady your own nervous system first, so you can hold a sensitive child without absorbing their anxiety, and protect yourself from caregiver burnout." };
+    } else if(g==="male"||g==="m"){
+      const childWaterSig=waterOn5||moonLinked5||on5("Ketu");
+      const fatherForce=(on5("Sun")||on5("Mars")||on5("Saturn"))||conj(fifthLord,"Sun")||conj(fifthLord,"Mars")||conj(fifthLord,"Saturn");
+      if(fatherForce&&childWaterSig) parentPolarity={ lens:"father",
+        note:"With a tender, feeling-led child in the picture, your steadiest move as a father is unhurried listening before offering solutions — and letting go of rigid comparisons to other children's timelines." };
+    }
+    if(parentPolarity) temperament.parentPolarity=parentPolarity;
+
+    // Owner-only candid special-care reading (lifted to flags.childTemperamentOwner by caller).
+    const ownerTemperament = specialCare ? {
+      present:true, count:specialCount, factors:specialFactors,
+      archetype:"High-Sensitivity / Specialized-Care Child (3+ factor convergence)",
+      reading:"Three or more markers converge toward a non-linear developmental rhythm / specialized-care indication. Frame empathetically for the parent — NEVER a clinical or medical label, NEVER a diagnosis. This is a probability to confirm against D7/D9 and to explore with developmental and medical professionals, alongside the child's own chart; emphasise early supportive therapies where helpful, sensory-friendly routines, and the child's unique visual/artistic/intuitive gifts (check Venus/benefics in D7)." }
+      : null;
+
+    return { pacing, occupant, bondChannel, jupiter, archetype, fifthLord, temperament, ownerTemperament };
   }catch(_){ return null; }
 }
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
@@ -5549,7 +5671,22 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   }
   // Children, Progeny & Parent-Child Bond domain depth (SOP D5).
   if(domainKey==="children"){
-    try{ flags.childrenDepth = buildChildrenDepth(d1P, d1LagnaSign, hLord); }catch(_){ flags.childrenDepth=null; }
+    try{ flags.childrenDepth = buildChildrenDepth(d1P, d1LagnaSign, hLord, d9Houses, d9LagnaSign, vargaChart, compound, gender); }catch(_){ flags.childrenDepth=null; }
+    // Two-tier gating: the special-care RAW reading is OWNER-ONLY. Lift it to a top-level
+    // owner-only flag (stripped from the client packet by the report writer) and remove it from
+    // childrenDepth, which is shown to both audiences. The paid reader keeps only the brief,
+    // non-clinical touch in childrenDepth.temperament.extraSupport.
+    if(flags.childrenDepth){
+      if(!flags.isMinorForDomain && flags.childrenDepth.ownerTemperament && flags.childrenDepth.ownerTemperament.present){
+        flags.childTemperamentOwner = flags.childrenDepth.ownerTemperament;
+      }
+      delete flags.childrenDepth.ownerTemperament;
+      // A minor native has no present child: drop the special-care touch (premature), keep the
+      // gentle general temperament framing as future-oriented.
+      if(flags.isMinorForDomain && flags.childrenDepth.temperament){
+        flags.childrenDepth.temperament.extraSupport = { present:false };
+      }
+    }
   }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,

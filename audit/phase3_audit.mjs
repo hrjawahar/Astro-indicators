@@ -11,6 +11,7 @@ const mkA=(mut,tag)=>{ const p=ROOT+"/functions/api/_p3a_"+tag+".mjs"; fs.writeF
 const AON = mkA(s=>s, "on");
 const AOFF= mkA(s=>s.replace("const ENABLE_D10_LENS = true;","const ENABLE_D10_LENS = false;")
                    .replace("const ENABLE_MARRIAGE_CLASSIFIERS = true;","const ENABLE_MARRIAGE_CLASSIFIERS = false;")
+                   .replace("const ENABLE_CHILD_TEMPERAMENT = true;","const ENABLE_CHILD_TEMPERAMENT = false;")
                    .replace("const ENABLE_OWNER_INTIMATE = true;","const ENABLE_OWNER_INTIMATE = false;"), "off");
 const Eon=await import(AON+"?t="+Date.now()); const Eoff=await import(AOFF+"?t="+Date.now());
 // writer shim (export the gate)
@@ -38,7 +39,12 @@ function chart(){ const lag=S[rnd(12)]; const deg={__asc:lon(lag,10)}; const ra=
 let mismatch=0, leak=0, ownerHas=0, minorSexualLeak=0, minorLifeOK=0, minorPre18=0, careerFieldsN=0, n=0;
 const nat={love:0,arranged:0,mixed:0,unmarked:0}, frn={none:0,possible:0,notable:0,strong:0}, wth={none:0,possible:0,notable:0,strong:0}, intim={high:0,moderate:0,average:0,reserved:0};
 let careerDepth=0, careerN=0;
+let childLeak=0, childOwnerHas=0, childN=0, childSpecial=0, childRevBad=0, childClientRaw=0;
 const OWNER_ONLY=["ownerSensitive","intimacyProfile","affairTiming"];
+// Owner-payload-only phrases (archetype, reading, D7 factor strings). These appear ONLY in the
+// childTemperamentOwner flag — never in the client-facing instruction text or the gentle touch — so
+// finding any of them in the CLIENT prompt is a genuine fact leak (not an instruction false-positive).
+const CHILD_RAW=/Specialized-Care Child|markers converge|house of testing \(6\/8\/12\)/i;
 
 for(let i=0;i<360;i++){
   const c=chart(); const dashas=genDashas(c.deg.Moon,"1985"); const ck=mkCK(c.deg); const asc=lon(c.lag,10);
@@ -79,6 +85,24 @@ for(let i=0;i<360;i++){
     if(g.marriageLifecycle && Array.isArray(g.marriageLifecycle.romanceWindows) && g.marriageLifecycle.romanceWindows.some(w=>w.age!=null && w.age<18)) minorPre18++;
   }
   if(fc && fc.flags.careerFields && Array.isArray(fc.flags.careerFields.fields) && fc.flags.careerFields.fields.length) careerFieldsN++;
+  // CHILDREN — temperament/special-care gating + reversibility
+  let fch,fchoff; try{ fch=Eon.buildDomainFacts("children",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"female",""); fchoff=Eoff.buildDomainFacts("children",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"female",""); }catch(e){ fch=null; }
+  if(fch){ childN++;
+    const G=fch.flags;
+    const chOwnerP=W.buildUserPrompt("children", fch, "owner");
+    const chClientP=W.buildUserPrompt("children", fch, "client");
+    if(G.childTemperamentOwner!=null){ childSpecial++;
+      if(chOwnerP.includes('"childTemperamentOwner"')) childOwnerHas++;
+    }
+    // GATE: the owner-only flag must NEVER appear in the client prompt
+    if(chClientP.includes('"childTemperamentOwner"')) childLeak++;
+    // the raw special-care wording must NEVER reach the client prompt
+    if(CHILD_RAW.test(chClientP)) childClientRaw++;
+    // REVERSIBILITY: off build → no temperament layer, no owner flag
+    const offClean = (fchoff.flags.childTemperamentOwner===undefined)
+      && !(fchoff.flags.childrenDepth && fchoff.flags.childrenDepth.temperament);
+    if(!offClean) childRevBad++;
+  }
 }
 const pc=(x,d=n)=>(100*x/d).toFixed(1)+"%";
 console.log("SOP-DEPTH audit over "+n+" random ADULT charts (not the known cases):");
@@ -94,4 +118,9 @@ console.log("MINOR — life-event overview present: "+pc(minorLifeOK)+" of minor
 console.log("MINOR — relationship window before age 18 (MUST be 0): "+minorPre18+"   "+(minorPre18===0?"✓ NONE":"✗ PRE-18"));
 console.log("CAREER — concrete fields produced: "+pc(careerFieldsN,careerN)+" of career charts");
 console.log("REVERSIBILITY (switches off == base; new flags absent, compass/affliction identical): mismatches = "+mismatch+"   "+(mismatch===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
+console.log("CHILDREN — special-care owner flag fires (minority expected): "+pc(childSpecial,childN)+" of children charts");
+console.log("CHILDREN GATE-LEAK (childTemperamentOwner in CLIENT prompt, MUST be 0): "+childLeak+"   "+(childLeak===0?"✓ NO LEAK":"✗ LEAK"));
+console.log("CHILDREN — raw special-care wording in CLIENT prompt (MUST be 0): "+childClientRaw+"   "+(childClientRaw===0?"✓ NONE":"✗ RAW LEAK"));
+console.log("CHILDREN — owner prompt carries childTemperamentOwner when present: "+(childSpecial?pc(childOwnerHas,childSpecial):"n/a")+"");
+console.log("CHILDREN REVERSIBILITY (switch off → no temperament layer, no owner flag): mismatches = "+childRevBad+"   "+(childRevBad===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
 [AON,AOFF,DP].forEach(f=>fs.unlinkSync(f));

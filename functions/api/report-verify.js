@@ -290,6 +290,15 @@ function checkClientSensitive(text, domainKey, out){
   }
 }
 
+// ── CHILD CLINICAL-LABEL guard (ALL editions, owner included) ────────────────────
+// The special-care / non-linear development read is ABSOLUTE: never a clinical or medical
+// label or diagnosis in ANY edition — owner mode may be candid about the probability but still
+// frames it as developmental rhythm + supportive care + the child's gifts, never a condition.
+function checkChildClinical(text, out){
+  const m = text.match(/\b(autis\w*|asperger\w*|a\.?d\.?h\.?d\.?|adhd|neurodiverg\w*|neurodiverse|special needs|special-needs|disabilit\w*|disabled|diagnos\w*|syndrome|developmental delay|learning disab\w*|on the spectrum|retard\w*)\b/i);
+  if(m) out.push({type:"child-clinical",severity:"critical",detail:"a clinical/medical child-condition label appeared — forbidden in EVERY edition; keep it to non-linear developmental rhythm, extra care and celebrating the child's gifts, never a label or diagnosis",evidence:m[0]});
+}
+
 export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   const text = plainText(sections);
   const lagnaSign = facts && facts.d1 && facts.d1.lagnaSign;
@@ -297,6 +306,7 @@ export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   try{ checkLordship(text, lagnaSign, out); }catch(_){}
   try{ if(domainKey==="marriage") checkAllClear(text, facts, out); }catch(_){}
   try{ if(domainKey==="marriage") checkMinorMode(text, facts, out); }catch(_){}
+  try{ if(domainKey==="children") checkChildClinical(text, out); }catch(_){}
   try{ if(audience!=="owner") checkClientSensitive(text, domainKey, out); }catch(_){}
   try{ checkTiming(text, domainKey, facts, out); }catch(_){}
   try{ checkDignity(text, facts, out); }catch(_){}
