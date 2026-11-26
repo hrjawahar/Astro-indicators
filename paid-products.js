@@ -391,7 +391,7 @@
   const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage"];
   const DOMAIN_LABELS = {
     self:"Self & Character", career:"Career", siblings:"Siblings & Courage",
-    mother:"Mother & Home", children:"Children", health:"Health & Wellbeing", marriage:"Marriage"
+    mother:"Mother & Home", children:"Children & Progeny", health:"Health & Wellbeing", marriage:"Marriage"
   };
   const DOMAIN_ITEM = (k) => "domain_" + k;   // paid_reports item string per domain
 

@@ -2442,7 +2442,7 @@ const DOMAIN_REPORT_CONFIG = {
   career:   { title:"Career Blueprint",    focus:"career path, timing, and direction", house:10, karaka:"Amatyakaraka",  varga:"D10", vargaLabel:"D10 (Dashamsha)" },
   siblings: { title:"Siblings & Courage Blueprint", focus:"siblings, courage, and initiative",  house:3,  karaka:"Bhratrukaraka", varga:"D3",  vargaLabel:"D3 (Drekkana)" },
   mother:   { title:"Mother & Home Blueprint", focus:"mother, home, and inner security",   house:4,  karaka:"Matrukaraka",   varga:"D4",  vargaLabel:"D4 (Chaturthamsha)" },
-  children: { title:"Progeny Blueprint",   focus:"children, creativity, and progeny",  house:5,  karaka:"Putrakaraka",   varga:"D7",  vargaLabel:"D7 (Saptamsha)" },
+  children: { title:"Children & Progeny Blueprint", focus:"children, creativity, and progeny",  house:5,  karaka:"Putrakaraka",   varga:"D7",  vargaLabel:"D7 (Saptamsha)" },
   health:   { title:"Wellbeing Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
 };
@@ -3694,6 +3694,70 @@ function buildMotherDepth(d1P, d1LagnaSign, fourthLord){
     else archetype="The Steady Homebuilder";
 
     return { homeChannel, emotionalCore, propertyOutlook, relocating, archetype, fourthLord };
+  }catch(_){ return null; }
+}
+// ── Children, Progeny & Parent-Child Bond domain depth (SOP D5) ──────────────
+// Fertility PACING (never denial), 5th-house occupant flavour, 5th-lord bond channel, the
+// Jupiter (Putrakaraka) cushion, and the convergence archetype. Ethical guardrails live in the
+// writer: never infertility/denial from one chart, delay is pacing, medical reality works alongside.
+const _FRUITFUL_SIGNS = ["Cancer","Scorpio","Pisces","Taurus"];
+const _BARREN_SIGNS   = ["Aries","Leo","Virgo"];
+function buildChildrenDepth(d1P, d1LagnaSign, fifthLord){
+  try{
+    const li=V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
+    const signOfHouse=(h)=>V_SIGNS[(li+h-1)%12];
+    const hof=(p)=>d1P[p]&&d1P[p].house;
+    const dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const sgn=(p)=>d1P[p]&&d1P[p].sign;
+    const strong=(p)=>{const d=dig(p),h=hof(p);return d==="Exalted"||d==="Own sign"||(h&&[1,4,5,9,10].includes(h));};
+    const afflicted=(p)=>{const d=dig(p),h=hof(p);return d==="Debilitated"||(h&&[6,8,12].includes(h));};
+    const conj=(a,b)=>{const ha=hof(a);return !!ha&&hof(b)===ha;};
+    const on5=(p)=>hof(p)===5;
+
+    // 5th-sign fertility & PACING (barren signs = later timing, never denial).
+    const fifthSign=signOfHouse(5);
+    let pacing;
+    if(_FRUITFUL_SIGNS.includes(fifthSign)) pacing={grade:"supportive", note:"a naturally supportive, nurturing path to parenthood and a warm emotional bond with children"};
+    else if(_BARREN_SIGNS.includes(fifthSign)) pacing={grade:"later-timing", note:"a later-timing pattern — career-first, or conscious/medical planning before parenthood; this is PACING, never denial"};
+    else pacing={grade:"moderate", note:"a supportive pattern, often an intellectual or communicative parenting style"};
+
+    // 5th-house occupant flavour.
+    let occupant=null;
+    if(["Jupiter","Venus","Mercury","Moon"].some(on5)) occupant={grade:"smooth", note:"a smooth conception path and a joyful, creative connection with children"};
+    else if(on5("Saturn")) occupant={grade:"delayed", note:"a disciplined, duty-oriented approach and often later parenthood (around 30+) — delay, not denial"};
+    else if(on5("Ketu")) occupant={grade:"karmic", note:"a karmic or unconventional path to parenthood, and often an independent, spiritually-minded child who needs room to grow"};
+    else if(on5("Rahu")) occupant={grade:"intense", note:"an intense wish for children and sometimes modern/assisted or unconventional timing"};
+    else if(on5("Mars")||on5("Sun")) occupant={grade:"protective", note:"high vitality and protective parenting — at its best leading strong-minded children through dialogue, not force"};
+
+    // 5th-lord bond channel.
+    const flH=hof(fifthLord);
+    let bondChannel=null;
+    if(flH){
+      if([1,4,5,9,11].includes(flH)) bondChannel={mode:"fulfilling", note:"strong progeny promise, mutual support and deep fulfilment through children"};
+      else if([2,10].includes(flH)) bondChannel={mode:"legacy", note:"children who positively shape family status, legacy and financial discipline"};
+      else if([3,7,12].includes(flH)) bondChannel={mode:"independent", note:"children who chart independent paths early or settle far away (study/work abroad) — a respectful empty nest to prepare for"};
+      else if([6,8].includes(flH)) bondChannel={mode:"patience", note:"patience around timing, mindful care during pregnancy, and releasing over-control as children mature"};
+    }
+
+    // Jupiter (Putrakaraka) cushion.
+    let jupiter;
+    const jStrong=strong("Jupiter")||["Cancer","Sagittarius","Pisces"].includes(sgn("Jupiter"));
+    if(conj("Jupiter","Saturn")) jupiter={grade:"sacred", note:"Jupiter with Saturn — parenthood felt as a sacred responsibility, often later-timed"};
+    else if(conj("Jupiter","Rahu")) jupiter={grade:"unconventional", note:"Jupiter with Rahu — unconventional or cross-cultural parenting values, sometimes with medical support"};
+    else if(conj("Jupiter","Ketu")) jupiter={grade:"detached", note:"Jupiter with Ketu — the lesson of guiding a child without clinging to outcomes"};
+    else if(jStrong && !afflicted("Jupiter")) jupiter={grade:"protective", note:"a strong Jupiter — the single greatest protective cushion, quietly easing most minor delays"};
+    else jupiter={grade:"workable", note:"a workable Jupiter that strengthens with patience and grace"};
+
+    // Convergence archetype.
+    let archetype;
+    const friction=(on5("Mars")||on5("Sun")||on5("Rahu")) && !jStrong;
+    if(bondChannel && bondChannel.mode==="independent") archetype="Independent, Far-Flying Children";
+    else if(pacing.grade==="later-timing" || (occupant && (occupant.grade==="delayed"||occupant.grade==="karmic"))) archetype="Conscious, Well-Timed Parenthood";
+    else if(friction) archetype="Strong Wills, Led by Dialogue";
+    else if((occupant && occupant.grade==="smooth") || jupiter.grade==="protective") archetype="A Joyful, Easy Bond";
+    else archetype="A Steady Path to Family";
+
+    return { pacing, occupant, bondChannel, jupiter, archetype, fifthLord };
   }catch(_){ return null; }
 }
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
@@ -5482,6 +5546,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // Mother, Home & Emotional Peace domain depth (SOP D4).
   if(domainKey==="mother"){
     try{ flags.motherDepth = buildMotherDepth(d1P, d1LagnaSign, hLord); }catch(_){ flags.motherDepth=null; }
+  }
+  // Children, Progeny & Parent-Child Bond domain depth (SOP D5).
+  if(domainKey==="children"){
+    try{ flags.childrenDepth = buildChildrenDepth(d1P, d1LagnaSign, hLord); }catch(_){ flags.childrenDepth=null; }
   }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
