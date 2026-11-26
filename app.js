@@ -687,6 +687,7 @@ async function generate() {
       birthDate: form.dob                  || null,
       gender:    form.gender               || "unspecified",
       maritalStatus: form.maritalStatus    || "",
+      gulika:    chartData.gulika          || null,
     };
 
     const analysisRes = await _fetchRetry("/api/analyze", {

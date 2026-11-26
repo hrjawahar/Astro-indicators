@@ -2368,7 +2368,17 @@ const VARGA_FN={
   D9:l=>{const s=vSi(l),p=Math.floor(vDis(l)/(30/9)),m=s%3;const st=m===0?s:m===1?(s+8)%12:(s+4)%12;return (st+p)%12;},
   D10:l=>{const s=vSi(l),p=Math.floor(vDis(l)/3);const st=((s+1)%2===1)?s:(s+8)%12;return (st+p)%12;},
   // D12 (Dwadashamsha) — each sign in 12 parts of 2°30', counted from the sign itself (Parashara).
-  D12:l=>{const s=vSi(l),p=Math.floor(vDis(l)/2.5);return (s+p)%12;}
+  D12:l=>{const s=vSi(l),p=Math.floor(vDis(l)/2.5);return (s+p)%12;},
+  // D30 (Trimshamsha) — Parashara unequal segments ruled by the five non-luminaries, mapped to the
+  // ruler's own sign (odd-footed for odd signs, even-footed for even) as per the standard
+  // Jagannatha-Hora convention. Odd sign (0-based even index): Mars0-5°, Saturn5-10°, Jupiter10-18°,
+  // Mercury18-25°, Venus25-30°. Even sign: Venus0-5°, Mercury5-12°, Jupiter12-20°, Saturn20-25°,
+  // Mars25-30°. Luminaries never rule a Trimshamsha, so the Sun/Moon fall under these rulers too.
+  D30:l=>{const s=vSi(l),w=vDis(l),odd=(s%2===0);
+    const lord= odd ? (w<5?"Mars":w<10?"Saturn":w<18?"Jupiter":w<25?"Mercury":"Venus")
+                    : (w<5?"Venus":w<12?"Mercury":w<20?"Jupiter":w<25?"Saturn":"Mars");
+    const OWNSIGN={Mars:[0,7],Saturn:[10,9],Jupiter:[8,11],Mercury:[2,5],Venus:[6,1]}; // [oddSign, evenSign] 0-based
+    return OWNSIGN[lord][odd?0:1];}
 };
 function buildVargaChart(key, d1Lons, ascLon){
   const fn=VARGA_FN[key]; if(!fn||!d1Lons) return null;
@@ -3924,7 +3934,56 @@ const _DOSHA_PROFILE = {
     tendencies:"a slower metabolism, respiratory or sinus congestion, fluid retention, or stagnation without regular movement",
     care:"daily movement and stimulation, lighter and warmer food habits, and keeping the routine active" }
 };
-function buildHealthDepth(d1P, d1LagnaSign, firstLord, d9Houses, d9LagnaSign, d1Degrees, ascLon){
+// ── Yogini Dasha (36-year cycle) — secondary health overlay on the Vimshottari windows (SOP D6
+// Phase 5). Eight yoginis in fixed order with 1..8-year spans; the starting yogini is
+// ((birth-nakshatra# + 3) mod 8) and the first span is pro-rated by the Moon's progress through its
+// nakshatra, exactly like Vimshottari. Benefic yoginis (Dhanya/Siddha/Bhadrika/Mangala) = smooth
+// recovery; watch yoginis (Ulka/Sankata/Bhramari) overlapping a Vimshottari watch window = a
+// stronger preventive-audit signal. Clock-driven: auto-advances as time passes.
+const _YOGINI = [
+  { name:"Mangala",  planet:"Moon",    yrs:1, tone:"benefic" },
+  { name:"Pingala",  planet:"Sun",     yrs:2, tone:"mixed"   },
+  { name:"Dhanya",   planet:"Jupiter", yrs:3, tone:"benefic" },
+  { name:"Bhramari", planet:"Mars",    yrs:4, tone:"watch"   },
+  { name:"Bhadrika", planet:"Mercury", yrs:5, tone:"benefic" },
+  { name:"Ulka",     planet:"Saturn",  yrs:6, tone:"watch"   },
+  { name:"Siddha",   planet:"Venus",   yrs:7, tone:"benefic" },
+  { name:"Sankata",  planet:"Rahu",    yrs:8, tone:"watch"   }
+];
+function buildYoginiDasha(moonLon, birthDate){
+  try{
+    if(moonLon==null) return null;
+    const birthMs = birthDate ? new Date(birthDate).getTime() : null;
+    if(birthMs==null || isNaN(birthMs)) return null;
+    const nakSpan = 360/27;
+    const nakNum = Math.floor((((moonLon%360)+360)%360)/nakSpan) + 1;   // 1..27
+    let r = (nakNum + 3) % 8;                                            // 0..7
+    const startIdx = (r===0) ? 7 : (r-1);                               // 0-based into _YOGINI
+    const portion = ((moonLon%nakSpan)+nakSpan)%nakSpan / nakSpan;      // fraction of nakshatra traversed
+    const yrMs = 365.2425*24*3600*1000;
+    const seq=[]; let cur=birthMs;
+    for(let i=0;i<16;i++){                                               // ~2 cycles (72 yrs) is ample
+      const y=_YOGINI[(startIdx+i)%8];
+      const span = (i===0 ? y.yrs*(1-portion) : y.yrs) * yrMs;
+      seq.push({ name:y.name, planet:y.planet, tone:y.tone, start:cur, end:cur+span });
+      cur+=span;
+    }
+    const now=Date.now();
+    const md = seq.find(s=>now>=s.start && now<s.end) || null;
+    if(!md) return null;
+    // sub-period (AD): the current MD subdivided into the same 8-yogini order, pro-rated by span.
+    const mdYrs=_YOGINI.find(y=>y.name===md.name).yrs; const mdLen=md.end-md.start;
+    const mdStartIdx=_YOGINI.findIndex(y=>y.name===md.name);
+    let ac=md.start, adNow=null;
+    for(let i=0;i<8;i++){ const y=_YOGINI[(mdStartIdx+i)%8]; const adLen=mdLen*(y.yrs/36); if(now>=ac&&now<ac+adLen){ adNow={name:y.name,planet:y.planet,tone:y.tone}; break; } ac+=adLen; }
+    return {
+      current:{ name:md.name, planet:md.planet, tone:md.tone, endYear:new Date(md.end).getFullYear() },
+      sub: adNow,
+      note:"the Yogini cycle is currently in "+md.name+" ("+md.planet+")"+(adNow?(" / "+adNow.name):"")
+    };
+  }catch(_){ return null; }
+}
+function buildHealthDepth(d1P, d1LagnaSign, firstLord, d9Houses, d9LagnaSign, d1Degrees, ascLon, gulika, moonLon, birthDate){
   try{
     const li=V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
     const signOfHouse=(h)=>V_SIGNS[(li+h-1)%12];
@@ -4051,6 +4110,38 @@ function buildHealthDepth(d1P, d1LagnaSign, firstLord, d9Houses, d9LagnaSign, d1
     else if(axis17) recurringFocus={axis:"1-7", lesson:"saying yes to others' demands at the quiet cost of your own stamina — the lesson is embodied boundaries, treating rest as a non-negotiable duty"};
     else recurringFocus={axis:"rhythm", lesson:"rhythm over intensity — steady sleep, hydration and moderate movement build far more lasting vitality than crash efforts or extremes"};
 
+    // ── D30 (Trimshamsha) vulnerability filter — malefic clustering in the D30 1st/6th/8th advises
+    //    ergonomic care, defensive habits and avoiding burnout. Preventive emphasis, never a verdict.
+    let vulnerability=null;
+    try{
+      const d30=buildVargaChart("D30", d1Degrees, ascLon);
+      if(d30&&d30.placements){
+        const d30h=(p)=>d30.placements[p]&&d30.placements[p].house;
+        const inStress=["Saturn","Mars","Rahu","Ketu"].filter(p=>[1,6,8].includes(d30h(p)));
+        if(inStress.length>=2) vulnerability={grade:"heightened", planets:inStress,
+          note:"the D30 stress chart gathers "+inStress.join(", ")+" in its testing houses — a cue for ergonomic care, defensive travel/driving habits and avoiding extreme physical burnout (preventive emphasis, never a prediction)"};
+        else if(inStress.length===1) vulnerability={grade:"mild", planets:inStress,
+          note:"a single stress marker ("+inStress[0]+") in the D30 — ordinary preventive care covers it"};
+        else vulnerability={grade:"calm", planets:[],
+          note:"the D30 stress chart is relatively calm — no special vulnerability clustering"};
+      }
+    }catch(_){}
+
+    // ── Gulika / Mandi — the shadow sub-point placed by house, a Saturn-like localized stress spot.
+    let gulikaPoint=null;
+    try{
+      if(gulika&&gulika.sign){
+        const gi=V_SIGNS.indexOf(gulika.sign);
+        if(gi>=0){ const gHouse=(((gi-li)%12)+12)%12+1; const withP=occ(gHouse);
+          gulikaPoint={ sign:gulika.sign, house:gHouse, withPlanets:withP,
+            note:"Gulika (the shadow sub-point) sits in your "+ordinalD(gHouse)+" house"+(withP.length?(", alongside "+withP.join(", ")):"")+" — a Saturn-like spot that simply rewards steady routine and gentle preventive attention in that area, never a cause for alarm" };
+        }
+      }
+    }catch(_){}
+
+    // ── Yogini Dasha overlay (secondary preventive-window confirmation).
+    let yogini=null; try{ yogini=buildYoginiDasha(moonLon, birthDate); }catch(_){}
+
     // ── Convergence archetype.
     let archetype;
     const sunStrong=strong("Sun"), jupAsp=["Jupiter"].some(b=>{const hb=hof(b);return hb&&(aspectsHouse("Jupiter",hb,1)||hof("Moon")===hof("Jupiter"));});
@@ -4061,7 +4152,7 @@ function buildHealthDepth(d1P, d1LagnaSign, firstLord, d9Houses, d9LagnaSign, d1
     else if(maturation.dir==="rises"||(dominant==="kapha"&&(flD1Weak||!flStrong))) archetype="Second-Half Vitality Upgrade";
     else archetype="Steady Constitution, Habit-Led";
 
-    return { prakriti, modality, immune, sunMoon, maturation, bodyZones, kharesh, navamsha64, inherited, recurringFocus, archetype, firstLord };
+    return { prakriti, modality, immune, sunMoon, maturation, bodyZones, kharesh, navamsha64, inherited, vulnerability, gulikaPoint, yogini, recurringFocus, archetype, firstLord };
   }catch(_){ return null; }
 }
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
@@ -4919,7 +5010,7 @@ function buildAffairTiming(affairRisk, dashas, d1P, d1LagnaSign, hLord, birthDat
   }catch(_){ return null; }
 }
 
-function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap, gender, maritalStatus){
+function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSign, charaKarakas, dashas, birthDate, ascLon, retroMap, gender, maritalStatus, gulika){
   const cfg=DOMAIN_REPORT_CONFIG[domainKey]; if(!cfg) return null;
   const d1P=d1PlacementsFromDegrees(d1Degrees, d1LagnaSign, retroMap);
   if(!d1P) return null;
@@ -5873,7 +5964,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // Health, Vitality & Well-Being domain depth (SOP D6): auto Tri-Dosha Prakriti, modality duration,
   // immune shield, D1->D9 maturation, D3 body-zone + 22nd Drekkana, 64th Navamsha, D12 awareness.
   if(domainKey==="health" && ENABLE_HEALTH_DEPTH){
-    try{ flags.healthDepth = buildHealthDepth(d1P, d1LagnaSign, houseLord(d1LagnaSign,1), d9Houses, d9LagnaSign, d1Degrees, ascLon); }catch(_){ flags.healthDepth=null; }
+    try{ flags.healthDepth = buildHealthDepth(d1P, d1LagnaSign, houseLord(d1LagnaSign,1), d9Houses, d9LagnaSign, d1Degrees, ascLon, gulika, (d1Degrees&&d1Degrees.Moon), birthDate); }catch(_){ flags.healthDepth=null; }
   }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
@@ -6020,6 +6111,7 @@ export async function onRequestPost(context) {
     let statements = null;
     const dashas    = body?.dashas    || null;
     const birthDate = body?.birthDate || null;
+    const gulika    = body?.gulika    || null;   // {longitude, sign} at Saturn's eighth (Gulika/Mandi)
     const gender    = String(body?.gender || "unspecified").toLowerCase();
     const maritalStatus = String(body?.maritalStatus || "").toLowerCase();
     if (dashas && birthDate) {
@@ -6062,7 +6154,7 @@ export async function onRequestPost(context) {
         if (li >= 0) ascLon = li * 30 + 15; // last-resort fallback
       }
       for (const key of Object.keys(DOMAIN_REPORT_CONFIG)) {
-        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null), gender, maritalStatus);
+        domainFacts[key] = buildDomainFacts(key, d1Degrees, d1.lagnaSign, d9.houses, d9.lagnaSign, charaKarakas, dashas, birthDate, ascLon, (body?.d1?.retro||null), gender, maritalStatus, gulika);
       }
     }
 

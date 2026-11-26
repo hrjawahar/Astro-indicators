@@ -2,22 +2,22 @@
 
 Small, non-urgent items parked by agreement. None block the current release.
 
-## Domain 6 Health — SOP pieces parked (need new engines / birth-time precision)
-The Health & Well-Being build ships the classical core: auto Tri-Dosha (Prakriti),
-sign-modality duration, the 1st-lord immune shield, D1->D9 maturation, D3 body-zone +
-22nd Drekkana (8th lord), 64th Navamsha, and a light D12 family-pattern note. Three SOP
-pieces were deliberately NOT built now because they need new machinery and, done in a
-rush, would risk incorrect output (over-fit covenant: better omitted than shaky):
-- **D30 (Trimshamsha) vulnerability filter.** Classical D30 is NOT an equal-division varga
-  — it uses unequal Mars/Saturn/Jupiter/Mercury/Venus segments with odd/even-sign rules and
-  maps to a *ruler*, not a clean sign. Needs its own mapping (not the VARGA_FN pattern) and
-  careful validation before it can drive any "vulnerability" language.
-- **Gulika / Mandi** sensitive point. Needs precise birth *time of day*, weekday, and
-  sunrise/sunset to place the sub-segment — inputs we don't reliably have per chart yet.
-- **Yogini Dasha** (36-year cycle) as the SOP's *secondary* overlay on the Vimshottari
-  preventive windows. A whole second dasha engine; the Vimshottari windows already stand on
-  their own, so this is an enhancement, not a blocker.
-Revisit together when we add a birth-time/sunrise input path and a D30 ruler-mapper.
+## Domain 6 Health — SOP pieces (ALL NOW BUILT ✓)
+The earlier note parked D30, Gulika/Mandi and Yogini dasha. On review, birth time + place ARE
+captured (chart.js uses them to cast the chart), so all three were built:
+- **D30 (Trimshamsha) vulnerability filter** — added as a VARGA_FN.D30 ruler-mapper (Parashara
+  unequal segments → ruler's own sign, Jagannatha-Hora convention); drives a conservative
+  ergonomic/defensive preventive note from malefic clustering in D30 1/6/8.
+- **Gulika / Mandi** — computed in chart.js from a new NOAA sunrise/sunset routine + the ascendant
+  at the start of Saturn's eighth-part; forwarded through the /api/analyze payload; placed by house
+  as a Saturn-like localized stress spot.
+- **Yogini Dasha** (36-year cycle) — built from the Moon's nakshatra; runs as the SOP's secondary
+  overlay on the Vimshottari preventive windows (watch-yogini = stronger audit window; benefic =
+  strong recovery responsiveness). Clock-driven, auto-advances.
+Minor refinements still open (non-blocking): Gulika's pre-sunrise Vedic-day handling is in but the
+night-sequence start-lord convention has textual variants (we use "5th weekday-lord"); D30 rashi
+assignment follows the common JHora convention (some texts differ). Both kept deliberately
+conservative in their report influence.
 
 ## Domain 10 — Foreign Settlement & Global Life (NEW standalone domain, parked)
 - The Mother & Home SOP doc also contained a full SOP for a **new** Domain 10

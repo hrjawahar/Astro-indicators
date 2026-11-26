@@ -419,6 +419,59 @@ const SIGNS = [
 function lonToSign(lon) { return SIGNS[Math.floor(lon / 30)]; }
 function lonToDegree(lon) { return lon % 30; }
 
+// ── Sunrise / sunset (NOAA algorithm) → returns JD(UTC) for a civil date ──────
+// Self-contained; accurate to ~1 minute, which is ample for Gulika segment timing.
+function sunEventsJD(Y, M, D, lat, lng) {
+  const lw = -lng;                                  // west longitude positive
+  const Jdate = dateToJulianDay(Y, M, D, 12, 0, 0); // 12:00 UTC — anchor n on solar noon, not midnight
+  const n = Math.round(Jdate - 2451545.0 - 0.0009 - lw / 360);
+  const Jstar = 2451545.0 + 0.0009 + lw / 360 + n;  // approximate solar noon
+  const Msun = norm360(357.5291 + 0.98560028 * (Jstar - 2451545.0));
+  const C = 1.9148 * Math.sin(Msun * DEG) + 0.0200 * Math.sin(2 * Msun * DEG) + 0.0003 * Math.sin(3 * Msun * DEG);
+  const lambda = norm360(Msun + C + 180 + 102.9372);
+  const Jtransit = Jstar + 0.0053 * Math.sin(Msun * DEG) - 0.0069 * Math.sin(2 * lambda * DEG);
+  const delta = Math.asin(Math.sin(lambda * DEG) * Math.sin(23.4397 * DEG));
+  const phi = lat * DEG;
+  const cosH = (Math.sin(-0.833 * DEG) - Math.sin(phi) * Math.sin(delta)) / (Math.cos(phi) * Math.cos(delta));
+  if (cosH > 1)  return { rise: null, set: null, transit: Jtransit, polar: "night" }; // sun never rises
+  if (cosH < -1) return { rise: null, set: null, transit: Jtransit, polar: "day"   }; // sun never sets
+  const H = Math.acos(cosH) * RAD;                  // half-day arc in degrees
+  return { rise: Jtransit - H / 360, set: Jtransit + H / 360, transit: Jtransit };
+}
+
+// ── Gulika / Mandi — the classical shadow sub-point (start of Saturn's eighth) ─
+// The day (sunrise→sunset) or night (sunset→next sunrise) is split into 8 equal parts; the parts
+// are ruled starting from the weekday-lord (day) or the lord of the 5th weekday (night), in the
+// Sun→Sat order, and Gulika rises at the START of Saturn's part. Its ascendant at that moment is
+// Gulika's longitude. Returns the SIDEREAL longitude + sign, or null if inputs are insufficient.
+function computeGulika(Y, M, D, hour, minute, utcOff, lat, lng) {
+  try {
+    if ([Y, M, D, hour, minute, utcOff, lat, lng].some(v => v == null || isNaN(v))) return null;
+    const birthJD = dateToJulianDay(Y, M, D, hour - utcOff, minute, 0);
+    const shift = (k) => { const dt = new Date(Date.UTC(Y, M - 1, D)); dt.setUTCDate(dt.getUTCDate() + k); return [dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()]; };
+    const ev = (k) => { const [y, m, d] = shift(k); return sunEventsJD(y, m, d, lat, lng); };
+    const today = ev(0), yest = ev(-1), tom = ev(1);
+    const civilWd = new Date(Date.UTC(Y, M - 1, D)).getUTCDay();   // 0=Sun … 6=Sat
+    let span, wd, isDay;
+    if (today.rise != null && today.set != null && birthJD >= today.rise && birthJD < today.set) {
+      isDay = true;  span = [today.rise, today.set]; wd = civilWd;
+    } else if (today.set != null && tom.rise != null && birthJD >= today.set) {
+      isDay = false; span = [today.set, tom.rise];   wd = civilWd;             // night after today's sunset
+    } else if (yest.set != null && today.rise != null) {
+      isDay = false; span = [yest.set, today.rise];  wd = (civilWd + 6) % 7;   // born before sunrise → prev Vedic day
+    } else { return null; }                                                    // polar day/night — undefined
+    const len = span[1] - span[0];
+    if (!(len > 0)) return null;
+    const satWd = 6;                                   // Saturn = Saturday index
+    const startLord = isDay ? wd : (wd + 4) % 7;       // night sequence starts from the 5th weekday-lord
+    const part = ((satWd - startLord) % 7 + 7) % 7 + 1; // Saturn's part, 1..7
+    const gulikaJD = span[0] + (part - 1) * (len / 8); // Gulika rises at the START of its part
+    const sidAsc = toSidereal(computeASC(gulikaJD, lat, lng), lahiriAyanamsha(gulikaJD));
+    if (isNaN(sidAsc)) return null;
+    return { longitude: Math.round(sidAsc * 1000) / 1000, sign: lonToSign(sidAsc), isDay, part };
+  } catch (_) { return null; }
+}
+
 function buildWholeSignHouses(lagnaSign) {
   const lagnaIdx = SIGNS.indexOf(lagnaSign);
   const houseToSign = {};
@@ -1203,6 +1256,9 @@ export async function onRequestPost(context) {
     const lagnaSign  = lonToSign(siderealASC);
     const lagnaDeg   = lonToDegree(siderealASC);
 
+    // Gulika / Mandi (shadow sub-point) — sidereal longitude + sign at the start of Saturn's eighth.
+    const gulika = computeGulika(year, month, day, hour, minute, utcOff, geo.lat, geo.lng);
+
     // D1 house assignment
     const d1Houses = assignPlanetsToHouses(sidPositions, lagnaSign);
 
@@ -1315,6 +1371,7 @@ export async function onRequestPost(context) {
         latitudes: {}
       },
       planets,
+      gulika,
       dasha,
       chandrashtama,
       saturnTransit,
