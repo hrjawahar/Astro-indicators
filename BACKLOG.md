@@ -2,6 +2,23 @@
 
 Small, non-urgent items parked by agreement. None block the current release.
 
+## Domain 6 Health — SOP pieces parked (need new engines / birth-time precision)
+The Health & Well-Being build ships the classical core: auto Tri-Dosha (Prakriti),
+sign-modality duration, the 1st-lord immune shield, D1->D9 maturation, D3 body-zone +
+22nd Drekkana (8th lord), 64th Navamsha, and a light D12 family-pattern note. Three SOP
+pieces were deliberately NOT built now because they need new machinery and, done in a
+rush, would risk incorrect output (over-fit covenant: better omitted than shaky):
+- **D30 (Trimshamsha) vulnerability filter.** Classical D30 is NOT an equal-division varga
+  — it uses unequal Mars/Saturn/Jupiter/Mercury/Venus segments with odd/even-sign rules and
+  maps to a *ruler*, not a clean sign. Needs its own mapping (not the VARGA_FN pattern) and
+  careful validation before it can drive any "vulnerability" language.
+- **Gulika / Mandi** sensitive point. Needs precise birth *time of day*, weekday, and
+  sunrise/sunset to place the sub-segment — inputs we don't reliably have per chart yet.
+- **Yogini Dasha** (36-year cycle) as the SOP's *secondary* overlay on the Vimshottari
+  preventive windows. A whole second dasha engine; the Vimshottari windows already stand on
+  their own, so this is an enhancement, not a blocker.
+Revisit together when we add a birth-time/sunrise input path and a D30 ruler-mapper.
+
 ## Domain 10 — Foreign Settlement & Global Life (NEW standalone domain, parked)
 - The Mother & Home SOP doc also contained a full SOP for a **new** Domain 10
   "Foreign Settlement & Global Life" (D1 -> D4 -> D9 -> D10 -> D12): the 4-9-12

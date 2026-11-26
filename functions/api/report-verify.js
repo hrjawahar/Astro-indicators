@@ -299,6 +299,20 @@ function checkChildClinical(text, out){
   if(m) out.push({type:"child-clinical",severity:"critical",detail:"a clinical/medical child-condition label appeared — forbidden in EVERY edition; keep it to non-linear developmental rhythm, extra care and celebrating the child's gifts, never a label or diagnosis",evidence:m[0]});
 }
 
+// ── HEALTH SAFETY guard (ALL editions, owner included) ───────────────────────────
+// Absolute SOP D6 guardrails: never diagnose a disease, never predict life-span/death, never give
+// specific diet/calorie/weight targets (disordered-eating safety). Constitutional tendencies,
+// anatomical stress zones and preventive windows only.
+function checkHealthSafety(text, out){
+  const push=(detail,evidence)=>out.push({type:"health-safety",severity:"critical",detail,evidence});
+  let m = text.match(/\b(life[\s-]?span|life expectancy|age of death|years (left )?to live|will (die|pass away)|die (at|by|before|around))\b/i);
+  if(m) push("a life-span / death statement appeared — forbidden in EVERY edition; frame only as periods for heightened physical care, never mortality", m[0]);
+  m = text.match(/\b(you (will|are going to|may|might|could) (develop|get|contract|suffer (from)?)|you (have|are developing)|diagnosed with|you are at risk of)\b[^.]{0,40}\b(cancer|tumou?r|diabet\w*|stroke|cardiac arrest|heart (attack|disease)|arthritis|alzheimer\w*|parkinson\w*|kidney (failure|disease)|liver (failure|disease)|a? ?disease|disorder|syndrome)\b/i);
+  if(m) push("a disease diagnosis/prediction appeared — forbidden in EVERY edition; keep to constitutional tendencies and preventive care, never a named condition", m[0]);
+  m = text.match(/\b\d{3,4}\s?(k?cal|calories|kcal)\b/i) || text.match(/\b(lose|gain|target|maintain)\s+\d+\s?(kg|kgs|pounds|lbs|kilos)\b/i) || text.match(/\b\d+\s?(kg|lbs)\s+(goal|target)\b/i);
+  if(m) push("a specific diet/calorie/weight number appeared — keep all food and movement guidance qualitative (warm meals, hydration, steady movement, rhythm), never numeric targets", m[0]);
+}
+
 export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   const text = plainText(sections);
   const lagnaSign = facts && facts.d1 && facts.d1.lagnaSign;
@@ -307,6 +321,7 @@ export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   try{ if(domainKey==="marriage") checkAllClear(text, facts, out); }catch(_){}
   try{ if(domainKey==="marriage") checkMinorMode(text, facts, out); }catch(_){}
   try{ if(domainKey==="children") checkChildClinical(text, out); }catch(_){}
+  try{ if(domainKey==="health") checkHealthSafety(text, out); }catch(_){}
   try{ if(audience!=="owner") checkClientSensitive(text, domainKey, out); }catch(_){}
   try{ checkTiming(text, domainKey, facts, out); }catch(_){}
   try{ checkDignity(text, facts, out); }catch(_){}

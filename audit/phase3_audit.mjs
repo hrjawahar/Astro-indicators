@@ -12,6 +12,7 @@ const AON = mkA(s=>s, "on");
 const AOFF= mkA(s=>s.replace("const ENABLE_D10_LENS = true;","const ENABLE_D10_LENS = false;")
                    .replace("const ENABLE_MARRIAGE_CLASSIFIERS = true;","const ENABLE_MARRIAGE_CLASSIFIERS = false;")
                    .replace("const ENABLE_CHILD_TEMPERAMENT = true;","const ENABLE_CHILD_TEMPERAMENT = false;")
+                   .replace("const ENABLE_HEALTH_DEPTH = true;","const ENABLE_HEALTH_DEPTH = false;")
                    .replace("const ENABLE_OWNER_INTIMATE = true;","const ENABLE_OWNER_INTIMATE = false;"), "off");
 const Eon=await import(AON+"?t="+Date.now()); const Eoff=await import(AOFF+"?t="+Date.now());
 // writer shim (export the gate)
@@ -40,6 +41,7 @@ let mismatch=0, leak=0, ownerHas=0, minorSexualLeak=0, minorLifeOK=0, minorPre18
 const nat={love:0,arranged:0,mixed:0,unmarked:0}, frn={none:0,possible:0,notable:0,strong:0}, wth={none:0,possible:0,notable:0,strong:0}, intim={high:0,moderate:0,average:0,reserved:0};
 let careerDepth=0, careerN=0;
 let childLeak=0, childOwnerHas=0, childN=0, childSpecial=0, childRevBad=0, childClientRaw=0;
+let healthN=0, healthRevBad=0, healthDepthN=0; const hdDosha={pitta:0,vata:0,kapha:0};
 const OWNER_ONLY=["ownerSensitive","intimacyProfile","affairTiming"];
 // Owner-payload-only phrases (archetype, reading, D7 factor strings). These appear ONLY in the
 // childTemperamentOwner flag — never in the client-facing instruction text or the gentle touch — so
@@ -103,6 +105,12 @@ for(let i=0;i<360;i++){
       && !(fchoff.flags.childrenDepth && fchoff.flags.childrenDepth.temperament);
     if(!offClean) childRevBad++;
   }
+  // HEALTH — depth present + reversibility
+  let fh,fhoff; try{ fh=Eon.buildDomainFacts("health",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"female",""); fhoff=Eoff.buildDomainFacts("health",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"female",""); }catch(e){ fh=null; }
+  if(fh){ healthN++;
+    if(fh.flags.healthDepth){ healthDepthN++; const dd=fh.flags.healthDepth.prakriti&&fh.flags.healthDepth.prakriti.dominant; if(dd&&hdDosha[dd]!=null) hdDosha[dd]++; }
+    if(fhoff.flags.healthDepth!==undefined) healthRevBad++;   // off build must NOT produce healthDepth
+  }
 }
 const pc=(x,d=n)=>(100*x/d).toFixed(1)+"%";
 console.log("SOP-DEPTH audit over "+n+" random ADULT charts (not the known cases):");
@@ -123,4 +131,6 @@ console.log("CHILDREN GATE-LEAK (childTemperamentOwner in CLIENT prompt, MUST be
 console.log("CHILDREN — raw special-care wording in CLIENT prompt (MUST be 0): "+childClientRaw+"   "+(childClientRaw===0?"✓ NONE":"✗ RAW LEAK"));
 console.log("CHILDREN — owner prompt carries childTemperamentOwner when present: "+(childSpecial?pc(childOwnerHas,childSpecial):"n/a")+"");
 console.log("CHILDREN REVERSIBILITY (switch off → no temperament layer, no owner flag): mismatches = "+childRevBad+"   "+(childRevBad===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
+console.log("HEALTH — depth produced: "+pc(healthDepthN,healthN)+" of health charts  | dominant dosha "+JSON.stringify(hdDosha));
+console.log("HEALTH REVERSIBILITY (switch off → healthDepth absent): mismatches = "+healthRevBad+"   "+(healthRevBad===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
 [AON,AOFF,DP].forEach(f=>fs.unlinkSync(f));

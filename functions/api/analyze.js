@@ -45,6 +45,13 @@ const ENABLE_FOREIGN_SETTLEMENT = true;
 // fully-gated fallback). The raw special-care fact is ALWAYS owner-only; the paid edition only ever
 // gets the brief, non-clinical touch.
 const ENABLE_CHILD_TEMPERAMENT = true;
+// Health & Well-Being depth (SOP D6): auto-computed Ayurvedic Tri-Dosha (Prakriti), sign-modality
+// duration, the 1st-lord immune shield, D1->D9 maturation shift, D3 body-zone + 22nd Drekkana,
+// 64th-Navamsha trigger, a light D12 family-pattern awareness note, and the convergence archetype.
+// Off -> flags.healthDepth is null and the report falls back to the prior general health reading.
+// NEVER a diagnosis, disease name, or life-span statement in ANY edition — constitutional
+// tendencies, anatomical stress zones and preventive windows only.
+const ENABLE_HEALTH_DEPTH = true;
 // The single list of OWNER-ONLY flags the public (paid-user) packet must never carry. The gate in
 // the report writer strips exactly these; add any future sensitive flag here, nowhere else.
 const OWNER_ONLY_FLAGS = ["ownerSensitive","intimacyProfile","affairTiming"];
@@ -2359,7 +2366,9 @@ const VARGA_FN={
   D4:l=>{const s=vSi(l),p=Math.floor(vDis(l)/7.5);return (s+[0,3,6,9][p])%12;},
   D7:l=>{const s=vSi(l),p=Math.floor(vDis(l)/(30/7));const st=((s+1)%2===1)?s:(s+6)%12;return (st+p)%12;},
   D9:l=>{const s=vSi(l),p=Math.floor(vDis(l)/(30/9)),m=s%3;const st=m===0?s:m===1?(s+8)%12:(s+4)%12;return (st+p)%12;},
-  D10:l=>{const s=vSi(l),p=Math.floor(vDis(l)/3);const st=((s+1)%2===1)?s:(s+8)%12;return (st+p)%12;}
+  D10:l=>{const s=vSi(l),p=Math.floor(vDis(l)/3);const st=((s+1)%2===1)?s:(s+8)%12;return (st+p)%12;},
+  // D12 (Dwadashamsha) — each sign in 12 parts of 2°30', counted from the sign itself (Parashara).
+  D12:l=>{const s=vSi(l),p=Math.floor(vDis(l)/2.5);return (s+p)%12;}
 };
 function buildVargaChart(key, d1Lons, ascLon){
   const fn=VARGA_FN[key]; if(!fn||!d1Lons) return null;
@@ -2450,7 +2459,7 @@ const DOMAIN_REPORT_CONFIG = {
   siblings: { title:"Siblings & Courage Blueprint", focus:"siblings, courage, and initiative",  house:3,  karaka:"Bhratrukaraka", varga:"D3",  vargaLabel:"D3 (Drekkana)" },
   mother:   { title:"Mother & Home Blueprint", focus:"mother, home, and inner security",   house:4,  karaka:"Matrukaraka",   varga:"D4",  vargaLabel:"D4 (Chaturthamsha)" },
   children: { title:"Children & Progeny Blueprint", focus:"children, creativity, and progeny",  house:5,  karaka:"Putrakaraka",   varga:"D7",  vargaLabel:"D7 (Saptamsha)" },
-  health:   { title:"Wellbeing Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
+  health:   { title:"Health, Vitality & Well-Being Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
 };
 function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
@@ -3880,6 +3889,179 @@ function buildChildrenDepth(d1P, d1LagnaSign, fifthLord, d9Houses, d9LagnaSign, 
       : null;
 
     return { pacing, occupant, bondChannel, jupiter, archetype, fifthLord, temperament, ownerTemperament };
+  }catch(_){ return null; }
+}
+
+// ── Health, Vitality & Well-Being domain depth (SOP D6) ──────────────────────
+// The constitutional layer on top of the shared engine. ABSOLUTE guardrails (enforced here and
+// in the writer): never a disease diagnosis, never a life-span/death statement, never specific
+// diet/calorie numbers — only constitutional TENDENCIES, anatomical STRESS ZONES, and preventive
+// CARE WINDOWS. Maraka (2/7) is physical-care vigilance, never mortality.
+const _FIRE_SIGNS  = ["Aries","Leo","Sagittarius"];
+const _EARTH_SIGNS = ["Taurus","Virgo","Capricorn"];
+const _AIR_SIGNS   = ["Gemini","Libra","Aquarius"];
+const _WATER_SIGNS_H = ["Cancer","Scorpio","Pisces"];
+const _MOVABLE = ["Aries","Cancer","Libra","Capricorn"];
+const _FIXED   = ["Taurus","Leo","Scorpio","Aquarius"];
+const _DUAL    = ["Gemini","Virgo","Sagittarius","Pisces"];
+// Dr. Charak planetary-humour weights (primary +2, secondary +1). Mercury is tri-doshic.
+const _PLANET_DOSHA = {
+  Sun:{pitta:2}, Mars:{pitta:2}, Saturn:{vata:2}, Jupiter:{kapha:2},
+  Moon:{kapha:2, vata:1}, Venus:{vata:1, kapha:1}, Mercury:{tri:1},
+  Rahu:{vata:1}, Ketu:{pitta:1}
+};
+const _ELEMENT_DOSHA = (sign)=> _FIRE_SIGNS.includes(sign) ? "pitta"
+  : _AIR_SIGNS.includes(sign) ? "vata"
+  : (_EARTH_SIGNS.includes(sign)||_WATER_SIGNS_H.includes(sign)) ? "kapha" : null;
+const _DOSHA_PROFILE = {
+  pitta:{ name:"Pitta", nature:"sharp digestion, high metabolic heat and strong drive",
+    tendencies:"acidity or inflammation, skin or liver heat, eye strain, and burnout under sustained overwork",
+    care:"cooling, anti-inflammatory habits, pacing intense work in sprints with real recovery, and regular preventive screening" },
+  vata:{ name:"Vata", nature:"quick nervous reflexes and mental agility",
+    tendencies:"anxiety or restlessness, irregular sleep, dryness or bloating in digestion, joint or nerve tension, and adrenal fatigue",
+    care:"steady sleep hygiene, warm and grounding meals, a predictable routine, and digital downtime before bed" },
+  kapha:{ name:"Kapha", nature:"strong physical endurance and calm steadiness",
+    tendencies:"a slower metabolism, respiratory or sinus congestion, fluid retention, or stagnation without regular movement",
+    care:"daily movement and stimulation, lighter and warmer food habits, and keeping the routine active" }
+};
+function buildHealthDepth(d1P, d1LagnaSign, firstLord, d9Houses, d9LagnaSign, d1Degrees, ascLon){
+  try{
+    const li=V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
+    const signOfHouse=(h)=>V_SIGNS[(li+h-1)%12];
+    const hof=(p)=>d1P[p]&&d1P[p].house;
+    const dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const sgn=(p)=>d1P[p]&&d1P[p].sign;
+    const L=(h)=>houseLord(d1LagnaSign,h);
+    const strong=(p)=>{const d=dig(p),h=hof(p);return d==="Exalted"||d==="Own sign"||(h&&[1,4,5,9,10].includes(h));};
+    const afflicted=(p)=>{const d=dig(p),h=hof(p);return d==="Debilitated"||(h&&[6,8,12].includes(h))||!!(d1P[p]&&d1P[p].combust)||!!(d1P[p]&&d1P[p].retro);};
+    const conj=(a,b)=>{const ha=hof(a);return !!ha&&hof(b)===ha;};
+    const occ=(h)=>Object.keys(d1P).filter(p=>p!=="Lagna"&&hof(p)===h);
+    const MAL=["Saturn","Mars","Rahu","Ketu","Sun"];
+
+    // ── Tri-Dosha (auto Prakriti) — scores from the 1st house (sign + occupants), 1st lord, Moon,
+    //    and malefics loading the 1st/6th axis. Primary +2, secondary +1; sign element contributes.
+    const score={pitta:0, vata:0, kapha:0}; let triTouch=false;
+    const addPlanet=(p, w=1)=>{ const m=_PLANET_DOSHA[p]; if(!m)return; for(const k of Object.keys(m)){ if(k==="tri"){triTouch=true; continue;} score[k]+=m[k]*w; } };
+    const addSign=(sign, w=1)=>{ const d=_ELEMENT_DOSHA(sign); if(d) score[d]+=w; };
+    addSign(signOfHouse(1), 2);                       // 1st-house sign element
+    for(const p of occ(1)) addPlanet(p, 1.5);         // 1st-house occupants
+    if(firstLord){ addPlanet(firstLord, 1.5); addSign(sgn(firstLord), 1); } // 1st lord
+    addPlanet("Moon", 1); addSign(sgn("Moon"), 1);    // Moon (constitution)
+    for(const h of [1,6]){ for(const p of occ(h)){ if(MAL.includes(p)) addPlanet(p, 1); } } // malefics on 1/6 axis
+    if(hof("Mercury")===1||firstLord==="Mercury") triTouch=true;
+    const ranked=Object.entries(score).sort((a,b)=>b[1]-a[1]);
+    const dominant=ranked[0][0], second=ranked[1][0];
+    const close=(ranked[0][1]-ranked[1][1])<=1.5;     // dual-dosha when top two are near
+    const prakriti={
+      dominant, second, close, triTouch,
+      scores:{pitta:+score.pitta.toFixed(1), vata:+score.vata.toFixed(1), kapha:+score.kapha.toFixed(1)},
+      profile:_DOSHA_PROFILE[dominant],
+      secondProfile: close ? _DOSHA_PROFILE[second] : null,
+      note:(close
+        ? ("a blended "+_DOSHA_PROFILE[dominant].name+"–"+_DOSHA_PROFILE[second].name+" constitution")
+        : ("a "+_DOSHA_PROFILE[dominant].name+"-leaning constitution"))
+        + (triTouch ? ", with a tri-doshic sensitivity (Mercury) that reacts quickly when the nervous system is overstimulated" : "")
+    };
+
+    // ── Sign-modality duration rule (how imbalances behave), from the 1st and 6th signs.
+    const modOf=(sign)=> _MOVABLE.includes(sign)?"movable": _FIXED.includes(sign)?"fixed": _DUAL.includes(sign)?"dual":null;
+    const mod1=modOf(signOfHouse(1)), mod6=modOf(signOfHouse(6));
+    const modMix=mod1===mod6?mod1:(mod1+"/"+mod6);
+    const modalityNote = (m)=> m==="movable"?"imbalances tend to arise suddenly and clear quickly once addressed"
+      : m==="fixed"?"tendencies build slowly and can linger unless daily habits are upgraded and kept"
+      : m==="dual"?"patterns tend to fluctuate or recur, tied closely to stress and changes in routine"
+      : "a mixed rhythm — some imbalances pass quickly, others ask for steady habit change";
+    const modality={ first:mod1, sixth:mod6, note:modalityNote(mod1||mod6) };
+
+    // ── Immune shield — 1st lord + Sun/Moon strength and functional nature.
+    const flStrong=firstLord&&strong(firstLord)&&!afflicted(firstLord);
+    const flFn=firstLord?functionalStatus(firstLord,d1LagnaSign):"N";
+    const benefAspect=["Jupiter","Venus"].some(b=>{const hb=hof(b);const h1=hof(firstLord);return hb&&h1&&aspectsHouse(b,hb,1);});
+    let immune;
+    if((flStrong||flFn==="Y"||benefAspect)&&!afflicted(firstLord||"")) immune={grade:"resilient", note:"a strong baseline stamina, good tissue repair and a quick bounce-back from fatigue"};
+    else if(firstLord&&afflicted(firstLord)) immune={grade:"sensitive", note:"a more sensitive constitution whose energy dips when sleep, meal timing or emotional boundaries slip — it responds very well to steady routine"};
+    else immune={grade:"steady", note:"a workable baseline that rewards consistent rhythm and preventive care"};
+    const sunMoon={ sun: strong("Sun")?"steady structural vitality (heart, spine, eyes, bones)":"vitality that asks for protection through rest and routine",
+                    moon: afflicted("Moon")?"a sensitive nervous system and emotional rhythm — sleep and calm matter greatly":"a steady emotional and nervous rhythm" };
+
+    // ── D1 -> D9 maturation shift (second-half vitality).
+    const d9HouseOf=(p)=>{ if(!d9Houses)return null; for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(p))return h; } return null; };
+    const d9li=V_SIGNS.indexOf(d9LagnaSign);
+    const d9Sign=(p)=>{ const h=d9HouseOf(p); return (h&&d9li>=0)?V_SIGNS[(d9li+h-1)%12]:null; };
+    const d9Strong=(p)=>{ const h=d9HouseOf(p),s=d9Sign(p); return (h&&[1,4,5,7,9,10].includes(h))||(s&&(V_EX[p]===s||(V_OWN[p]||[]).includes(s))); };
+    const d9Weak=(p)=>{ const h=d9HouseOf(p),s=d9Sign(p); return (h&&[6,8,12].includes(h))||(s&&V_DE[p]===s); };
+    let maturation;
+    const flD1Weak=firstLord&&afflicted(firstLord), flD9Strong=firstLord&&d9Strong(firstLord);
+    const flD1Strong=firstLord&&flStrong, flD9Weak=firstLord&&d9Weak(firstLord);
+    if((flD1Weak||afflicted("Moon"))&&(flD9Strong||d9Strong("Moon"))) maturation={dir:"rises", note:"an early-life sensitivity that matures into steadier stamina and disciplined self-care from the late 30s onward"};
+    else if(flD1Strong&&(flD9Weak||d9Weak("Moon"))) maturation={dir:"protect-peak", note:"high youthful energy that can tempt you to skip sleep or diet in your 20s — the chart asks for conscious lifestyle upgrades in the late 30s and 40s"};
+    else maturation={dir:"steady", note:"a fairly steady constitutional arc that rewards consistent habits across the decades"};
+
+    // ── D3 (Drekkana) body-zone localization + 22nd Drekkana (8th lord) watch.
+    let bodyZones=null, kharesh=null;
+    try{
+      const d3=buildVargaChart("D3", d1Degrees, ascLon);
+      const zoneOfDrekkana=(p)=>{ const deg=d1Degrees&&d1Degrees[p]; if(deg==null)return null; const within=((deg%30)+30)%30; const dk=Math.floor(within/10); return ["head, eyes, ears, throat and neck","chest, heart, lungs, upper back, stomach and digestion","lower back, kidneys, hips, knees and legs"][dk]; };
+      const z1=firstLord?zoneOfDrekkana(firstLord):null;
+      const eighthLord=L(8);
+      const z8=eighthLord?zoneOfDrekkana(eighthLord):null;
+      bodyZones={ constitutionZone:z1, eighthLord, watchZone:z8 };
+      // 22nd Drekkana = the 8th lord (Kharesh) and where it sits in D3 — a preventive-checkup zone
+      // during its dasha. Framed as rest/screening, never a diagnosis.
+      if(eighthLord&&d3&&d3.placements&&d3.placements[eighthLord]){
+        kharesh={ planet:eighthLord, d3Sign:d3.placements[eighthLord].sign, zone:z8,
+          note:"When the 8th-lord period ("+eighthLord+") runs, treat the "+(z8||"relevant")+" area as a calm preventive-check and rest window — vigilance and screening, never alarm" };
+      }
+    }catch(_){}
+
+    // ── 64th Navamsha trigger — the 4th sign from the Moon in D9; its lord + occupants are the
+    //    key preventive-care dasha triggers.
+    let navamsha64=null;
+    try{
+      const moonD9h=d9HouseOf("Moon");
+      if(moonD9h&&d9li>=0){
+        const n64h=((moonD9h+4-1-1)%12)+1;            // 4th house from the D9 Moon
+        const n64Sign=V_SIGNS[(d9li+n64h-1)%12];
+        const ruler=V_LORD[n64Sign];
+        const occupants=(d9Houses&&d9Houses[n64h])?d9Houses[n64h].slice():[];
+        navamsha64={ sign:n64Sign, ruler, occupants,
+          note:"the 64th-Navamsha triggers ("+[ruler].concat(occupants).filter((v,i,a)=>v&&a.indexOf(v)===i).join(", ")+") mark the dasha windows that most reward preventive care" };
+      }
+    }catch(_){}
+
+    // ── D12 (Dwadashamsha) — light family-pattern awareness (never a diagnosis).
+    let inherited=null;
+    try{
+      const d12=buildVargaChart("D12", d1Degrees, ascLon);
+      if(d12&&d12.houses){
+        const loaded=[1,6].some(h=>(d12.houses[h]||[]).some(p=>MAL.includes(p)));
+        inherited={ note: loaded
+          ? "a few family-pattern areas worth gentle, early preventive screening (awareness, not destiny — lifestyle still leads)"
+          : "no strong inherited-pattern emphasis — most of the picture is lifestyle-led and well within your hands" };
+      }
+    }catch(_){}
+
+    // ── Health axes for the recurring lesson (1-7 self-care vs over-extending; 6-12 grind vs rest).
+    const nodeOrSat=(h)=>occ(h).some(p=>["Rahu","Ketu","Saturn"].includes(p));
+    const axis17 = nodeOrSat(1)||nodeOrSat(7) || (firstLord&&afflicted(firstLord));
+    const axis612 = occ(6).some(p=>["Rahu","Mars"].includes(p)) || occ(12).some(p=>["Ketu","Rahu","Saturn"].includes(p));
+    let recurringFocus;
+    if(axis612 && occ(12).some(p=>["Rahu","Saturn"].includes(p))) recurringFocus={axis:"6-12", lesson:"mental over-processing at night — the lesson is a structured wind-down ritual to protect deep sleep, letting the body truly switch off"};
+    else if(axis612) recurringFocus={axis:"6-12", lesson:"a habit of pushing through fatigue until the body forces a pause — the lesson is building rest in before you hit empty"};
+    else if(axis17) recurringFocus={axis:"1-7", lesson:"saying yes to others' demands at the quiet cost of your own stamina — the lesson is embodied boundaries, treating rest as a non-negotiable duty"};
+    else recurringFocus={axis:"rhythm", lesson:"rhythm over intensity — steady sleep, hydration and moderate movement build far more lasting vitality than crash efforts or extremes"};
+
+    // ── Convergence archetype.
+    let archetype;
+    const sunStrong=strong("Sun"), jupAsp=["Jupiter"].some(b=>{const hb=hof(b);return hb&&(aspectsHouse("Jupiter",hb,1)||hof("Moon")===hof("Jupiter"));});
+    const highDrive=(strong("Sun")||strong("Mars"))&&[1,6,10].some(h=>occ(h).some(p=>["Sun","Mars","Rahu"].includes(p)));
+    if(flStrong&&sunStrong&&(jupAsp||d9Strong(firstLord))) archetype="High Resilience & Fast Recovery";
+    else if(dominant==="vata"&&[1,6,8,12].some(h=>occ(h).some(p=>["Moon","Mercury","Saturn","Rahu"].includes(p)))) archetype="Nervous-System & Sleep-Sensitive";
+    else if(dominant==="pitta"&&highDrive) archetype="Metabolic & Burnout Watch-Point";
+    else if(maturation.dir==="rises"||(dominant==="kapha"&&(flD1Weak||!flStrong))) archetype="Second-Half Vitality Upgrade";
+    else archetype="Steady Constitution, Habit-Led";
+
+    return { prakriti, modality, immune, sunMoon, maturation, bodyZones, kharesh, navamsha64, inherited, recurringFocus, archetype, firstLord };
   }catch(_){ return null; }
 }
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
@@ -5687,6 +5869,11 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         flags.childrenDepth.temperament.extraSupport = { present:false };
       }
     }
+  }
+  // Health, Vitality & Well-Being domain depth (SOP D6): auto Tri-Dosha Prakriti, modality duration,
+  // immune shield, D1->D9 maturation, D3 body-zone + 22nd Drekkana, 64th Navamsha, D12 awareness.
+  if(domainKey==="health" && ENABLE_HEALTH_DEPTH){
+    try{ flags.healthDepth = buildHealthDepth(d1P, d1LagnaSign, houseLord(d1LagnaSign,1), d9Houses, d9LagnaSign, d1Degrees, ascLon); }catch(_){ flags.healthDepth=null; }
   }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
