@@ -4094,10 +4094,23 @@ const _HOUSE_SHORT = {1:"self",2:"security",3:"initiative",4:"home",5:"the heart
 // THE RECURRING LESSON — the Rahu/Ketu (and, where it lands on the domain, Saturn) pattern that
 // repeats until consciously integrated. Framed for ACTION and, in marriage, as early-life emotional
 // protection. Universal; the domain note sharpens it when the nodes/Saturn touch the domain axis.
+// The six nodal axes as a single plain-language behavioural loop (the "Recurring Pattern" the
+// reader must outgrow). The node axis is always one opposite pair, so one label always applies.
+const _NODAL_LOOP = {
+  '1-7':"Self vs Other — being wholly yourself versus over-adapting to the people you love",
+  '2-8':"Holding on vs Letting change in — security and self-worth versus upheaval and shared control",
+  '3-9':"Your own hustle vs Trusting guidance — self-reliant effort versus surrender to mentors and the bigger picture",
+  '4-10':"Inner peace vs Outer achievement — roots and emotional ground versus ambition and public standing",
+  '5-11':"Authentic self-expression vs Crowd approval — creating from the heart versus performing for the network",
+  '6-12':"Control vs Release — daily perfectionism versus rest, trust and letting go" };
+// Saturn's special aspects fall on the 3rd, 7th and 10th houses FROM Saturn.
+function _saturnAspects(sh){ return [3,7,10].map(k => ((sh-1+(k-1))%12)+1); }
 function buildRecurringLesson(domainKey, d1P, cfg){
   try{
     const rh = d1P.Rahu && d1P.Rahu.house, kh = d1P.Ketu && d1P.Ketu.house, sh = d1P.Saturn && d1P.Saturn.house;
     if(!rh || !kh) return null;
+    const lo = Math.min(rh, kh) <= 6 ? Math.min(rh, kh) : Math.min(rh, kh) - 6;  // canonical axis key 1..6
+    const loop = _NODAL_LOOP[lo + "-" + (lo + 6)] || null;
     const pattern = "A quiet pattern repeats through your life: you keep reaching toward " + _HOUSE_LIFE[rh] +
       " — magnetic, but never quite enough — while under-valuing " + _HOUSE_LIFE[kh] +
       ", which already runs deep in you because it was mastered long ago. The same lesson circles back until you stop chasing the first at the cost of the second.";
@@ -4116,9 +4129,13 @@ function buildRecurringLesson(domainKey, d1P, cfg){
     }
     let saturnLesson = null;
     const dh = cfg && cfg.house;
-    if(sh && (sh === dh || (domainKey==="marriage" && sh===7)))
-      saturnLesson = "Saturn also sits in your " + ordinalD(sh) + " house, so this is an area life tests more than once — read its delays as training, not rejection, and the patience you build here becomes a lasting strength.";
-    return { pattern, why, action, domainNote, saturnLesson };
+    const satAsp = sh ? _saturnAspects(sh) : [];
+    const satTouch = sh && (sh === dh || satAsp.includes(dh) || (domainKey==="marriage" && (sh===7 || satAsp.includes(7))));
+    if(satTouch){
+      const how = (sh === dh) ? "sits in" : "casts its disciplining gaze on";
+      saturnLesson = "Saturn also " + how + " your " + ordinalD(sh === dh ? sh : dh) + " house, so this is an area life tests more than once — read its delays as training, not rejection, and the patience you build here becomes a lasting strength.";
+    }
+    return { pattern, loop, why, action, domainNote, saturnLesson };
   }catch(_){ return null; }
 }
 // ── Career: concrete vocation fields (planet→field families, refined by the 10th-lord's element) ──
@@ -5318,6 +5335,27 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
     if(flags.recurringLesson && (flags.minorLifeEventMode || flags.minorMarriageMode))
       flags.recurringLesson = { ...flags.recurringLesson, domainNote:null, saturnLesson:null };
   }catch(_){ flags.recurringLesson=null; }
+
+  // BADHAKESH / MARAKA friction filter: flag when this area's OWN significator (house lord or
+  // karaka) also carries the Badhakesh (obstruction) charge, or sits 6/8 (Shadashtak) with the
+  // Lagna lord. These areas are "earned through conscious effort, not handed over easily."
+  try{
+    const bad = compound && compound.badhaka;
+    const badhakesh = bad && bad.planet;
+    const lagLord = SIGN_LORDS[d1LagnaSign];
+    const isDomainLord = !!(badhakesh && hLord && hLord === badhakesh);
+    const isKaraka = !!(badhakesh && karakaPlanet && karakaPlanet === badhakesh);
+    let shadashtak = false;
+    if(hLord && lagLord && d1P[hLord] && d1P[lagLord]){
+      const a = d1P[hLord].house, b = d1P[lagLord].house;
+      if(a && b){ const f = ((b-a+12)%12)+1, bk = ((a-b+12)%12)+1; shadashtak = (f===6&&bk===8)||(f===8&&bk===6); }
+    }
+    flags.badhakeshCore = (isDomainLord || isKaraka || shadashtak)
+      ? { badhakesh: badhakesh||null, isDomainLord, isKaraka, shadashtak,
+          core: isKaraka ? karakaPlanet : hLord,
+          note: "The significator of this area (" + (isKaraka?karakaPlanet:hLord) + ") carries an obstruction/earned charge — this area is won through conscious, patient effort, not handed over easily." }
+      : null;
+  }catch(_){ flags.badhakeshCore=null; }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
   //    above, and nulls it for minors). Graded risk signals for the confidential owner edition;
