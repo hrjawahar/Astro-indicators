@@ -3579,6 +3579,69 @@ function buildOwnerSensitive(domainKey, d1P, d1LagnaSign, d9Houses, hLord, karak
   }catch(_){ return null; }
 }
 
+// ── Siblings & Courage domain depth (SOP D3) ────────────────────────────────
+// The 3rd-lord courage matrix, Mars-drive nuance, younger-vs-elder sibling bonds, the
+// communication edge, and the convergence archetype — the domain-specific layer on top of
+// the universal engine (axis decoder, recurring lesson, agency matrix all apply already).
+function buildSiblingsDepth(d1P, d1LagnaSign, thirdLord){
+  try{
+    const li = V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
+    const signOfHouse = (h)=> V_SIGNS[(li + h - 1) % 12];
+    const eleventhLord = SIGN_LORDS[signOfHouse(11)];
+    const hof = (p)=> d1P[p] && d1P[p].house;
+    const dig = (p)=> d1P[p] && d1P[p].dignity;
+    const strong = (p)=>{ const d=dig(p), h=hof(p); return d==="Exalted"||d==="Own sign"|| (h && [1,4,7,10].includes(h)); };
+    const afflicted = (p)=>{ const d=dig(p), h=hof(p); return d==="Debilitated" || (h && [6,8,12].includes(h)); };
+    const conj = (a,b)=>{ const ha=hof(a); return !!ha && hof(b)===ha; };
+
+    // 3rd-lord placement matrix → how courage is channelled.
+    const tlH = hof(thirdLord);
+    let courageChannel = null;
+    if(tlH){
+      if([1,3,10,11].includes(tlH)) courageChannel = { mode:"self-enterprise", note:"wired for self-enterprise — you build your own path through initiative, networking and skill execution" };
+      else if([4,5,9].includes(tlH)) courageChannel = { mode:"principled", note:"channelled into family protection, creative output, teaching or principled causes, with a naturally harmonious sibling bond" };
+      else if([6,8,12].includes(tlH)) courageChannel = { mode:"forged", note:"forged through overcoming obstacles — effort meets real resistance early, and a sibling's life may carry health, financial or distance challenges" };
+      else courageChannel = { mode:"steady", note:"applied steadily, without strong pull toward either enterprise or retreat" };
+    }
+
+    // Mars (Bhratrukaraka) drive nuance.
+    let marsDrive;
+    if(strong("Mars") && !afflicted("Mars")) marsDrive = { grade:"decisive", note:"decisive action, physical vitality, a protective streak toward siblings, and the ability to execute under pressure" };
+    else if(conj("Mars","Saturn")) marsDrive = { grade:"paced", note:"drive under a brake — hesitation before acting, or heavy duty and strain involving a sibling; paced, methodical courage is the growth" };
+    else if(conj("Mars","Rahu")) marsDrive = { grade:"impulsive", note:"intense, impulsive leaps and the occasional ideological clash with peers or siblings; the drive is large and needs direction" };
+    else if(conj("Mars","Ketu")) marsDrive = { grade:"burst", note:"bursts of energy followed by burnout, and a karmic or distant sibling bond" };
+    else if(afflicted("Mars")) marsDrive = { grade:"tested", note:"courage is real but asks to be built deliberately rather than spent in one reactive rush" };
+    else marsDrive = { grade:"steady", note:"workable drive that functions well when applied with some structure" };
+
+    // Younger (3rd + Mars) vs elder (11th + Jupiter) sibling bonds.
+    const bondOf = (lord, karaka)=>{
+      const warm = (strong(karaka) && !afflicted(karaka)) || (hof(lord) && [1,5,9,11].includes(hof(lord)));
+      const distant = afflicted(karaka) || (hof(lord) && [6,8,12].includes(hof(lord))) || conj(karaka,"Ketu") || conj(karaka,"Saturn");
+      return warm && !distant ? "warm" : (distant && !warm ? "distant" : "mixed");
+    };
+    const siblingBonds = { younger: bondOf(thirdLord, "Mars"), elder: bondOf(eleventhLord, "Jupiter") };
+
+    // Communication / skill edge (Mercury + benefics on the 3rd).
+    const mercStrong = strong("Mercury") && !afflicted("Mercury");
+    const beneficOn3 = [ "Jupiter","Venus","Mercury" ].some(b => hof(b)===3) || hof("Moon")===3;
+    const communicationEdge = (mercStrong || beneficOn3)
+      ? { level:"strong", note:"a real edge in communication — writing, teaching, media, advisory or commercial skill, winning through clarity rather than force" }
+      : { level:"workable", note:"communication that strengthens with deliberate practice" };
+
+    // Convergence archetype (plain label for the reader).
+    let archetype;
+    if(courageChannel && courageChannel.mode==="self-enterprise" && (marsDrive.grade==="decisive"))
+      archetype = "The Self-Made Trailblazer";
+    else if(communicationEdge.level==="strong" && (courageChannel && courageChannel.mode!=="forged"))
+      archetype = "The Strategic Communicator";
+    else if(marsDrive.grade==="tested" || marsDrive.grade==="paced" || (courageChannel && courageChannel.mode==="forged"))
+      archetype = "The Patient Builder of Courage";
+    else archetype = "The Steady Initiator";
+
+    return { courageChannel, marsDrive, siblingBonds, communicationEdge, archetype,
+      thirdLord, eleventhLord };
+  }catch(_){ return null; }
+}
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
 // partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
 // (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
@@ -5356,6 +5419,12 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
           note: "The significator of this area (" + (isKaraka?karakaPlanet:hLord) + ") carries an obstruction/earned charge — this area is won through conscious, patient effort, not handed over easily." }
       : null;
   }catch(_){ flags.badhakeshCore=null; }
+
+  // Siblings & Courage domain depth (SOP D3): the 3rd-lord courage matrix, Mars drive, younger-vs-
+  // elder sibling bonds, communication edge and archetype.
+  if(domainKey==="siblings"){
+    try{ flags.siblingsDepth = buildSiblingsDepth(d1P, d1LagnaSign, hLord); }catch(_){ flags.siblingsDepth=null; }
+  }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
   //    above, and nulls it for minors). Graded risk signals for the confidential owner edition;
