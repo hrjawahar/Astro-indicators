@@ -388,10 +388,10 @@
   // ═══ DOMAIN REPORTS (Career, Marriage, …) — API-written, same flipbook shell ═══
   // Shared flipbook state (used by both LAMP and domain reports).
   let _book = { pages: [], idx: 0, animating: false, target: 0, meta: "" };
-  const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage","wealth"];
+  const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage","wealth","fortune"];
   const DOMAIN_LABELS = {
     self:"Self & Character", career:"Career", siblings:"Siblings & Courage",
-    mother:"Mother & Home", children:"Children & Progeny", health:"Health, Vitality & Well-Being", marriage:"Marriage", wealth:"Wealth, Assets & Financial Flow"
+    mother:"Mother & Home", children:"Children & Progeny", health:"Health, Vitality & Well-Being", marriage:"Marriage", wealth:"Wealth, Assets & Financial Flow", fortune:"Father, Fortune & Life Purpose"
   };
   const DOMAIN_ITEM = (k) => "domain_" + k;   // paid_reports item string per domain
 
@@ -455,6 +455,7 @@
       health:"Health, vitality, and resilience — read from D1 (6th & 8th) and D9.",
       marriage:"Marriage, partnership, and timing — confirmed by the D9 chart.",
       wealth:"Wealth, assets, and financial flow — read from D2 (Hora), D4, and D9.",
+      fortune:"Fortune, father, and life purpose — read from the 9th house with the D12 (Dwadashamsha) and D9.",
     };
     const bundlePrice = P("domain_all", 3999);
     const bundleCard = `
@@ -957,7 +958,7 @@
         for (const k of DOMAIN_KEYS) {
           if (done[k]) continue;  // already built in a previous (interrupted) run
           host.querySelector(".pp-empty") && (host.querySelector(".pp-empty").innerHTML =
-            `Building your complete blueprint…<br><span style="color:#c9a84c;font-weight:700">Now reading: ${esc(DOMAIN_LABELS[k])}</span><br><span style="opacity:.7">(${DOMAIN_KEYS.indexOf(k)+1} of 7) · about 5–7 minutes total · please don't refresh</span>`);
+            `Building your complete blueprint…<br><span style="color:#c9a84c;font-weight:700">Now reading: ${esc(DOMAIN_LABELS[k])}</span><br><span style="opacity:.7">(${DOMAIN_KEYS.indexOf(k)+1} of ${DOMAIN_KEYS.length}) · about 5–7 minutes total · please don't refresh</span>`);
           let secs = null;
           const one = await srv({ action:"fetch", chartId: cid, item: DOMAIN_ITEM(k), lang:"en" });
           if (one && one.sections) secs = one.sections;
@@ -1064,6 +1065,8 @@
         ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
         : (domainKey==="wealth")
         ? "This wealth blueprint describes financial temperament for self-reflection only and is NOT financial, investment, or tax advice. It never guarantees returns. Always consult a licensed financial advisor before any financial decision."
+        : (domainKey==="fortune")
+        ? "This fortune blueprint reads luck, life-purpose and the paternal bond as symbolic tendencies for self-reflection only. It makes NO prediction about anyone's health, lifespan, or wellbeing; any note about a parent is a gentle prompt for care and connection, never a forecast."
         : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.",
       closeFoot: "You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint.",
       lblClientId: "Your Client ID",

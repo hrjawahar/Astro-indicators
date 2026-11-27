@@ -337,6 +337,26 @@ function checkWealthSafety(text, out){
   if(m) push("a specific monetary amount appeared — forbidden; never predict figures, percentages or net-worth numbers", m[0]);
 }
 
+// ── FORTUNE SAFETY guard (ALL editions, owner included) — father, fortune & life purpose:
+// the paternal bond must never become a health/death prediction about the father, and fortune
+// must never become a "you will be lucky/unlucky" certainty. Proactive-care framing only.
+function checkFortuneSafety(text, out){
+  const push=(detail,evidence)=>out.push({type:"fortune-safety",severity:"critical",detail,evidence});
+  // A death / lifespan / illness statement about the father or a parent.
+  let m = text.match(/\b(your )?(father|dad|parent|paternal)\b[^.]{0,48}\b(will|is going to|may|might|could|is likely to)\b[^.]{0,24}\b(die|pass away|passing|death|not survive|fall (critically |seriously )?ill|be hospitalised|hospitalized|suffer (a|from)|illness|disease)\b/i)
+       || text.match(/\b(death|passing|loss|demise|end of life|lifespan|life expectancy)\b[^.]{0,20}\b(of (your |the )?(father|dad|parent))\b/i)
+       || text.match(/\b(father|dad|parent)('s)?\b[^.]{0,20}\b(death|demise|passing|mortality|lifespan|longevity)\b/i);
+  if(m) push("a health / mortality statement about the father or parent appeared — forbidden in EVERY edition; the paternal note is only a gentle, undated prompt for proactive care and connection, never a prediction about their health, illness, or death", m[0]);
+  // A dated window tied to the father's health/longevity.
+  m = text.match(/\b(father|dad|parent|paternal)\b[^.]{0,40}\b(19|20)\d\d\s?[–\-]\s?(19|20)?\d\d\b/i)
+   || text.match(/\b(19|20)\d\d\s?[–\-]\s?(19|20)?\d\d\b[^.]{0,30}\b(father|dad|parent)('s)?\b[^.]{0,20}\b(health|wellbeing|life|care|illness)\b/i);
+  if(m) push("a DATED window attached to the father's health/longevity appeared — forbidden; paternal-care guidance is undated and framed as presence and routine check-ups, never a timed warning", m[0]);
+  // A luck certainty verdict.
+  m = text.match(/\byou (will|are going to|are destined to) (be|become) (extremely |very |highly )?(lucky|fortunate|unlucky|unfortunate|cursed|blessed with fortune)\b/i)
+   || text.match(/\b(guaranteed|certain|assured|destined)\b[^.]{0,20}\b(fortune|luck|success|prosperity)\b/i);
+  if(m) push("a fortune/luck certainty verdict appeared — forbidden; fortune is a tendency that responds to alignment, a strong probability at most, never a guaranteed destiny", m[0]);
+}
+
 export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   const text = plainText(sections);
   const lagnaSign = facts && facts.d1 && facts.d1.lagnaSign;
@@ -348,6 +368,7 @@ export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   try{ if(domainKey==="marriage") checkMinorMode(text, facts, out); }catch(_){}
   try{ if(domainKey==="children") checkChildClinical(text, out); }catch(_){}
   try{ if(domainKey==="health") checkHealthSafety(text, out); }catch(_){}
+  try{ if(domainKey==="fortune") checkFortuneSafety(text, out); }catch(_){}
   try{ if(audience!=="owner") checkClientSensitive(text, domainKey, out); }catch(_){}
   try{ checkTiming(text, domainKey, facts, out); }catch(_){}
   try{ checkDignity(text, facts, out); }catch(_){}

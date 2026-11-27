@@ -14,6 +14,7 @@ const AOFF= mkA(s=>s.replace("const ENABLE_D10_LENS = true;","const ENABLE_D10_L
                    .replace("const ENABLE_CHILD_TEMPERAMENT = true;","const ENABLE_CHILD_TEMPERAMENT = false;")
                    .replace("const ENABLE_HEALTH_DEPTH = true;","const ENABLE_HEALTH_DEPTH = false;")
                    .replace("const ENABLE_WEALTH_DEPTH = true;","const ENABLE_WEALTH_DEPTH = false;")
+                   .replace("const ENABLE_FORTUNE_DEPTH = true;","const ENABLE_FORTUNE_DEPTH = false;")
                    .replace("const ENABLE_NAISARGIKA_KARAKA = true;","const ENABLE_NAISARGIKA_KARAKA = false;")
                    .replace("const ENABLE_OWNER_INTIMATE = true;","const ENABLE_OWNER_INTIMATE = false;"), "off");
 const Eon=await import(AON+"?t="+Date.now()); const Eoff=await import(AOFF+"?t="+Date.now());
@@ -44,6 +45,7 @@ const nat={love:0,arranged:0,mixed:0,unmarked:0}, frn={none:0,possible:0,notable
 let careerDepth=0, careerN=0;
 let childLeak=0, childOwnerHas=0, childN=0, childSpecial=0, childRevBad=0, childClientRaw=0;
 let healthN=0, healthRevBad=0, healthDepthN=0; const hdDosha={pitta:0,vata:0,kapha:0};
+let fortuneN=0, fortuneRevBad=0, fortuneDepthN=0, fortunePaternal=0; const fArch={};
 const OWNER_ONLY=["ownerSensitive","intimacyProfile","affairTiming"];
 // Owner-payload-only phrases (archetype, reading, D7 factor strings). These appear ONLY in the
 // childTemperamentOwner flag — never in the client-facing instruction text or the gentle touch — so
@@ -113,6 +115,12 @@ for(let i=0;i<360;i++){
     if(fh.flags.healthDepth){ healthDepthN++; const dd=fh.flags.healthDepth.prakriti&&fh.flags.healthDepth.prakriti.dominant; if(dd&&hdDosha[dd]!=null) hdDosha[dd]++; }
     if(fhoff.flags.healthDepth!==undefined) healthRevBad++;   // off build must NOT produce healthDepth
   }
+  // FORTUNE — depth present + reversibility + archetype distribution + paternal-care rate
+  let ff,ffoff; try{ ff=Eon.buildDomainFacts("fortune",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"female",""); ffoff=Eoff.buildDomainFacts("fortune",c.deg,c.lag,c.d9.houses,c.d9.lagnaSign,ck,dashas,"1985-07-01",asc,{},"female",""); }catch(e){ ff=null; }
+  if(ff){ fortuneN++;
+    if(ff.flags.fortuneDepth){ fortuneDepthN++; const a=ff.flags.fortuneDepth.archetype; if(a) fArch[a]=(fArch[a]||0)+1; if(ff.flags.fortuneDepth.paternalCare&&ff.flags.fortuneDepth.paternalCare.raise) fortunePaternal++; }
+    if(ffoff.flags.fortuneDepth!==undefined) fortuneRevBad++;   // off build must NOT produce fortuneDepth
+  }
 }
 const pc=(x,d=n)=>(100*x/d).toFixed(1)+"%";
 console.log("SOP-DEPTH audit over "+n+" random ADULT charts (not the known cases):");
@@ -135,4 +143,7 @@ console.log("CHILDREN — owner prompt carries childTemperamentOwner when presen
 console.log("CHILDREN REVERSIBILITY (switch off → no temperament layer, no owner flag): mismatches = "+childRevBad+"   "+(childRevBad===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
 console.log("HEALTH — depth produced: "+pc(healthDepthN,healthN)+" of health charts  | dominant dosha "+JSON.stringify(hdDosha));
 console.log("HEALTH REVERSIBILITY (switch off → healthDepth absent): mismatches = "+healthRevBad+"   "+(healthRevBad===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
+console.log("FORTUNE — depth produced: "+pc(fortuneDepthN,fortuneN)+" of fortune charts  | archetypes "+JSON.stringify(fArch));
+console.log("FORTUNE — paternal-care prompt raised (undated, structural): "+pc(fortunePaternal,fortuneDepthN)+" of fortune-depth charts");
+console.log("FORTUNE REVERSIBILITY (switch off → fortuneDepth absent): mismatches = "+fortuneRevBad+"   "+(fortuneRevBad===0?"✓ CLEAN REVERT":"✗ REGRESSION"));
 [AON,AOFF,DP].forEach(f=>fs.unlinkSync(f));

@@ -182,6 +182,10 @@ export const DOMAIN_TEMPLES = {
     primary: "Mahalakshmi (Ambabai) Temple, Kolhapur — a Shakti Peetha and one of the most established Lakshmi shrines in the tradition, worshipped for prosperity and the grace of wealth",
     flow: "A Lakshmi–Kubera shrine (Lakshmi worshipped alongside Kubera, treasurer of the gods) — for the holding and steady circulation of wealth, not only its arrival; worshipped for retention and cash-flow rather than a sudden gain",
   },
+  fortune: {
+    primary: "Suryanar Kovil, near Kumbakonam — the navagraha temple of the Sun (Pitrukaraka), worshipped for fortune, vitality and the blessing of the father/paternal line",
+    lineage: "A Pitru shrine such as Thilatharpanapuri (Sri Mukteswarar, near Koothanur) — long associated with honouring the ancestral line; visited (optionally) to express gratitude to the lineage and settle inherited family themes, never out of fear",
+  },
 };
 
 // Commonly-cited general temples — used when the chart is unclear or several planets are

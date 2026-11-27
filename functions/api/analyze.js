@@ -66,8 +66,15 @@ const ENABLE_NAISARGIKA_KARAKA = true;
 // axes. Off -> flags.wealthDepth null (general 2nd/11th reading). NEVER a guaranteed return, a stock
 // tip, or a specific amount — classical tendencies and financial-hygiene guidance only.
 const ENABLE_WEALTH_DEPTH = true;
-const NAISARGIKA_KARAKA = { children:"Jupiter", siblings:"Mars", mother:"Moon", marriage:"Venus", wealth:"Jupiter" };
-const NAISARGIKA_ROLE   = { children:"Putrakaraka", siblings:"Bhratrukaraka", mother:"Matrukaraka", marriage:"Kalatrakaraka", wealth:"Dhanakaraka" };
+// Father, Fortune & Life Purpose depth (SOP D9): 9th house/lord Bhagya matrix, Sun (Pitrukaraka)
+// paternal-bond read (Sun-Saturn / Sun-Rahu-Ketu patterns), Dharma-Karmadhipati yoga (9+10 lords),
+// D12 (Dwadashamsha) lineage lens + D9 dharma maturation, the 3-9 & Sun-Saturn lineage axes, the
+// fixed-lagna Badhaka "earned grace" note, Bhagyodaya timing drivers, convergence archetype. Off ->
+// flags.fortuneDepth null (general 9th-house reading). NEVER a certainty about the father's health,
+// lifespan, or death, and never a dated mortality window — paternal-CARE awareness only.
+const ENABLE_FORTUNE_DEPTH = true;
+const NAISARGIKA_KARAKA = { children:"Jupiter", siblings:"Mars", mother:"Moon", marriage:"Venus", wealth:"Jupiter", fortune:"Sun" };
+const NAISARGIKA_ROLE   = { children:"Putrakaraka", siblings:"Bhratrukaraka", mother:"Matrukaraka", marriage:"Kalatrakaraka", wealth:"Dhanakaraka", fortune:"Pitrukaraka" };
 // The single list of OWNER-ONLY flags the public (paid-user) packet must never carry. The gate in
 // the report writer strips exactly these; add any future sensitive flag here, nowhere else.
 const OWNER_ONLY_FLAGS = ["ownerSensitive","intimacyProfile","affairTiming"];
@@ -2490,7 +2497,8 @@ const DOMAIN_REPORT_CONFIG = {
   children: { title:"Children & Progeny Blueprint", focus:"children, creativity, and progeny",  house:5,  karaka:"Putrakaraka",   varga:"D7",  vargaLabel:"D7 (Saptamsha)" },
   health:   { title:"Health, Vitality & Well-Being Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" },
-  wealth:   { title:"Wealth, Assets & Financial Flow Blueprint", focus:"wealth, assets, and financial flow", house:2, karaka:"Amatyakaraka", varga:null, vargaLabel:"D2 (Hora) + D4 (Chaturthamsha) + D9" }
+  wealth:   { title:"Wealth, Assets & Financial Flow Blueprint", focus:"wealth, assets, and financial flow", house:2, karaka:"Amatyakaraka", varga:null, vargaLabel:"D2 (Hora) + D4 (Chaturthamsha) + D9" },
+  fortune:  { title:"Father, Fortune & Life Purpose Blueprint", focus:"fortune, father, and life purpose", house:9, karaka:"Pitrukaraka", varga:"D12", vargaLabel:"D12 (Dwadashamsha) + D9 (Navamsha)" }
 };
 function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 // Graha drishti — does a planet in `fromHouse` cast an aspect on `targetHouse`?
@@ -4428,6 +4436,194 @@ function buildWealthDepth(d1P, d1LagnaSign, secondLord, d9Houses, d9LagnaSign, d
       maturation, induLagna, recurringFocus, moneyAxes, nakshatraGate, archetype, secondLord:l2, eleventhLord:l11 };
   }catch(_){ return null; }
 }
+// Father, Fortune & Life Purpose depth (SOP D9). D1 Bhagya (9th house/lord) + Sun (Pitrukaraka)
+// paternal bond → D12 (Dwadashamsha) lineage lens + D9 (Navamsha) dharma maturation → the 3-9 and
+// Sun-Saturn lineage axes + the fixed-lagna Badhaka "earned grace" note → Bhagyodaya timing drivers
+// → convergence archetype. ninthLord = the caller's house-lord (house 9). vargaChart = the D12.
+// GUARDRAIL: never a certainty about the father's health, lifespan or death, and never a dated
+// mortality window — the paternal note is undated, structural, and framed as proactive care only.
+function buildFortuneDepth(d1P, d1LagnaSign, ninthLord, d9Houses, d9LagnaSign, vargaChart, compound){
+  try{
+    const li=V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
+    const hof=(p)=>d1P[p]&&d1P[p].house;
+    const dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const sgn=(p)=>d1P[p]&&d1P[p].sign;
+    const L=(h)=>houseLord(d1LagnaSign,h);
+    const occ=(h)=>Object.keys(d1P).filter(p=>p!=="Lagna"&&hof(p)===h);
+    const strong=(p)=>{const d=dig(p),h=hof(p);return p&&(d==="Exalted"||d==="Own sign"||(h&&[1,4,5,7,9,10,11].includes(h)));};
+    const afflicted=(p)=>{const d=dig(p),h=hof(p);return p&&(d==="Debilitated"||(h&&[6,8,12].includes(h)));};
+    const conj=(a,b)=>{const ha=hof(a);return !!ha&&hof(b)===ha;};
+    const BEN=["Jupiter","Venus","Mercury","Moon"], MAL=["Saturn","Mars","Rahu","Ketu"];
+    const l9=ninthLord||L(9), l10=L(10), l1=L(1), l3=L(3);
+
+    // ── Phase 1.1 — the 9th house (Bhagya Bhava): occupants + aspecting planets, classified.
+    const ninthOcc=occ(9);
+    const ninthAspectedBy=["Jupiter","Saturn","Mars","Sun","Rahu","Ketu","Venus","Mercury","Moon"]
+      .filter(p=>hof(p)&&hof(p)!==9&&aspectsHouse(p,hof(p),9));
+    const bhagyaBaseline=(()=>{
+      const benIn9=ninthOcc.filter(p=>BEN.includes(p)&&!afflicted(p));
+      if(benIn9.length) return { grade:"strong", note:"natural benefics ("+benIn9.join(", ")+") grace the 9th of fortune — a strong baseline of luck (Bhagya), supportive mentors, a love of higher learning, and a graceful recovery from setbacks", drivers:benIn9 };
+      if(ninthOcc.includes("Saturn")) return { grade:"earned", note:"Saturn in the 9th makes fortune self-made — it arrives through sustained integrity, duty and hard work rather than easy windfalls, and tends to compound strongly in the second half of life", drivers:["Saturn"] };
+      if(ninthOcc.includes("Sun")||ninthOcc.includes("Mars")) return { grade:"principled", note:"the 9th carries a principled, independent worldview and a strong paternal/authority imprint — early ideological friction with a father-figure matures into mutual respect", drivers:ninthOcc.filter(p=>["Sun","Mars"].includes(p)) };
+      if(ninthOcc.includes("Rahu")) return { grade:"unconventional", note:"Rahu in the 9th points to an unconventional philosophy, cross-cultural education or travel, and a drive to question inherited tradition to forge a personal truth", drivers:["Rahu"] };
+      if(ninthOcc.includes("Ketu")) return { grade:"spiritual", note:"Ketu in the 9th suggests deep innate spiritual wisdom, detachment from dogmatic ritual, and finding teachers through quiet inner resonance rather than institutions", drivers:["Ketu"] };
+      // empty 9th → judged by the 9th lord + aspects
+      const benAsp=ninthAspectedBy.filter(p=>BEN.includes(p));
+      if(benAsp.length) return { grade:"supported", note:"the 9th of fortune is supported by the aspect of "+benAsp.join(", ")+" — grace tends to arrive through mentorship and well-timed guidance", drivers:benAsp };
+      return { grade:"neutral", note:"the 9th of fortune reads as a working-ground rather than a ready gift — luck responds to intentional alignment with your own values and good counsel", drivers:[] };
+    })();
+
+    // ── Phase 1.1 — the 9th lord placement matrix (Bhagya routing).
+    const l9h=hof(l9);
+    const ninthLordPlacement=(()=>{
+      if(!l9h) return null;
+      if([1,4,5,9,10].includes(l9h)) return { band:"high", house:l9h, note:"your 9th lord ("+l9+") sits in the "+ordinalD(l9h)+" — high Bhagya, with fortune aligned directly to your core identity and action in the world" };
+      if([2,11].includes(l9h)) return { band:"prosperity", house:l9h, note:"your 9th lord ("+l9+") sits in the "+ordinalD(l9h)+" — fortune, higher learning and paternal lineage feed directly into financial prosperity" };
+      if([3,7,12].includes(l9h)) return { band:"away", house:l9h, note:"your 9th lord ("+l9+") sits in the "+ordinalD(l9h)+" — fortune awakens through travel, relocation, partnerships or foreign/spiritual environments away from the birthplace" };
+      if([6,8].includes(l9h)) return { band:"tested", house:l9h, note:"your 9th lord ("+l9+") sits in the "+ordinalD(l9h)+" — luck feels tested early and asks you to work through ideological or paternal friction before fortune opens more smoothly" };
+      return { band:"neutral", house:l9h, note:"your 9th lord ("+l9+") sits in the "+ordinalD(l9h)+" house" };
+    })();
+
+    // ── Dharma-Karmadhipati Yoga: the 9th and 10th lords linked (conjunction, exchange or mutual
+    //    aspect), in a kendra/trikona, neither in a dusthana — values aligned with worldly action.
+    const signOfHouse=(h)=>V_SIGNS[(li+h-1)%12];
+    let dharmaKarmadhipati=null;
+    if(l9&&l10&&l9!==l10){
+      const h9=hof(l9), h10=hof(l10);
+      const linked = conj(l9,l10)
+        || (h9&&h10 && sgn(l9)===signOfHouse(10) && sgn(l10)===signOfHouse(9))
+        || (h9&&h10 && aspectsHouse(l9,h9,h10) && aspectsHouse(l10,h10,h9));
+      const clean = h9&&h10 && ![6,8,12].includes(h9) && ![6,8,12].includes(h10) && ([1,4,5,7,9,10].includes(h9)||[1,4,5,7,9,10].includes(h10));
+      if(linked&&clean) dharmaKarmadhipati={ present:true, lords:[l9,l10], note:"a Dharma-Karmadhipati yoga — your 9th and 10th lords ("+l9+" and "+l10+") are linked, so personal values and worldly success tend to reinforce each other; purpose and career pull in the same direction" };
+    }
+
+    // ── Phase 1.2 — the Sun (Pitrukaraka) & the paternal bond.
+    const sunH=hof("Sun"), sunSign=sgn("Sun"), sunDig=dig("Sun");
+    const sunStrong = sunDig==="Exalted"||sunDig==="Own sign"||(sunH&&[1,4,5,7,9,10].includes(sunH))||aspectsHouse("Jupiter",hof("Jupiter"),sunH);
+    const sunSaturn = conj("Sun","Saturn")|| (sunH&&hof("Saturn")&&(aspectsHouse("Saturn",hof("Saturn"),sunH)));
+    const sunNode = conj("Sun","Rahu")||conj("Sun","Ketu");
+    const sunAfflicted = sunDig==="Debilitated"||(sunH&&[6,8,12].includes(sunH))||sunSaturn||sunNode;
+    const sunBond=(()=>{
+      if(sunSaturn) return { tone:"reserved", pattern:"Sun-Saturn", note:"a Sun-Saturn thread in the paternal field — a generational gap, high expectations or emotional reserve with the father early on, which heals as you step into your own mature authority" };
+      if(sunNode) return { tone:"unconventional", pattern:"Sun-node", note:"a Sun-node (Pitru/Grahan) thread — an unconventional paternal dynamic, some physical or emotional distance, and a quiet task of healing and reshaping the lineage going forward" };
+      if(sunStrong&&!sunAfflicted) return { tone:"supportive", pattern:"strong-Sun", note:"a dignified, supportive paternal bond and a clear sense of personal purpose — the Sun gives steady inner authority to draw on" };
+      if(sunAfflicted) return { tone:"pressured", pattern:"pressured-Sun", note:"the Sun carries some pressure, so the paternal bond or your sense of authority asks for conscious tending — it strengthens as you claim your own voice" };
+      return { tone:"workable", pattern:"neutral-Sun", note:"a workable paternal bond and a sense of purpose that clarifies with time and lived experience" };
+    })();
+
+    // ── Nakshatra star-lord gate (dispositors of the 9th lord and the Sun in kendra/trikona/11th →
+    //    paternal and fortune blocks resolve in adulthood).
+    let nakshatraGate=null;
+    try{
+      const nakLordHouseOf=(p)=>{ const n=(compound&&compound.nakshatra||[]).find(x=>x.planet===p); return n?(n.lordHouse!=null?n.lordHouse:null):null; };
+      const checks=[l9,"Sun"].filter(Boolean).map(p=>nakLordHouseOf(p)).filter(h=>h!=null);
+      const stableCount=checks.filter(h=>[1,4,5,7,9,10,11].includes(h)).length;
+      if(checks.length) nakshatraGate={ stable: stableCount>=1,
+        note: stableCount>=1?"the nakshatra dispositors of your fortune and paternal significators rest in supportive houses — early blocks around luck or the father tend to resolve well in adulthood"
+          :"the nakshatra dispositors ask for patience — fortune and paternal themes settle later, through steady alignment rather than early ease" };
+    }catch(_){}
+
+    // ── Phase 2.1 — D12 (Dwadashamsha) lineage lens: D12 lagna/lord, D12 9th + Sun, D1 9th lord in D12.
+    let d12Lens=null;
+    if(vargaChart&&vargaChart.placements&&vargaChart.lagnaSign){
+      const d12li=V_SIGNS.indexOf(vargaChart.lagnaSign);
+      const d12H=(p)=>vargaChart.placements[p]&&vargaChart.placements[p].house;
+      const d12Dig=(p)=>vargaChart.placements[p]&&vargaChart.placements[p].dignity;
+      const d12Occ=(h)=>Object.keys(vargaChart.placements).filter(p=>d12H(p)===h);
+      const d12NinthOcc=d12Occ(9);
+      const sunInD12_9 = d12H("Sun")===9;
+      const benOnLineage = d12NinthOcc.some(p=>BEN.includes(p)) || (d12H("Sun")&&[1,4,5,7,9,10,11].includes(d12H("Sun"))) || BEN.includes((d12NinthOcc[0]||""));
+      const malOnLineage = d12NinthOcc.some(p=>MAL.includes(p)) || (d12Dig("Sun")==="Debilitated") || [6,8,12].includes(d12H("Sun"));
+      const d1L9InD12H = l9?d12H(l9):null;
+      const d1L9StrongInD12 = l9 && (d12Dig(l9)==="Exalted"||d12Dig(l9)==="Own sign"||(d1L9InD12H&&[1,4,5,7,9,10].includes(d1L9InD12H)));
+      let tone, note;
+      if(benOnLineage && !malOnLineage){ tone="blessed"; note="the D12 (the lineage chart) carries paternal blessing and protective grace — lineage support tends to warm and deepen later in life"; }
+      else if(malOnLineage && !benOnLineage){ tone="healing"; note="the D12 asks for conscious forgiveness and the gentle releasing of inherited family burdens; it also invites proactive care and connection with the father through demanding stretches"; }
+      else { tone="mixed"; note="the D12 shows a lineage of mixed inheritance — real support alongside patterns worth consciously outgrowing"; }
+      d12Lens={ tone, note, lagnaSign:vargaChart.lagnaSign, ninthOccupants:d12NinthOcc, sunInNinth:sunInD12_9,
+        anchor: d1L9StrongInD12?"your D1 9th lord ("+l9+") holds strength in the D12 as well — ancestral grace and paternal support stay a steady anchor through life":null };
+    }
+
+    // ── Phase 2.2 — D1 → D9 dharmic maturation shift.
+    const d9HouseOf=(p)=>{ if(!d9Houses)return null; for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(p))return h; } return null; };
+    const d9li=V_SIGNS.indexOf(d9LagnaSign);
+    const d9Sign=(p)=>{ const h=d9HouseOf(p); return (h&&d9li>=0)?V_SIGNS[(d9li+h-1)%12]:null; };
+    const d9Strong=(p)=>{ const h=d9HouseOf(p),s=d9Sign(p); return p&&((h&&[1,4,5,7,9,10].includes(h))||(s&&(V_EX[p]===s||(V_OWN[p]||[]).includes(s)))); };
+    const d9Weak=(p)=>{ const h=d9HouseOf(p),s=d9Sign(p); return p&&((h&&[6,8,12].includes(h))||(s&&V_DE[p]===s)); };
+    const dharmaKeys=[l9,"Sun"].filter(Boolean);
+    const d1Pressured = afflicted(l9)||sunAfflicted;
+    const d1StrongAny = strong(l9)||sunStrong;
+    const d9StrongAny = dharmaKeys.some(p=>d9Strong(p));
+    const d9WeakAny = dharmaKeys.some(p=>d9Weak(p));
+    let maturation;
+    if(d1Pressured && d9StrongAny) maturation={ dir:"rises", note:"early life can feel like pushing uphill without easy luck, followed by a noticeable surge in grace, mentorship and purpose-alignment after about age 35-36 — the early pressure was pacing, not a verdict" };
+    else if(d1StrongAny && d9WeakAny) maturation={ dir:"self-reliance", note:"early advantages or inherited support gradually hand over to self-reliance, testing whether you live your values under pressure — the second half rewards integrity over inheritance" };
+    else maturation={ dir:"steady", note:"a fairly steady dharmic arc — purpose and fortune unfold through consistent alignment with your values rather than one dramatic turning point" };
+
+    // ── Phase 3.1 — the 3-9 axis (self-reliance vs trusting grace/mentors).
+    let axis39=null;
+    if(hof("Rahu")===3&&hof("Ketu")===9) axis39={ pole:"hustle", note:"with Rahu in the 3rd and Ketu in the 9th, the pull is to believe everything depends on your own hustle and to resist guidance — the growth is in letting trusted mentors and grace back in" };
+    else if(hof("Ketu")===3&&hof("Rahu")===9) axis39={ pole:"seeker", note:"with Ketu in the 3rd and Rahu in the 9th, the pull is to chase grand philosophies or external gurus while neglecting grounded daily execution — the growth is in doing the small, consistent work" };
+    else { const r=((9-3)); const ang= l3&&l9 ? (((hof(l9)-hof(l3))+12)%12) : null; axis39={ pole:"balanced", note:"the self-reliance–vs–trusting-grace axis is reasonably balanced for you — the practice is simply noticing which way you tip under stress and correcting toward the other" }; }
+
+    // ── Phase 3.2 — Sun-Saturn / Pitru lineage axis (conscious lineage lesson).
+    const lineageAxis = (sunSaturn || (hof("Sun")&&hof("Saturn")&&[6,8].includes((((hof("Saturn")-hof("Sun"))+12)%12)+0)))
+      ? { present:true, note:"a Sun-Saturn lineage thread sets the lesson of conscious lineage — honouring what was genuinely good in your upbringing while deliberately releasing inherited rigidity, fear or unspoken expectation" }
+      : { present:false, note:"the lineage lesson is lighter here — carry forward the strengths of your upbringing and set down what no longer serves, without a heavy generational knot to untie" };
+
+    // ── Phase 3.3 — Badhakesh (FIXED lagnas only): the 9th house is the Badhakasthana and the 9th lord
+    //    is Badhakesh → the "earned grace" lesson (genuine fortune, but through delays and tests).
+    const FIXED=["Taurus","Leo","Scorpio","Aquarius"];
+    const badhaka = FIXED.includes(d1LagnaSign)
+      ? { present:true, badhakesh:l9, note:"yours is a fixed lagna, so the 9th is the Badhaka house and its lord ("+l9+") is the Badhakesh — the lesson of EARNED grace: fortune and mentor/paternal support are genuinely present, but arrive with periodic delays or tests of patience that refine character before they deliver" }
+      : { present:false };
+
+    // ── Phase 5 — Bhagyodaya (fortune-surge) timing DRIVERS: the 9th lord, Jupiter, the Sun, the D9
+    //    9th lord, and any Dharma-Karmadhipati planets. (Dasha windows carry the dates via the shared
+    //    futureCompass; double-transit math stays parked per project decision — the writer may note
+    //    slow-planet cycles only as broad corroboration, never a dated peak.)
+    const d9NinthLord = (d9li>=0) ? V_LORD[V_SIGNS[(d9li+8)%12]] : null;
+    const bhagyaDrivers=[...new Set([l9,"Jupiter","Sun",d9NinthLord,
+      ...(dharmaKarmadhipati?dharmaKarmadhipati.lords:[])].filter(Boolean))];
+
+    // ── Phase 5 — paternal-CARE awareness (UNDATED, structural). Raised only when the Sun, the 9th
+    //    house/lord, or the D12 9th carry affliction — a prompt for proactive health check-ups and
+    //    intentional family connection. NEVER a mortality window, lifespan claim, or dated prediction.
+    // Raised only on a genuine CONCENTRATION of paternal stress (not a single common aspect such as
+    // Saturn merely drishti-ing the Sun's house) — so it stays a meaningful minority and never nudges
+    // nearly every reader about a parent. Needs two stress factors, or one heavy one.
+    const sunConjMal = ["Saturn","Rahu","Ketu","Mars"].some(mp=>conj("Sun",mp));
+    const pStress = [
+      dig("Sun")==="Debilitated",
+      (sunH&&[6,8,12].includes(sunH)),
+      sunConjMal,
+      dig(l9)==="Debilitated",
+      (hof(l9)&&[6,8,12].includes(hof(l9))),
+      occ(9).filter(p=>MAL.includes(p)).length>=2,
+      (d12Lens&&d12Lens.tone==="healing")
+    ].filter(Boolean).length;
+    const paternalHeavy = dig("Sun")==="Debilitated" || dig(l9)==="Debilitated" || (sunConjMal && sunH && [6,8,12].includes(sunH));
+    const paternalCare = (pStress>=2 || paternalHeavy)
+      ? { raise:true, note:"a gentle, undated prompt for proactive connection with your father or a father-figure — routine health check-ups and intentional time together are worthwhile, framed as care and presence, never as alarm" }
+      : { raise:false };
+
+    // ── Phase 4 — convergence archetype. "High Bhagya & Dharmic Alignment" is a HIGH-convergence label
+    //    (SOP Phase 4) → it requires genuine agreement across D1 (9th lord & Sun strong + Dharma-
+    //    Karmadhipati yoga), D9 (fortified) and D12 (supportive lineage). A meaningful minority.
+    const d12Supportive = d12Lens && (d12Lens.tone==="blessed" || !!d12Lens.anchor);
+    let archetype;
+    if(strong(l9) && sunStrong && dharmaKarmadhipati && d9StrongAny && d12Supportive) archetype="High Bhagya & Dharmic Alignment";
+    else if((ninthOcc.includes("Saturn")||[3,6,10,11].includes(l9h))&&strong(l1)&&(d9StrongAny||!d9WeakAny)) archetype="The Self-Made Fortune Builder";
+    else if(ninthOcc.includes("Rahu")||ninthOcc.includes("Ketu")||sunNode) archetype="The Tradition-Breaker / Independent Seeker";
+    else if((sunSaturn||conj("Sun","Mars")||sunNode)&&(afflicted(l9)||occ(9).some(p=>MAL.includes(p)))) archetype="Paternal / Authority Friction Watch-Point";
+    else if(maturation.dir==="rises") archetype="Second-Half Fortune Surge";
+    else archetype="Steady Dharmic Unfolding";
+
+    return { bhagyaBaseline, ninthOccupants:ninthOcc, ninthAspectedBy, ninthLordPlacement, dharmaKarmadhipati,
+      sunBond, nakshatraGate, d12Lens, maturation, axis39, lineageAxis, badhaka, bhagyaDrivers, paternalCare,
+      archetype, ninthLord:l9, sunKaraka:"Sun" };
+  }catch(_){ return null; }
+}
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
 // partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
 // (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
@@ -6255,6 +6451,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // Wealth, Assets & Financial Flow domain depth (SOP D8).
   if(domainKey==="wealth" && ENABLE_WEALTH_DEPTH){
     try{ flags.wealthDepth = buildWealthDepth(d1P, d1LagnaSign, hLord, d9Houses, d9LagnaSign, d1Degrees, ascLon, compound); }catch(_){ flags.wealthDepth=null; }
+  }
+  // Father, Fortune & Life Purpose domain depth (SOP D9). vargaChart is the D12 (cfg.varga).
+  if(domainKey==="fortune" && ENABLE_FORTUNE_DEPTH){
+    try{ flags.fortuneDepth = buildFortuneDepth(d1P, d1LagnaSign, hLord, d9Houses, d9LagnaSign, vargaChart, compound); }catch(_){ flags.fortuneDepth=null; }
   }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,
