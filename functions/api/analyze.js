@@ -4382,6 +4382,26 @@ function buildWealthDepth(d1P, d1LagnaSign, secondLord, d9Houses, d9LagnaSign, d
     else if(saturnWealthFriction) recurringFocus={ axis:"saturn-patience", lesson:"Saturn's touch on your money houses sets the lesson of compounding patience — wealth here grows like an oak, not a lottery ticket, rewarding automated saving over trying to time the market" };
     else recurringFocus={ axis:"compounding-patience", lesson:"rhythm over timing — steady, automated saving and patient compounding build far more here than chasing fast wins" };
 
+    // ── Money axes (SOP Phase 3, MANDATORY) — the 2-8 (earned security vs sudden upheaval) and 6-12
+    //    (debt vs spending) relationships, ALWAYS computed from the 2nd/8th and 6th/12th lords + nodes
+    //    so the writer cannot default to the generic nodal axis in place of the money axes.
+    const l8=L(8);
+    const relH=(a,b)=>{const ha=hof(a),hb=hof(b); if(!ha||!hb)return null; return ((hb-ha)+12)%12;};
+    const angleName=(a,b)=>{const r=relH(a,b); if(r==null)return null; if(r===0)return "conjunct"; if(r===6)return "opposite across the 2-8 style axis"; if(r===5||r===7)return "in a 6-8 (shadashtak) angle"; if(r===1||r===11)return "in a 2-12 (dwirdwadash) angle"; return "linked across the chart";};
+    let axis28Note;
+    const nodeOn28 = on("Rahu",2)||on("Ketu",2)||on("Rahu",8)||on("Ketu",8);
+    if(on("Rahu",2)||on("Ketu",8)) axis28Note="chasing rapid financial status or shortcuts while the emergency reserve is neglected — ring-fence a boring, automated buffer before the next big swing";
+    else if(on("Ketu",2)||on("Rahu",8)) axis28Note="under-pricing your own worth or staying detached from money until an unexpected expense forces structure — own your value and build the buffer early";
+    else if(l8&&hof(l8)===2) axis28Note="your 8th ruler ("+l8+") sits in the 2nd of savings — sudden expenses, taxes or shared obligations can periodically pull on personal reserves; keep your emergency fund ring-fenced from joint ventures and uncollateralized loans";
+    else if(l2&&hof(l2)===8) axis28Note="your 2nd ruler ("+l2+") sits in the 8th — personal savings tie into shared or transformational finances; keep clear, written boundaries on joint money";
+    else { const an=angleName(l2,l8); axis28Note = (an&&an!=="linked across the chart") ? ("your 2nd and 8th rulers ("+l2+" and "+l8+") sit "+an+" — keep earned savings clearly separated from sudden or shared outflows") : "earned security is reasonably insulated from sudden upheavals — a standard emergency buffer keeps this axis calm"; }
+    let axis612Note;
+    const sixMal=occ(6).some(p=>MAL.includes(p)), twelveMal=occ(12).some(p=>MAL.includes(p));
+    if(sixMal&&twelveMal) axis612Note="both the debt (6th) and outflow (12th) houses carry pressure — separate productive asset-debt from lifestyle spending, and put every loan in writing with clear collateral";
+    else if(l6&&[2,12].includes(hof(l6))) axis612Note="your 6th ruler ("+l6+") of loans ties into the money/outflow houses — stay deliberate about leverage and keep debt productive, never lifestyle-driven";
+    else axis612Note="the debt-and-expense axis is workable — the habit to protect is separating asset-debt (home, business) from emotional or lifestyle spending";
+    const moneyAxes={ axis28:{ nodeInvolved:nodeOn28, l2, l8, note:axis28Note }, axis612:{ l6, l12, note:axis612Note } };
+
     // ── Nakshatra star-lord gate (2nd lord, 11th lord, Jupiter dispositors in kendra/trikona/11th).
     let nakshatraGate=null;
     try{
@@ -4405,7 +4425,7 @@ function buildWealthDepth(d1P, d1LagnaSign, secondLord, d9Houses, d9LagnaSign, d
     else archetype="Steady, Habit-Led Accumulation";
 
     return { earningEngine, dhanaYogas, pipeline, retention, investmentStyle, horaPolarity, d4Asset,
-      maturation, induLagna, recurringFocus, nakshatraGate, archetype, secondLord:l2, eleventhLord:l11 };
+      maturation, induLagna, recurringFocus, moneyAxes, nakshatraGate, archetype, secondLord:l2, eleventhLord:l11 };
   }catch(_){ return null; }
 }
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
