@@ -4271,17 +4271,22 @@ function buildWealthDepth(d1P, d1LagnaSign, secondLord, d9Houses, d9LagnaSign, d
     // ── Dhana yogas — interlocks among the 1/2/5/9/11 lords (conjunction, exchange, pipeline).
     const dhanaLords=[["1st",l1],["2nd",l2],["5th",l5],["9th",l9],["11th",l11]];
     const dhanaYogas=[]; const seen=new Set();
+    const _hn={"1st":1,"2nd":2,"5th":5,"9th":9,"11th":11};
     for(let i=0;i<dhanaLords.length;i++) for(let j=i+1;j<dhanaLords.length;j++){
       const [na,pa]=dhanaLords[i], [nb,pb]=dhanaLords[j]; if(!pa||!pb||pa===pb) continue;
       const key=[pa,pb].sort().join(); if(seen.has(key)) continue;
+      const ha=hof(pa), hb=hof(pb);
       if(conj(pa,pb)){ const h=hof(pa); const kt=[1,4,5,7,9,10].includes(h);
         dhanaYogas.push("the "+na+" and "+nb+" lords ("+pa+" and "+pb+") join in the "+ordinalD(h)+(kt?" — a Dhana yoga in an angle/trine":"")); seen.add(key); }
-      else { // Parivartana (sign exchange) between the two houses
-        const ha=hof(pa), hb=hof(pb);
-        if(ha&&hb&&sgn(pa)===signOfHouse(dhanaLords[j][0]==="1st"?1:dhanaLords[j][0]==="2nd"?2:dhanaLords[j][0]==="5th"?5:dhanaLords[j][0]==="9th"?9:11) && sgn(pb)===signOfHouse(dhanaLords[i][0]==="1st"?1:dhanaLords[i][0]==="2nd"?2:dhanaLords[i][0]==="5th"?5:dhanaLords[i][0]==="9th"?9:11)){
-          dhanaYogas.push("a sign-exchange (Parivartana) between the "+na+" and "+nb+" lords ("+pa+" and "+pb+") — a strong, reciprocal wealth link"); seen.add(key);
-        }
-      }
+      else if(ha&&hb && sgn(pa)===signOfHouse(_hn[dhanaLords[j][0]]) && sgn(pb)===signOfHouse(_hn[dhanaLords[i][0]])){
+        // Parivartana (sign exchange) between the two houses.
+        dhanaYogas.push("a sign-exchange (Parivartana) between the "+na+" and "+nb+" lords ("+pa+" and "+pb+") — a strong, reciprocal wealth link"); seen.add(key); }
+      else if(ha&&hb && aspectsHouse(pa,ha,hb) && aspectsHouse(pb,hb,ha)
+              && ![6,8,12].includes(ha) && ![6,8,12].includes(hb)
+              && ([1,4,5,7,9,10,11].includes(ha)||[1,4,5,7,9,10,11].includes(hb))){
+        // Mutual graha-drishti (SOP: "conjunction, mutual aspect, or exchange") — counted only when
+        // it forms in a Kendra/Trikona/11th and neither lord sits in a dusthana (the SOP qualifier).
+        dhanaYogas.push("a mutual aspect between the "+na+" and "+nb+" lords ("+pa+" and "+pb+") — a Dhana link reaching across the chart"); seen.add(key); }
     }
     const pipeline = (l2&&hof(l2)===11) || (l11&&hof(l11)===2);
     if(pipeline) dhanaYogas.push("a direct income-to-savings pipeline — your 2nd and 11th rulers ("+l2+" and "+l11+") connect, so monthly income converts cleanly into lasting savings");
@@ -4367,11 +4372,15 @@ function buildWealthDepth(d1P, d1LagnaSign, secondLord, d9Houses, d9LagnaSign, d
 
     // ── Recurring money lesson (2-8 security vs upheaval; 6-12 debt vs spending; Saturn patience).
     const on=(p,h)=>hof(p)===h;
+    const jH=hof("Jupiter"), satH=hof("Saturn");
+    const saturnWealthFriction = conj("Saturn",l2)||conj("Saturn",l11)||conj("Saturn","Jupiter")
+      || (satH && (aspectsHouse("Saturn",satH,2)||aspectsHouse("Saturn",satH,11)||(jH&&aspectsHouse("Saturn",satH,jH))));
     let recurringFocus;
     if(on("Rahu",2)||on("Ketu",8)) recurringFocus={ axis:"2-8", lesson:"the pull to chase rapid financial status or shortcuts while the emergency reserve goes neglected — the lesson is boring, automated security built before the next big swing" };
     else if(on("Ketu",2)||on("Rahu",8)) recurringFocus={ axis:"2-8", lesson:"under-pricing your own value or staying detached from money until an unexpected expense forces structure — the lesson is owning your worth and building the buffer early" };
-    else if(occ(6).some(p=>MAL.includes(p))||occ(12).some(p=>MAL.includes(p))) recurringFocus={ axis:"6-12", lesson:"separating productive asset-debt (home, business) from lifestyle or emotional spending — and keeping every loan on written terms" };
-    else recurringFocus={ axis:"compounding-patience", lesson:"wealth here grows like an oak, not a lottery ticket — the lesson is rewarding automated saving over trying to time the market" };
+    else if((occ(6).some(p=>MAL.includes(p))&&occ(12).some(p=>MAL.includes(p))) || (l6&&[2,12].includes(hof(l6))) || (l12&&hof(l12)===2)) recurringFocus={ axis:"6-12", lesson:"separating productive asset-debt (home, business) from lifestyle or emotional spending — and keeping every loan on written terms" };
+    else if(saturnWealthFriction) recurringFocus={ axis:"saturn-patience", lesson:"Saturn's touch on your money houses sets the lesson of compounding patience — wealth here grows like an oak, not a lottery ticket, rewarding automated saving over trying to time the market" };
+    else recurringFocus={ axis:"compounding-patience", lesson:"rhythm over timing — steady, automated saving and patient compounding build far more here than chasing fast wins" };
 
     // ── Nakshatra star-lord gate (2nd lord, 11th lord, Jupiter dispositors in kendra/trikona/11th).
     let nakshatraGate=null;
