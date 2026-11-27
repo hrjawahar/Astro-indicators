@@ -61,8 +61,13 @@ const ENABLE_HEALTH_DEPTH = true;
 // multi-planet, and Amatyakaraka/Gnathikaraka are accepted significators there). Off -> prior
 // chara-karaka behaviour for every domain (clean revert).
 const ENABLE_NAISARGIKA_KARAKA = true;
-const NAISARGIKA_KARAKA = { children:"Jupiter", siblings:"Mars", mother:"Moon", marriage:"Venus" };
-const NAISARGIKA_ROLE   = { children:"Putrakaraka", siblings:"Bhratrukaraka", mother:"Matrukaraka", marriage:"Kalatrakaraka" };
+// Wealth, Assets & Financial Flow depth (SOP D8): Dhana yogas, earning/retention balance, investment
+// temperament, D2 Hora polarity, D4 asset gate, D1->D9 maturation, Indu Lagna, the 2-8/6-12 money
+// axes. Off -> flags.wealthDepth null (general 2nd/11th reading). NEVER a guaranteed return, a stock
+// tip, or a specific amount — classical tendencies and financial-hygiene guidance only.
+const ENABLE_WEALTH_DEPTH = true;
+const NAISARGIKA_KARAKA = { children:"Jupiter", siblings:"Mars", mother:"Moon", marriage:"Venus", wealth:"Jupiter" };
+const NAISARGIKA_ROLE   = { children:"Putrakaraka", siblings:"Bhratrukaraka", mother:"Matrukaraka", marriage:"Kalatrakaraka", wealth:"Dhanakaraka" };
 // The single list of OWNER-ONLY flags the public (paid-user) packet must never carry. The gate in
 // the report writer strips exactly these; add any future sensitive flag here, nowhere else.
 const OWNER_ONLY_FLAGS = ["ownerSensitive","intimacyProfile","affairTiming"];
@@ -2380,6 +2385,9 @@ const VARGA_FN={
   D10:l=>{const s=vSi(l),p=Math.floor(vDis(l)/3);const st=((s+1)%2===1)?s:(s+8)%12;return (st+p)%12;},
   // D12 (Dwadashamsha) — each sign in 12 parts of 2°30', counted from the sign itself (Parashara).
   D12:l=>{const s=vSi(l),p=Math.floor(vDis(l)/2.5);return (s+p)%12;},
+  // D2 (Hora, Parashari) — each sign split at 15°. Odd signs: 0–15° -> Sun's Hora (Leo), 15–30° ->
+  // Moon's Hora (Cancer); even signs reversed. Returns Leo (Sun Hora) or Cancer (Moon Hora) only.
+  D2:l=>{const s=vSi(l),w=vDis(l),odd=(s%2===0),first=w<15; return (odd?first:!first) ? 4 : 3;},
   // D30 (Trimshamsha) — Parashara unequal segments ruled by the five non-luminaries, mapped to the
   // ruler's own sign (odd-footed for odd signs, even-footed for even) as per the standard
   // Jagannatha-Hora convention. Odd sign (0-based even index): Mars0-5°, Saturn5-10°, Jupiter10-18°,
@@ -2481,7 +2489,8 @@ const DOMAIN_REPORT_CONFIG = {
   mother:   { title:"Mother & Home Blueprint", focus:"mother, home, and inner security",   house:4,  karaka:"Matrukaraka",   varga:"D4",  vargaLabel:"D4 (Chaturthamsha)" },
   children: { title:"Children & Progeny Blueprint", focus:"children, creativity, and progeny",  house:5,  karaka:"Putrakaraka",   varga:"D7",  vargaLabel:"D7 (Saptamsha)" },
   health:   { title:"Health, Vitality & Well-Being Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
-  marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" }
+  marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" },
+  wealth:   { title:"Wealth, Assets & Financial Flow Blueprint", focus:"wealth, assets, and financial flow", house:2, karaka:"Amatyakaraka", varga:null, vargaLabel:"D2 (Hora) + D4 (Chaturthamsha) + D9" }
 };
 function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 // Graha drishti — does a planet in `fromHouse` cast an aspect on `targetHouse`?
@@ -4235,6 +4244,159 @@ function buildHealthDepth(d1P, d1LagnaSign, firstLord, d9Houses, d9LagnaSign, d1
     else archetype="Steady Constitution, Habit-Led";
 
     return { prakriti, modality, immune, sunMoon, maturation, bodyZones, kharesh, navamsha64, inherited, vulnerability, gulikaPoint, yogini, recurringFocus, archetype, firstLord };
+  }catch(_){ return null; }
+}
+
+// ── Wealth, Assets & Financial Flow domain depth (SOP D8) ────────────────────────
+// D1 earning/retention + D2 Hora polarity + D4 asset gate + D9 maturation + Indu Lagna + the money
+// axes. ABSOLUTE guardrails (here and in the writer): never a guaranteed return, a specific amount,
+// a stock/fund tip, or a "you will be rich/poor" verdict — classical tendencies, risk temperament
+// and financial-hygiene guidance only, always deferring to a licensed financial advisor.
+const _KALA = { Sun:30, Moon:16, Mars:6, Mercury:8, Jupiter:10, Venus:12, Saturn:1 }; // Indu/Kala values
+function buildWealthDepth(d1P, d1LagnaSign, secondLord, d9Houses, d9LagnaSign, d1Degrees, ascLon, compound){
+  try{
+    const li=V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
+    const signOfHouse=(h)=>V_SIGNS[(li+h-1)%12];
+    const hof=(p)=>d1P[p]&&d1P[p].house;
+    const dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const sgn=(p)=>d1P[p]&&d1P[p].sign;
+    const L=(h)=>houseLord(d1LagnaSign,h);
+    const occ=(h)=>Object.keys(d1P).filter(p=>p!=="Lagna"&&hof(p)===h);
+    const strong=(p)=>{const d=dig(p),h=hof(p);return p&&(d==="Exalted"||d==="Own sign"||(h&&[1,4,5,7,9,10,11].includes(h)));};
+    const afflicted=(p)=>{const d=dig(p),h=hof(p);return p&&(d==="Debilitated"||(h&&[6,8,12].includes(h)));};
+    const conj=(a,b)=>{const ha=hof(a);return !!ha&&hof(b)===ha;};
+    const BEN=["Jupiter","Venus","Mercury","Moon"], MAL=["Saturn","Mars","Rahu","Ketu","Sun"];
+    const l2=secondLord||L(2), l11=L(11), l5=L(5), l9=L(9), l1=L(1);
+
+    // ── Dhana yogas — interlocks among the 1/2/5/9/11 lords (conjunction, exchange, pipeline).
+    const dhanaLords=[["1st",l1],["2nd",l2],["5th",l5],["9th",l9],["11th",l11]];
+    const dhanaYogas=[]; const seen=new Set();
+    for(let i=0;i<dhanaLords.length;i++) for(let j=i+1;j<dhanaLords.length;j++){
+      const [na,pa]=dhanaLords[i], [nb,pb]=dhanaLords[j]; if(!pa||!pb||pa===pb) continue;
+      const key=[pa,pb].sort().join(); if(seen.has(key)) continue;
+      if(conj(pa,pb)){ const h=hof(pa); const kt=[1,4,5,7,9,10].includes(h);
+        dhanaYogas.push("the "+na+" and "+nb+" lords ("+pa+" and "+pb+") join in the "+ordinalD(h)+(kt?" — a Dhana yoga in an angle/trine":"")); seen.add(key); }
+      else { // Parivartana (sign exchange) between the two houses
+        const ha=hof(pa), hb=hof(pb);
+        if(ha&&hb&&sgn(pa)===signOfHouse(dhanaLords[j][0]==="1st"?1:dhanaLords[j][0]==="2nd"?2:dhanaLords[j][0]==="5th"?5:dhanaLords[j][0]==="9th"?9:11) && sgn(pb)===signOfHouse(dhanaLords[i][0]==="1st"?1:dhanaLords[i][0]==="2nd"?2:dhanaLords[i][0]==="5th"?5:dhanaLords[i][0]==="9th"?9:11)){
+          dhanaYogas.push("a sign-exchange (Parivartana) between the "+na+" and "+nb+" lords ("+pa+" and "+pb+") — a strong, reciprocal wealth link"); seen.add(key);
+        }
+      }
+    }
+    const pipeline = (l2&&hof(l2)===11) || (l11&&hof(l11)===2);
+    if(pipeline) dhanaYogas.push("a direct income-to-savings pipeline — your 2nd and 11th rulers ("+l2+" and "+l11+") connect, so monthly income converts cleanly into lasting savings");
+    const engineStrong = (strong(l2)||occ(2).some(p=>BEN.includes(p))) && (strong(l11)||occ(11).some(p=>BEN.includes(p)));
+    const earningEngine = { grade: dhanaYogas.length>=2||engineStrong ? "strong" : dhanaYogas.length===1 ? "workable" : "modest",
+      note: dhanaYogas.length>=2||engineStrong ? "a genuinely strong earning-and-accumulation engine — the chart supports building real net worth"
+        : dhanaYogas.length===1 ? "a workable earning engine that rewards consistency and one or two deliberate wealth habits"
+        : "an earning engine that builds steadily through effort and discipline rather than windfalls" };
+
+    // ── Earning vs retention balance (2nd/11th vs 6th/12th).
+    const l12=L(12), l6=L(6);
+    const highIncome = strong(l11)||occ(11).some(p=>BEN.includes(p));
+    const leakage = afflicted(l2) || (l11&&hof(l11)===12) || occ(2).some(p=>["Rahu","Mars"].includes(p)) || occ(12).some(p=>["Rahu","Mars"].includes(p));
+    const saturnOn2or11 = conj("Saturn",l2)||conj("Saturn",l11)||hof("Saturn")===2||hof("Saturn")===11||aspectsHouse("Saturn",hof("Saturn"),2)||aspectsHouse("Saturn",hof("Saturn"),11);
+    let retention;
+    if(highIncome && leakage) retention={ mode:"high-income-leakage", note:"strong earning power paired with a tendency for money to slip away — impulsive spending, lifestyle creep or unplanned outflows. Automated, pay-yourself-first saving is the single highest-leverage habit for this chart" };
+    else if(saturnOn2or11 && !afflicted(l2)) retention={ mode:"slow-build-retention", note:"Saturn's touch on the money houses makes early earning feel gradual, but disciplined saving compounds powerfully — net worth builds substantially after the mid-30s" };
+    else retention={ mode:"balanced", note:"a reasonably balanced flow between earning and retention — steady habits keep it healthy" };
+
+    // ── Investment & risk temperament.
+    const steadyBase = (strong(l2)||strong(L(4))||strong(l9)) && (strong("Saturn")||strong("Jupiter"));
+    const tacticalBase = (strong("Mercury")||strong("Rahu")) && [5,8,11].some(h=>occ(h).some(p=>["Mercury","Rahu"].includes(p))||[l5,L(8),l11].includes("Mercury")||[l5,L(8),l11].includes("Rahu"));
+    const specCaution = (l5&&[6,8,12].includes(hof(l5))) || ((conj("Rahu",l5)||conj("Ketu",l5)||hof("Rahu")===5||hof("Ketu")===5) && !aspectsHouse("Jupiter",hof("Jupiter"),5));
+    let investmentStyle;
+    if(steadyBase) investmentStyle={ type:"steady-compounder", note:"best suited to steady compounding — index or blue-chip equity, real estate, fixed income and business cash flow reward you far more than fast trades" };
+    else if(tacticalBase) investmentStyle={ type:"tactical", note:"a sharp analytical eye for markets, trading or asymmetric opportunities — provided you keep strict position-sizing and never bet the emergency fund" };
+    else investmentStyle={ type:"measured", note:"a measured, learn-as-you-go investor — simple, automated, diversified vehicles suit you better than anything complex or leveraged" };
+    investmentStyle.speculationCaution = !!specCaution;
+    if(specCaution) investmentStyle.cautionNote = "a genuine caution flag against leveraged speculation, F&O/derivatives and lending without collateral — favour a strong emergency buffer and conservative allocation";
+
+    // ── D2 (Hora) polarity — Sun Hora (self-earned/authority) vs Moon Hora (networks/public flow).
+    const horaOf=(p)=>{ const deg=d1Degrees&&d1Degrees[p]; if(deg==null)return null; const s=Math.floor((((deg%360)+360)%360)/30), w=((deg%30)+30)%30, odd=(s%2===0), first=w<15; return (odd?first:!first)?"Sun":"Moon"; };
+    const dhanaPlanets=[...new Set([l2,l11,l9,"Jupiter","Venus"].filter(Boolean))];
+    let sunH=0, moonH=0; for(const p of dhanaPlanets){ const h=horaOf(p); if(h==="Sun")sunH++; else if(h==="Moon")moonH++; }
+    const horaPolarity={ sunCount:sunH, moonCount:moonH,
+      lean: sunH>moonH?"Sun":moonH>sunH?"Moon":"balanced",
+      note: sunH>moonH?"wealth is built through personal authority, direct leadership and self-reliant execution (Sun Hora)"
+        : moonH>sunH?"wealth flows through public trust, client networks, service ecosystems and adaptability (Moon Hora)"
+        : "a dual-engine of wealth — active leadership income plus passive/network income (a balanced Hora split)" };
+
+    // ── D4 (Chaturthamsha) asset gate — do D4 2/4/11 hold strong benefics / dignified lords?
+    let d4Asset=null;
+    try{
+      const d4=buildVargaChart("D4", d1Degrees, ascLon);
+      if(d4&&d4.houses){
+        let score=0; for(const h of [2,4,11]){ const occh=d4.houses[h]||[]; if(occh.some(p=>BEN.includes(p))) score++; if(occh.some(p=>{const dg=d4.placements[p]&&d4.placements[p].dignity; return dg==="Exalted"||dg==="Own sign";})) score++; }
+        d4Asset={ grade: score>=3?"strong":score>=1?"moderate":"light",
+          note: score>=3?"the D4 (asset chart) is well-supported — cash flow converts reliably into durable fixed assets (property, equity, family wealth)"
+            : score>=1?"the D4 shows workable asset-building — deliberate, patient accumulation turns income into holdings"
+            : "the D4 asks for extra intentionality to convert income into fixed assets — automate it rather than leaving it to chance" };
+      }
+    }catch(_){}
+
+    // ── D1 -> D9 wealth maturation.
+    const d9HouseOf=(p)=>{ if(!d9Houses)return null; for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(p))return h; } return null; };
+    const d9li=V_SIGNS.indexOf(d9LagnaSign);
+    const d9Sign=(p)=>{ const h=d9HouseOf(p); return (h&&d9li>=0)?V_SIGNS[(d9li+h-1)%12]:null; };
+    const d9Strong=(p)=>{ const h=d9HouseOf(p),s=d9Sign(p); return p&&((h&&[1,4,5,7,9,10,11].includes(h))||(s&&(V_EX[p]===s||(V_OWN[p]||[]).includes(s)))); };
+    const d9Weak=(p)=>{ const h=d9HouseOf(p),s=d9Sign(p); return p&&((h&&[6,8,12].includes(h))||(s&&V_DE[p]===s)); };
+    const keyWealth=[l2,l11,"Jupiter"].filter(Boolean);
+    const d1Weak=keyWealth.some(p=>afflicted(p)), d1StrongAny=keyWealth.some(p=>strong(p));
+    const d9StrongAny=keyWealth.some(p=>d9Strong(p)), d9WeakAny=keyWealth.some(p=>d9Weak(p));
+    let maturation;
+    if(d1Weak && d9StrongAny) maturation={ dir:"rises", note:"modest or fluctuating finances in the 20s and early 30s give way to a real financial rise and asset security in the second half of life — the early pressure was structural pacing, not a verdict" };
+    else if(d1StrongAny && d9WeakAny) maturation={ dir:"protect-peak", note:"strong early earning power that rewards conservative preservation and avoiding over-leverage after about 40 — bank the peak years deliberately" };
+    else maturation={ dir:"steady", note:"a fairly steady wealth arc that rewards consistent saving and investing across the decades" };
+
+    // ── Indu Lagna (special prosperity point) + fortification.
+    let induLagna=null;
+    try{
+      const moonSignName=sgn("Moon"); const l9Lagna=houseLord(d1LagnaSign,9), l9Moon=moonSignName?houseLord(moonSignName,9):null;
+      if(l9Lagna&&l9Moon&&_KALA[l9Lagna]!=null&&_KALA[l9Moon]!=null&&moonSignName){
+        let rem=(_KALA[l9Lagna]+_KALA[l9Moon])%12; if(rem===0) rem=12;
+        const mi=V_SIGNS.indexOf(moonSignName); const induIdx=(mi+rem-1)%12; const induSign=V_SIGNS[induIdx];
+        const induHouse=((induIdx-li)%12+12)%12+1;
+        const occI=occ(induHouse);
+        const fortified = occI.some(p=>BEN.includes(p)&&!afflicted(p)) || occI.some(p=>dig(p)==="Exalted") || [1,4,5,7,9,10,11].includes(induHouse);
+        induLagna={ sign:induSign, house:induHouse, fortified, occupants:occI,
+          note: fortified?"your Indu Lagna (the special prosperity point) is fortified — a strong capacity for wealth accumulation when its periods run"
+            :"your Indu Lagna is workable — prosperity builds through its ruling periods with deliberate effort" };
+      }
+    }catch(_){}
+
+    // ── Recurring money lesson (2-8 security vs upheaval; 6-12 debt vs spending; Saturn patience).
+    const on=(p,h)=>hof(p)===h;
+    let recurringFocus;
+    if(on("Rahu",2)||on("Ketu",8)) recurringFocus={ axis:"2-8", lesson:"the pull to chase rapid financial status or shortcuts while the emergency reserve goes neglected — the lesson is boring, automated security built before the next big swing" };
+    else if(on("Ketu",2)||on("Rahu",8)) recurringFocus={ axis:"2-8", lesson:"under-pricing your own value or staying detached from money until an unexpected expense forces structure — the lesson is owning your worth and building the buffer early" };
+    else if(occ(6).some(p=>MAL.includes(p))||occ(12).some(p=>MAL.includes(p))) recurringFocus={ axis:"6-12", lesson:"separating productive asset-debt (home, business) from lifestyle or emotional spending — and keeping every loan on written terms" };
+    else recurringFocus={ axis:"compounding-patience", lesson:"wealth here grows like an oak, not a lottery ticket — the lesson is rewarding automated saving over trying to time the market" };
+
+    // ── Nakshatra star-lord gate (2nd lord, 11th lord, Jupiter dispositors in kendra/trikona/11th).
+    let nakshatraGate=null;
+    try{
+      const nakLordHouseOf=(p)=>{ const n=(compound&&compound.nakshatra||[]).find(x=>x.planet===p); return n?(n.lordHouse!=null?n.lordHouse:null):null; };
+      const checks=[l2,l11,"Jupiter"].filter(Boolean).map(p=>nakLordHouseOf(p)).filter(h=>h!=null);
+      const stableCount=checks.filter(h=>[1,4,5,7,9,10,11].includes(h)).length;
+      if(checks.length) nakshatraGate={ stable: stableCount>=2,
+        note: stableCount>=2?"the nakshatra dispositors of your money significators rest in strong houses — wealth stabilises reliably once it is built"
+          :"the nakshatra dispositors ask for steadier financial routines to hold gains in place" };
+    }catch(_){}
+
+    // ── Convergence archetype. "Steady Wealth Builder" is a HIGH-convergence label (SOP Phase 4),
+    //    so it requires genuine agreement across D1 (yogas), D9 (fortified) and D4 (strong assets) —
+    //    a meaningful minority, not a default.
+    let archetype;
+    const d1Yoga = dhanaYogas.length>=2 || (dhanaYogas.length>=1 && (strong("Jupiter")||strong("Saturn")));
+    if(d1Yoga && d9StrongAny && d4Asset && d4Asset.grade==="strong") archetype="The Steady Wealth Builder";
+    else if(highIncome && leakage) archetype="High Cash-Flow, Leakage Watch-Point";
+    else if(maturation.dir==="rises") archetype="Second-Half Financial Breakthrough";
+    else if(specCaution || (l6&&hof(l6)===2)) archetype="Speculation & Debt Sensitivity";
+    else archetype="Steady, Habit-Led Accumulation";
+
+    return { earningEngine, dhanaYogas, pipeline, retention, investmentStyle, horaPolarity, d4Asset,
+      maturation, induLagna, recurringFocus, nakshatraGate, archetype, secondLord:l2, eleventhLord:l11 };
   }catch(_){ return null; }
 }
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
@@ -6060,6 +6222,10 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // immune shield, D1->D9 maturation, D3 body-zone + 22nd Drekkana, 64th Navamsha, D12 awareness.
   if(domainKey==="health" && ENABLE_HEALTH_DEPTH){
     try{ flags.healthDepth = buildHealthDepth(d1P, d1LagnaSign, houseLord(d1LagnaSign,1), d9Houses, d9LagnaSign, d1Degrees, ascLon, gulika, (d1Degrees&&d1Degrees.Moon), birthDate); }catch(_){ flags.healthDepth=null; }
+  }
+  // Wealth, Assets & Financial Flow domain depth (SOP D8).
+  if(domainKey==="wealth" && ENABLE_WEALTH_DEPTH){
+    try{ flags.wealthDepth = buildWealthDepth(d1P, d1LagnaSign, hLord, d9Houses, d9LagnaSign, d1Degrees, ascLon, compound); }catch(_){ flags.wealthDepth=null; }
   }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,

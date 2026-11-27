@@ -323,11 +323,26 @@ function checkRenderArtifacts(text, out){
   if(m) push("an unresolved template token leaked into the report — bind it or write the value in plain words", m[0]);
 }
 
+// ── WEALTH SAFETY guard (ALL editions) — financial temperament, never financial advice:
+// no guaranteed returns, no rich/poor verdict, no specific instrument, no predicted amount.
+function checkWealthSafety(text, out){
+  const push=(detail,evidence)=>out.push({type:"wealth-safety",severity:"critical",detail,evidence});
+  let m = text.match(/\b(guarantee\w*|assured|risk[-\s]?free|sure[-\s]?shot)\b[^.]{0,30}\b(return|returns|profit|profits|gain|gains|wealth|rich|income)\b/i);
+  if(m) push("a guaranteed-return / assured-wealth claim appeared — forbidden; wealth is a tendency and a probability, never a guarantee", m[0]);
+  m = text.match(/\byou will (be|become|get|end up) (rich|wealthy|a millionaire|a billionaire|poor|broke|bankrupt|financially free)\b/i);
+  if(m) push("a 'you will be rich/poor' verdict appeared — forbidden; frame as tendencies and habits, never a wealth verdict", m[0]);
+  m = text.match(/\b(buy|sell|invest in|put your money (in|into)|trade)\b[^.]{0,25}\b(stock|shares|crypto|bitcoin|ethereum|this fund|that fund|gold futures)\b/i);
+  if(m) push("a specific investment instruction appeared — forbidden; give risk temperament and financial-hygiene habits, never a buy/sell tip", m[0]);
+  m = text.match(/\b(net worth|earn|wealth|savings|portfolio|income)\b[^.]{0,20}(₹|rs\.?|\$|usd|inr|€)\s?\d/i) || text.match(/(₹|\$|rs\.?|usd|inr)\s?\d[\d,.]*\b/i) || text.match(/\b\d[\d,.]*\s?(crore|lakh|lakhs)\b/i);
+  if(m) push("a specific monetary amount appeared — forbidden; never predict figures, percentages or net-worth numbers", m[0]);
+}
+
 export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   const text = plainText(sections);
   const lagnaSign = facts && facts.d1 && facts.d1.lagnaSign;
   const out = [];
   try{ checkRenderArtifacts(text, out); }catch(_){}
+  try{ if(domainKey==="wealth") checkWealthSafety(text, out); }catch(_){}
   try{ checkLordship(text, lagnaSign, out); }catch(_){}
   try{ if(domainKey==="marriage") checkAllClear(text, facts, out); }catch(_){}
   try{ if(domainKey==="marriage") checkMinorMode(text, facts, out); }catch(_){}

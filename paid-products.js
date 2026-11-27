@@ -388,10 +388,10 @@
   // ═══ DOMAIN REPORTS (Career, Marriage, …) — API-written, same flipbook shell ═══
   // Shared flipbook state (used by both LAMP and domain reports).
   let _book = { pages: [], idx: 0, animating: false, target: 0, meta: "" };
-  const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage"];
+  const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage","wealth"];
   const DOMAIN_LABELS = {
     self:"Self & Character", career:"Career", siblings:"Siblings & Courage",
-    mother:"Mother & Home", children:"Children & Progeny", health:"Health, Vitality & Well-Being", marriage:"Marriage"
+    mother:"Mother & Home", children:"Children & Progeny", health:"Health, Vitality & Well-Being", marriage:"Marriage", wealth:"Wealth, Assets & Financial Flow"
   };
   const DOMAIN_ITEM = (k) => "domain_" + k;   // paid_reports item string per domain
 
@@ -454,6 +454,7 @@
       children:"Children, creativity, and progeny — confirmed by the D7 chart.",
       health:"Health, vitality, and resilience — read from D1 (6th & 8th) and D9.",
       marriage:"Marriage, partnership, and timing — confirmed by the D9 chart.",
+      wealth:"Wealth, assets, and financial flow — read from D2 (Hora), D4, and D9.",
     };
     const bundlePrice = P("domain_all", 3999);
     const bundleCard = `
@@ -1061,6 +1062,8 @@
       closeTitle: "A closing note",
       closeDisc: (domainKey==="health")
         ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
+        : (domainKey==="wealth")
+        ? "This wealth blueprint describes financial temperament for self-reflection only and is NOT financial, investment, or tax advice. It never guarantees returns. Always consult a licensed financial advisor before any financial decision."
         : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.",
       closeFoot: "You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint.",
       lblClientId: "Your Client ID",
@@ -1269,7 +1272,7 @@
     self:"Soul, character, and life-direction", career:"Career path, timing, and direction",
     siblings:"Siblings, courage, and initiative", mother:"Mother, home, and inner security",
     children:"Children, creativity, and progeny", health:"Health, vitality, and resilience",
-    marriage:"Marriage, partnership, and timing"
+    marriage:"Marriage, partnership, and timing", wealth:"Wealth, assets, and financial flow"
   };
 
   function renderAllDomainsFlipbook(host, combined) {
@@ -1433,6 +1436,8 @@
     // Close with disclaimer (stronger for health)
     const disc = (domainKey==="health")
       ? "This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor for any health concern."
+      : (domainKey==="wealth")
+      ? "This wealth blueprint describes financial temperament for self-reflection only and is NOT financial, investment, or tax advice. It never guarantees returns. Always consult a licensed financial advisor before any financial decision."
       : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.";
     P.push(`<div class="pg"><div class="kick">${esc(SC("title",title))}</div><div class="rule"></div>
       <h2>${esc(SC("closeTitle","A closing note"))}</h2>
@@ -1784,6 +1789,8 @@
       doc.setDrawColor(210,190,150); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=12;
       const disc=(domainKey==="health")
         ? "Disclaimer: This wellbeing blueprint is for self-reflection only and is NOT medical advice, diagnosis, or treatment. Always consult a qualified doctor."
+        : (domainKey==="wealth")
+        ? "Disclaimer: This wealth blueprint is financial-temperament reflection only — NOT financial, investment, or tax advice, and never a guarantee of returns. Consult a licensed financial advisor."
         : "Disclaimer: This report is educational and self-reflective, offering indicative astrological insight, not professional advice or a guarantee of outcomes.";
       doc.setFont("helvetica","italic"); doc.setFontSize(8.5); doc.setTextColor(...MUTE);
       const dL=doc.splitTextToSize(disc,W-M*2); doc.text(dL,M,y); y+=dL.length*11+4;
