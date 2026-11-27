@@ -44,15 +44,26 @@ night-sequence start-lord convention has textual variants (we use "5th weekday-l
 assignment follows the common JHora convention (some texts differ). Both kept deliberately
 conservative in their report influence.
 
-## Domain 10 — Foreign Settlement & Global Life (NEW standalone domain, parked)
-- The Mother & Home SOP doc also contained a full SOP for a **new** Domain 10
-  "Foreign Settlement & Global Life" (D1 -> D4 -> D9 -> D10 -> D12): the 4-9-12
-  relocation triangle, a 4-tier trajectory classification (permanent PR / study-then-
-  return / global-career-from-home / domestic roots), D12 parental-duty lens, and
-  visa/relocation timing.
-- **Decision deferred by the user:** new domains are to be deliberated after all SOPs
-  land, and foreign settlement inside the **career** domain stays as-is for now. So
-  Domain 10 is NOT built. Revisit when the user decides to add it as its own card.
+## Domain 10 — Foreign Settlement & Global Life (NOW BUILT ✓)
+Built as a standalone domain from its own SOP (D1 -> D4 -> D9 -> D10 -> D12),
+switch-gated by `ENABLE_FOREIGN_DEPTH`:
+- `buildForeignDepth` — the 4-9-12 relocation triangle (converging "settlement
+  votes"), Rahu/Moon/Saturn foreign karakas, the temporary-vs-permanent
+  differentiator (10th lord abroad + fixed/anchored 4th), the nodal-nakshatra
+  star-lord gate, and the 6-8 Badhaka patience check; the D4 (Chaturthamsha)
+  PR/residence gate; D9 second-half roots; D10 overseas-career engine and D12
+  parental-distance lens (both built internally via buildVargaChart); the three
+  mandatory axes (4-10/3-9 belonging-vs-expansion, 6-12 visa-patience, D12
+  parental-duty); and the 4-tier trajectory classification.
+- Trajectory distribution tuned to ~15% Permanent Settlement (gated on D1 2+
+  votes AND D4 permanent — a genuine minority, not a default); caregiver-tender
+  note ~7% (malefic on a D12 parent-house AND a 12th-house link).
+- Guardrails: strong-probability not certainty; NEVER a guaranteed/dated
+  visa/PR/citizenship outcome and no named country/consulate/university/employer
+  (report-verify checkForeignSafety); parental distance framed as practical
+  planning, never guilt or a health/mortality prediction.
+- Note: foreign-settlement colour also still lives inside the **career** domain
+  (d10Lens) as before — the two are complementary, not duplicative.
 
 ## Owner-view control-value scrub
 - **What:** In the OWNER edition, the internal steering word `'rises'` (and, by

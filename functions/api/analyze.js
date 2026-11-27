@@ -73,8 +73,15 @@ const ENABLE_WEALTH_DEPTH = true;
 // flags.fortuneDepth null (general 9th-house reading). NEVER a certainty about the father's health,
 // lifespan, or death, and never a dated mortality window — paternal-CARE awareness only.
 const ENABLE_FORTUNE_DEPTH = true;
-const NAISARGIKA_KARAKA = { children:"Jupiter", siblings:"Mars", mother:"Moon", marriage:"Venus", wealth:"Jupiter", fortune:"Sun" };
-const NAISARGIKA_ROLE   = { children:"Putrakaraka", siblings:"Bhratrukaraka", mother:"Matrukaraka", marriage:"Kalatrakaraka", wealth:"Dhanakaraka", fortune:"Pitrukaraka" };
+// Foreign Settlement & Global Life depth (SOP D10): the 4-9-12 relocation triangle, permanent-vs-
+// temporary differentiator, Rahu/Moon/Saturn foreign karakas, D4 (Chaturthamsha) PR/visa gate, D9
+// second-half roots, D10 overseas career engine, D12 parental-distance lens, the belonging-vs-
+// expansion / 6-12 visa-patience / D12 parental-duty axes, 4-trajectory classification and timing
+// drivers. Off -> flags.foreignDepth null (general 12th-house reading). NEVER a guaranteed visa, PR,
+// citizenship or immigration OUTCOME — strong-probability trajectories and preparation guidance only.
+const ENABLE_FOREIGN_DEPTH = true;
+const NAISARGIKA_KARAKA = { children:"Jupiter", siblings:"Mars", mother:"Moon", marriage:"Venus", wealth:"Jupiter", fortune:"Sun", foreign:"Rahu" };
+const NAISARGIKA_ROLE   = { children:"Putrakaraka", siblings:"Bhratrukaraka", mother:"Matrukaraka", marriage:"Kalatrakaraka", wealth:"Dhanakaraka", fortune:"Pitrukaraka", foreign:"Videsha karaka" };
 // The single list of OWNER-ONLY flags the public (paid-user) packet must never carry. The gate in
 // the report writer strips exactly these; add any future sensitive flag here, nowhere else.
 const OWNER_ONLY_FLAGS = ["ownerSensitive","intimacyProfile","affairTiming"];
@@ -2498,7 +2505,8 @@ const DOMAIN_REPORT_CONFIG = {
   health:   { title:"Health, Vitality & Well-Being Blueprint", focus:"health, vitality, and resilience",   house:6,  karaka:"Gnathikaraka",  varga:null,  vargaLabel:"D1 (6th & 8th) + D9" },
   marriage: { title:"Marriage Blueprint",  focus:"marriage, partnership, and timing",  house:7,  karaka:"Darakaraka",    varga:"D9",  vargaLabel:"D9 (Navamsha)" },
   wealth:   { title:"Wealth, Assets & Financial Flow Blueprint", focus:"wealth, assets, and financial flow", house:2, karaka:"Amatyakaraka", varga:null, vargaLabel:"D2 (Hora) + D4 (Chaturthamsha) + D9" },
-  fortune:  { title:"Father, Fortune & Life Purpose Blueprint", focus:"fortune, father, and life purpose", house:9, karaka:"Pitrukaraka", varga:"D12", vargaLabel:"D12 (Dwadashamsha) + D9 (Navamsha)" }
+  fortune:  { title:"Father, Fortune & Life Purpose Blueprint", focus:"fortune, father, and life purpose", house:9, karaka:"Pitrukaraka", varga:"D12", vargaLabel:"D12 (Dwadashamsha) + D9 (Navamsha)" },
+  foreign:  { title:"Foreign Settlement & Global Life Blueprint", focus:"foreign settlement and global life", house:12, karaka:"Videsha karaka", varga:"D4", vargaLabel:"D4 (Chaturthamsha) + D9 + D10 + D12" }
 };
 function ordinalD(n){var s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 // Graha drishti — does a planet in `fromHouse` cast an aspect on `targetHouse`?
@@ -4653,6 +4661,184 @@ function buildFortuneDepth(d1P, d1LagnaSign, ninthLord, d9Houses, d9LagnaSign, v
       archetype, ninthLord:l9, sunKaraka:"Sun" };
   }catch(_){ return null; }
 }
+// Foreign Settlement & Global Life depth (SOP D10). The 4-9-12 relocation triangle in D1 → the D4
+// (Chaturthamsha) PR/residence gate → D9 second-half roots + D10 overseas career engine → the D12
+// parental-distance lens → three axes → a 4-way trajectory classification + timing drivers.
+// vargaChart = the D4; D10 and D12 are built internally. GUARDRAIL: never a guaranteed visa, PR,
+// citizenship or immigration outcome — strong-probability trajectories and preparation only.
+function buildForeignDepth(d1P, d1LagnaSign, d1Degrees, ascLon, d9Houses, d9LagnaSign, vargaChart, compound){
+  try{
+    const li=V_SIGNS.indexOf(d1LagnaSign); if(li<0) return null;
+    const hof=(p)=>d1P[p]&&d1P[p].house;
+    const dig=(p)=>d1P[p]&&d1P[p].dignity;
+    const sgn=(p)=>d1P[p]&&d1P[p].sign;
+    const L=(h)=>houseLord(d1LagnaSign,h);
+    const occ=(h)=>Object.keys(d1P).filter(p=>p!=="Lagna"&&hof(p)===h);
+    const conj=(a,b)=>{const ha=hof(a);return !!ha&&hof(b)===ha;};
+    const MOVABLE=["Aries","Cancer","Libra","Capricorn"], FIXED=["Taurus","Leo","Scorpio","Aquarius"], WATER=["Cancer","Scorpio","Pisces"];
+    const l1=L(1), l4=L(4), l9=L(9), l12=L(12), l10=L(10), l6=L(6), l3=L(3);
+
+    // ── Phase 1.1 — the 4-9-12 relocation triangle. Each converging link is one "settlement vote".
+    const links=[];
+    if(l4&&[9,12].includes(hof(l4))) links.push("your 4th lord of home ("+l4+") sits in the "+ordinalD(hof(l4))+" — the root of residence physically moves toward foreign ground");
+    if((l12&&hof(l12)===4)||(l9&&hof(l9)===4)) { const who=(l12&&hof(l12)===4)?l12+" (12th lord)":l9+" (9th lord)"; links.push("your "+who+" sits in the 4th — foreign/distant matters are wired into your home and residence"); }
+    if(l1&&[9,12].includes(hof(l1))) links.push("your Lagna lord ("+l1+"), your life-path ruler, sits in the "+ordinalD(hof(l1))+" — your personal story unfolds away from your birthplace");
+    if(conj("Rahu",l1)||hof("Rahu")===1) links.push("Rahu colours your Lagna/identity — a built-in pull to cross boundaries and live among other cultures");
+    const rahuH=hof("Rahu"), rahuSign=sgn("Rahu");
+    if([4,9,12].includes(rahuH)){ const strong=rahuSign&&(MOVABLE.includes(rahuSign)||WATER.includes(rahuSign)); links.push("Rahu sits in your "+ordinalD(rahuH)+(strong?" in a movable/water sign":"")+" — a strong drive to cross borders and settle in a foreign culture"); }
+    // Heavy movable emphasis across Lagna, Moon, 4th, 10th.
+    const anchors=[d1LagnaSign, sgn("Moon"), V_SIGNS[(li+3)%12], V_SIGNS[(li+9)%12]];
+    const movableCount=anchors.filter(s=>MOVABLE.includes(s)).length;
+    const fixedCount=anchors.filter(s=>FIXED.includes(s)).length;
+    if(movableCount>=3) links.push("a strongly movable (Chara) emphasis across your Lagna, Moon and angles — an outward-moving, mobile life rather than one rooted in a single ancestral town");
+    const settlementVotes=links.length;
+
+    // ── Temporary / global-career-from-India differentiator.
+    const fourthSign=sgn(l4)||V_SIGNS[(li+3)%12];
+    const fourthAnchored = (FIXED.includes(fourthSign)) && l4 && [1,4,5,7,9,10].includes(hof(l4)) && ![6,8,12].includes(hof(l4)) && !conj("Rahu",l4) && hof("Rahu")!==4;
+    const globalFromHome = ((l10&&[9,12].includes(hof(l10)))||hof("Rahu")===10) && fourthAnchored;
+
+    // ── Phase 1.2 — nakshatra star-lord gate (1st/4th/9th/12th lords in Rahu's or Ketu's nakshatras).
+    let nakshatraGate=null;
+    try{
+      const RAHU_NAK=["Ardra","Swati","Shatabhisha"], KETU_NAK=["Ashwini","Magha","Moola","Mula"];
+      const nakName=(p)=>{ const n=(compound&&compound.nakshatra||[]).find(x=>x.planet===p); return n?n.nakshatra:null; };
+      const keyLords=[["1st",l1],["4th",l4],["9th",l9],["12th",l12]];
+      const nodal=keyLords.map(([r,p])=>{ const nk=p?nakName(p):null; const isNodal=nk&&(RAHU_NAK.includes(nk)||KETU_NAK.includes(nk)); return isNodal?{role:r+" lord "+p, nakshatra:nk}:null; }).filter(Boolean);
+      nakshatraGate={ wired: nodal.length>=2, details:nodal,
+        note: nodal.length>=2?"several of your key life-lords sit in Rahu's or Ketu's nakshatras — the pull toward a foreign or cross-cultural life is deeply wired into your chart"
+          : nodal.length===1?"one of your key life-lords sits in a nodal (Rahu/Ketu) nakshatra — a real cross-cultural thread, though not the whole story"
+          :"your key life-lords mostly rest in non-nodal nakshatras — the foreign pull, where present, works through placements rather than deep nakshatra wiring" };
+    }catch(_){}
+
+    // ── Badhaka check: 9th lord (fixed lagna) or 12th lord in a 6-8 angle with the 1st or 4th lord.
+    const sixEight=(a,b)=>{ const ha=hof(a),hb=hof(b); if(!ha||!hb)return false; const d=(((hb-ha)+12)%12); return d===5||d===7; };
+    const badhakaForeign = ((FIXED.includes(d1LagnaSign)&&l9&&(sixEight(l9,l1)||sixEight(l9,l4))) || (l12&&(sixEight(l12,l1)||sixEight(l12,l4))))
+      ? { present:true, note:"settlement is genuinely possible but arrives AFTER initial visa hurdles, delays or waiting periods — a 6-8 (shadashtaka) tie between your foreign lord and your home/identity lord asks for patience before the door opens" }
+      : { present:false };
+
+    // ── Phase 2.1 — D4 (Chaturthamsha) PR/visa gate (MOST critical).
+    let d4Gate=null;
+    if(vargaChart&&vargaChart.placements&&vargaChart.lagnaSign){
+      const d4li=V_SIGNS.indexOf(vargaChart.lagnaSign);
+      const d4H=(p)=>vargaChart.placements[p]&&vargaChart.placements[p].house;
+      const d4Dig=(p)=>vargaChart.placements[p]&&vargaChart.placements[p].dignity;
+      const d4Occ=(h)=>Object.keys(vargaChart.placements).filter(p=>d4H(p)===h);
+      const d4LagLord=V_LORD[vargaChart.lagnaSign];
+      const d4FourthLord=V_LORD[V_SIGNS[(d4li+3)%12]];
+      const permanent = (d4LagLord&&[9,12].includes(d4H(d4LagLord))) || (d4FourthLord&&[9,12].includes(d4H(d4FourthLord))) || d4Occ(4).includes("Rahu");
+      const d4FourthStrong = (d4FourthLord&&(d4Dig(d4FourthLord)==="Exalted"||d4Dig(d4FourthLord)==="Own sign"||[1,4].includes(d4H(d4FourthLord)))) || d4Occ(4).some(p=>["Jupiter","Venus"].includes(p)) || d4Occ(1).some(p=>["Jupiter","Venus"].includes(p));
+      d4Gate={ permanent:!!permanent, returnPull:!!d4FourthStrong,
+        note: permanent?"the D4 (the residence chart) confirms a genuine change of base — the signatures for permanent residence, PR or owning a home abroad are present"
+          : d4FourthStrong?"the D4 keeps a strong anchor to the homeland — even after years studying or working abroad, there is a real pull to a primary permanent home in India"
+          :"the D4 is mixed — residence abroad is workable but not strongly locked; it rewards deliberate choice rather than assuming either path" };
+    }
+
+    // ── Phase 2.2 — D9 second-half roots + D10 overseas career engine.
+    const d9HouseOf=(p)=>{ if(!d9Houses)return null; for(let h=1;h<=12;h++){ if((d9Houses[h]||[]).includes(p))return h; } return null; };
+    const d9li=V_SIGNS.indexOf(d9LagnaSign);
+    const d9LagLord=d9li>=0?V_LORD[d9LagnaSign]:null;
+    const d9FourthLord=d9li>=0?V_LORD[V_SIGNS[(d9li+3)%12]]:null;
+    const d9SeventhLord=d9li>=0?V_LORD[V_SIGNS[(d9li+6)%12]]:null;
+    const d9Roots = [d9LagLord,d9FourthLord,d9SeventhLord].filter(Boolean).some(p=>{ const h=d9HouseOf(p); return h&&[9,12].includes(h); }) || [9,12].some(h=>(d9Houses&&d9Houses[h]||[]).includes("Rahu"));
+    let d10Career=null;
+    try{
+      const d10=buildVargaChart("D10", d1Degrees, ascLon);
+      if(d10&&d10.placements&&d10.lagnaSign){
+        const d10li=V_SIGNS.indexOf(d10.lagnaSign);
+        const d10H=(p)=>d10.placements[p]&&d10.placements[p].house;
+        const d10TenthLord=V_LORD[V_SIGNS[(d10li+9)%12]];
+        d10Career = (d10TenthLord&&[9,12].includes(d10H(d10TenthLord))) || [10,12].some(h=>Object.keys(d10.placements).filter(p=>d10H(p)===h).includes("Rahu"));
+      }
+    }catch(_){}
+
+    // ── Phase 2.3 — D12 parental-distance lens (built internally).
+    let d12Parents=null;
+    try{
+      const d12=buildVargaChart("D12", d1Degrees, ascLon);
+      if(d12&&d12.placements&&d12.lagnaSign){
+        const d12H=(p)=>d12.placements[p]&&d12.placements[p].house;
+        const benOnParents = ["Jupiter","Venus"].some(b=>{ const bh=d12H(b); return bh&&(bh===4||bh===9||aspectsHouse(b,bh,4)||aspectsHouse(b,bh,9)); });
+        // Pressured D12 (SOP): a malefic actually ON a parental house (D12 4th/9th) AND a 12th-house
+        // link (a malefic in the D12 12th, i.e. the distance/separation theme is live) — not a mere
+        // aspect, so the caregiver-guilt note stays a genuine minority rather than near-universal.
+        const malOnParentHouse = ["Saturn","Rahu","Ketu"].some(m=>{ const mh=d12H(m); return mh===4||mh===9; });
+        const twelfthLink = ["Saturn","Rahu","Ketu"].some(m=>d12H(m)===12);
+        const malOnParents = malOnParentHouse && twelfthLink;
+        d12Parents = benOnParents&&!malOnParents
+          ? { tone:"close", note:"even living far away, emotional closeness with your parents stays intact — supported by regular visits, parents travelling to you, and steady care at a distance" }
+          : malOnParents
+          ? { tone:"tender", note:"a tender point: distance from parents in India can bring caregiver guilt or a feeling of being torn — worth planning healthcare, visits and support rhythms well in advance, so care never depends on a crisis" }
+          : { tone:"workable", note:"the parent-distance picture is workable — ordinary planning and regular contact keep the bond steady across the miles" };
+      }
+    }catch(_){}
+
+    // ── Phase 3 — the three mandatory axes.
+    // (1) Belonging vs expansion (4-10 & 3-9 / nodal).
+    const foreignHouses=[9,12], homeStrong = l4&&[1,4,5,7,9,10].includes(hof(l4))&&![6,8,12].includes(hof(l4));
+    const axisBelonging = { pole: settlementVotes>=2?"expansion": homeStrong&&settlementVotes===0?"rooted":"split",
+      note: settlementVotes>=2?"the chart leans outward — the lesson is to build genuine community and emotional roots ABROAD rather than living with one foot in two boats"
+        : homeStrong&&settlementVotes===0?"the chart leans homeward — belonging and support are strongest near your own soil, and returning or staying is a whole choice, never a step backward"
+        : "the belonging-vs-expansion pull runs both ways for you — the lesson is to commit wholeheartedly to wherever you are, rather than living half-present in two places at once" };
+    // (2) 6-12 visa-bureaucracy vs patience.
+    const sixTwelveTie = (l6&&hof(l6)===12)||(l12&&hof(l12)===6)||conj("Saturn",l12)||conj("Rahu",l12)||occ(12).some(p=>["Saturn","Rahu"].includes(p))||occ(6).some(p=>["Saturn","Rahu"].includes(p));
+    const axisVisa = { present:!!sixTwelveTie,
+      note: sixTwelveTie?"visas, PR and sponsorships clear through meticulous preparation and patience rather than instant luck — your 6th (paperwork, hurdles) and 12th (foreign ground) are linked to Saturn/Rahu, so documentation and timing reward the careful"
+        :"the paperwork side is comparatively light — keep documents clean and deadlines early, and the bureaucratic path stays manageable" };
+    // (3) D12 parental-duty axis.
+    const axisParental = { pressured: !!(d12Parents&&d12Parents.tone==="tender"),
+      note: (d12Parents&&d12Parents.tone==="tender")?"the parental-duty lesson is real for you: replace any unspoken guilt about distance with a structured, predictable rhythm of visits, calls and medical/financial planning"
+        :"the parental-duty axis is gentle here — simple, regular rhythms of contact and care keep this clear" };
+
+    // ── Phase 4 — the 4-way trajectory classification. "Permanent Foreign Settlement" is the HIGH-
+    //    convergence label → it needs agreement across D1 (2+ triangle votes), D4 (permanent) and
+    //    D9/D10 (roots/career abroad), so it stays a genuine minority, not a default.
+    const d1Strong = settlementVotes>=2;
+    const d4Perm = !!(d4Gate&&d4Gate.permanent);
+    const d4Return = !!(d4Gate&&d4Gate.returnPull);
+    const chartsAgreeing = [d1Strong, d4Perm, (d9Roots||!!d10Career)].filter(Boolean).length;
+    let trajectory, trajectoryNote;
+    if(d1Strong && d4Perm){
+      // The two most decisive charts (D1 structural + D4 residence) both point to permanent
+      // relocation. 3+ charts = high convergence; 2 = a strong probability that firms up as the
+      // foreign periods run.
+      trajectory="Permanent Foreign Settlement";
+      trajectoryNote = chartsAgreeing>=3
+        ? "a strong, multi-chart case for building a long-term life abroad — PR, citizenship or a permanent overseas home is a real probability across the decades"
+        : "a strong probability of long-term settlement: your birth chart and the residence chart (D4) agree on a genuine change of base, firming up as the foreign periods run; the marriage and career charts add their weight when their own periods activate";
+    } else if((settlementVotes>=1||d10Career) && (fourthAnchored||d4Return) && !d4Perm){
+      trajectory="Education / Career Launch Abroad → Later Return";
+      trajectoryNote="a strong window for higher studies or several years of global career-building, followed by a natural pull back toward India in mid-life — a two-stage arc, not a permanent uprooting";
+    } else if(globalFromHome || (d10Career && (fourthAnchored||d4Return))){
+      trajectory="Global Career From a Home Base";
+      trajectoryNote="your income and standing peak through cross-border roles, MNC work, short business trips or remote global leadership — run from a stable base in India rather than a permanent move";
+    } else if(settlementVotes===0 && homeStrong && !d10Career){
+      trajectory="Domestic Roots";
+      trajectoryNote="happiness, wealth and support are strongest close to home and family — a forced relocation would bring more friction than reward; global exposure is best kept light and optional";
+    } else if(settlementVotes>=1 || d10Career){
+      trajectory="Global Career From a Home Base";
+      trajectoryNote="a real cross-cultural thread that works best as global exposure from a home base — travel, foreign clients or a few years abroad — rather than a decisive permanent move on current signals";
+    } else {
+      trajectory="Domestic Roots";
+      trajectoryNote="the chart leans homeward — fulfilment builds close to your own soil, with any foreign exposure a bonus rather than the main arc";
+    }
+
+    // ── Phase 5 — timing DRIVERS (dates carried by the shared future-compass dasha windows; the
+    //    Rahu/Ketu 18-month transit + the Jupiter-Saturn double transit stay PARKED per project
+    //    decision — the writer may note slow-planet cycles only as broad corroboration).
+    const relocationDrivers=[...new Set([l9,l12,"Rahu",l10,l4].filter(Boolean))];
+    const returnDrivers=[...new Set([l4,l1,"Jupiter"].filter(Boolean))];
+
+    // best "purpose abroad": education (9/5/12 + Rahu), career (10/12 + Rahu), or marriage (D9 7th/Rahu).
+    const purpose = d9Roots&&(d9SeventhLord&&[9,12].includes(d9HouseOf(d9SeventhLord))) ? "marriage/partnership"
+      : d10Career ? "career" : (l9&&[9,12].includes(hof(l9)))||occ(9).includes("Rahu") ? "higher education" : "career";
+
+    return { settlementVotes, links, triangleLinks:links, fourthAnchored, globalFromHome,
+      nakshatraGate, badhaka:badhakaForeign, d4Gate, d9Roots:!!d9Roots, d10Career:!!d10Career, d12Parents,
+      axisBelonging, axisVisa, axisParental, trajectory, trajectoryNote, chartsAgreeing,
+      relocationDrivers, returnDrivers, purpose, twelfthLord:l12, foreignKaraka:"Rahu" };
+  }catch(_){ return null; }
+}
 // Does the chart lean toward business/enterprise, and if so solo (proprietorship) or
 // partnership? Grounded in the enterprise houses — 3rd (self-effort/initiative), 7th
 // (business dealings & partnership), 11th (gains), plus Mercury (commerce karaka) and
@@ -6484,6 +6670,11 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
   // Father, Fortune & Life Purpose domain depth (SOP D9). vargaChart is the D12 (cfg.varga).
   if(domainKey==="fortune" && ENABLE_FORTUNE_DEPTH){
     try{ flags.fortuneDepth = buildFortuneDepth(d1P, d1LagnaSign, hLord, d9Houses, d9LagnaSign, vargaChart, compound); }catch(_){ flags.fortuneDepth=null; }
+  }
+  // Foreign Settlement & Global Life domain depth (SOP D10). vargaChart is the D4 (cfg.varga); D10
+  // and D12 are built inside the function from d1Degrees + ascLon.
+  if(domainKey==="foreign" && ENABLE_FOREIGN_DEPTH){
+    try{ flags.foreignDepth = buildForeignDepth(d1P, d1LagnaSign, d1Degrees, ascLon, d9Houses, d9LagnaSign, vargaChart, compound); }catch(_){ flags.foreignDepth=null; }
   }
 
   // ── Owner-only sensitive indications for the NON-marriage domains (marriage sets its own,

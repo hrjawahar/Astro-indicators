@@ -186,6 +186,10 @@ export const DOMAIN_TEMPLES = {
     primary: "Suryanar Kovil, near Kumbakonam — the navagraha temple of the Sun (Pitrukaraka), worshipped for fortune, vitality and the blessing of the father/paternal line",
     lineage: "A Pitru shrine such as Thilatharpanapuri (Sri Mukteswarar, near Koothanur) — long associated with honouring the ancestral line; visited (optionally) to express gratitude to the lineage and settle inherited family themes, never out of fear",
   },
+  foreign: {
+    primary: "Sri Kalahasti (the Rahu-Ketu kshetra) — long associated with the nodes that govern crossing boundaries and foreign karma; visited (optionally) to steady the nodal 'journey' themes, never as a fear-ritual",
+    grounding: "A personal homeland anchor — Tirupati, Rameswaram, or your own family tradition's shrine; a place that keeps you connected to your roots while you live far away, and a steadying ritual for a life lived between two lands",
+  },
 };
 
 // Commonly-cited general temples — used when the chart is unclear or several planets are

@@ -357,6 +357,20 @@ function checkFortuneSafety(text, out){
   if(m) push("a fortune/luck certainty verdict appeared — forbidden; fortune is a tendency that responds to alignment, a strong probability at most, never a guaranteed destiny", m[0]);
 }
 
+// ── FOREIGN SAFETY guard (ALL editions) — relocation is a strong-probability trajectory, never a
+// guaranteed immigration outcome: no promised visa/PR/citizenship approval, no dated approval, and
+// the parent-distance note must never become a prediction about a parent's health or death.
+function checkForeignSafety(text, out){
+  const push=(detail,evidence)=>out.push({type:"foreign-safety",severity:"critical",detail,evidence});
+  let m = text.match(/\b(you (will|are going to|are certain to|are guaranteed to|will definitely)|guaranteed|assured|certain|definite)\b[^.]{0,40}\b(get|receive|be granted|be approved for|obtain|secure)\b[^.]{0,20}\b(visa|green card|pr|permanent residency|permanent residence|citizenship|work permit|immigration|asylum)\b/i)
+       || text.match(/\byour\b[^.]{0,20}\b(visa|green card|pr|citizenship|work permit|application)\b[^.]{0,24}\b(will|is going to|is certain to)\b[^.]{0,16}\b(be approved|be granted|succeed|come through|clear)\b/i);
+  if(m) push("a guaranteed immigration-OUTCOME claim appeared — forbidden; relocation is a strong probability and a preparation window, never a promised visa/PR/citizenship approval", m[0]);
+  m = text.match(/\b(visa|green card|pr|permanent residency|citizenship|work permit)\b[^.]{0,24}\b(approved|granted|cleared|will come through)\b[^.]{0,16}\b(in|by|around|during)\b[^.]{0,12}\b(19|20)\d\d\b/i);
+  if(m) push("a DATED visa/PR approval prediction appeared — forbidden; give the favourable dasha window as preparation timing, never a dated approval", m[0]);
+  m = text.match(/\b(your )?(parent|parents|mother|father|mom|dad)\b[^.]{0,40}\b(will|is going to|may|might|could|is likely to)\b[^.]{0,24}\b(die|pass away|passing|death|not survive|fall (critically |seriously )?ill|be hospitalised|hospitalized|decline|illness)\b/i);
+  if(m) push("a health/mortality statement about a parent appeared in the foreign reading — forbidden; the parent-distance note is only practical caregiver PLANNING (visits, calls, medical/financial rhythms), never a prediction about their health or life", m[0]);
+}
+
 export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   const text = plainText(sections);
   const lagnaSign = facts && facts.d1 && facts.d1.lagnaSign;
@@ -369,6 +383,7 @@ export function verifyReportFaithfulness(domainKey, facts, sections, audience){
   try{ if(domainKey==="children") checkChildClinical(text, out); }catch(_){}
   try{ if(domainKey==="health") checkHealthSafety(text, out); }catch(_){}
   try{ if(domainKey==="fortune") checkFortuneSafety(text, out); }catch(_){}
+  try{ if(domainKey==="foreign") checkForeignSafety(text, out); }catch(_){}
   try{ if(audience!=="owner") checkClientSensitive(text, domainKey, out); }catch(_){}
   try{ checkTiming(text, domainKey, facts, out); }catch(_){}
   try{ checkDignity(text, facts, out); }catch(_){}

@@ -388,10 +388,10 @@
   // ═══ DOMAIN REPORTS (Career, Marriage, …) — API-written, same flipbook shell ═══
   // Shared flipbook state (used by both LAMP and domain reports).
   let _book = { pages: [], idx: 0, animating: false, target: 0, meta: "" };
-  const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage","wealth","fortune"];
+  const DOMAIN_KEYS = ["self","career","siblings","mother","children","health","marriage","wealth","fortune","foreign"];
   const DOMAIN_LABELS = {
     self:"Self & Character", career:"Career", siblings:"Siblings & Courage",
-    mother:"Mother & Home", children:"Children & Progeny", health:"Health, Vitality & Well-Being", marriage:"Marriage", wealth:"Wealth, Assets & Financial Flow", fortune:"Father, Fortune & Life Purpose"
+    mother:"Mother & Home", children:"Children & Progeny", health:"Health, Vitality & Well-Being", marriage:"Marriage", wealth:"Wealth, Assets & Financial Flow", fortune:"Father, Fortune & Life Purpose", foreign:"Foreign Settlement & Global Life"
   };
   const DOMAIN_ITEM = (k) => "domain_" + k;   // paid_reports item string per domain
 
@@ -456,6 +456,7 @@
       marriage:"Marriage, partnership, and timing — confirmed by the D9 chart.",
       wealth:"Wealth, assets, and financial flow — read from D2 (Hora), D4, and D9.",
       fortune:"Fortune, father, and life purpose — read from the 9th house with the D12 (Dwadashamsha) and D9.",
+      foreign:"Foreign settlement and global life — read from the 4-9-12 triangle with the D4, D9, D10 and D12.",
     };
     const bundlePrice = P("domain_all", 3999);
     const bundleCard = `
@@ -1067,6 +1068,8 @@
         ? "This wealth blueprint describes financial temperament for self-reflection only and is NOT financial, investment, or tax advice. It never guarantees returns. Always consult a licensed financial advisor before any financial decision."
         : (domainKey==="fortune")
         ? "This fortune blueprint reads luck, life-purpose and the paternal bond as symbolic tendencies for self-reflection only. It makes NO prediction about anyone's health, lifespan, or wellbeing; any note about a parent is a gentle prompt for care and connection, never a forecast."
+        : (domainKey==="foreign")
+        ? "This foreign-settlement blueprint describes relocation tendencies and timing windows for self-reflection only. It is NOT immigration, legal, or tax advice and makes NO promise that any visa, PR, or citizenship application will succeed. Always consult a licensed immigration professional before any filing or move."
         : "This blueprint offers interpretive guidance for reflection, in the spirit of the classical texts — not a prediction of fixed outcomes.",
       closeFoot: "You are encouraged to sit with this reading against your own lived experience — that is the truest test of any blueprint.",
       lblClientId: "Your Client ID",

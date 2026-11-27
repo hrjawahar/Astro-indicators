@@ -26,7 +26,7 @@ const strings=(o,a=[])=>{ if(o==null)return a; if(typeof o==="string"){a.push(o)
 const DEBUG_LEAK=/\b(entry:|undefined|\[object|NaN|convergences|lordPlacement|mdStress|tradeScore|businessLean|careerCompass|houseStates|per facts|remoteOnly)\b/;
 const CAMEL=/\b[a-z]+[A-Z][A-Za-z]*\b/;
 const PLAN=/(Sun|Moon|Mars|Mercury|Jupiter|Venus|Saturn|Rahu|Ketu)/;
-const DOMAINS=["self","career","siblings","mother","children","health","marriage","wealth","fortune"];
+const DOMAINS=["self","career","siblings","mother","children","health","marriage","wealth","fortune","foreign"];
 const reg={}; for(const d of DOMAINS) reg[d]={leaks:0,camel:0,lordUnnamed:0,convBad:0,crash:0,n:0,ex:[]};
 function probe(d,label,f){ const r=reg[d]; r.n++; const strs=strings(f);
   for(const s of strs){ if(DEBUG_LEAK.test(s)){ r.leaks++; if(r.ex.length<4)r.ex.push("LEAK "+label+": "+s.slice(0,70)); }
