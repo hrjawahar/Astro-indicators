@@ -2,6 +2,31 @@
 
 Small, non-urgent items parked by agreement. None block the current release.
 
+## RADAR — Major planetary transit (Gochar) / Jupiter–Saturn Double Transit (parked by agreement)
+**Status:** deliberately OFF. The machinery is fully built and dormant — reuse it, do not rebuild.
+- What exists: `functions/api/ephemeris.js` (`transitSignsAt`, `planetSignAspects`, `nthSign`),
+  `functions/api/marriage-timing.js` `doubleTransitAt(y, m, targets)` (generic — "both Jupiter AND
+  Saturn occupy/aspect the target signs"; takes any targets, not marriage-specific), and `chart.js`
+  `computeSaturnTransit` / `computeGochara` (Sade Sati + future sign-ingress projection). Wired only
+  into the marriage PD-precision layer, gated by `ENABLE_PD_TIMING = false`.
+- Why parked: validated against 6 real marriage dates and found UNRELIABLE for sub-year pinpointing
+  (slow planets keep "both active" true for long stretches, so it blurs the peak rather than
+  sharpening it). The conflict is intrinsic: the *precise* use (narrow within a dasha window) is the
+  discredited one; the *reliable* use (broad agreement) is corroboration, not precision — it cannot
+  satisfy "improve precision" without reviving the noise. Dasha windows already carry the timing.
+- **Safeguards required before any future reintroduction** (all of them):
+  1. BROAD seasonal confirmation ONLY — never a dated "peak" or sub-year pinpoint.
+  2. Surface it ONLY when it AGREES with the active dasha window; never let a double-transit "season"
+     sit next to a contradicting dasha verdict (that contradiction is what felt wrong in
+     marriage/career and got it removed).
+  3. Switch-gated + reversible, like every SOP-depth module; clean revert verified.
+  4. Its OWN validation pass against real dated events (several per domain) before enabling — reuse
+     the 6-date methodology; do not enable on classical-completeness grounds alone.
+  5. Framed in the writer as corroboration layered on the dasha, never as the primary timing.
+- Cheap compliance-only fallback (no math, no risk): a writer-only general line that slow-planet
+  cycles broadly reinforce the dasha windows — closes the SOP checkbox without the unreliable
+  computation. Add only if the checkbox matters; otherwise leave the timing as-is.
+
 ## Domain 6 Health — SOP pieces (ALL NOW BUILT ✓)
 The earlier note parked D30, Gulika/Mandi and Yogini dasha. On review, birth time + place ARE
 captured (chart.js uses them to cast the chart), so all three were built:
