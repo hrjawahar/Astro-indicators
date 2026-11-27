@@ -6334,6 +6334,7 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         behavioral: kb.behavioral,
         avoid: weak ? (kb.whenWeak||"") : "",                   // dignity-aware: lead with 'ease off' only when weak
         daan: kb.daan, anchor: kb.anchor,
+        mantra: kb.mantra || null,                             // geography-free chant/listen for THIS planet
         navagrahaTemple: kb.navagrahaTemple,
         secondTemple: domTemple,
         bodyAreas: kb.bodyAreas,

@@ -9,6 +9,10 @@
 //    2. whenWeak    — what to MODERATE/avoid when the planet is debilitated/combust/afflicted
 //                     (the engine picks behavioral vs whenWeak from the planet's dignity)
 //    3. daan        — charity: the planet's grain + weekday + a fitting cause (universal)
+//    3b. mantra     — GEOGRAPHY-FREE chant/listen: a simple saguna mantra (Om X Namah), the
+//                     canonical navagraha beej (seed) mantra for those who want it, a well-known
+//                     stotra one can simply LISTEN to, and the planet's day. Selected per the
+//                     running MD+AD (+ afflicted anchor) combination — anyone, anywhere, no travel.
 //    4. temple      — the well-known navagrahaTemple (baseline) + a RESEARCH-BASED second
 //                     temple per domain (the FEATURED value). A DOMAIN_TEMPLES layer adds
 //                     domain-specific temples (e.g. the marriage temple) independent of planet.
@@ -21,7 +25,9 @@
 //
 //  Sources: OnlineJyotish, HinduTone (navagraha days/grains/temples), IndiaGlitz (Tamil
 //  home remedies), GoodStars Jyotish (daan-first framing), AstroVed & Wikipedia (marriage
-//  temples), classical Kalapurusha planet→body mappings.
+//  temples), classical Kalapurusha planet→body mappings. Beej mantras are the canonical
+//  navagraha seed mantras (standard across Jyotish texts); saguna mantras and stotras are
+//  the commonly-recited ones per planet — offered as optional practice, never a paid ritual.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PLANET_REMEDIES = {
@@ -31,6 +37,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Guard against ego-defensiveness and the urge to prove your authority; don't let pride — or hidden self-doubt — drive decisions.",
     daan: { item: "wheat, jaggery, or copper", day: "Sunday", cause: "elders, a father-figure, or education" },
     anchor: "Offer water to the rising sun (Surya Arghya) on Sundays; Om Suryaya Namah",
+    mantra: { saguna:"Om Suryaya Namah", beej:"Om Hraam Hreem Hraum Sah Suryaya Namah", listen:"the Aditya Hridayam, or any Surya stotra", day:"Sunday" },
     navagrahaTemple: "Suryanar Kovil, near Kumbakonam",
     bodyAreas: "heart, eyes, bones, vitality and immunity, blood pressure",
     careerFields: "government, administration, leadership, politics, authority roles",
@@ -45,6 +52,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Watch for mood swings and emotional over-dependence; don't make big decisions when unsettled — hold your routine and your rest first.",
     daan: { item: "rice, milk, or white cloth", day: "Monday", cause: "mothers, children, or the emotionally vulnerable" },
     anchor: "Spend quiet time near water or moonlight; Om Chandraya Namah",
+    mantra: { saguna:"Om Chandraya Namah", beej:"Om Shraam Shreem Shraum Sah Chandraya Namah", listen:"a Chandra stotra, or the Annapurna / Devi chants for a settled mind", day:"Monday" },
     navagrahaTemple: "Kailasanathar, Thingalur",
     bodyAreas: "mind and emotions, lungs and chest, stomach, body fluids; anxiety and low mood",
     careerFields: "hospitality, food, nursing, caregiving, counselling, public-facing work",
@@ -59,6 +67,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Don't let frustration spill into aggression — nor, the opposite way, harden into suppressed resentment; avoid forcing or rushing confrontations.",
     daan: { item: "toor dal (red lentils), red cloth, or jaggery", day: "Tuesday", cause: "siblings, soldiers, or physical-labour workers" },
     anchor: "Om Angarakaya Namah or the Hanuman Chalisa on Tuesdays",
+    mantra: { saguna:"Om Angarakaya Namah", beej:"Om Kraam Kreem Kraum Sah Bhaumaya Namah", listen:"the Hanuman Chalisa, or a Mangala / Subramanya stotra", day:"Tuesday" },
     navagrahaTemple: "Vaitheeswaran Koil, near Sirkazhi (Vaitheeswaran = 'God of healing')",
     bodyAreas: "blood and blood pressure, accidents, surgery, burns and inflammation, muscles",
     careerFields: "real estate, land, engineering, defence and police, surgery, sports",
@@ -73,6 +82,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Watch for overthinking, scattered speech and hasty commitments; double-check details and finish one thing before starting the next.",
     daan: { item: "green gram (moong) or green cloth", day: "Wednesday", cause: "students, education, or the differently-abled" },
     anchor: "Om Budhaya Namah or a Vishnu chant on Wednesdays",
+    mantra: { saguna:"Om Budhaya Namah", beej:"Om Braam Breem Braum Sah Budhaya Namah", listen:"the Vishnu Sahasranama, or a Budha stotra", day:"Wednesday" },
     navagrahaTemple: "Swetharanyeswarar, Thiruvenkadu (near Sirkazhi)",
     bodyAreas: "nerves, skin, speech, breathing/respiratory, mental balance",
     careerFields: "trade and commerce, accounts and finance, IT and software, writing, media, analysis",
@@ -87,6 +97,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Avoid over-optimism and over-expansion — over-promising, over-spending, over-indulging; don't bend your ethics for quick growth.",
     daan: { item: "chana (Bengal gram), turmeric, or yellow cloth", day: "Thursday", cause: "teachers, temples, or education" },
     anchor: "Om Gurave Namah on Thursdays; offer or wear yellow",
+    mantra: { saguna:"Om Gurave Namah", beej:"Om Graam Greem Graum Sah Gurave Namah", listen:"a Guru / Brihaspati stotra, or a Vishnu chant", day:"Thursday" },
     navagrahaTemple: "Apatsahayeswarar, Alangudi (the popular Guru Parihara Sthalam)",
     bodyAreas: "liver, diabetes, obesity, cholesterol, fat metabolism",
     careerFields: "teaching, banking, finance, law, advisory, spiritual and counselling work",
@@ -102,6 +113,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Avoid overindulgence in pleasure, comfort and spending, and the chase for intensity or validation through relationships; keep it simple and honest.",
     daan: { item: "white beans (mochai), sugar, or white cloth", day: "Friday", cause: "women's welfare or the arts" },
     anchor: "Keep fresh flowers at home; Om Shukraya Namah or a Lakshmi chant on Fridays",
+    mantra: { saguna:"Om Shukraya Namah", beej:"Om Draam Dreem Draum Sah Shukraya Namah", listen:"the Shri Suktam or a Lakshmi stotra", day:"Friday" },
     navagrahaTemple: "Agneeswarar, Kanjanur (the Venus navagraha temple — for Venus affliction generally)",
     bodyAreas: "reproductive system, kidneys, hormones, throat",
     careerFields: "arts, film, fashion, luxury goods, hospitality, design, beauty",
@@ -117,6 +129,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Guard against cynicism, chronic delay and cutting corners; don't withdraw from duty — steady, patient effort is the real antidote.",
     daan: { item: "black sesame, gingelly/mustard oil, or black cloth", day: "Saturday", cause: "the poor, the elderly, labourers, or the disabled" },
     anchor: "Light a sesame-oil lamp on Saturdays; Om Namah Shivaya or Om Shanaischaraya Namah",
+    mantra: { saguna:"Om Shanaischaraya Namah", beej:"Om Praam Preem Praum Sah Shanaischaraya Namah", listen:"the Dasharatha-krita Shani stotra, the Hanuman Chalisa, or Om Namah Shivaya", day:"Saturday" },
     navagrahaTemple: "Dharbaranyeswarar, Thirunallar (Karaikal)",
     bodyAreas: "bones, joints, teeth and knees, chronic and long-term illness, arthritis",
     careerFields: "service and employment, labour, manufacturing, construction, law, long-haul roles",
@@ -132,6 +145,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Watch for obsession, impulsive leaps, shortcuts and escapism (screens, intoxicants); slow right down before any big or irreversible move.",
     daan: { item: "urad (black gram) or a blanket", day: "Saturday (Rahu Kalam)", cause: "the marginalised or strangers in need" },
     anchor: "Ten minutes of silent breathwork before difficult conversations; Om Rahave Namah or Durga worship",
+    mantra: { saguna:"Om Rahave Namah", beej:"Om Bhraam Bhreem Bhraum Sah Rahave Namah", listen:"a Durga stotra, or the Kalabhairava ashtakam", day:"Saturday" },
     navagrahaTemple: "Naganathaswamy, Thirunageswaram",
     bodyAreas: "undiagnosed or mysterious illness, poisoning and allergies, phobias, viral fevers",
     careerFields: "technology, foreign trade, aviation, cinema, politics, research, speculation",
@@ -146,6 +160,7 @@ export const PLANET_REMEDIES = {
     whenWeak: "Watch for escapism, over-detachment and neglect of practical duties; stay gently engaged rather than abandoning things midway.",
     daan: { item: "horse gram (kollu) or multicoloured cloth", day: "Tuesday or Saturday", cause: "spiritual causes, strays, or the sick" },
     anchor: "Meditation or prayer; Om Ketave Namah, and Ganesha worship (Ketu's presiding deity)",
+    mantra: { saguna:"Om Ketave Namah", beej:"Om Sraam Sreem Sraum Sah Ketave Namah", listen:"a Ganesha stotra (Ketu's presiding deity), or the Ganapati Atharvashirsha", day:"Tuesday" },
     navagrahaTemple: "Naganathaswamy, Keezhaperumpallam (Poompuhar)",
     bodyAreas: "wounds, viral infections, psychosomatic or undiagnosed complaints",
     careerFields: "research, healing, spiritual and behind-the-scenes work, forensics",
