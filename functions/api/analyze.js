@@ -4515,12 +4515,16 @@ function buildFortuneDepth(d1P, d1LagnaSign, ninthLord, d9Houses, d9LagnaSign, v
     //    paternal and fortune blocks resolve in adulthood).
     let nakshatraGate=null;
     try{
-      const nakLordHouseOf=(p)=>{ const n=(compound&&compound.nakshatra||[]).find(x=>x.planet===p); return n?(n.lordHouse!=null?n.lordHouse:null):null; };
-      const checks=[l9,"Sun"].filter(Boolean).map(p=>nakLordHouseOf(p)).filter(h=>h!=null);
-      const stableCount=checks.filter(h=>[1,4,5,7,9,10,11].includes(h)).length;
-      if(checks.length) nakshatraGate={ stable: stableCount>=1,
-        note: stableCount>=1?"the nakshatra dispositors of your fortune and paternal significators rest in supportive houses — early blocks around luck or the father tend to resolve well in adulthood"
-          :"the nakshatra dispositors ask for patience — fortune and paternal themes settle later, through steady alignment rather than early ease" };
+      const nakInfo=(p)=>{ const n=(compound&&compound.nakshatra||[]).find(x=>x.planet===p); return n?{nakshatra:n.nakshatra, starLord:n.lord, starLordHouse:(n.lordHouse!=null?n.lordHouse:null)}:null; };
+      // The SOP's star-lord gate names the actual nakshatra + star-lord of BOTH the 9th lord and the
+      // Sun, so the writer can cite them (not just an abstract 'dispositors rest well' line).
+      // role label carries the planet (e.g. "9th lord Mars") so it is self-contained — a bare
+      // "9th lord" would read as an unnamed-lord reference.
+      const details=[["9th lord",l9],["the Sun","Sun"]].map(([lbl,p])=>{ const info=p?nakInfo(p):null; return info?{role:(p==="Sun"?"the Sun":lbl+" "+p),planet:p,...info}:null; }).filter(Boolean);
+      const stableCount=details.filter(d=>d.starLordHouse!=null&&[1,4,5,7,9,10,11].includes(d.starLordHouse)).length;
+      if(details.length) nakshatraGate={ stable: stableCount>=1, details,
+        note: stableCount>=1?"the nakshatra star-lords of your fortune and paternal significators rest in supportive houses — early blocks around luck or the father tend to resolve well in adulthood"
+          :"the nakshatra star-lords ask for patience — fortune and paternal themes settle later, through steady alignment rather than early ease" };
     }catch(_){}
 
     // ── Phase 2.1 — D12 (Dwadashamsha) lineage lens: D12 lagna/lord, D12 9th + Sun, D1 9th lord in D12.
@@ -4560,16 +4564,41 @@ function buildFortuneDepth(d1P, d1LagnaSign, ninthLord, d9Houses, d9LagnaSign, v
     else if(d1StrongAny && d9WeakAny) maturation={ dir:"self-reliance", note:"early advantages or inherited support gradually hand over to self-reliance, testing whether you live your values under pressure — the second half rewards integrity over inheritance" };
     else maturation={ dir:"steady", note:"a fairly steady dharmic arc — purpose and fortune unfold through consistent alignment with your values rather than one dramatic turning point" };
 
-    // ── Phase 3.1 — the 3-9 axis (self-reliance vs trusting grace/mentors).
+    // ── Phase 3.1 — the 3-9 axis (self-reliance vs trusting grace/mentors). MANDATORY: always
+    //    substantive. With a node on the 3-9 axis it reads the nodal pull; otherwise it reads the
+    //    relationship between the 3rd lord (self-effort) and the 9th lord (grace/mentors) DIRECTLY,
+    //    so the writer always has the real domain axis and never has to fall back to a generic one.
     let axis39=null;
-    if(hof("Rahu")===3&&hof("Ketu")===9) axis39={ pole:"hustle", note:"with Rahu in the 3rd and Ketu in the 9th, the pull is to believe everything depends on your own hustle and to resist guidance — the growth is in letting trusted mentors and grace back in" };
-    else if(hof("Ketu")===3&&hof("Rahu")===9) axis39={ pole:"seeker", note:"with Ketu in the 3rd and Rahu in the 9th, the pull is to chase grand philosophies or external gurus while neglecting grounded daily execution — the growth is in doing the small, consistent work" };
-    else { const r=((9-3)); const ang= l3&&l9 ? (((hof(l9)-hof(l3))+12)%12) : null; axis39={ pole:"balanced", note:"the self-reliance–vs–trusting-grace axis is reasonably balanced for you — the practice is simply noticing which way you tip under stress and correcting toward the other" }; }
+    if(hof("Rahu")===3&&hof("Ketu")===9) axis39={ pole:"hustle", l3, l9, note:"with Rahu in the 3rd and Ketu in the 9th, the pull is to believe everything depends on your own hustle and to resist guidance — the growth is in letting trusted mentors and grace back in" };
+    else if(hof("Ketu")===3&&hof("Rahu")===9) axis39={ pole:"seeker", l3, l9, note:"with Ketu in the 3rd and Rahu in the 9th, the pull is to chase grand philosophies or external gurus while neglecting grounded daily execution — the growth is in doing the small, consistent work" };
+    else {
+      const h3=hof(l3), h9=hof(l9);
+      const together = l3&&l9&&h3&&h9&&h3===h9;
+      const dusthanaBoth = together && [6,8,12].includes(h3);
+      let note, pole;
+      if(together && dusthanaBoth){ pole="entangled"; note="your initiative-ruler ("+l3+", the 3rd lord of self-effort) and your fortune-ruler ("+l9+", the 9th lord of grace) sit together in the "+ordinalD(h3)+" — a house of depth and testing — so hustle and grace are entangled: fortune here is earned through effort under pressure, and the lesson is to trust mentors and timing rather than force everything through sheer will"; }
+      else if(together){ pole="entangled"; note="your 3rd lord of self-effort ("+l3+") and your 9th lord of fortune ("+l9+") sit together in the "+ordinalD(h3)+" — self-reliance and grace are closely tied for you; the lesson is letting your own effort and good counsel work as partners rather than choosing one over the other"; }
+      else if(l3&&l9&&h3&&h9&&(aspectsHouse(l3,h3,h9)||aspectsHouse(l9,h9,h3))){ pole="dialogue"; note="your 3rd lord ("+l3+") and 9th lord ("+l9+") are in dialogue across the chart — your own drive and the grace of mentors keep calling on each other; the lesson is to honour both, leaning on guidance without surrendering your initiative"; }
+      else { pole="independent"; note="the self-reliance-and-trusting-grace axis runs more independently in your chart — your 3rd lord of effort ("+l3+") and 9th lord of fortune ("+l9+") move on their own tracks; the practice is noticing which way you tip under stress — over-hustling or over-waiting for grace — and correcting toward balance"; }
+      axis39={ pole, l3, l9, note };
+    }
 
-    // ── Phase 3.2 — Sun-Saturn / Pitru lineage axis (conscious lineage lesson).
-    const lineageAxis = (sunSaturn || (hof("Sun")&&hof("Saturn")&&[6,8].includes((((hof("Saturn")-hof("Sun"))+12)%12)+0)))
-      ? { present:true, note:"a Sun-Saturn lineage thread sets the lesson of conscious lineage — honouring what was genuinely good in your upbringing while deliberately releasing inherited rigidity, fear or unspoken expectation" }
-      : { present:false, note:"the lineage lesson is lighter here — carry forward the strengths of your upbringing and set down what no longer serves, without a heavy generational knot to untie" };
+    // ── Phase 3.2 — Sun-Saturn / Pitru lineage axis (conscious lineage lesson). MANDATORY and ALWAYS
+    //    evaluated: classify the Sun-Saturn relationship by house-distance (conjunction / opposition /
+    //    5-9 trine / 6-8 shadashtaka / other) so the Pitru axis is never dropped just because it is a
+    //    trine or aspect rather than a conjunction (the earlier version only caught conj + 6-8).
+    const sunHh=hof("Sun"), satHh=hof("Saturn");
+    let lineageAxis;
+    if(sunHh&&satHh){
+      const dSS=(((satHh-sunHh)+12)%12); // Saturn's house-distance from the Sun (0..11)
+      let rel, note;
+      if(dSS===0){ rel="conjunction"; note="Sun and Saturn sit together — a close, weighty paternal/lineage imprint; the lesson of conscious lineage is honouring the discipline and duty you inherited while releasing its rigidity, fear or unspoken expectation"; }
+      else if(dSS===6){ rel="opposition"; note="Sun opposite Saturn — authority and duty pull against each other across your chart; the lesson of conscious lineage is balancing inherited expectation with your own integrity, neither rebelling against nor submitting to the paternal weight"; }
+      else if(dSS===4||dSS===8){ rel="trine"; note="Sun and Saturn hold a supportive 5/9 trine — inherited authority and patient discipline tend to work with you; the lesson of conscious lineage is to carry forward the genuine strengths of your upbringing (duty, integrity, earned authority) while gently setting down any inherited heaviness"; }
+      else if(dSS===5||dSS===7){ rel="6-8"; note="Sun and Saturn sit in a 6-8 (shadashtaka) angle — some friction between personal authority and inherited duty; the lesson of conscious lineage is honouring what was good in your upbringing while consciously releasing its rigidity, fear or unspoken expectation"; }
+      else { rel="soft"; note="the Sun (authority, the father) and Saturn (duty, discipline, the lineage's weight) hold a quieter relationship in your chart; the lesson of conscious lineage is simply to carry forward the strengths of your upbringing and set down what no longer serves, without a heavy generational knot to untie"; }
+      lineageAxis={ present:true, rel, note };
+    } else lineageAxis={ present:false, note:"the lineage lesson is lighter here — carry forward the strengths of your upbringing and set down what no longer serves" };
 
     // ── Phase 3.3 — Badhakesh (FIXED lagnas only): the 9th house is the Badhakasthana and the 9th lord
     //    is Badhakesh → the "earned grace" lesson (genuine fortune, but through delays and tests).
