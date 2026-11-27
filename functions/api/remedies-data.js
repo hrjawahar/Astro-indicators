@@ -163,6 +163,10 @@ export const DOMAIN_TEMPLES = {
     primary: "Thirumanancheri Sri Kalyanasundareswarar — the classic Tamil Nadu temple for marriage, where Shiva is worshipped as the bridegroom; visited for timely marriage and a harmonious married life",
     harmony: "Thiruvidaimarudur Mahalingaswamy / Thiruvedhikudi Vedapureeswarar — for marriage delay, married-life difficulty and Chevvai (Mars) dosha affecting marriage",
   },
+  wealth: {
+    primary: "Mahalakshmi (Ambabai) Temple, Kolhapur — a Shakti Peetha and one of the most established Lakshmi shrines in the tradition, worshipped for prosperity and the grace of wealth",
+    flow: "A Lakshmi–Kubera shrine (Lakshmi worshipped alongside Kubera, treasurer of the gods) — for the holding and steady circulation of wealth, not only its arrival; worshipped for retention and cash-flow rather than a sudden gain",
+  },
 };
 
 // Commonly-cited general temples — used when the chart is unclear or several planets are

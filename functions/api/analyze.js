@@ -6310,21 +6310,25 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
       const domTemple = (kb.temples && kb.temples[domainKey]) || "";
       // upcoming window for this planet (never a past one)
       const upWin = kw2.find(w=>(w.ad===p||w.md===p) && w.upcoming);
+      const adYears = (curAD && curAD.years) ? curAD.years : "";
       return {
-        planet:p, kind,                                        // "ongoing" | "active-phase"
-        activePhase: kind==="active-phase",
+        planet:p, kind,                                        // "active-phase"(MD) | "sub-phase"(AD) | "ongoing"
+        activePhase: kind!=="ongoing",                         // MD and AD are both the CURRENT weather
         reason: deb ? (p+" is weak (debilitated) in your chart")
               : inDusthana ? (p+" sits in your "+ordinalD(pp.house)+" house, a house of testing")
+              : kind==="sub-phase" ? (p+" is the planet running your current sub-phase")
               : (p+" is the planet currently running in your life"),
-        role: p===karakaPlanet ? ("the "+cfg.karaka+", your "+cfg.focus+" significator")
+        role: p===karakaPlanet ? ("the "+karakaRole+", your "+cfg.focus+" significator")
               : p===hLord ? (p+", the ruler of your "+ordinalD(cfg.house)+" house of "+cfg.focus)
               : occupants.some(o=>o.planet===p) ? ("placed in your "+ordinalD(cfg.house)+" house of "+cfg.focus)
-              : (kind==="active-phase" ? "the planet governing your current life-phase" : "active in this area"),
-        // active-phase → the live MD window; ongoing weakness → nearest upcoming window if
-        // any, otherwise framed as an ongoing habit (no misleading past date).
-        window: kind==="active-phase" ? curYears : (upWin ? upWin.years : ""),
+              : (kind==="active-phase" ? "the planet governing your current main period" : kind==="sub-phase" ? "the planet governing your current sub-period" : "active in this area"),
+        // active-phase → the live MD window; sub-phase → the live AD window; ongoing weakness →
+        // nearest upcoming window if any, else framed as an ongoing habit (no misleading past date).
+        window: kind==="active-phase" ? curYears : kind==="sub-phase" ? adYears : (upWin ? upWin.years : ""),
         whenActive: kind==="active-phase"
-          ? ("now — you are in the "+p+" main phase"+(curYears?(" ("+curYears+")"):"")+(curAD?(", "+curAD.ad+" sub-phase "+curAD.years):""))
+          ? ("now — you are in the "+p+" main phase"+(curYears?(" ("+curYears+")"):""))
+          : kind==="sub-phase"
+          ? ("now — the "+p+" sub-phase within your "+(curLord||"")+" main period"+(adYears?(" ("+adYears+")"):""))
           : (upWin ? ("most concentrated around the "+upWin.years+" window") : "an ongoing habit for this area, worth holding steadily rather than tied to one date"),
         ongoing: kind==="ongoing",
         behavioral: kb.behavioral,
@@ -6335,15 +6339,32 @@ function buildDomainFacts(domainKey, d1Degrees, d1LagnaSign, d9Houses, d9LagnaSi
         bodyAreas: kb.bodyAreas,
       };
     };
-    // (1) pick the single weakest domain focus planet (prefer debilitated, then dusthana)
+    // Remedy target selection = the CURRENT running MD lord + AD lord, read THROUGH the domain
+    // (SOP + build fundamentals). Planet 1 is always the MD lord. Planet 2 is the AD lord — unless
+    // the AD lord is both off-topic for this domain AND carries no friction while an actually
+    // afflicted domain significator (Badhakesh / combust / debilitated / dusthana) exists, in which
+    // case that structural anchor takes Planet 2 so the remedy stays domain-relevant.
     const focusSet = [...new Set([karakaPlanet, hLord, ...occupants.map(o=>o.planet)].filter(Boolean))];
-    const weakFocus = focusSet.map(p=>({p,pp:d1P[p]})).filter(x=>x.pp && PLANET_REMEDIES[x.p] &&
-        (x.pp.dignity==="Debilitated" || [6,8,12].includes(x.pp.house)))
-      .sort((a,b)=> (a.pp.dignity==="Debilitated"?0:1)-(b.pp.dignity==="Debilitated"?0:1));
-    const ongoingPick = weakFocus.length ? mkPick(weakFocus[0].p, "ongoing") : null;
-    // (2) active-phase pick = current Mahadasha lord (skip if it IS the ongoing pick)
-    const activePick = (curLord && curLord!==(ongoingPick&&ongoingPick.planet)) ? mkPick(curLord, "active-phase") : null;
-    const picks = [activePick, ongoingPick].filter(Boolean);
+    const _li2 = V_SIGNS.indexOf(d1LagnaSign);
+    const _badhakaHouse = [0,3,6,9].includes(_li2) ? 11 : [1,4,7,10].includes(_li2) ? 9 : 7; // movable/fixed/dual
+    const badhakeshLord = houseLord(d1LagnaSign, _badhakaHouse);
+    const isCombust = (p)=> (compound && compound.combustion || []).some(c=>c.planet===p);
+    const hasFriction = (p)=>{ const pp=d1P[p]; if(!pp) return false; return pp.dignity==="Debilitated" || [6,8,12].includes(pp.house) || isCombust(p) || p===badhakeshLord; };
+    const frictionScore = (p)=>{ const pp=d1P[p]; if(!pp) return 0; let s=0; if(pp.dignity==="Debilitated")s+=3; if([6,8,12].includes(pp.house))s+=1; if(isCombust(p))s+=2; if(p===badhakeshLord)s+=2; return s; };
+    const domainRelevant = (p)=> p===karakaPlanet || p===hLord || occupants.some(o=>o.planet===p) || (d1P[p] && aspectsHouse(p, d1P[p].house, cfg.house));
+    // the worst-afflicted domain significator (not the MD lord) — the structural anchor fallback
+    const anchorCand = focusSet.filter(p=>p!==curLord && PLANET_REMEDIES[p] && hasFriction(p))
+      .sort((a,b)=> frictionScore(b)-frictionScore(a))[0] || null;
+    const p1 = curLord ? mkPick(curLord, "active-phase") : null;
+    const adLord = (dashaTiming && dashaTiming.currentAD) ? dashaTiming.currentAD.ad : null;
+    let p2 = null;
+    if(adLord && adLord!==curLord){
+      const adOnTopicOrAfflicted = domainRelevant(adLord) || hasFriction(adLord);
+      p2 = (adOnTopicOrAfflicted || !anchorCand) ? mkPick(adLord, "sub-phase") : mkPick(anchorCand, "ongoing");
+    } else if(anchorCand){
+      p2 = mkPick(anchorCand, "ongoing");   // MD==AD (dasha start) or no AD: fall to the domain anchor
+    }
+    const picks = [p1, p2].filter(Boolean);
     // Domain-level temple (e.g. the marriage temple) — surfaced whenever a remedy is raised.
     const domainTemple = (DOMAIN_TEMPLES && DOMAIN_TEMPLES[domainKey]) || null;
     if(picks.length) remedyFacts={ focus:picks.slice(0,2), general:GENERAL_TEMPLES, domainTemple };  // 1–2 remedies
